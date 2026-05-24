@@ -164,6 +164,29 @@ def create_app(config="CTFd.config.Config"):
     with app.app_context():
 
         app.config.from_object(config)
+
+        # ============================================================
+        # ⚠️  DEBUG MODE — CHỈ DÙNG KHI TEST TRÊN PRODUCTION
+        # ============================================================
+        # Bật các flag này để Flask hiện traceback chi tiết khi có lỗi,
+        # thay vì trang 500 rỗng.
+        #
+        # CẢNH BÁO BẢO MẬT:
+        #   - DEBUG = True kích hoạt Werkzeug interactive debugger:
+        #     bất kỳ ai có URL lỗi đều có thể chạy code Python tùy ý!
+        #   - Chỉ dùng khi server production không public ra Internet,
+        #     hoặc đã giới hạn IP truy cập (nginx allow/deny).
+        #   - XÓA HOẶC ĐẶT LẠI = False trước khi deploy production thật.
+        #
+        # Để tắt: xóa hoặc comment toàn bộ block này.
+        # ============================================================
+        app.config["DEBUG"] = True                  # Hiện traceback + Werkzeug debugger
+        app.config["PROPAGATE_EXCEPTIONS"] = True   # Đảm bảo exception không bị nuốt
+        app.config["TESTING"] = False               # Không bật TESTING (ảnh hưởng session)
+        # ============================================================
+        # END DEBUG MODE BLOCK
+        # ============================================================
+
         app.config["CACHE_TYPE"] = "redis"
         redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
         if redis_url.startswith("rediss://") and "ssl_cert_reqs=" not in redis_url:
