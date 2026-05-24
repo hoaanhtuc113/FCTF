@@ -1011,8 +1011,7 @@ aeUsernameInput.addEventListener('input', function() {
         return;
     }
     aeSearchTimeout = setTimeout(() => {
-        let field = q.includes('@') ? 'email' : 'name';
-        fetch(`/api/v1/users?view=admin&field=${field}&q=` + encodeURIComponent(q), {
+        fetch(`/admin/contests/{{ contest.id }}/users_search?q=` + encodeURIComponent(q), {
             headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' }
         })
         .then(res => res.json())

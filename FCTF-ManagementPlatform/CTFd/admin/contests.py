@@ -1322,6 +1322,45 @@ def contest_teams_search(contest_id):
     }
 
 
+@admin.route("/admin/contests/<int:contest_id>/users_search", methods=["GET"])
+@admins_only
+def contest_users_search(contest_id):
+    from CTFd.models import Teams, UserTeamMember, Users
+    from sqlalchemy import or_
+
+    q = request.args.get("q", "").strip()
+    if not q:
+        return {"success": True, "data": []}
+
+    users_in_contest = (
+        db.session.query(UserTeamMember.user_id)
+        .join(Teams, Teams.id == UserTeamMember.team_id)
+        .filter(Teams.contest_id == contest_id)
+    )
+
+    users = (
+        Users.query
+        .filter(
+            ~Users.id.in_(users_in_contest),
+            or_(
+                Users.name.ilike(f"%{q}%"),
+                Users.email.ilike(f"%{q}%"),
+            ),
+        )
+        .order_by(Users.name.asc())
+        .limit(10)
+        .all()
+    )
+
+    return {
+        "success": True,
+        "data": [
+            {"id": user.id, "name": user.name, "email": user.email}
+            for user in users
+        ],
+    }
+
+
 @admin.route("/admin/contests/<int:contest_id>/users/new")
 @admins_only
 def contest_users_new(contest_id):
