@@ -34,10 +34,24 @@ class SandboxDefinitionList(Resource):
     method_decorators = [admins_only]
 
     def get(self):
-        """Fetch the list of sandbox definitions from KYPO."""
+        """Fetch the list of sandbox definitions from KYPO, always returns a flat list."""
         try:
-            data = kypo_service.list_sandbox_definitions()
-            return {"success": True, "data": data}, 200
+            raw = kypo_service.list_sandbox_definitions()
+            # KYPO may return a Spring-paginated object {content:[...]} or a plain list
+            if isinstance(raw, list):
+                items = raw
+            elif isinstance(raw, dict):
+                items = (
+                    raw.get("content")
+                    or raw.get("results")
+                    or raw.get("data")
+                    or []
+                )
+                if not isinstance(items, list):
+                    items = []
+            else:
+                items = []
+            return {"success": True, "data": items}, 200
         except Exception as e:
             return {"success": False, "error": str(e)}, 502
 
@@ -200,6 +214,43 @@ class PoolDetail(Resource):
         db.session.delete(pool)
         db.session.commit()
         return {"success": True}, 200
+
+
+@kypo_namespace.route("/contests/<int:contest_id>/sandboxes")
+class ContestSandboxList(Resource):
+    method_decorators = [admins_only]
+
+    def get(self, contest_id):
+        """
+        Aggregate all sandbox allocation units across every pool of this contest.
+        Each item includes the pool_id it belongs to.
+        """
+        Contests.query.filter_by(id=contest_id).first_or_404()
+        pools = Pool.query.filter_by(contest_id=contest_id).all()
+
+        all_sandboxes = []
+        for pool in pools:
+            try:
+                raw = kypo_service.get_pool_allocation_units(pool.pool_id)
+                # KYPO may return a paginated object or a plain list
+                if isinstance(raw, list):
+                    units = raw
+                elif isinstance(raw, dict):
+                    units = (
+                        raw.get("content")
+                        or raw.get("data")
+                        or raw.get("items")
+                        or []
+                    )
+                else:
+                    units = []
+                for unit in units:
+                    unit["kypo_pool_id"] = pool.pool_id
+                    all_sandboxes.append(unit)
+            except Exception:
+                pass
+
+        return {"success": True, "data": all_sandboxes}, 200
 
 
 @kypo_namespace.route("/contests/<int:contest_id>/pools/<int:kypo_pool_id>/status")

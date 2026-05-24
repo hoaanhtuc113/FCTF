@@ -313,6 +313,7 @@ def create_app(config="CTFd.config.Config"):
         from CTFd.StartChallenge import challenge
         from CTFd.DeployHistory import challengeHistory
         from CTFd.ManageInstances import ManageInstance
+        from CTFd.SendTicketRoute import sendticket
 
         app.register_blueprint(views)
         app.register_blueprint(auth)
@@ -322,6 +323,7 @@ def create_app(config="CTFd.config.Config"):
         app.register_blueprint(challengeHistory)
         app.register_blueprint(admin)
         app.register_blueprint(ManageInstance)
+        app.register_blueprint(sendticket)
 
         for code in {403, 404, 500, 502}:
             app.register_error_handler(code, render_error)
