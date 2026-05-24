@@ -457,7 +457,7 @@
     <!-- Status Bar -->
     <div class="kypo-status-bar">
         <div class="kypo-dot"></div>
-        KYPO connection established &rarr; <strong>https://vuontre.iahn.hanoi.vn</strong>
+        Connected to KYPO &rarr; <strong>https://vuontre.iahn.hanoi.vn</strong>
     </div>
 
     <!-- Tabs -->
@@ -469,10 +469,8 @@
     <!-- ══ TAB: Sandbox Definitions ══ -->
     <div id="kypo-tab-definitions" class="kypo-tab-pane">
         <div class="kypo-toolbar">
-            <span class="kypo-toolbar-hint">Sandbox Definition = lab configuration from a Git repository. KYPO clones
-                the repo and builds the virtual-machine environment from it.</span>
-            <button class="kypo-btn kypo-btn-primary" onclick="kypoOpenModal('kypo-modal-def')">+ Create
-                Definition</button>
+            <span class="kypo-toolbar-hint">Sandbox Definition = a lab configuration from a Git repository. KYPO clones the repo and builds the VM environment from it.</span>
+            <button class="kypo-btn kypo-btn-primary" onclick="kypoOpenModal('kypo-modal-def')">+ Create Definition</button>
         </div>
         <div id="kypo-def-list">
             <div class="kypo-card" style="text-align:center;color:var(--text-light)">Loading...</div>
@@ -482,8 +480,7 @@
     <!-- ══ TAB: Pools ══ -->
     <div id="kypo-tab-pools" class="kypo-tab-pane active">
         <div class="kypo-toolbar">
-            <span class="kypo-toolbar-hint">Pool = a set of sandboxes allocated from one Definition. The pool controls
-                how many teams can play at the same time.</span>
+            <span class="kypo-toolbar-hint">Pool = a set of sandboxes allocated from one Definition. The pool determines how many teams can play simultaneously.</span>
             <button class="kypo-btn kypo-btn-primary" onclick="kypoOpenModal('kypo-modal-pool')">+ Create Pool</button>
         </div>
         <div id="kypo-pool-list">
@@ -505,8 +502,7 @@
             <button class="kypo-modal-close" onclick="kypoCloseModal('kypo-modal-def')">&times;</button>
         </div>
         <div class="kypo-modal-body">
-            <div class="kypo-info-box">&#8505; KYPO will clone the repository and build the sandbox. Make sure the repo contains
-                <code>topology.yml</code>.
+            <div class="kypo-info-box">&#8505; KYPO will clone the repo and build the sandbox. Make sure the repo contains a <code>topology.yml</code> file.
             </div>
             <div class="kypo-form-group">
                 <label class="kypo-form-label">Git Repository URL *</label>
@@ -522,8 +518,8 @@
                 </div>
                 <div class="kypo-col">
                     <div class="kypo-form-group">
-                        <label class="kypo-form-label">Display name</label>
-                        <input class="kypo-form-control" type="text" placeholder="Automatically derived from the repository name">
+                        <label class="kypo-form-label">Display Name</label>
+                        <input class="kypo-form-control" type="text" placeholder="Auto-detected from repo name">
                     </div>
                 </div>
             </div>
@@ -582,7 +578,7 @@
     </div>
 </div>
 
-<!-- Modal: Allocate a specific number -->
+<!-- Modal: Allocate specific count -->
 <div class="kypo-modal-overlay" id="kypo-modal-allocate" onclick="kypoOverlayClose(event,'kypo-modal-allocate')">
     <div class="kypo-modal">
         <div class="kypo-modal-hd">
@@ -592,7 +588,7 @@
         <div class="kypo-modal-body">
             <input type="hidden" id="allocate-pool-id">
             <div class="kypo-form-group">
-                <label class="kypo-form-label">Number of sandboxes to allocate *</label>
+                <label class="kypo-form-label">Number of Sandboxes to Allocate *</label>
                 <input class="kypo-form-control" id="allocate-count" type="number" value="1" min="1">
                 <div class="kypo-form-hint">KYPO will create additional sandbox VMs from this pool.</div>
             </div>
@@ -706,9 +702,10 @@
                 return;
             }
 
-            const items = Array.isArray(json.data) ? json.data
-                : (json.data && json.data.results) ? json.data.results
-                    : (json.data && json.data.content) ? json.data.content : [];
+            const raw = json.data || [];
+            const items = Array.isArray(raw) ? raw
+                : (raw.content  ? raw.content
+                : (raw.results  ? raw.results : []));
 
             if (!items.length) {
                 list.innerHTML = '<div class="kypo-card" style="text-align:center;color:var(--text-light)">No Sandbox Definitions found on KYPO</div>';
@@ -738,7 +735,7 @@
             ['pool-def-id', 'edit-pool-def-id'].forEach(function (selId) {
                 var sel = document.getElementById(selId);
                 if (sel) {
-                    sel.innerHTML = '<option value="">-- Select Definition --</option>' +
+                    sel.innerHTML = '<option value="">-- Select a Definition --</option>' +
                         items.map(function (d) {
                             return '<option value="' + d.id + '">' + (d.name || d.title) + ' (ID: ' + d.id + ')</option>';
                         }).join('');
@@ -778,7 +775,7 @@
                     '<span class="kypo-card-id">KYPO Pool ID: ' + pid + '</span>' +
                     '</div><div class="kypo-card-actions">' +
                     '<button class="kypo-icon-btn" title="Edit pool" onclick="editPool(' + pid + ')" style="font-size:15px">&#9998;</button>' +
-                    '<button class="kypo-icon-btn" title="Allocate a specific number" onclick="allocateSpecific(' + pid + ')" style="font-size:15px">&#9776;</button>' +
+                    '<button class="kypo-icon-btn" title="Allocate specific count" onclick="allocateSpecific(' + pid + ')" style="font-size:15px">&#9776;</button>' +
                     '<button class="kypo-icon-btn" title="Allocate +1" onclick="allocateOne(' + pid + ')" style="font-size:11px;font-weight:700">+1</button>' +
                     '<button class="kypo-icon-btn k-danger" title="Delete pool" onclick="deletePool(' + pid + ')" style="font-size:15px">&#128465;</button>' +
                     '<button class="kypo-icon-btn" title="Toggle resource limit" onclick="toggleResourceLimit(' + pid + ')" style="font-size:15px">&#128274;</button>' +
@@ -799,7 +796,7 @@
         }
     }
 
-    // ── Load pool details from KYPO ───────────────────────────────
+    // ── Load pool detail from KYPO ────────────────────────────────
     async function loadPoolDetail(kypoPoolId) {
         try {
             const resp = await fetch('/api/v1/kypo/contests/' + CONTEST_ID + '/pools/' + kypoPoolId, {
@@ -831,7 +828,7 @@
         } catch (e) { }
     }
 
-    // ── Submit: Create Sandbox Definition ────────────────────────
+    // ── Submit: Create Sandbox Definition ───────────────────────────
     async function kypoSubmitSandboxDef() {
         var gitUrl = document.getElementById('def-git-url').value.trim();
         var rev = document.getElementById('def-git-revision').value.trim() || 'main';
@@ -857,7 +854,7 @@
         }
     }
 
-    // ── Submit: Create Pool ──────────────────────────────────────
+    // ── Submit: Create Pool ──────────────────────────────────────────
     async function kypoSubmitPool() {
         var defId = document.getElementById('pool-def-id').value;
         var comment = document.getElementById('pool-comment').value.trim();
@@ -953,7 +950,7 @@
             });
             const json = await resp.json();
             if (resp.ok) {
-                kypoToast('✓ Allocated ' + count + ' sandbox(es) successfully', 'success');
+                kypoToast('✓ ' + count + ' sandbox(es) allocated successfully', 'success');
                 loadPoolDetail(parseInt(pid));
             } else {
                 kypoToast('Error: ' + (json.error || 'Allocation failed'), 'error');
@@ -971,7 +968,7 @@
             });
             const json = await resp.json();
             if (resp.ok) {
-                kypoToast('✓ Allocation completed successfully', 'success');
+                kypoToast('✓ Allocated successfully', 'success');
                 loadPoolDetail(kypoPoolId);
             } else {
                 kypoToast('Error: ' + (json.error || 'Allocation failed'), 'error');
@@ -980,7 +977,7 @@
     }
 
     async function toggleResourceLimit(kypoPoolId) {
-        kypoToast('Changing resource limit...');
+        kypoToast('Toggling resource limit...');
         try {
             const resp = await fetch('/api/v1/kypo/contests/' + CONTEST_ID + '/pools/' + kypoPoolId + '/lock', {
                 method: 'POST',
@@ -988,7 +985,7 @@
             });
             const json = await resp.json();
             if (resp.ok) {
-                kypoToast('✓ Resource limit changed successfully', 'success');
+                kypoToast('✓ Resource limit toggled successfully', 'success');
                 loadPoolDetail(kypoPoolId);
             } else {
                 kypoToast('Error: ' + (json.error || 'Failed'), 'error');
@@ -1013,7 +1010,7 @@
         } catch (e) { kypoToast('Error: ' + e.message, 'error'); }
     }
 
-    // ── Startup ──────────────────────────────────────────────────
+    // ── Initialization ─────────────────────────────────────────────────
     document.addEventListener('DOMContentLoaded', function () {
         loadSandboxDefinitions();
         loadPools();

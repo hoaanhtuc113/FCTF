@@ -483,6 +483,19 @@ def themes_beta(theme, path):
     abort(404)
 
 
+@views.route("/scoreboard")
+def scoreboard():
+    from CTFd.utils.scores import get_standings
+    from CTFd.utils.config.visibility import accounts_visible, scores_visible
+
+    # If score or account visibility is restricted, still render the page
+    # (the API handles the actual data visibility checks)
+    return render_template(
+        "scoreboard.html",
+        fastestSubmissions=[],  # JS fetches from /api/v1/scoreboard/fastest_submissions/5
+    )
+
+
 @views.route("/healthcheck")
 def healthcheck():
     if check_database() is False:

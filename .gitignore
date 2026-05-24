@@ -1,3 +1,6 @@
+# Local dev overrides (personal machine config, not committed)
+docker-compose.local.yml
+
 # Logs
 logs
 *.log

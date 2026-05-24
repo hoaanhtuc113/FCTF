@@ -194,7 +194,7 @@ Override the entire sidebar block with contest-scoped navigation
     </a>
 
     <a href="{{ url_for('admin.contest_challenges', contest_id=contest.id) }}"
-        class="nav-link {% if request.endpoint in ['admin.contest_challenges', 'admin.contest_import_challenges', 'admin.contest_challenge_detail', 'admin.contest_challenges_new'] %}active{% endif %}">
+        class="nav-link {% if request.endpoint in ['admin.contest_challenges', 'admin.contest_import_challenges', 'admin.contest_challenge_detail', 'admin.contest_challenges_new', 'admin.contest_sandbox_challenge_new'] %}active{% endif %}">
         <i class="bx bx-book"></i> Challenges
     </a>
 
