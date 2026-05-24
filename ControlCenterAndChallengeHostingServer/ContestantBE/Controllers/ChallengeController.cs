@@ -28,6 +28,7 @@ public class ChallengeController : BaseController
     private readonly RedisLockHelper _redisLockHelper;
     private readonly AppLogger _userBehaviorLogger;
     private readonly IActionLogsServices _actionLogsServices;
+    private readonly KypoService _kypoService;
 
     public ChallengeController(
         IUserContext userContext,
@@ -38,7 +39,8 @@ public class ChallengeController : BaseController
         RedisHelper redisHelper,
         RedisLockHelper redisLockHelper,
         AppLogger userBehaviorLogger,
-        IActionLogsServices actionLogsServices) : base(userContext)
+        IActionLogsServices actionLogsServices,
+        KypoService kypoService) : base(userContext)
     {
         _context = context;
         _configHelper = configHelper;
@@ -48,6 +50,7 @@ public class ChallengeController : BaseController
         _redisLockHelper = redisLockHelper;
         _userBehaviorLogger = userBehaviorLogger;
         _actionLogsServices = actionLogsServices;
+        _kypoService = kypoService;
     }
 
     private static bool IsDuplicateKey(DbUpdateException ex)
@@ -1081,5 +1084,42 @@ public class ChallengeController : BaseController
             (int)HttpStatusCode.NotFound => NotFound(response),
             _ => StatusCode((int)response.status, response)
         };
+    }
+
+    [HttpGet("{challengeId}/sandbox-ssh")]
+    [DuringCtfTimeAndAfterOnly]
+    public async Task<IActionResult> DownloadSandboxSshConfig(int challengeId)
+    {
+        var challenge = await _context.Challenges
+            .AsNoTracking()
+            .FirstOrDefaultAsync(c => c.Id == challengeId);
+
+        if (challenge == null)
+            return NotFound(new { error = "Challenge not found" });
+
+        if (challenge.Type != "sandbox")
+            return BadRequest(new { error = "This challenge is not a sandbox challenge" });
+
+        var sandboxChallenge = await _context.SandboxChallenges
+            .AsNoTracking()
+            .FirstOrDefaultAsync(s => s.Id == challengeId);
+
+        if (sandboxChallenge?.PoolId == null)
+            return NotFound(new { error = "No pool configured for this challenge" });
+
+        if (string.IsNullOrEmpty(ContestantBEConfigHelper.KypoAdminUser) ||
+            string.IsNullOrEmpty(ContestantBEConfigHelper.KypoAdminPass))
+            return StatusCode(503, new { error = "KYPO integration is not configured" });
+
+        try
+        {
+            var zipBytes = await _kypoService.DownloadPoolSshConfig(sandboxChallenge.PoolId.Value);
+            return File(zipBytes, "application/zip", $"challenge-{challengeId}-sandbox-ssh.zip");
+        }
+        catch (Exception ex)
+        {
+            await Console.Error.WriteLineAsync($"[KYPO SSH] Failed to download SSH config for challenge {challengeId}: {ex.Message}");
+            return StatusCode(502, new { error = "Failed to retrieve SSH config from KYPO", detail = ex.Message });
+        }
     }
 }
