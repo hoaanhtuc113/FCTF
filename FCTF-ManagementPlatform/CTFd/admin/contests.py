@@ -1562,6 +1562,22 @@ def contest_team_detail(contest_id, team_id):
     )
 
 
+@admin.route("/admin/contests/<int:contest_id>/member_ids", methods=["GET"])
+@admins_only
+def contest_member_ids(contest_id):
+    """Return a list of user IDs that are already members of any team in this contest."""
+    from CTFd.models import Teams, UserTeamMember
+    from flask import jsonify
+
+    member_ids = (
+        db.session.query(UserTeamMember.user_id)
+        .join(Teams, Teams.id == UserTeamMember.team_id)
+        .filter(Teams.contest_id == contest_id)
+        .all()
+    )
+    return jsonify({"success": True, "data": [row[0] for row in member_ids]})
+
+
 @admin.route("/admin/contests/<int:contest_id>/teams/<int:team_id>/delete", methods=["POST"])
 @admins_only
 def contest_delete_team(contest_id, team_id):
