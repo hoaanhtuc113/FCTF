@@ -150,7 +150,7 @@ public class ChallengeController : BaseController
 
     [HttpGet("by-topic")]
     [DuringCtfTimeAndAfterOnly]
-    public async Task<IActionResult> GetByTopic()
+    public async Task<IActionResult> GetByTopic([FromRoute] int contestId)
     {
         var userId = UserContext.UserId;
         var user = await _context.Users
@@ -164,7 +164,7 @@ public class ChallengeController : BaseController
         try
         {
             _userBehaviorLogger.Log("VIEW_All_TOPIC", user.Id, UserContext.TeamId, null);
-            var result = await _challengeServices.GetTopic(user);
+            var result = await _challengeServices.GetTopic(user, contestId);
             return Ok(new
             {
                 success = true,
@@ -183,12 +183,12 @@ public class ChallengeController : BaseController
 
     [HttpGet("list_challenge/{category_name}")]
     [DuringCtfTimeAndAfterOnly]
-    public async Task<IActionResult> ListChallengesByCategoryName([FromRoute] string category_name)
+    public async Task<IActionResult> ListChallengesByCategoryName([FromRoute] int contestId, [FromRoute] string category_name)
     {
         var userId = UserContext.UserId;
         var teamId = UserContext.TeamId;
         _userBehaviorLogger.Log("VIEW_CHALLENGES_BY_CATEGORY", userId, teamId, new { category = category_name });
-        var challenges = await _challengeServices.GetChallengeByCategories(category_name, teamId);
+        var challenges = await _challengeServices.GetChallengeByCategories(category_name, teamId, contestId);
         return Ok(new
         {
             success = true,
