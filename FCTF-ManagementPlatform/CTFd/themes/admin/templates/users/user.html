@@ -1,6 +1,7 @@
-{% extends "admin/base.html" %}
+{% extends "admin/contests/contest_base.html" if contest is defined and contest else "admin/base.html" %}
 
 {% block stylesheets %}
+{{ super() }}
 <style>
 	/* Clean User Detail Page Styles */
 	.user-detail-page .jumbotron {
@@ -678,8 +679,7 @@
 {% endblock %}
 
 {% block scripts %}
-
-
+{{ super() }}
 <script>
 	var USER_ID = {{ user.id }};
 	var USER_NAME = {{ user.name | tojson }};

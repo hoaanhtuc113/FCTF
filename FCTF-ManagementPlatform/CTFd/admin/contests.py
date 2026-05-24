@@ -1098,6 +1098,67 @@ def contest_import_users(contest_id):
     }, 200
 
 
+@admin.route("/admin/contests/<int:contest_id>/users/<int:user_id>", methods=["GET"])
+@admins_only
+def contest_user_detail(contest_id, user_id):
+    """View a user's detail page within the contest context (uses contest sidebar)."""
+    from sqlalchemy import not_
+    from CTFd.models import Challenges, Teams, UserTeamMember, Tracking
+    from CTFd.utils.config import get_config
+    from CTFd.utils.modes import TEAMS_MODE
+
+    contest = Contests.query.filter_by(id=contest_id).first_or_404()
+    user = Users.query.filter_by(id=user_id).first_or_404()
+
+    solves = user.get_solves(admin=True)
+
+    user_team = None
+    if get_config("user_mode") == TEAMS_MODE:
+        user_team = (
+            Teams.query
+            .join(UserTeamMember, UserTeamMember.team_id == Teams.id)
+            .filter(UserTeamMember.user_id == user_id)
+            .first()
+        )
+        all_solves = user_team.get_solves(admin=True) if user_team else user.get_solves(admin=True)
+    else:
+        all_solves = user.get_solves(admin=True)
+
+    user.team = user_team
+    user.team_id = user_team.id if user_team else None
+
+    solve_ids = [s.challenge_id for s in all_solves]
+    missing = (
+        Challenges.query.filter(not_(Challenges.id.in_(solve_ids))).all()
+        if solve_ids else Challenges.query.all()
+    )
+
+    addrs = Tracking.query.filter_by(user_id=user_id).order_by(Tracking.date.desc()).all()
+    fails = user.get_fails(admin=True)
+    awards = user.get_awards(admin=True)
+
+    if user.account:
+        score = user.account.get_score(admin=True)
+        place = user.account.get_place(admin=True)
+    else:
+        score = None
+        place = None
+
+    return render_template(
+        "admin/users/user.html",
+        solves=solves,
+        user=user,
+        addrs=addrs,
+        score=score,
+        missing=missing,
+        place=place,
+        fails=fails,
+        awards=awards,
+        is_detail=True,
+        contest=contest,
+    )
+
+
 @admin.route("/admin/contests/<int:contest_id>/users/<int:user_id>", methods=["DELETE"])
 @admins_only
 def contest_remove_user(contest_id, user_id):

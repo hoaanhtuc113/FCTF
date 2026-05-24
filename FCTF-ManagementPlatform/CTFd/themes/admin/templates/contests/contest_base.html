@@ -199,7 +199,7 @@ Override the entire sidebar block with contest-scoped navigation
     </a>
 
     <a href="{{ url_for('admin.contest_users', contest_id=contest.id) }}"
-        class="nav-link {% if request.endpoint == 'admin.contest_users' %}active{% endif %}">
+        class="nav-link {% if request.endpoint in ['admin.contest_users', 'admin.contest_user_detail'] %}active{% endif %}">
         <i class="bx bx-user"></i> Users
     </a>
 

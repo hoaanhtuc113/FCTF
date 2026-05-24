@@ -205,14 +205,14 @@
             </thead>
             <tbody>
                 {% for user in users.items %}
-                <tr name="{{ user.id }}" data-href="{{ url_for('admin.users_detail', user_id=user.id) }}">
+                <tr name="{{ user.id }}" data-href="{{ url_for('admin.contest_user_detail', contest_id=contest.id, user_id=user.id) }}">
                     <td data-checkbox>
                         <input type="checkbox" class="table-check" autocomplete="off"
                                value="{{ user.id }}" data-user-id="{{ user.id }}">
                     </td>
                     <td class="text-center">{{ user.id }}</td>
                     <td class="text-center">
-                        <a href="{{ url_for('admin.users_detail', user_id=user.id) }}">
+                        <a href="{{ url_for('admin.contest_user_detail', contest_id=contest.id, user_id=user.id) }}">
                             {{ user.name | truncate(32) }}
                         </a>
                         {% if user.website %}
