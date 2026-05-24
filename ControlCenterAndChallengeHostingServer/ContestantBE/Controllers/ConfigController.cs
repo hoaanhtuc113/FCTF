@@ -116,14 +116,17 @@ public class ConfigController : BaseController
     [HttpGet("contest_list")]
     public async Task<IActionResult> GetContestList()
     {
+        var teamId = UserContext.TeamId;
+
         var contests = await _dbContext.Contests
-            .Where(c => c.State == "visible")
+            .Where(c => c.State != "hidden" && c.Teams.Any(t => t.Id == teamId))
             .Select(c => new
             {
                 id = c.Id,
                 name = c.Name,
                 slug = c.Slug,
                 description = c.Description,
+                state = c.State,
                 start_time = c.StartTime,
                 end_time = c.EndTime,
                 team_count = c.Teams.Count,
@@ -136,8 +139,12 @@ public class ConfigController : BaseController
 
         var result = contests.Select(c =>
         {
-            string status = "ended";
-            if (c.start_time == null || c.end_time == null)
+            string status;
+            if (c.state == "paused" || c.state == "ended")
+            {
+                status = "ended";
+            }
+            else if (c.start_time == null || c.end_time == null)
             {
                 status = "active";
             }
@@ -148,6 +155,10 @@ public class ConfigController : BaseController
             else if (now >= c.start_time && now <= c.end_time)
             {
                 status = "active";
+            }
+            else
+            {
+                status = "ended";
             }
 
             return new

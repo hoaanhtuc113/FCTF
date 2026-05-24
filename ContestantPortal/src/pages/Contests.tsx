@@ -135,8 +135,8 @@ export function Contests() {
 
   // Filter contests based on search term and active tab
   const filteredContests = contests.filter((c) => {
-    const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          c.description.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          (c.description ?? '').toLowerCase().includes(searchTerm.toLowerCase());
     
     if (!matchesSearch) return false;
     if (activeTab === 'all') return true;
