@@ -311,7 +311,7 @@ export function Contests() {
               }}
             >
               <Compass size={14} className="animate-spin-slow" />
-              CHỌN KHÔNG GIAN THI ĐẤU · SELECT AN ARENA
+              SELECT AN ARENA
             </Box>
 
             <Typography
@@ -323,7 +323,7 @@ export function Contests() {
                 lineHeight: 1.1,
               }}
             >
-              Danh Sách{' '}
+              Contest{' '}
               <span
                 style={{
                   background: 'linear-gradient(135deg,#f59e0b 0%,#ea580c 50%,#dc2626 100%)',
@@ -337,7 +337,7 @@ export function Contests() {
               </span>
             </Typography>
             <Typography sx={{ mt: 1.5, color: activeColors.textSecondary, fontSize: 14, maxWidth: '560px', mx: 'auto' }}>
-              Chào mừng bạn tham gia đấu trường FCTF. Lựa chọn một Contest đang diễn ra hoặc đã lưu trữ để tiến hành làm bài.
+              Welcome to the FCTF arena. Choose an active or archived contest to continue.
             </Typography>
           </motion.div>
         </Box>
@@ -361,7 +361,7 @@ export function Contests() {
           {/* Tabs */}
           <Box sx={{ display: 'flex', gap: 1, overflowX: 'auto', pb: { xs: 0.5, sm: 0 } }}>
             {(['all', 'active', 'upcoming', 'ended'] as const).map((tab) => {
-              const label = tab === 'all' ? 'TẤT CẢ' : tab === 'active' ? 'ĐANG DIỄN RA' : tab === 'upcoming' ? 'SẮP DIỄN RA' : 'ĐÃ KẾT THÚC';
+              const label = tab === 'all' ? 'ALL' : tab === 'active' ? 'ACTIVE' : tab === 'upcoming' ? 'UPCOMING' : 'ENDED';
               const isSelected = activeTab === tab;
               return (
                 <Button
@@ -395,7 +395,7 @@ export function Contests() {
           <TextField
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Tìm kiếm kỳ thi..."
+            placeholder="Search contests..."
             sx={{
               width: { xs: '100%', md: '280px' },
               '& .MuiOutlinedInput-root': {
@@ -510,20 +510,20 @@ export function Contests() {
                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
                                   <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse"></span>
                                   <Typography sx={{ fontSize: 11, fontWeight: 900, color: activeColors.primary }}>
-                                    ĐANG DIỄN RA
+                                    ACTIVE
                                   </Typography>
                                 </Box>
                               ) : isUpcoming ? (
                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
                                   <span className="w-2 h-2 rounded-full bg-blue-500"></span>
                                   <Typography sx={{ fontSize: 11, fontWeight: 700, color: 'rgb(59, 130, 246)' }}>
-                                    SẮP DIỄN RA
+                                    UPCOMING
                                   </Typography>
                                 </Box>
                               ) : (
                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                                   <Typography sx={{ fontSize: 11, fontWeight: 700, color: activeColors.textSecondary }}>
-                                    LƯU TRỮ (ENDED)
+                                    ARCHIVED
                                   </Typography>
                                 </Box>
                               )}
@@ -585,13 +585,13 @@ export function Contests() {
                               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
                                 <Users size={13} style={{ color: activeColors.textSecondary }} />
                                 <Typography sx={{ fontSize: 11, fontFamily: '"JetBrains Mono", monospace', fontWeight: 700 }}>
-                                  {contest.team_count} <span style={{ fontWeight: 400, color: activeColors.textSecondary }}>Đội</span>
+                                  {contest.team_count} <span style={{ fontWeight: 400, color: activeColors.textSecondary }}>Teams</span>
                                 </Typography>
                               </Box>
                               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
                                 <PlayCircle size={13} style={{ color: activeColors.textSecondary }} />
                                 <Typography sx={{ fontSize: 11, fontFamily: '"JetBrains Mono", monospace', fontWeight: 700 }}>
-                                  {contest.challenge_count} <span style={{ fontWeight: 400, color: activeColors.textSecondary }}>Bài thi</span>
+                                  {contest.challenge_count} <span style={{ fontWeight: 400, color: activeColors.textSecondary }}>Challenges</span>
                                 </Typography>
                               </Box>
                             </Box>
@@ -636,14 +636,14 @@ export function Contests() {
                               }}
                             >
                               {isActive ? (
-                                '[ CHINH PHỤC // ENTER ]'
+                                '[ ENTER CONTEST ]'
                               ) : isUpcoming ? (
                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, justifyContent: 'center' }}>
                                   <Lock size={13} />
-                                  <span>[ CHƯA BẮT ĐẦU ]</span>
+                                  <span>[ NOT STARTED ]</span>
                                 </Box>
                               ) : (
-                                '[ XEM LƯU TRỮ // SCOREBOARD ]'
+                                '[ VIEW ARCHIVE // SCOREBOARD ]'
                               )}
                             </Button>
                           </Box>
@@ -664,7 +664,7 @@ export function Contests() {
                   }}
                 >
                   <Typography sx={{ fontSize: 13, color: activeColors.textSecondary }}>
-                    {'>'} Không tìm thấy Contest nào phù hợp với bộ lọc!
+                    {'>'} No contests match the current filters.
                   </Typography>
                 </Box>
               )}
@@ -700,10 +700,10 @@ export function Contests() {
           }}
         >
           <Typography sx={{ fontSize: 10.5, color: activeColors.textSecondary }}>
-            © 2026 Phòng thí nghiệm ATTT — khoa ATTT, FPT University Hà Nội
+            (c) 2026 Information Security Lab - FPT University Hanoi
           </Typography>
           <Typography sx={{ fontSize: 10.5, color: activeColors.textSecondary, textAlign: { xs: 'center', sm: 'right' } }}>
-            Địa chỉ: Phòng D101 & D102, Trường Đại học FPT, Hòa Lạc, Hà Nội.
+            Address: Rooms D101 & D102, FPT University, Hoa Lac, Hanoi.
           </Typography>
         </Box>
       </Box>
