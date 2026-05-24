@@ -457,7 +457,7 @@
     <!-- Status Bar -->
     <div class="kypo-status-bar">
         <div class="kypo-dot"></div>
-        Kết nối KYPO thành công &rarr; <strong>https://vuontre.iahn.hanoi.vn</strong>
+        KYPO connection established &rarr; <strong>https://vuontre.iahn.hanoi.vn</strong>
     </div>
 
     <!-- Tabs -->
@@ -469,25 +469,25 @@
     <!-- ══ TAB: Sandbox Definitions ══ -->
     <div id="kypo-tab-definitions" class="kypo-tab-pane">
         <div class="kypo-toolbar">
-            <span class="kypo-toolbar-hint">Sandbox Definition = cấu hình lab từ Git repository. KYPO clone repo và
-                build môi trường máy ảo từ đó.</span>
-            <button class="kypo-btn kypo-btn-primary" onclick="kypoOpenModal('kypo-modal-def')">+ Tạo
+            <span class="kypo-toolbar-hint">Sandbox Definition = lab configuration from a Git repository. KYPO clones
+                the repo and builds the virtual-machine environment from it.</span>
+            <button class="kypo-btn kypo-btn-primary" onclick="kypoOpenModal('kypo-modal-def')">+ Create
                 Definition</button>
         </div>
         <div id="kypo-def-list">
-            <div class="kypo-card" style="text-align:center;color:var(--text-light)">Đang tải...</div>
+            <div class="kypo-card" style="text-align:center;color:var(--text-light)">Loading...</div>
         </div>
     </div>
 
     <!-- ══ TAB: Pools ══ -->
     <div id="kypo-tab-pools" class="kypo-tab-pane active">
         <div class="kypo-toolbar">
-            <span class="kypo-toolbar-hint">Pool = tập hợp sandbox được allocate từ 1 Definition. Pool quyết định có bao
-                nhiêu team có thể chơi đồng thời.</span>
-            <button class="kypo-btn kypo-btn-primary" onclick="kypoOpenModal('kypo-modal-pool')">+ Tạo Pool</button>
+            <span class="kypo-toolbar-hint">Pool = a set of sandboxes allocated from one Definition. The pool controls
+                how many teams can play at the same time.</span>
+            <button class="kypo-btn kypo-btn-primary" onclick="kypoOpenModal('kypo-modal-pool')">+ Create Pool</button>
         </div>
         <div id="kypo-pool-list">
-            <div class="kypo-card" style="text-align:center;color:var(--text-light)">Đang tải...</div>
+            <div class="kypo-card" style="text-align:center;color:var(--text-light)">Loading...</div>
         </div>
     </div>
 
@@ -497,15 +497,15 @@
 
 <!-- ══════════════════════════ MODALS ══════════════════════════ -->
 
-<!-- Modal: Tạo Sandbox Definition -->
+<!-- Modal: Create Sandbox Definition -->
 <div class="kypo-modal-overlay" id="kypo-modal-def" onclick="kypoOverlayClose(event,'kypo-modal-def')">
     <div class="kypo-modal">
         <div class="kypo-modal-hd">
-            <div class="kypo-modal-title">&#128230; Tạo <span class="hl">Sandbox Definition</span></div>
+            <div class="kypo-modal-title">&#128230; Create <span class="hl">Sandbox Definition</span></div>
             <button class="kypo-modal-close" onclick="kypoCloseModal('kypo-modal-def')">&times;</button>
         </div>
         <div class="kypo-modal-body">
-            <div class="kypo-info-box">&#8505; KYPO sẽ clone repo và build sandbox. Đảm bảo repo có file
+            <div class="kypo-info-box">&#8505; KYPO will clone the repository and build the sandbox. Make sure the repo contains
                 <code>topology.yml</code>.
             </div>
             <div class="kypo-form-group">
@@ -522,15 +522,15 @@
                 </div>
                 <div class="kypo-col">
                     <div class="kypo-form-group">
-                        <label class="kypo-form-label">Tên hiển thị</label>
-                        <input class="kypo-form-control" type="text" placeholder="Tự động lấy từ tên repo">
+                        <label class="kypo-form-label">Display name</label>
+                        <input class="kypo-form-control" type="text" placeholder="Automatically derived from the repository name">
                     </div>
                 </div>
             </div>
         </div>
         <div class="kypo-modal-ft">
-            <button class="kypo-btn kypo-btn-secondary" onclick="kypoCloseModal('kypo-modal-def')">Hủy</button>
-            <button class="kypo-btn kypo-btn-primary" onclick="kypoSubmitSandboxDef()">&#10003; Tạo</button>
+            <button class="kypo-btn kypo-btn-secondary" onclick="kypoCloseModal('kypo-modal-def')">Cancel</button>
+            <button class="kypo-btn kypo-btn-primary" onclick="kypoSubmitSandboxDef()">&#10003; Create</button>
         </div>
     </div>
 </div>
@@ -554,7 +554,7 @@
                     <div class="kypo-form-group">
                         <label class="kypo-form-label">Sandbox Definition *</label>
                         <select class="kypo-form-control" id="edit-pool-def-id">
-                            <option value="">-- Đang tải definitions... --</option>
+                            <option value="">-- Loading definitions... --</option>
                         </select>
                     </div>
                     <div class="kypo-form-group">
@@ -576,13 +576,13 @@
             </div>
         </div>
         <div class="kypo-modal-ft">
-            <button class="kypo-btn kypo-btn-secondary" onclick="kypoCloseModal('kypo-modal-edit-pool')">Hủy</button>
+            <button class="kypo-btn kypo-btn-secondary" onclick="kypoCloseModal('kypo-modal-edit-pool')">Cancel</button>
             <button class="kypo-btn kypo-btn-primary" onclick="kypoSubmitEditPool()">&#10003; Save</button>
         </div>
     </div>
 </div>
 
-<!-- Modal: Allocate số lượng cụ thể -->
+<!-- Modal: Allocate a specific number -->
 <div class="kypo-modal-overlay" id="kypo-modal-allocate" onclick="kypoOverlayClose(event,'kypo-modal-allocate')">
     <div class="kypo-modal">
         <div class="kypo-modal-hd">
@@ -592,23 +592,23 @@
         <div class="kypo-modal-body">
             <input type="hidden" id="allocate-pool-id">
             <div class="kypo-form-group">
-                <label class="kypo-form-label">Số lượng sandbox muốn allocate *</label>
+                <label class="kypo-form-label">Number of sandboxes to allocate *</label>
                 <input class="kypo-form-control" id="allocate-count" type="number" value="1" min="1">
-                <div class="kypo-form-hint">KYPO sẽ tạo thêm sandbox VM từ pool này.</div>
+                <div class="kypo-form-hint">KYPO will create additional sandbox VMs from this pool.</div>
             </div>
         </div>
         <div class="kypo-modal-ft">
-            <button class="kypo-btn kypo-btn-secondary" onclick="kypoCloseModal('kypo-modal-allocate')">Hủy</button>
+            <button class="kypo-btn kypo-btn-secondary" onclick="kypoCloseModal('kypo-modal-allocate')">Cancel</button>
             <button class="kypo-btn kypo-btn-primary" onclick="kypoSubmitAllocate()">&#10003; Allocate</button>
         </div>
     </div>
 </div>
 
-<!-- Modal: Tạo Pool -->
+<!-- Modal: Create Pool -->
 <div class="kypo-modal-overlay" id="kypo-modal-pool" onclick="kypoOverlayClose(event,'kypo-modal-pool')">
     <div class="kypo-modal">
         <div class="kypo-modal-hd">
-            <div class="kypo-modal-title">&#127882; Tạo <span class="hl">Pool</span></div>
+            <div class="kypo-modal-title">&#127882; Create <span class="hl">Pool</span></div>
             <button class="kypo-modal-close" onclick="kypoCloseModal('kypo-modal-pool')">&times;</button>
         </div>
         <div class="kypo-modal-body">
@@ -620,7 +620,7 @@
             <div class="kypo-form-group">
                 <label class="kypo-form-label">Sandbox Definition *</label>
                 <select class="kypo-form-control" id="pool-def-id">
-                    <option value="">-- Đang tải definitions... --</option>
+                    <option value="">-- Loading definitions... --</option>
                 </select>
             </div>
             <div class="kypo-form-group">
@@ -630,8 +630,8 @@
             </div>
         </div>
         <div class="kypo-modal-ft">
-            <button class="kypo-btn kypo-btn-secondary" onclick="kypoCloseModal('kypo-modal-pool')">Hủy</button>
-            <button class="kypo-btn kypo-btn-primary" onclick="kypoSubmitPool()">&#10003; Tạo</button>
+            <button class="kypo-btn kypo-btn-secondary" onclick="kypoCloseModal('kypo-modal-pool')">Cancel</button>
+            <button class="kypo-btn kypo-btn-primary" onclick="kypoSubmitPool()">&#10003; Create</button>
         </div>
     </div>
 </div>
@@ -702,7 +702,7 @@
             const list = document.getElementById('kypo-def-list');
 
             if (!resp.ok) {
-                list.innerHTML = '<div class="kypo-card" style="color:#c62828">Lỗi tải definitions: ' + (json.error || resp.status) + '</div>';
+                list.innerHTML = '<div class="kypo-card" style="color:#c62828">Failed to load definitions: ' + (json.error || resp.status) + '</div>';
                 return;
             }
 
@@ -711,7 +711,7 @@
                     : (json.data && json.data.content) ? json.data.content : [];
 
             if (!items.length) {
-                list.innerHTML = '<div class="kypo-card" style="text-align:center;color:var(--text-light)">Chưa có Sandbox Definition nào trên KYPO</div>';
+                list.innerHTML = '<div class="kypo-card" style="text-align:center;color:var(--text-light)">No Sandbox Definitions found on KYPO</div>';
                 return;
             }
 
@@ -738,7 +738,7 @@
             ['pool-def-id', 'edit-pool-def-id'].forEach(function (selId) {
                 var sel = document.getElementById(selId);
                 if (sel) {
-                    sel.innerHTML = '<option value="">-- Chọn Definition --</option>' +
+                    sel.innerHTML = '<option value="">-- Select Definition --</option>' +
                         items.map(function (d) {
                             return '<option value="' + d.id + '">' + (d.name || d.title) + ' (ID: ' + d.id + ')</option>';
                         }).join('');
@@ -746,7 +746,7 @@
             });
         } catch (e) {
             var list = document.getElementById('kypo-def-list');
-            if (list) list.innerHTML = '<div class="kypo-card" style="color:#c62828">Lỗi kết nối: ' + e.message + '</div>';
+            if (list) list.innerHTML = '<div class="kypo-card" style="color:#c62828">Connection error: ' + e.message + '</div>';
         }
     }
 
@@ -760,13 +760,13 @@
             const list = document.getElementById('kypo-pool-list');
 
             if (!resp.ok) {
-                list.innerHTML = '<div class="kypo-card" style="color:#c62828">Lỗi tải pools: ' + (json.error || resp.status) + '</div>';
+                list.innerHTML = '<div class="kypo-card" style="color:#c62828">Failed to load pools: ' + (json.error || resp.status) + '</div>';
                 return;
             }
 
             const items = json.data || [];
             if (!items.length) {
-                list.innerHTML = '<div class="kypo-card" style="text-align:center;color:var(--text-light)">Chưa có Pool nào cho contest này</div>';
+                list.innerHTML = '<div class="kypo-card" style="text-align:center;color:var(--text-light)">No Pools found for this contest</div>';
                 return;
             }
 
@@ -778,15 +778,15 @@
                     '<span class="kypo-card-id">KYPO Pool ID: ' + pid + '</span>' +
                     '</div><div class="kypo-card-actions">' +
                     '<button class="kypo-icon-btn" title="Edit pool" onclick="editPool(' + pid + ')" style="font-size:15px">&#9998;</button>' +
-                    '<button class="kypo-icon-btn" title="Allocate số lượng cụ thể" onclick="allocateSpecific(' + pid + ')" style="font-size:15px">&#9776;</button>' +
+                    '<button class="kypo-icon-btn" title="Allocate a specific number" onclick="allocateSpecific(' + pid + ')" style="font-size:15px">&#9776;</button>' +
                     '<button class="kypo-icon-btn" title="Allocate +1" onclick="allocateOne(' + pid + ')" style="font-size:11px;font-weight:700">+1</button>' +
-                    '<button class="kypo-icon-btn k-danger" title="Xóa pool" onclick="deletePool(' + pid + ')" style="font-size:15px">&#128465;</button>' +
+                    '<button class="kypo-icon-btn k-danger" title="Delete pool" onclick="deletePool(' + pid + ')" style="font-size:15px">&#128465;</button>' +
                     '<button class="kypo-icon-btn" title="Toggle resource limit" onclick="toggleResourceLimit(' + pid + ')" style="font-size:15px">&#128274;</button>' +
                     '<button class="kypo-icon-btn" title="Refresh" onclick="loadPoolDetail(' + pid + ')" style="font-size:15px">&#8635;</button>' +
                     '<a class="kypo-icon-btn" title="Download SSH Config" href="/api/v1/kypo/contests/' + CONTEST_ID + '/pools/' + pid + '/ssh-config" target="_blank" style="font-size:15px">&#128273;</a>' +
                     '</div></div>' +
                     '<div class="kypo-card-meta" id="pool-meta-' + pid + '">' +
-                    '<div class="kypo-meta-item"><span class="kypo-meta-icon">&#128230;</span> Đang tải chi tiết...</div>' +
+                    '<div class="kypo-meta-item"><span class="kypo-meta-icon">&#128230;</span> Loading details...</div>' +
                     '</div>' +
                     '<div class="kypo-pool-bar"><div class="kypo-pool-fill" id="pool-bar-' + pid + '" style="width:0%"></div></div>' +
                     '</div>';
@@ -795,11 +795,11 @@
             items.forEach(function (p) { loadPoolDetail(p.kypo_pool_id); });
         } catch (e) {
             document.getElementById('kypo-pool-list').innerHTML =
-                '<div class="kypo-card" style="color:#c62828">Lỗi kết nối: ' + e.message + '</div>';
+                '<div class="kypo-card" style="color:#c62828">Connection error: ' + e.message + '</div>';
         }
     }
 
-    // ── Load chi tiết pool từ KYPO ────────────────────────────────
+    // ── Load pool details from KYPO ───────────────────────────────
     async function loadPoolDetail(kypoPoolId) {
         try {
             const resp = await fetch('/api/v1/kypo/contests/' + CONTEST_ID + '/pools/' + kypoPoolId, {
@@ -831,12 +831,12 @@
         } catch (e) { }
     }
 
-    // ── Submit: Tạo Sandbox Definition ───────────────────────────
+    // ── Submit: Create Sandbox Definition ────────────────────────
     async function kypoSubmitSandboxDef() {
         var gitUrl = document.getElementById('def-git-url').value.trim();
         var rev = document.getElementById('def-git-revision').value.trim() || 'main';
-        if (!gitUrl) { kypoToast('Vui lòng nhập Git URL', 'error'); return; }
-        kypoToast('Đang tạo Sandbox Definition trên KYPO...');
+        if (!gitUrl) { kypoToast('Please enter a Git URL', 'error'); return; }
+        kypoToast('Creating Sandbox Definition on KYPO...');
         try {
             const resp = await fetch('/api/v1/kypo/sandbox-definitions', {
                 method: 'POST',
@@ -845,25 +845,25 @@
             });
             const json = await resp.json();
             if (resp.ok) {
-                kypoToast('✓ Tạo thành công! KYPO ID: ' + json.data.id, 'success');
+                kypoToast('✓ Created successfully! KYPO ID: ' + json.data.id, 'success');
                 kypoCloseModal('kypo-modal-def');
                 document.getElementById('def-git-url').value = '';
                 loadSandboxDefinitions();
             } else {
-                kypoToast('Lỗi: ' + (json.error || JSON.stringify(json.errors)), 'error');
+                kypoToast('Error: ' + (json.error || JSON.stringify(json.errors)), 'error');
             }
         } catch (e) {
-            kypoToast('Lỗi kết nối: ' + e.message, 'error');
+            kypoToast('Connection error: ' + e.message, 'error');
         }
     }
 
-    // ── Submit: Tạo Pool ──────────────────────────────────────────
+    // ── Submit: Create Pool ──────────────────────────────────────
     async function kypoSubmitPool() {
         var defId = document.getElementById('pool-def-id').value;
         var comment = document.getElementById('pool-comment').value.trim();
         var maxSize = parseInt(document.getElementById('pool-max-size').value) || 1;
-        if (!defId) { kypoToast('Vui lòng chọn Sandbox Definition', 'error'); return; }
-        kypoToast('Đang tạo Pool...');
+        if (!defId) { kypoToast('Please select a Sandbox Definition', 'error'); return; }
+        kypoToast('Creating Pool...');
         try {
             const resp = await fetch('/api/v1/kypo/contests/' + CONTEST_ID + '/pools', {
                 method: 'POST',
@@ -872,14 +872,14 @@
             });
             const json = await resp.json();
             if (resp.ok) {
-                kypoToast('✓ Tạo Pool thành công! KYPO Pool ID: ' + json.data.kypo_pool_id, 'success');
+                kypoToast('✓ Pool created successfully! KYPO Pool ID: ' + json.data.kypo_pool_id, 'success');
                 kypoCloseModal('kypo-modal-pool');
                 loadPools();
             } else {
-                kypoToast('Lỗi: ' + (json.error || 'Tạo pool thất bại'), 'error');
+                kypoToast('Error: ' + (json.error || 'Failed to create pool'), 'error');
             }
         } catch (e) {
-            kypoToast('Lỗi kết nối: ' + e.message, 'error');
+            kypoToast('Connection error: ' + e.message, 'error');
         }
     }
 
@@ -915,8 +915,8 @@
         var size = parseInt(document.getElementById('edit-pool-size').value) || 1;
         var defId = document.getElementById('edit-pool-def-id').value;
         var email = document.getElementById('edit-pool-email').checked;
-        if (!defId) { kypoToast('Vui lòng chọn Sandbox Definition', 'error'); return; }
-        kypoToast('Đang cập nhật pool...');
+        if (!defId) { kypoToast('Please select a Sandbox Definition', 'error'); return; }
+        kypoToast('Updating pool...');
         try {
             const resp = await fetch('/api/v1/kypo/contests/' + CONTEST_ID + '/pools/' + pid + '/edit', {
                 method: 'PATCH',
@@ -925,13 +925,13 @@
             });
             const json = await resp.json();
             if (resp.ok) {
-                kypoToast('✓ Cập nhật pool thành công', 'success');
+                kypoToast('✓ Pool updated successfully', 'success');
                 kypoCloseModal('kypo-modal-edit-pool');
                 loadPoolDetail(parseInt(pid));
             } else {
-                kypoToast('Lỗi: ' + (json.error || 'Thất bại'), 'error');
+                kypoToast('Error: ' + (json.error || 'Failed'), 'error');
             }
-        } catch (e) { kypoToast('Lỗi: ' + e.message, 'error'); }
+        } catch (e) { kypoToast('Error: ' + e.message, 'error'); }
     }
 
     function allocateSpecific(kypoPoolId) {
@@ -944,7 +944,7 @@
         var pid = document.getElementById('allocate-pool-id').value;
         var count = parseInt(document.getElementById('allocate-count').value) || 1;
         kypoCloseModal('kypo-modal-allocate');
-        kypoToast('Đang allocate ' + count + ' sandbox...');
+        kypoToast('Allocating ' + count + ' sandbox(es)...');
         try {
             const resp = await fetch('/api/v1/kypo/contests/' + CONTEST_ID + '/pools/' + pid + '/allocate', {
                 method: 'POST',
@@ -953,16 +953,16 @@
             });
             const json = await resp.json();
             if (resp.ok) {
-                kypoToast('✓ Allocate ' + count + ' sandbox thành công', 'success');
+                kypoToast('✓ Allocated ' + count + ' sandbox(es) successfully', 'success');
                 loadPoolDetail(parseInt(pid));
             } else {
-                kypoToast('Lỗi: ' + (json.error || 'Allocate thất bại'), 'error');
+                kypoToast('Error: ' + (json.error || 'Allocation failed'), 'error');
             }
-        } catch (e) { kypoToast('Lỗi: ' + e.message, 'error'); }
+        } catch (e) { kypoToast('Error: ' + e.message, 'error'); }
     }
 
     async function allocateOne(kypoPoolId) {
-        kypoToast('Đang allocate sandbox...');
+        kypoToast('Allocating sandbox...');
         try {
             const resp = await fetch('/api/v1/kypo/contests/' + CONTEST_ID + '/pools/' + kypoPoolId + '/allocate', {
                 method: 'POST',
@@ -971,16 +971,16 @@
             });
             const json = await resp.json();
             if (resp.ok) {
-                kypoToast('✓ Allocate thành công', 'success');
+                kypoToast('✓ Allocation completed successfully', 'success');
                 loadPoolDetail(kypoPoolId);
             } else {
-                kypoToast('Lỗi: ' + (json.error || 'Allocate thất bại'), 'error');
+                kypoToast('Error: ' + (json.error || 'Allocation failed'), 'error');
             }
-        } catch (e) { kypoToast('Lỗi: ' + e.message, 'error'); }
+        } catch (e) { kypoToast('Error: ' + e.message, 'error'); }
     }
 
     async function toggleResourceLimit(kypoPoolId) {
-        kypoToast('Đang thay đổi resource limit...');
+        kypoToast('Changing resource limit...');
         try {
             const resp = await fetch('/api/v1/kypo/contests/' + CONTEST_ID + '/pools/' + kypoPoolId + '/lock', {
                 method: 'POST',
@@ -988,16 +988,16 @@
             });
             const json = await resp.json();
             if (resp.ok) {
-                kypoToast('✓ Thay đổi resource limit thành công', 'success');
+                kypoToast('✓ Resource limit changed successfully', 'success');
                 loadPoolDetail(kypoPoolId);
             } else {
-                kypoToast('Lỗi: ' + (json.error || 'Thất bại'), 'error');
+                kypoToast('Error: ' + (json.error || 'Failed'), 'error');
             }
-        } catch (e) { kypoToast('Lỗi: ' + e.message, 'error'); }
+        } catch (e) { kypoToast('Error: ' + e.message, 'error'); }
     }
 
     async function deletePool(kypoPoolId) {
-        if (!confirm('Bạn có chắc muốn xóa Pool #' + kypoPoolId + '?')) return;
+        if (!confirm('Are you sure you want to delete Pool #' + kypoPoolId + '?')) return;
         try {
             const resp = await fetch('/api/v1/kypo/contests/' + CONTEST_ID + '/pools/' + kypoPoolId, {
                 method: 'DELETE',
@@ -1005,15 +1005,15 @@
             });
             const json = await resp.json();
             if (resp.ok) {
-                kypoToast('✓ Xóa pool thành công', 'success');
+                kypoToast('✓ Pool deleted successfully', 'success');
                 loadPools();
             } else {
-                kypoToast('Lỗi: ' + (json.error || 'Xóa thất bại'), 'error');
+                kypoToast('Error: ' + (json.error || 'Delete failed'), 'error');
             }
-        } catch (e) { kypoToast('Lỗi: ' + e.message, 'error'); }
+        } catch (e) { kypoToast('Error: ' + e.message, 'error'); }
     }
 
-    // ── Khởi động ─────────────────────────────────────────────────
+    // ── Startup ──────────────────────────────────────────────────
     document.addEventListener('DOMContentLoaded', function () {
         loadSandboxDefinitions();
         loadPools();
