@@ -17,7 +17,7 @@ namespace ContestantBE.Services;
 
 public interface IChallengeService
 {
-    Task<ChallengeDeployResponeDTO> ChallengeStart(Challenge challenge, User user);
+    Task<ChallengeDeployResponeDTO> ChallengeStart(Challenge challenge, User user, int? deploymentTeamId = null);
     Task<ChallengeDeployResponeDTO> ForceStopChallenge(int challengeId, User user);
     Task<ChallengeDeployResponeDTO> CheckChallengeStart(int challengeId, int teamId);
     Task<BaseResponseDTO<ChallengeByIdDTO>> GetById(int challengeId, User user);
@@ -417,10 +417,11 @@ public class ChallengeService : IChallengeService
         return topics;
     }
 
-    public async Task<ChallengeDeployResponeDTO> ChallengeStart(Challenge challenge, User user)
+    public async Task<ChallengeDeployResponeDTO> ChallengeStart(Challenge challenge, User user, int? deploymentTeamId = null)
     {
-        var teamId = user.TeamMemberships.FirstOrDefault()?.TeamId
+        var userTeamId = user.TeamMemberships.FirstOrDefault()?.TeamId
             ?? throw new InvalidOperationException("User has no team");
+        var teamId = deploymentTeamId ?? userTeamId;
         try
         {
             var unixTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds();

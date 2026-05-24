@@ -764,7 +764,7 @@ public class ChallengeController : BaseController
 
         if (challenge == null) return NotFound(new { error = "Challenge not found" });
         if (!challenge.RequireDeploy) return BadRequest(new { error = "This challenge does not require deploy" });
-        if (challenge.State == ChallengeState.HIDDEN || challenge.SharedInstant == true) return BadRequest(new { error = "This challenge is not available for deployment" });
+        if (challenge.State == ChallengeState.HIDDEN) return BadRequest(new { error = "This challenge is not available for deployment" });
 
         // Check prerequisites from Requirements JSON
         if (!string.IsNullOrEmpty(challenge.Requirements))
@@ -861,13 +861,14 @@ public class ChallengeController : BaseController
         // Check limit_challenges - maximum concurrent challenges per team
         var limit_challenges = _configHelper.LimitChallenges();
 
-        var deploymentKey = ChallengeHelper.GetCacheKey(challengeStartReq.challengeId, teamId!.Value);
-        var teamIdStr = teamId.Value.ToString();
+        var deploymentTeamId = challenge.SharedInstant ? -2 : teamId!.Value;
+        var deploymentKey = ChallengeHelper.GetCacheKey(challengeStartReq.challengeId, deploymentTeamId);
+        var teamIdStr = deploymentTeamId.ToString();
         var challengeIdStr = challenge.Id.ToString();
         var cacheDto = new ChallengeDeploymentCacheDTO
         {
             challenge_id = challenge.Id,
-            team_id = teamId.Value,
+            team_id = deploymentTeamId,
             status = DeploymentStatus.INITIAL,
             user_id = user!.Id,
         };
@@ -934,7 +935,7 @@ public class ChallengeController : BaseController
 
         try
         {
-            var response = await _challengeServices.ChallengeStart(challenge, user);
+            var response = await _challengeServices.ChallengeStart(challenge, user, deploymentTeamId);
             if (response.status != (int)HttpStatusCode.OK)
             {
                 // >>> ROLLBACK: Xóa ngay slot vừa chiếm trong Redis <<<
