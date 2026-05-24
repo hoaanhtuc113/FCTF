@@ -35,6 +35,7 @@ public partial class AppDbContext : DbContext
     public virtual DbSet<Flag> Flags { get; set; }
     public virtual DbSet<Hint> Hints { get; set; }
     public virtual DbSet<MultipleChoiceChallenge> MultipleChoiceChallenges { get; set; }
+    public virtual DbSet<SandboxChallenge> SandboxChallenges { get; set; }
     public virtual DbSet<Solf> Solves { get; set; }
     public virtual DbSet<Submission> Submissions { get; set; }
     public virtual DbSet<Tag> Tags { get; set; }
@@ -239,6 +240,20 @@ public partial class AppDbContext : DbContext
                 .HasForeignKey(d => d.CreatedBy)
                 .OnDelete(DeleteBehavior.SetNull)
                 .HasConstraintName("challenges_ibfk_created_by");
+        });
+
+        modelBuilder.Entity<SandboxChallenge>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+            entity.ToTable("sandbox_challenge");
+
+            entity.Property(e => e.Id).HasColumnType("int(11)").HasColumnName("id");
+            entity.Property(e => e.PoolId).HasColumnType("int(11)").HasColumnName("pool_id");
+
+            entity.HasOne(d => d.Challenge).WithOne()
+                .HasForeignKey<SandboxChallenge>(d => d.Id)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("sandbox_challenge_ibfk_1");
         });
 
         modelBuilder.Entity<ChallengeStartTracking>(entity =>

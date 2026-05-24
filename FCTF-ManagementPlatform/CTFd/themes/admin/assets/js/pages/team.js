@@ -616,7 +616,7 @@ $(() => {
     .querySelector("#team-add-modal .modal-body")
     .appendChild(memberFormContainer);
   new userAddForm({
-    propsData: { team_id: window.TEAM_ID },
+    propsData: { team_id: window.TEAM_ID, contest_id: window.CONTEST_ID || null },
   }).$mount(memberFormContainer);
 
   let type, id, name, account_id;

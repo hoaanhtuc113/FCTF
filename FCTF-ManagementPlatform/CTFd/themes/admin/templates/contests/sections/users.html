@@ -163,7 +163,7 @@
     <!-- Action buttons -->
     <div class="d-flex justify-content-between align-items-center action-buttons mt-2">
         <div class="d-flex gap-2" style="gap:0.5rem;">
-            <button type="button" class="clean-btn clean-btn-primary" id="btn-create-user">
+            <button type="button" class="clean-btn clean-btn-primary" id="btn-create-user" data-toggle="modal" data-target="#create-user-modal">
                 <i class="fas fa-user-plus"></i> Create User
             </button>
             <button type="button" class="clean-btn btn-outline-info" id="btn-add-existing-user">
@@ -205,14 +205,14 @@
             </thead>
             <tbody>
                 {% for user in users.items %}
-                <tr name="{{ user.id }}" data-href="{{ url_for('admin.users_detail', user_id=user.id) }}">
+                <tr name="{{ user.id }}" data-href="{{ url_for('admin.contest_user_detail', contest_id=contest.id, user_id=user.id) }}">
                     <td data-checkbox>
                         <input type="checkbox" class="table-check" autocomplete="off"
                                value="{{ user.id }}" data-user-id="{{ user.id }}">
                     </td>
                     <td class="text-center">{{ user.id }}</td>
                     <td class="text-center">
-                        <a href="{{ url_for('admin.users_detail', user_id=user.id) }}">
+                        <a href="{{ url_for('admin.contest_user_detail', contest_id=contest.id, user_id=user.id) }}">
                             {{ user.name | truncate(32) }}
                         </a>
                         {% if user.website %}
@@ -326,66 +326,85 @@
 </div>
 
 <!-- ── Create User Modal ────────────────────────────────────────────── -->
-<div class="import-modal-overlay" id="create-user-modal">
-    <div class="import-modal-box" style="max-width:520px;">
-        <button class="import-modal-close" id="create-user-modal-close" title="Close">&times;</button>
-        <h5><i class="fas fa-user-plus" style="color:var(--primary-orange,#ff6b35);"></i> Create User</h5>
-        {% include "admin/modals/users/create.html" %}
+<div id="create-user-modal" class="modal fade">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="text-center w-100">Create User</h2>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body clearfix">
+                {% include "admin/modals/users/create.html" %}
+            </div>
+        </div>
     </div>
 </div>
 
 <!-- ── Edit Users Modal ─────────────────────────────────────────────── -->
-<div class="import-modal-overlay" id="edit-users-modal">
-    <div class="import-modal-box">
-        <button class="import-modal-close" id="edit-modal-close" title="Close">&times;</button>
-        <h5><i class="fas fa-pencil-alt" style="color:var(--primary-orange,#ff6b35);"></i> Edit Users</h5>
-        <p style="font-size:0.85rem;color:#666;margin-bottom:1rem;">Apply changes to all selected users. Leave a field as <strong>--</strong> to keep its current value.</p>
-        <form id="edit-users-form">
-            <div class="form-group">
-                <label for="eu-verified">Verified</label>
-                <select id="eu-verified" class="clean-form-control w-100">
-                    <option value="">--</option>
-                    <option value="true">True</option>
-                    <option value="false">False</option>
-                </select>
-            </div>
-            <div class="form-group mt-2">
-                <label for="eu-banned">Banned</label>
-                <select id="eu-banned" class="clean-form-control w-100">
-                    <option value="">--</option>
-                    <option value="true">True</option>
-                    <option value="false">False</option>
-                </select>
-            </div>
-            <div class="form-group mt-2">
-                <label for="eu-hidden">Hidden</label>
-                <select id="eu-hidden" class="clean-form-control w-100">
-                    <option value="">--</option>
-                    <option value="true">True</option>
-                    <option value="false">False</option>
-                </select>
-            </div>
-            <div id="eu-error" class="alert alert-danger mt-2" style="display:none;"></div>
-            <div class="d-flex justify-content-end mt-3" style="gap:0.5rem;">
-                <button type="button" class="clean-btn btn-outline-secondary" id="eu-cancel">Cancel</button>
-                <button type="submit" class="clean-btn clean-btn-primary" id="eu-submit">
-                    <i class="fas fa-save"></i> Apply
+<div id="edit-users-modal" class="modal fade" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Users</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
                 </button>
             </div>
-        </form>
+            <div class="modal-body">
+                <form id="edit-users-form">
+                    <div id="Verified" class="form-group Verified">
+                        <label for="eu-verified">Verified</label>
+                        <select id="eu-verified" name="verified" data-initial="" class="form-control custom-select">
+                            <option value="">--</option>
+                            <option value="true">True</option>
+                            <option value="false">False</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="eu-banned">Banned</label>
+                        <select id="eu-banned" name="banned" data-initial="" class="form-control custom-select">
+                            <option value="">--</option>
+                            <option value="true">True</option>
+                            <option value="false">False</option>
+                        </select>
+                    </div>
+                    <div id="Hidden" class="form-group Hidden">
+                        <label for="eu-hidden">Hidden</label>
+                        <select id="eu-hidden" name="hidden" data-initial="" class="form-control custom-select">
+                            <option value="">--</option>
+                            <option value="true">True</option>
+                            <option value="false">False</option>
+                        </select>
+                    </div>
+                    <div id="eu-error" class="alert alert-danger mt-2" style="display:none;"></div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" id="eu-submit">Submit</button>
+            </div>
+        </div>
     </div>
 </div>
 
 <!-- ── Delete Confirm Modal ──────────────────────────────────────────── -->
-<div class="import-modal-overlay" id="delete-confirm-modal">
-    <div class="import-modal-box" style="max-width:380px;">
-        <h5 style="color:#c0392b;"><i class="fas fa-exclamation-triangle"></i> Remove Users</h5>
-        <p id="delete-confirm-body" style="margin:0.75rem 0 1.25rem;">Are you sure you want to remove these users from this contest?</p>
-        <div class="d-flex justify-content-end" style="gap:0.5rem;">
-            <button type="button" class="clean-btn btn-outline-secondary" id="delete-cancel-btn">Cancel</button>
-            <button type="button" class="clean-btn clean-btn-danger" id="delete-confirm-btn">
-                <i class="fas fa-trash-alt"></i> Remove
-            </button>
+<div id="delete-confirm-modal" class="modal fade" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Remove Users</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p id="delete-confirm-body">Are you sure you want to remove these users from this contest?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-danger" id="delete-cancel-btn" data-dismiss="modal">No</button>
+                <button type="button" class="btn btn-primary" id="delete-confirm-btn" data-dismiss="modal">Yes</button>
+            </div>
         </div>
     </div>
 </div>
@@ -461,22 +480,18 @@
 // ── Create User Modal ──────────────────────────────────────────────────────
 const createUserModal     = document.getElementById('create-user-modal');
 const createUserOpenBtn   = document.getElementById('btn-create-user');
-const createUserCloseBtn  = document.getElementById('create-user-modal-close');
 const createUserForm      = document.getElementById('user-info-create-form');
 
 function openCreateUserModal() {
     if (createUserForm) createUserForm.reset();
     const results = createUserForm && createUserForm.querySelector('#results');
     if (results) results.innerHTML = '';
-    createUserModal.classList.add('active');
 }
-function closeCreateUserModal() { createUserModal.classList.remove('active'); }
 
 if (createUserOpenBtn)  createUserOpenBtn.addEventListener('click', openCreateUserModal);
-if (createUserCloseBtn) createUserCloseBtn.addEventListener('click', closeCreateUserModal);
-createUserModal.addEventListener('click', function(e) {
-    if (e.target === createUserModal) closeCreateUserModal();
-});
+if (window.jQuery && createUserModal) {
+    $(createUserModal).on('show.bs.modal', openCreateUserModal);
+}
 
 if (createUserForm) {
     createUserForm.addEventListener('submit', function(e) {
@@ -515,6 +530,9 @@ if (createUserForm) {
             const results = createUserForm.querySelector('#results');
             if (results) results.innerHTML = '';
             if (response.success) {
+                if (window.jQuery && createUserModal) {
+                    $(createUserModal).modal('hide');
+                }
                 window.location.reload();
             } else {
                 if (results) {
@@ -566,35 +584,67 @@ if (allCb) {
 // ── Delete — styled popup ──────────────────────────────────────────────────
 const deleteConfirmModal = document.getElementById('delete-confirm-modal');
 const deleteConfirmBody  = document.getElementById('delete-confirm-body');
-const deleteCancelBtn    = document.getElementById('delete-cancel-btn');
 const deleteConfirmBtn   = document.getElementById('delete-confirm-btn');
 let _pendingDeleteIds    = [];
+
+function ezq() {
+    return (typeof CTFd !== 'undefined' && CTFd.ui && CTFd.ui.ezq) ? CTFd.ui.ezq : null;
+}
+
+function showSelectionRequired(title, body) {
+    const helper = ezq();
+    if (helper && helper.ezAlert) {
+        helper.ezAlert({
+            title: title,
+            body: body,
+            button: 'OK'
+        });
+        return;
+    }
+    alert(body);
+}
 
 function openDeleteModal(ids) {
     _pendingDeleteIds = ids;
     const target = ids.length === 1 ? '1 user' : ids.length + ' users';
-    deleteConfirmBody.textContent = 'Remove ' + target + ' from this contest? Their global account will NOT be deleted.';
-    deleteConfirmModal.classList.add('active');
+    const body = 'Remove ' + target + ' from this contest? Their global account will NOT be deleted.';
+    const helper = ezq();
+    if (helper && helper.ezQuery) {
+        helper.ezQuery({
+            title: 'Delete Users',
+            body: body,
+            success: function() {
+                removeUsersFromContest(ids);
+            }
+        });
+        return;
+    }
+    deleteConfirmBody.textContent = body;
+    if (window.jQuery && deleteConfirmModal) {
+        $(deleteConfirmModal).modal('show');
+    }
 }
-function closeDeleteModal() { deleteConfirmModal.classList.remove('active'); }
 
-if (deleteCancelBtn) deleteCancelBtn.addEventListener('click', closeDeleteModal);
-deleteConfirmModal.addEventListener('click', function(e) {
-    if (e.target === deleteConfirmModal) closeDeleteModal();
-});
+function removeUsersFromContest(ids, fail) {
+    Promise.all(ids.map(id => fetch('/admin/contests/{{ contest.id }}/users/' + id, {
+        method: 'DELETE',
+        headers: csrfHeaders()
+    }))).then(() => window.location.reload())
+       .catch(() => {
+           if (fail) fail();
+           alert('Some removals failed. Please try again.');
+       });
+}
+
 if (deleteConfirmBtn) {
     deleteConfirmBtn.addEventListener('click', function() {
         deleteConfirmBtn.disabled = true;
         deleteConfirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Removing…';
-        Promise.all(_pendingDeleteIds.map(id => fetch('/admin/contests/{{ contest.id }}/users/' + id, {
-            method: 'DELETE',
-            headers: csrfHeaders()
-        }))).then(() => window.location.reload())
-           .catch(() => {
-               deleteConfirmBtn.disabled = false;
-               deleteConfirmBtn.innerHTML = '<i class="fas fa-trash-alt"></i> Remove';
-               alert('Some removals failed. Please try again.');
-           });
+        deleteConfirmBtn.textContent = 'Removing...';
+        removeUsersFromContest(_pendingDeleteIds, function() {
+            deleteConfirmBtn.disabled = false;
+            deleteConfirmBtn.textContent = 'Yes';
+        });
     });
 }
 
@@ -602,38 +652,129 @@ const delBtn = document.getElementById('users-delete-button');
 if (delBtn) {
     delBtn.addEventListener('click', function() {
         const ids = selectedUserIds();
-        if (!ids.length) { alert('Select at least one user to remove.'); return; }
+        if (!ids.length) {
+            showSelectionRequired('Delete Users', 'Please select at least one user to remove.');
+            return;
+        }
         openDeleteModal(ids);
     });
 }
 
 // ── Edit — styled popup (like old /admin/users bulk edit) ─────────────────
 const editUsersModal  = document.getElementById('edit-users-modal');
-const editModalClose  = document.getElementById('edit-modal-close');
-const editCancelBtn   = document.getElementById('eu-cancel');
 const editUsersForm   = document.getElementById('edit-users-form');
 const euError         = document.getElementById('eu-error');
+const editSubmitBtn   = document.getElementById('eu-submit');
 let _pendingEditIds   = [];
+
+function bulkEditFormHtml() {
+    const jq = window.jQuery || (typeof CTFd !== 'undefined' && CTFd.lib && CTFd.lib.$);
+    return jq(
+        '<form id="users-bulk-edit">' +
+            '<div id="Verified" class="form-group Verified">' +
+                '<label>Verified</label>' +
+                '<select name="verified" data-initial="" class="form-control custom-select">' +
+                    '<option value="">--</option>' +
+                    '<option value="true">True</option>' +
+                    '<option value="false">False</option>' +
+                '</select>' +
+            '</div>' +
+            '<div class="form-group">' +
+                '<label>Banned</label>' +
+                '<select name="banned" data-initial="" class="form-control custom-select">' +
+                    '<option value="">--</option>' +
+                    '<option value="true">True</option>' +
+                    '<option value="false">False</option>' +
+                '</select>' +
+            '</div>' +
+            '<div id="Hidden" class="form-group Hidden">' +
+                '<label>Hidden</label>' +
+                '<select name="hidden" data-initial="" class="form-control custom-select">' +
+                    '<option value="">--</option>' +
+                    '<option value="true">True</option>' +
+                    '<option value="false">False</option>' +
+                '</select>' +
+            '</div>' +
+        '</form>'
+    );
+}
+
+function formDataToUserPatch(form) {
+    const data = {};
+    Array.from(form.querySelectorAll('select[name]')).forEach(function(select) {
+        if (select.value !== '') {
+            data[select.name] = select.value === 'true';
+        }
+    });
+    return data;
+}
+
+function applyUserEdits(ids, form, errorEl, submitBtn) {
+    const data = formDataToUserPatch(form);
+    if (!Object.keys(data).length) {
+        if (errorEl) {
+            errorEl.textContent = 'Please change at least one field.';
+            errorEl.style.display = 'block';
+        } else {
+            alert('Please change at least one field.');
+        }
+        return;
+    }
+
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Applying...';
+    }
+
+    Promise.all(ids.map(id =>
+        fetch('/api/v1/users/' + id, {
+            method: 'PATCH',
+            headers: csrfHeaders(),
+            body: JSON.stringify(data)
+        })
+    )).then(() => { window.location.reload(); })
+      .catch(() => {
+          if (submitBtn) {
+              submitBtn.disabled = false;
+              submitBtn.textContent = 'Submit';
+          }
+          if (errorEl) {
+              errorEl.textContent = 'Network error. Please try again.';
+              errorEl.style.display = 'block';
+          } else {
+              alert('Network error. Please try again.');
+          }
+      });
+}
 
 function openEditModal(ids) {
     _pendingEditIds = ids;
+    const helper = ezq();
+    if (helper && helper.ezAlert) {
+        helper.ezAlert({
+            title: 'Edit Users',
+            body: bulkEditFormHtml(),
+            button: 'Submit',
+            success: function() {
+                applyUserEdits(ids, document.getElementById('users-bulk-edit'));
+            }
+        });
+        return;
+    }
     editUsersForm.reset();
     euError.style.display = 'none';
-    editUsersModal.classList.add('active');
+    if (window.jQuery && editUsersModal) {
+        $(editUsersModal).modal('show');
+    }
 }
-function closeEditModal() { editUsersModal.classList.remove('active'); }
-
-if (editModalClose) editModalClose.addEventListener('click', closeEditModal);
-if (editCancelBtn)  editCancelBtn.addEventListener('click', closeEditModal);
-editUsersModal.addEventListener('click', function(e) {
-    if (e.target === editUsersModal) closeEditModal();
-});
-
 const editBtn = document.getElementById('users-edit-button');
 if (editBtn) {
     editBtn.addEventListener('click', function() {
         const ids = selectedUserIds();
-        if (!ids.length) { alert('Select at least one user to edit.'); return; }
+        if (!ids.length) {
+            showSelectionRequired('Edit Users', 'Please select at least one user to edit.');
+            return;
+        }
         openEditModal(ids);
     });
 }
@@ -678,6 +819,13 @@ if (editUsersForm) {
 }
 
 // ── Import Users Modal ─────────────────────────────────────────────────────
+if (editSubmitBtn) {
+    editSubmitBtn.addEventListener('click', function() {
+        euError.style.display = 'none';
+        applyUserEdits(_pendingEditIds, editUsersForm, euError, editSubmitBtn);
+    });
+}
+
 const importModal     = document.getElementById('import-users-modal');
 const importOpenBtn   = document.getElementById('btn-import-users');
 const importCloseBtn  = document.getElementById('import-modal-close');
@@ -863,8 +1011,7 @@ aeUsernameInput.addEventListener('input', function() {
         return;
     }
     aeSearchTimeout = setTimeout(() => {
-        let field = q.includes('@') ? 'email' : 'name';
-        fetch(`/api/v1/users?view=admin&field=${field}&q=` + encodeURIComponent(q), {
+        fetch(`/admin/contests/{{ contest.id }}/users_search?q=` + encodeURIComponent(q), {
             headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' }
         })
         .then(res => res.json())

@@ -5,7 +5,7 @@ from io import BytesIO, StringIO
 
 import json
 
-from flask import Response, abort, current_app, flash, redirect, render_template, request, send_file, stream_with_context, url_for
+from flask import Response, abort, current_app, flash, redirect, render_template, request, send_file, session, stream_with_context, url_for
 from sqlalchemy import or_
 from sqlalchemy.orm import joinedload
 
@@ -14,6 +14,50 @@ from CTFd.models import ChallengeStartTracking, ChallengeVersion, Challenges, Co
 from CTFd.plugins.challenges import CHALLENGE_CLASSES, get_chal_class
 from CTFd.utils.dates import ctftime
 from CTFd.utils.decorators import admins_only
+
+
+# ─── Contest access-password enforcement ─────────────────────────────────────
+
+@admin.before_request
+def enforce_contest_access_password():
+    """
+    Trước mỗi request vào admin contest sub-route (trừ verify-access),
+    kiểm tra nếu contest có access_password → yêu cầu admin nhập đúng password
+    trước khi vào. Kết quả được lưu vào session để không hỏi lại.
+    """
+    from CTFd.utils.user import authed, is_admin
+
+    # Chỉ xử lý khi đã đăng nhập (admin); nếu chưa thì để @admins_only lo
+    if not authed():
+        return
+
+    # Match: /admin/contests/<số>  hoặc  /admin/contests/<số>/bất-kỳ
+    m = re.match(r'^/admin/contests/(\d+)(?:/|$)', request.path)
+    if not m:
+        return
+
+    contest_id = int(m.group(1))
+
+    # Không chặn chính trang verify-access (tránh vòng lặp redirect)
+    verify_path = f'/admin/contests/{contest_id}/verify-access'
+    if request.path.rstrip('/') == verify_path.rstrip('/'):
+        return
+
+    contest = Contests.query.filter_by(id=contest_id).first()
+    if contest is None or not contest.access_password:
+        return  # Không có password → tự do vào
+
+    # Kiểm tra session xem đã verify contest này chưa
+    verified_ids = session.get('verified_contest_ids', [])
+    if contest_id in verified_ids:
+        return  # Đã xác thực trong session này
+
+    # Chuyển đến trang nhập password; lưu URL hiện tại để redirect về sau
+    return redirect(url_for(
+        'admin.contest_verify_access',
+        contest_id=contest_id,
+        next=request.path,
+    ))
 
 
 # ─── helpers cho contest instances ───────────────────────────────────────────
@@ -1067,6 +1111,81 @@ def contest_import_users(contest_id):
     }, 200
 
 
+@admin.route("/admin/contests/<int:contest_id>/users/<int:user_id>", methods=["GET"])
+@admins_only
+def contest_user_detail(contest_id, user_id):
+    """View a user's detail page within the contest context (uses contest sidebar)."""
+    from sqlalchemy import not_
+    from CTFd.models import Challenges, Solves, Fails, Awards, Teams, UserTeamMember, Tracking
+    from CTFd.utils.config import get_config
+    from CTFd.utils.modes import TEAMS_MODE
+
+    contest = Contests.query.filter_by(id=contest_id).first_or_404()
+    user = Users.query.filter_by(id=user_id).first_or_404()
+
+    # Team in THIS contest only
+    user_team = (
+        Teams.query
+        .join(UserTeamMember, UserTeamMember.team_id == Teams.id)
+        .filter(UserTeamMember.user_id == user_id, Teams.contest_id == contest_id)
+        .first()
+    )
+    user.team = user_team
+    user.team_id = user_team.id if user_team else None
+
+    # Solves scoped to this contest's challenges
+    solves = (
+        Solves.query
+        .join(Challenges, Challenges.id == Solves.challenge_id)
+        .filter(Solves.user_id == user_id, Challenges.contest_id == contest_id)
+        .order_by(Solves.date.desc())
+        .all()
+    )
+
+    # Fails scoped to this contest's challenges
+    fails = (
+        Fails.query
+        .join(Challenges, Challenges.id == Fails.challenge_id)
+        .filter(Fails.user_id == user_id, Challenges.contest_id == contest_id)
+        .order_by(Fails.date.desc())
+        .all()
+    )
+
+    # Awards scoped to this contest
+    awards = (
+        Awards.query
+        .filter_by(user_id=user_id, contest_id=contest_id)
+        .order_by(Awards.date.desc())
+        .all()
+    )
+
+    # Missing challenges in this contest that user hasn't solved
+    solve_ids = [s.challenge_id for s in solves]
+    missing_q = Challenges.query.filter(Challenges.contest_id == contest_id)
+    if solve_ids:
+        missing_q = missing_q.filter(not_(Challenges.id.in_(solve_ids)))
+    missing = missing_q.all()
+
+    addrs = Tracking.query.filter_by(user_id=user_id).order_by(Tracking.date.desc()).all()
+
+    score = sum(s.challenge.value for s in solves if s.challenge) if solves else 0
+    place = None  # Per-contest place calculation is complex; skip for now
+
+    return render_template(
+        "admin/users/user.html",
+        solves=solves,
+        user=user,
+        addrs=addrs,
+        score=score,
+        missing=missing,
+        place=place,
+        fails=fails,
+        awards=awards,
+        is_detail=True,
+        contest=contest,
+    )
+
+
 @admin.route("/admin/contests/<int:contest_id>/users/<int:user_id>", methods=["DELETE"])
 @admins_only
 def contest_remove_user(contest_id, user_id):
@@ -1213,6 +1332,45 @@ def contest_teams_search(contest_id):
     return {
         "success": True,
         "data": [{"id": t.id, "name": t.name} for t in teams]
+    }
+
+
+@admin.route("/admin/contests/<int:contest_id>/users_search", methods=["GET"])
+@admins_only
+def contest_users_search(contest_id):
+    from CTFd.models import Teams, UserTeamMember, Users
+    from sqlalchemy import or_
+
+    q = request.args.get("q", "").strip()
+    if not q:
+        return {"success": True, "data": []}
+
+    users_in_contest = (
+        db.session.query(UserTeamMember.user_id)
+        .join(Teams, Teams.id == UserTeamMember.team_id)
+        .filter(Teams.contest_id == contest_id)
+    )
+
+    users = (
+        Users.query
+        .filter(
+            ~Users.id.in_(users_in_contest),
+            or_(
+                Users.name.ilike(f"%{q}%"),
+                Users.email.ilike(f"%{q}%"),
+            ),
+        )
+        .order_by(Users.name.asc())
+        .limit(10)
+        .all()
+    )
+
+    return {
+        "success": True,
+        "data": [
+            {"id": user.id, "name": user.name, "email": user.email}
+            for user in users
+        ],
     }
 
 
@@ -1468,6 +1626,22 @@ def contest_team_detail(contest_id, team_id):
         addrs=addrs,
         is_detail=True,
     )
+
+
+@admin.route("/admin/contests/<int:contest_id>/member_ids", methods=["GET"])
+@admins_only
+def contest_member_ids(contest_id):
+    """Return a list of user IDs that are already members of any team in this contest."""
+    from CTFd.models import Teams, UserTeamMember
+    from flask import jsonify
+
+    member_ids = (
+        db.session.query(UserTeamMember.user_id)
+        .join(Teams, Teams.id == UserTeamMember.team_id)
+        .filter(Teams.contest_id == contest_id)
+        .all()
+    )
+    return jsonify({"success": True, "data": [row[0] for row in member_ids]})
 
 
 @admin.route("/admin/contests/<int:contest_id>/teams/<int:team_id>/delete", methods=["POST"])
@@ -1941,4 +2115,49 @@ def contest_dynamic_reward(contest_id):
         "admin/contests/sections/dynamic_reward.html",
         contest=contest,
         is_detail=is_detail,
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Contest access-password verify page
+# ─────────────────────────────────────────────────────────────────────────────
+
+@admin.route("/admin/contests/<int:contest_id>/verify-access", methods=["GET", "POST"])
+@admins_only
+def contest_verify_access(contest_id):
+    """
+    Hiển thị form nhập access_password của contest.
+    Sau khi nhập đúng, lưu contest_id vào session và redirect về trang đích.
+    """
+    contest = Contests.query.filter_by(id=contest_id).first_or_404()
+
+    # Nếu contest không có password thì vào thẳng
+    if not contest.access_password:
+        return redirect(url_for("admin.contest_dashboard", contest_id=contest_id))
+
+    # Nếu đã verify rồi (ví dụ user back lại) → vào thẳng
+    verified_ids = session.get("verified_contest_ids", [])
+    if contest_id in verified_ids:
+        next_url = request.args.get("next") or url_for("admin.contest_dashboard", contest_id=contest_id)
+        return redirect(next_url)
+
+    error = None
+    next_url = request.args.get("next") or url_for("admin.contest_dashboard", contest_id=contest_id)
+
+    if request.method == "POST":
+        entered = (request.form.get("access_password") or "").strip()
+        if entered == contest.access_password:
+            if contest_id not in verified_ids:
+                verified_ids.append(contest_id)
+                session["verified_contest_ids"] = verified_ids
+                session.modified = True
+            return redirect(next_url)
+        else:
+            error = "Mật khẩu không đúng. Vui lòng thử lại."
+
+    return render_template(
+        "admin/contests/verify_access.html",
+        contest=contest,
+        next_url=next_url,
+        error=error,
     )

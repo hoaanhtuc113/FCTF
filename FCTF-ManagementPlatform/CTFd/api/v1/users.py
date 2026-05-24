@@ -218,10 +218,12 @@ class UserList(Resource):
         contest_id = req.get("contest_id")
         if contest_id:
             from CTFd.models import Teams
+            from CTFd.utils.crypto import hash_password
+            raw_pw = req.get("password") or "changeme"
             team = Teams(
                 name=response.data.name,
                 email=response.data.email,
-                password=req.get("password"),
+                password=hash_password(raw_pw),
                 contest_id=contest_id,
                 captain_user_id=response.data.id
             )

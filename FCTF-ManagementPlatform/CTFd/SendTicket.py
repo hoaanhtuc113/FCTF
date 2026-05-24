@@ -78,7 +78,7 @@ def get_all_tickets(user_id=None, status=None, type_=None, search=None, page=1, 
             query = query.filter(Tickets.title.ilike(f"%{search}%"))
 
         total = query.count()
-        tickets = query.order_by(Tickets.create_at.desc()).offset((page-1)*per_page).limit(per_page).all()
+        tickets = query.order_by(Tickets.created_at.desc()).offset((page-1)*per_page).limit(per_page).all()
 
         tickets_data = []
         for ticket, author_name, replier_name, team_name in tickets:

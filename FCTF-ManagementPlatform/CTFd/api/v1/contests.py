@@ -63,6 +63,32 @@ def _parse_datetime(value):
     return None
 
 
+def _validate_times(start_time, end_time, freeze_scoreboard_at):
+    """
+    Validate contest time constraints.
+    Returns a dict of field -> [error messages], empty dict if all valid.
+    """
+    errors = {}
+
+    if start_time and end_time:
+        if end_time <= start_time:
+            errors.setdefault("end_time", []).append(
+                "End time must be after start time."
+            )
+
+    if freeze_scoreboard_at:
+        if start_time and freeze_scoreboard_at < start_time:
+            errors.setdefault("freeze_scoreboard_at", []).append(
+                "Freeze scoreboard time must be on or after start time."
+            )
+        if end_time and freeze_scoreboard_at > end_time:
+            errors.setdefault("freeze_scoreboard_at", []).append(
+                "Freeze scoreboard time must be on or before end time."
+            )
+
+    return errors
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # /api/v1/contests  — list + create
 # ─────────────────────────────────────────────────────────────────────────────
@@ -119,12 +145,20 @@ class ContestList(Resource):
         if not slug:
             slug = _slugify(name)
 
-        # Ensure slug uniqueness
-        base_slug = slug
-        counter = 1
-        while Contests.query.filter_by(slug=slug).first():
-            slug = f"{base_slug}-{counter}"
-            counter += 1
+        # Check slug uniqueness — reject instead of auto-renaming
+        if Contests.query.filter_by(slug=slug).first():
+            return {
+                "success": False,
+                "errors": {"slug": [f"Slug '{slug}' is already used by another contest."]},
+            }, 400
+
+        start_time = _parse_datetime(data.get("start_time"))
+        end_time = _parse_datetime(data.get("end_time"))
+        freeze_scoreboard_at = _parse_datetime(data.get("freeze_scoreboard_at"))
+
+        time_errors = _validate_times(start_time, end_time, freeze_scoreboard_at)
+        if time_errors:
+            return {"success": False, "errors": time_errors}, 400
 
         contest = Contests(
             name=name,
@@ -134,9 +168,9 @@ class ContestList(Resource):
             owner_id=data.get("owner_id") or None,
             user_mode=data.get("user_mode") or "teams",
             state=data.get("state") or "hidden",
-            start_time=_parse_datetime(data.get("start_time")),
-            end_time=_parse_datetime(data.get("end_time")),
-            freeze_scoreboard_at=_parse_datetime(data.get("freeze_scoreboard_at")),
+            start_time=start_time,
+            end_time=end_time,
+            freeze_scoreboard_at=freeze_scoreboard_at,
             view_after_ctf=bool(data.get("view_after_ctf", False)),
             challenge_visibility=data.get("challenge_visibility") or "private",
             score_visibility=data.get("score_visibility") or "private",
@@ -189,6 +223,20 @@ class ContestDetail(Resource):
         int_fields = ["owner_id", "team_size", "incorrect_submissions_per_min"]
         dt_fields = ["start_time", "end_time", "freeze_scoreboard_at"]
 
+        # Validate slug uniqueness before applying changes
+        if "slug" in data:
+            new_slug = (data["slug"] or "").strip()
+            if new_slug:
+                conflict = Contests.query.filter(
+                    Contests.slug == new_slug,
+                    Contests.id != contest_id,
+                ).first()
+                if conflict:
+                    return {
+                        "success": False,
+                        "errors": {"slug": [f"Slug '{new_slug}' is already used by another contest."]},
+                    }, 400
+
         for f in str_fields:
             if f in data:
                 setattr(contest, f, data[f] or None if f in ("access_password",) else (data[f] or ""))
@@ -205,6 +253,16 @@ class ContestDetail(Resource):
         for f in dt_fields:
             if f in data:
                 setattr(contest, f, _parse_datetime(data[f]))
+
+        # Validate time constraints after applying all changes
+        time_errors = _validate_times(
+            contest.start_time,
+            contest.end_time,
+            contest.freeze_scoreboard_at,
+        )
+        if time_errors:
+            db.session.rollback()
+            return {"success": False, "errors": time_errors}, 400
 
         contest.updated_at = datetime.datetime.utcnow()
         db.session.commit()

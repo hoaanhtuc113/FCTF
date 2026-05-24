@@ -17,12 +17,12 @@ namespace ContestantBE.Services;
 
 public interface IChallengeService
 {
-    Task<ChallengeDeployResponeDTO> ChallengeStart(Challenge challenge, User user);
+    Task<ChallengeDeployResponeDTO> ChallengeStart(Challenge challenge, User user, int? deploymentTeamId = null);
     Task<ChallengeDeployResponeDTO> ForceStopChallenge(int challengeId, User user);
     Task<ChallengeDeployResponeDTO> CheckChallengeStart(int challengeId, int teamId);
     Task<BaseResponseDTO<ChallengeByIdDTO>> GetById(int challengeId, User user);
-    Task<List<TopicDTO>> GetTopic(User user);
-    Task<List<ChallengeByCategoryDTO>> GetChallengeByCategories(string cacategory_name, int? team_id);
+    Task<List<TopicDTO>> GetTopic(User user, int contestId);
+    Task<List<ChallengeByCategoryDTO>> GetChallengeByCategories(string cacategory_name, int? team_id, int contestId);
     Task<List<ChallengeInstanceDTO>> GetAllInstances(int teamId);
 }
 
@@ -276,11 +276,12 @@ public class ChallengeService : IChallengeService
         };
     }
 
-    public async Task<List<ChallengeByCategoryDTO>> GetChallengeByCategories(string category_name, int? team_id)
+    public async Task<List<ChallengeByCategoryDTO>> GetChallengeByCategories(string category_name, int? team_id, int contestId)
     {
         var challenges = await _dbContext.Challenges
             .AsNoTracking()
-            .Where(c => c.Category == category_name &&
+            .Where(c => c.ContestId == contestId &&
+                        c.Category == category_name &&
                         c.State != Enums.ChallengeState.HIDDEN)
             .Select(c => new
             {
@@ -367,13 +368,13 @@ public class ChallengeService : IChallengeService
         return topics_data;
     }
 
-    public async Task<List<TopicDTO>> GetTopic(User user)
+    public async Task<List<TopicDTO>> GetTopic(User user, int contestId)
     {
         var teamId = (int?)user.TeamMemberships.FirstOrDefault()?.TeamId;
 
         var challengeStats = await _dbContext.Challenges
             .AsNoTracking()
-            .Where(c => c.State != Enums.ChallengeState.HIDDEN)
+            .Where(c => c.ContestId == contestId && c.State != Enums.ChallengeState.HIDDEN)
             .GroupBy(c => c.Category)
             .Select(g => new
             {
@@ -386,6 +387,7 @@ public class ChallengeService : IChallengeService
         var solvedStats = await _dbContext.Solves
             .AsNoTracking()
             .Where(s => s.TeamId == teamId &&
+                        s.Challenge.ContestId == contestId &&
                         s.Challenge.State != Enums.ChallengeState.HIDDEN)
             .GroupBy(s => s.Challenge.Category)
             .Select(g => new
@@ -415,10 +417,11 @@ public class ChallengeService : IChallengeService
         return topics;
     }
 
-    public async Task<ChallengeDeployResponeDTO> ChallengeStart(Challenge challenge, User user)
+    public async Task<ChallengeDeployResponeDTO> ChallengeStart(Challenge challenge, User user, int? deploymentTeamId = null)
     {
-        var teamId = user.TeamMemberships.FirstOrDefault()?.TeamId
+        var userTeamId = user.TeamMemberships.FirstOrDefault()?.TeamId
             ?? throw new InvalidOperationException("User has no team");
+        var teamId = deploymentTeamId ?? userTeamId;
         try
         {
             var unixTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds();

@@ -116,7 +116,7 @@ def challenges_listing():
     types = [t[0] for t in raw_types if t and t[0]]
     # Add creator names to challenges
     for c in challenges.items:
-        user = Users.query.filter_by(id=c.user_id).first()
+        user = Users.query.filter_by(id=c.created_by).first()
         if user:
             c.creator = user.name
         else:

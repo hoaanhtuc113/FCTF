@@ -201,6 +201,7 @@
             </div>
             <div id="create-chals-select">
                 {% for type in types %}
+                {% if type != "sandbox" %}
                 <label class="w-100">
                     <input type="radio" name="type" class="card-radio d-none"
                            value="{{ type }}" {% if type == "standard" %}checked{% endif %} />
@@ -216,6 +217,7 @@
                         </div>
                     </div>
                 </label>
+                {% endif %}
                 {% endfor %}
 
                 <!-- Sandbox type card -->

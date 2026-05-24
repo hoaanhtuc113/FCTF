@@ -8,6 +8,15 @@ public class ContestantBEConfigHelper
     public static string PRIVATE_KEY = "";
     public static string CLOUDFLARE_TURNSTILE_SECRET_KEY = "";
 
+    // KYPO sandbox integration
+    public static string KypoBaseUrl = "https://vuontre.iahn.hanoi.vn";
+    public static string KypoRealm = "CRCZP";
+    public static string KypoClientId = "CRCZP-Client";
+    public static string KypoClientSecret = "";
+    public static string KypoAdminUser = "";
+    public static string KypoAdminPass = "";
+
+
     public static bool IsTurnstileEnabled => !string.IsNullOrWhiteSpace(CLOUDFLARE_TURNSTILE_SECRET_KEY);
 
     public void InitConfig()
@@ -19,6 +28,13 @@ public class ContestantBEConfigHelper
         CLOUDFLARE_TURNSTILE_SECRET_KEY = GetOptionalEnv("CLOUDFLARE_TURNSTILE_SECRET_KEY")
             ?? GetOptionalEnv("TURNSTILE_SECRET_KEY")
             ?? string.Empty;
+
+        KypoBaseUrl = GetOptionalEnv("KYPO_BASE_URL") ?? KypoBaseUrl;
+        KypoRealm = GetOptionalEnv("KYPO_REALM") ?? KypoRealm;
+        KypoClientId = GetOptionalEnv("KYPO_CLIENT_ID") ?? KypoClientId;
+        KypoAdminUser = GetOptionalEnv("KYPO_ADMIN_USER") ?? "";
+        KypoAdminPass = GetOptionalEnv("KYPO_ADMIN_PASS") ?? "";
+        KypoClientSecret = GetOptionalEnv("KYPO_CLIENT_SECRET") ?? "";
     }
 
     private static string GetRequiredEnv(string key)

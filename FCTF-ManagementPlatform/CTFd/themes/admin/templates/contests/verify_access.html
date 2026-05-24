@@ -1,0 +1,243 @@
+{% extends "admin/management_hub_base.html" %}
+
+{% block stylesheets %}
+<style>
+    .verify-card {
+        background: #fff;
+        border: 1px solid var(--border-light);
+        border-radius: 10px;
+        padding: 2rem 2.25rem;
+        box-shadow: var(--shadow-sm);
+        max-width: 440px;
+        margin: 4rem auto 0;
+    }
+
+    .verify-icon {
+        width: 56px;
+        height: 56px;
+        background: #fff5f2;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1.25rem;
+    }
+
+    .verify-icon i {
+        font-size: 1.75rem;
+        color: var(--primary-orange);
+    }
+
+    .verify-title {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: var(--text-dark);
+        text-align: center;
+        margin-bottom: 0.3rem;
+    }
+
+    .verify-subtitle {
+        font-size: 0.82rem;
+        color: var(--text-light);
+        text-align: center;
+        margin-bottom: 1.5rem;
+    }
+
+    .verify-contest-name {
+        font-size: 0.88rem;
+        font-weight: 600;
+        color: var(--primary-orange);
+        text-align: center;
+        margin-bottom: 1.5rem;
+        padding: 0.5rem 1rem;
+        background: #fff5f2;
+        border-radius: 6px;
+        border: 1px solid #ffe8df;
+    }
+
+    .form-label-sm {
+        font-size: 0.78rem;
+        font-weight: 600;
+        color: var(--text-medium);
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        margin-bottom: 0.35rem;
+        display: block;
+    }
+
+    .clean-form-control {
+        border: 1px solid var(--border-light);
+        border-radius: 6px;
+        padding: 0.5rem 0.75rem;
+        font-size: 0.875rem;
+        width: 100%;
+        outline: none;
+        transition: border-color 0.18s;
+        background: #fafafa;
+        color: var(--text-dark);
+    }
+
+    .clean-form-control:focus {
+        border-color: var(--primary-orange);
+        background: #fff;
+    }
+
+    .alert-danger {
+        background: #fff0f0;
+        border: 1px solid #f5c6cb;
+        color: #721c24;
+        border-radius: 6px;
+        padding: 0.65rem 0.9rem;
+        font-size: 0.83rem;
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .clean-btn-primary {
+        background: var(--primary-orange);
+        color: #fff;
+        border: none;
+        border-radius: 6px;
+        padding: 0.55rem 1rem;
+        font-size: 0.875rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.18s;
+        width: 100%;
+        margin-top: 0.75rem;
+    }
+
+    .clean-btn-primary:hover {
+        background: var(--primary-orange-dark, #e05a25);
+    }
+
+    .back-link {
+        display: block;
+        text-align: center;
+        margin-top: 1rem;
+        font-size: 0.8rem;
+        color: var(--text-light);
+        text-decoration: none;
+    }
+
+    .back-link:hover {
+        color: var(--primary-orange);
+    }
+
+    .password-wrapper {
+        position: relative;
+    }
+
+    .password-toggle-btn {
+        position: absolute;
+        right: 0.6rem;
+        top: 50%;
+        transform: translateY(-50%);
+        background: none;
+        border: none;
+        cursor: pointer;
+        color: var(--text-light);
+        font-size: 1rem;
+        padding: 0;
+        line-height: 1;
+    }
+
+    .password-toggle-btn:hover {
+        color: var(--primary-orange);
+    }
+
+    .password-field-wrap {
+        padding-right: 2.25rem !important;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="verify-card">
+
+        <!-- Icon -->
+        <div class="verify-icon">
+            <i class="bx bx-lock-alt"></i>
+        </div>
+
+        <!-- Title -->
+        <div class="verify-title">Xác thực truy cập contest</div>
+        <div class="verify-subtitle">
+            Contest này được bảo vệ bằng mật khẩu.<br>
+            Nhập đúng mật khẩu để tiếp tục quản lý.
+        </div>
+
+        <!-- Contest name badge -->
+        <div class="verify-contest-name">
+            <i class="bx bx-trophy mr-1"></i> {{ contest.name }}
+        </div>
+
+        <!-- Error -->
+        {% if error %}
+        <div class="alert-danger">
+            <i class="bx bx-error-circle"></i>
+            {{ error }}
+        </div>
+        {% endif %}
+
+        <!-- Form -->
+        <form method="POST" action="{{ url_for('admin.contest_verify_access', contest_id=contest.id, next=next_url) }}">
+            <input type="hidden" name="nonce" value="{{ Session.nonce }}">
+
+            <div class="form-group mb-0">
+                <label class="form-label-sm">Mật khẩu truy cập</label>
+                <div class="password-wrapper">
+                    <input type="password"
+                           name="access_password"
+                           id="verify-password-input"
+                           class="clean-form-control password-field-wrap"
+                           placeholder="Nhập mật khẩu contest..."
+                           autofocus
+                           required>
+                    <button type="button"
+                            class="password-toggle-btn"
+                            onclick="toggleVerifyPassword()"
+                            title="Hiện/ẩn mật khẩu">
+                        <i class="bx bx-hide" id="verify-pw-icon"></i>
+                    </button>
+                </div>
+            </div>
+
+            <button type="submit" class="clean-btn-primary">
+                <i class="bx bx-log-in-circle mr-1"></i> Vào Contest
+            </button>
+        </form>
+
+        <a href="{{ url_for('admin.contests_listing') }}" class="back-link">
+            <i class="bx bx-arrow-back mr-1"></i> Quay lại danh sách contests
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function toggleVerifyPassword() {
+    var input = document.getElementById('verify-password-input');
+    var icon  = document.getElementById('verify-pw-icon');
+    if (input.type === 'password') {
+        input.type = 'text';
+        icon.className = 'bx bx-show';
+    } else {
+        input.type = 'password';
+        icon.className = 'bx bx-hide';
+    }
+}
+
+// Submit form bằng Enter
+document.getElementById('verify-password-input').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        this.closest('form').submit();
+    }
+});
+</script>
+{% endblock %}

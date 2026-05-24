@@ -15,7 +15,7 @@ public class FileService : IFileService
     private readonly AppLogger _logger;
     public FileService(AppDbContext context, AppLogger logger)
     {
-        _nfsMountPath = ContestantBEConfigHelper.NFS_MOUNT_PATH;
+        _nfsMountPath = Path.GetFullPath(ContestantBEConfigHelper.NFS_MOUNT_PATH);
         _context = context;
         _logger = logger;
     }

@@ -28,6 +28,7 @@ public class ChallengeController : BaseController
     private readonly RedisLockHelper _redisLockHelper;
     private readonly AppLogger _userBehaviorLogger;
     private readonly IActionLogsServices _actionLogsServices;
+    private readonly KypoService _kypoService;
 
     public ChallengeController(
         IUserContext userContext,
@@ -38,7 +39,8 @@ public class ChallengeController : BaseController
         RedisHelper redisHelper,
         RedisLockHelper redisLockHelper,
         AppLogger userBehaviorLogger,
-        IActionLogsServices actionLogsServices) : base(userContext)
+        IActionLogsServices actionLogsServices,
+        KypoService kypoService) : base(userContext)
     {
         _context = context;
         _configHelper = configHelper;
@@ -48,6 +50,7 @@ public class ChallengeController : BaseController
         _redisLockHelper = redisLockHelper;
         _userBehaviorLogger = userBehaviorLogger;
         _actionLogsServices = actionLogsServices;
+        _kypoService = kypoService;
     }
 
     private static bool IsDuplicateKey(DbUpdateException ex)
@@ -150,7 +153,7 @@ public class ChallengeController : BaseController
 
     [HttpGet("by-topic")]
     [DuringCtfTimeAndAfterOnly]
-    public async Task<IActionResult> GetByTopic()
+    public async Task<IActionResult> GetByTopic([FromRoute] int contestId)
     {
         var userId = UserContext.UserId;
         var user = await _context.Users
@@ -164,7 +167,7 @@ public class ChallengeController : BaseController
         try
         {
             _userBehaviorLogger.Log("VIEW_All_TOPIC", user.Id, UserContext.TeamId, null);
-            var result = await _challengeServices.GetTopic(user);
+            var result = await _challengeServices.GetTopic(user, contestId);
             return Ok(new
             {
                 success = true,
@@ -183,12 +186,12 @@ public class ChallengeController : BaseController
 
     [HttpGet("list_challenge/{category_name}")]
     [DuringCtfTimeAndAfterOnly]
-    public async Task<IActionResult> ListChallengesByCategoryName([FromRoute] string category_name)
+    public async Task<IActionResult> ListChallengesByCategoryName([FromRoute] int contestId, [FromRoute] string category_name)
     {
         var userId = UserContext.UserId;
         var teamId = UserContext.TeamId;
         _userBehaviorLogger.Log("VIEW_CHALLENGES_BY_CATEGORY", userId, teamId, new { category = category_name });
-        var challenges = await _challengeServices.GetChallengeByCategories(category_name, teamId);
+        var challenges = await _challengeServices.GetChallengeByCategories(category_name, teamId, contestId);
         return Ok(new
         {
             success = true,
@@ -764,7 +767,7 @@ public class ChallengeController : BaseController
 
         if (challenge == null) return NotFound(new { error = "Challenge not found" });
         if (!challenge.RequireDeploy) return BadRequest(new { error = "This challenge does not require deploy" });
-        if (challenge.State == ChallengeState.HIDDEN || challenge.SharedInstant == true) return BadRequest(new { error = "This challenge is not available for deployment" });
+        if (challenge.State == ChallengeState.HIDDEN) return BadRequest(new { error = "This challenge is not available for deployment" });
 
         // Check prerequisites from Requirements JSON
         if (!string.IsNullOrEmpty(challenge.Requirements))
@@ -861,13 +864,14 @@ public class ChallengeController : BaseController
         // Check limit_challenges - maximum concurrent challenges per team
         var limit_challenges = _configHelper.LimitChallenges();
 
-        var deploymentKey = ChallengeHelper.GetCacheKey(challengeStartReq.challengeId, teamId!.Value);
-        var teamIdStr = teamId.Value.ToString();
+        var deploymentTeamId = challenge.SharedInstant ? -2 : teamId!.Value;
+        var deploymentKey = ChallengeHelper.GetCacheKey(challengeStartReq.challengeId, deploymentTeamId);
+        var teamIdStr = deploymentTeamId.ToString();
         var challengeIdStr = challenge.Id.ToString();
         var cacheDto = new ChallengeDeploymentCacheDTO
         {
             challenge_id = challenge.Id,
-            team_id = teamId.Value,
+            team_id = deploymentTeamId,
             status = DeploymentStatus.INITIAL,
             user_id = user!.Id,
         };
@@ -934,7 +938,7 @@ public class ChallengeController : BaseController
 
         try
         {
-            var response = await _challengeServices.ChallengeStart(challenge, user);
+            var response = await _challengeServices.ChallengeStart(challenge, user, deploymentTeamId);
             if (response.status != (int)HttpStatusCode.OK)
             {
                 // >>> ROLLBACK: Xóa ngay slot vừa chiếm trong Redis <<<
@@ -1080,5 +1084,42 @@ public class ChallengeController : BaseController
             (int)HttpStatusCode.NotFound => NotFound(response),
             _ => StatusCode((int)response.status, response)
         };
+    }
+
+    [HttpGet("{challengeId}/sandbox-ssh")]
+    [DuringCtfTimeAndAfterOnly]
+    public async Task<IActionResult> DownloadSandboxSshConfig(int challengeId)
+    {
+        var challenge = await _context.Challenges
+            .AsNoTracking()
+            .FirstOrDefaultAsync(c => c.Id == challengeId);
+
+        if (challenge == null)
+            return NotFound(new { error = "Challenge not found" });
+
+        if (challenge.Type != "sandbox")
+            return BadRequest(new { error = "This challenge is not a sandbox challenge" });
+
+        var sandboxChallenge = await _context.SandboxChallenges
+            .AsNoTracking()
+            .FirstOrDefaultAsync(s => s.Id == challengeId);
+
+        if (sandboxChallenge?.PoolId == null)
+            return NotFound(new { error = "No pool configured for this challenge" });
+
+        if (string.IsNullOrEmpty(ContestantBEConfigHelper.KypoAdminUser) ||
+            string.IsNullOrEmpty(ContestantBEConfigHelper.KypoAdminPass))
+            return StatusCode(503, new { error = "KYPO integration is not configured" });
+
+        try
+        {
+            var zipBytes = await _kypoService.DownloadPoolSshConfig(sandboxChallenge.PoolId.Value);
+            return File(zipBytes, "application/zip", $"challenge-{challengeId}-sandbox-ssh.zip");
+        }
+        catch (Exception ex)
+        {
+            await Console.Error.WriteLineAsync($"[KYPO SSH] Failed to download SSH config for challenge {challengeId}: {ex.Message}");
+            return StatusCode(502, new { error = "Failed to retrieve SSH config from KYPO", detail = ex.Message });
+        }
     }
 }
