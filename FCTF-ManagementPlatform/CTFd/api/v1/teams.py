@@ -550,15 +550,30 @@ class TeamMembers(Resource):
                     400,
                 )
 
-            already_in_team = UserTeamMember.query.filter_by(user_id=user.id).first()
-            if already_in_team is None:
+            # Check if user is already in a team for this contest (contest-scoped)
+            if team.contest_id:
+                already_in_contest = (
+                    db.session.query(UserTeamMember)
+                    .join(Teams, Teams.id == UserTeamMember.team_id)
+                    .filter(
+                        UserTeamMember.user_id == user.id,
+                        Teams.contest_id == team.contest_id,
+                    )
+                    .first()
+                )
+            else:
+                already_in_contest = UserTeamMember.query.filter_by(
+                    user_id=user.id, team_id=team.id
+                ).first()
+
+            if already_in_contest is None:
                 team.members.append(user)
                 db.session.commit()
             else:
                 return (
                     {
                         "success": False,
-                        "errors": {"id": ["User has already joined a team"]},
+                        "errors": {"id": ["User has already joined a team in this contest"]},
                     },
                     400,
                 )
@@ -590,10 +605,10 @@ class TeamMembers(Resource):
         if membership:
             team.members.remove(user)
 
-            # Remove information that links the user to the team
-            Submissions.query.filter_by(user_id=user.id).delete()
-            Awards.query.filter_by(user_id=user.id).delete()
-            Unlocks.query.filter_by(user_id=user.id).delete()
+            # Remove information that links the user to this specific team
+            Submissions.query.filter_by(user_id=user.id, team_id=team.id).delete()
+            Awards.query.filter_by(user_id=user.id, team_id=team.id).delete()
+            Unlocks.query.filter_by(user_id=user.id, team_id=team.id).delete()
 
             db.session.commit()
         else:
