@@ -57,7 +57,7 @@
               unverified
             </small>
             <small
-              v-else-if="user.team_id"
+              v-else-if="contestMemberIds.includes(user.id)"
               :class="{
                 'text-white': idx === selectedResultIdx,
                 'text-muted': idx !== selectedResultIdx,
@@ -82,13 +82,12 @@
 
 <script>
 import CTFd from "../../compat/CTFd";
-import { ezQuery } from "../../compat/ezq";
-import { htmlEntities } from "@ctfdio/ctfd-js/utils/html";
 
 export default {
   name: "UserAddForm",
   props: {
     team_id: Number,
+    contest_id: Number,
   },
   data: function () {
     return {
@@ -98,9 +97,27 @@ export default {
       userResults: [],
       selectedResultIdx: 0,
       selectedUsers: [],
+      contestMemberIds: [],
     };
   },
+  mounted: function () {
+    this.loadContestMembers();
+  },
   methods: {
+    loadContestMembers: function () {
+      if (!this.$props.contest_id) return;
+      CTFd.fetch(`/admin/contests/${this.$props.contest_id}/member_ids`, {
+        method: "GET",
+        credentials: "same-origin",
+        headers: { Accept: "application/json" },
+      })
+        .then((r) => r.json())
+        .then((r) => {
+          if (r.success) {
+            this.contestMemberIds = r.data;
+          }
+        });
+    },
     searchUsers: function () {
       this.selectedResultIdx = 0;
       if (this.searchedName == "") {
@@ -186,44 +203,10 @@ export default {
 
       return Promise.all(reqs);
     },
-    handleRemoveUsersFromTeams: function () {
-      let reqs = [];
-      this.selectedUsers.forEach((user) => {
-        let body = { user_id: user.id };
-        reqs.push(
-          CTFd.fetch(`/api/v1/teams/${user.team_id}/members`, {
-            method: "DELETE",
-            body: JSON.stringify(body),
-          })
-        );
-      });
-      return Promise.all(reqs);
-    },
     addUsers: function () {
-      let usersInTeams = [];
-      this.selectedUsers.forEach((user) => {
-        if (user.team_id) {
-          usersInTeams.push(user.name);
-        }
+      this.handleAddUsersRequest().then((_resps) => {
+        window.location.reload();
       });
-      if (usersInTeams.length) {
-        let users = htmlEntities(usersInTeams.join(", "));
-        ezQuery({
-          title: "Confirm Team Removal",
-          body: `The following users are currently in teams:<br><br> ${users} <br><br>Are you sure you want to remove them from their current teams and add them to this one? <br><br>All of their challenge solves, attempts, awards, and unlocked hints will also be deleted!`,
-          success: () => {
-            this.handleRemoveUsersFromTeams().then((_resps) => {
-              this.handleAddUsersRequest().then((_resps) => {
-                window.location.reload();
-              });
-            });
-          },
-        });
-      } else {
-        this.handleAddUsersRequest().then((_resps) => {
-          window.location.reload();
-        });
-      }
     },
   },
   watch: {
