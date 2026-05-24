@@ -478,23 +478,24 @@
 				</thead>
 				<tbody>
 					{% for member in members %}
+					{% set member_url = url_for('admin.contest_user_detail', contest_id=contest.id, user_id=member.id) if contest is defined and contest else url_for('admin.users_detail', user_id=member.id) %}
 					<tr>
-						<td class="text-center" data-href="{{ url_for('admin.users_detail', user_id=member.id) }}">
+						<td class="text-center" data-href="{{ member_url }}">
 							{% if team.captain_id == member.id %}
 							<span class="badge badge-primary">Captain</span>
 							{% endif %}
 						</td>
-						<td class="text-left" data-href="{{ url_for('admin.users_detail', user_id=member.id) }}">
-							<a href="{{ url_for('admin.users_detail', user_id=member.id) }}">
+						<td class="text-left" data-href="{{ member_url }}">
+							<a href="{{ member_url }}">
 								{{ member.name }}
 							</a>
 						</td>
-						<td class="text-center" data-href="{{ url_for('admin.users_detail', user_id=member.id) }}">
+						<td class="text-center" data-href="{{ member_url }}">
 							<a href="mailto:{{ member.email }}" target="_blank">
 								{{ member.email }}
 							</a>
 						</td>
-						<td class="text-center" data-href="{{ url_for('admin.users_detail', user_id=member.id) }}">
+						<td class="text-center" data-href="{{ member_url }}">
 							{{ member.score }}
 						</td>
 						<td class="text-center">
@@ -799,6 +800,7 @@
 <script>
 	var TEAM_ID = {{ team.id }};
 	var TEAM_NAME = {{ team.name | tojson }};
+	var CONTEST_ID = {{ contest.id if contest is defined and contest else 'null' }};
 	var stats_data = {{ {
 		'type': 'team',
 		'id': team.id,
