@@ -603,11 +603,7 @@ public class AuthService : IAuthService
                 return BaseResponseDTO<AuthResponseDTO>.Fail("Your account is not allowed");
             }
             var userTeam = user.TeamMemberships.FirstOrDefault()?.Team;
-            if (userTeam == null)
-            {
-                return BaseResponseDTO<AuthResponseDTO>.Fail("You don't have a team yet");
-            }
-            if (userTeam.Banned ?? false)
+            if (userTeam?.Banned ?? false)
             {
                 return BaseResponseDTO<AuthResponseDTO>.Fail("Your team has been banned");
             }

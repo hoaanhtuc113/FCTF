@@ -116,10 +116,11 @@ public class ConfigController : BaseController
     [HttpGet("contest_list")]
     public async Task<IActionResult> GetContestList()
     {
-        var teamId = UserContext.TeamId;
+        var userId = UserContext.UserId;
 
         var contests = await _dbContext.Contests
-            .Where(c => c.State != "hidden" && c.Teams.Any(t => t.Id == teamId))
+            .Where(c => c.State != "hidden"
+                && c.Teams.Any(t => t.Members.Any(m => m.UserId == userId)))
             .Select(c => new
             {
                 id = c.Id,
