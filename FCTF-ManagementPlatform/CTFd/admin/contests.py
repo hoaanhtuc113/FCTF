@@ -1103,46 +1103,60 @@ def contest_import_users(contest_id):
 def contest_user_detail(contest_id, user_id):
     """View a user's detail page within the contest context (uses contest sidebar)."""
     from sqlalchemy import not_
-    from CTFd.models import Challenges, Teams, UserTeamMember, Tracking
+    from CTFd.models import Challenges, Solves, Fails, Awards, Teams, UserTeamMember, Tracking
     from CTFd.utils.config import get_config
     from CTFd.utils.modes import TEAMS_MODE
 
     contest = Contests.query.filter_by(id=contest_id).first_or_404()
     user = Users.query.filter_by(id=user_id).first_or_404()
 
-    solves = user.get_solves(admin=True)
-
-    user_team = None
-    if get_config("user_mode") == TEAMS_MODE:
-        user_team = (
-            Teams.query
-            .join(UserTeamMember, UserTeamMember.team_id == Teams.id)
-            .filter(UserTeamMember.user_id == user_id)
-            .first()
-        )
-        all_solves = user_team.get_solves(admin=True) if user_team else user.get_solves(admin=True)
-    else:
-        all_solves = user.get_solves(admin=True)
-
+    # Team in THIS contest only
+    user_team = (
+        Teams.query
+        .join(UserTeamMember, UserTeamMember.team_id == Teams.id)
+        .filter(UserTeamMember.user_id == user_id, Teams.contest_id == contest_id)
+        .first()
+    )
     user.team = user_team
     user.team_id = user_team.id if user_team else None
 
-    solve_ids = [s.challenge_id for s in all_solves]
-    missing = (
-        Challenges.query.filter(not_(Challenges.id.in_(solve_ids))).all()
-        if solve_ids else Challenges.query.all()
+    # Solves scoped to this contest's challenges
+    solves = (
+        Solves.query
+        .join(Challenges, Challenges.id == Solves.challenge_id)
+        .filter(Solves.user_id == user_id, Challenges.contest_id == contest_id)
+        .order_by(Solves.date.desc())
+        .all()
     )
 
-    addrs = Tracking.query.filter_by(user_id=user_id).order_by(Tracking.date.desc()).all()
-    fails = user.get_fails(admin=True)
-    awards = user.get_awards(admin=True)
+    # Fails scoped to this contest's challenges
+    fails = (
+        Fails.query
+        .join(Challenges, Challenges.id == Fails.challenge_id)
+        .filter(Fails.user_id == user_id, Challenges.contest_id == contest_id)
+        .order_by(Fails.date.desc())
+        .all()
+    )
 
-    if user.account:
-        score = user.account.get_score(admin=True)
-        place = user.account.get_place(admin=True)
-    else:
-        score = None
-        place = None
+    # Awards scoped to this contest
+    awards = (
+        Awards.query
+        .filter_by(user_id=user_id, contest_id=contest_id)
+        .order_by(Awards.date.desc())
+        .all()
+    )
+
+    # Missing challenges in this contest that user hasn't solved
+    solve_ids = [s.challenge_id for s in solves]
+    missing_q = Challenges.query.filter(Challenges.contest_id == contest_id)
+    if solve_ids:
+        missing_q = missing_q.filter(not_(Challenges.id.in_(solve_ids)))
+    missing = missing_q.all()
+
+    addrs = Tracking.query.filter_by(user_id=user_id).order_by(Tracking.date.desc()).all()
+
+    score = sum(s.challenge.value for s in solves if s.challenge) if solves else 0
+    place = None  # Per-contest place calculation is complex; skip for now
 
     return render_template(
         "admin/users/user.html",
