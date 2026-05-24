@@ -2910,6 +2910,63 @@ function ChallengeDetailPanel({
     });
   };
 
+  const [isDownloadingSsh, setIsDownloadingSsh] = useState(false);
+
+  const handleDownloadSandboxSsh = async () => {
+    setIsDownloadingSsh(true);
+    try {
+      const response = await fetchWithAuth(API_ENDPOINTS.CHALLENGES.SANDBOX_SSH(challenge.id), {
+        method: 'GET',
+      });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        Swal.fire({
+          html: `
+            <div class="font-mono text-left text-sm">
+              <div class="text-red-400 mb-2">[!] Download failed</div>
+              <div class="text-gray-400">> ${(data as any).error || 'Unable to retrieve SSH config'}</div>
+            </div>
+          `,
+          icon: 'error',
+          iconColor: '#ef4444',
+          confirmButtonText: 'OK',
+          background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+          color: theme === 'dark' ? '#ef4444' : '#000000',
+          customClass: {
+            popup: 'rounded-lg border border-red-500/30',
+            confirmButton: 'bg-red-500 hover:bg-red-600 text-white font-mono px-4 py-2 rounded',
+          },
+        });
+        return;
+      }
+
+      const blob = await response.blob();
+      saveAs(blob, `challenge-${challenge.id}-sandbox-ssh.zip`);
+    } catch (error) {
+      console.error('SSH config download error:', error);
+      Swal.fire({
+        html: `
+          <div class="font-mono text-left text-sm">
+            <div class="text-red-400 mb-2">[!] Connection error</div>
+            <div class="text-gray-400">> Failed to download SSH config</div>
+          </div>
+        `,
+        icon: 'error',
+        iconColor: '#ef4444',
+        confirmButtonText: 'OK',
+        background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+        color: theme === 'dark' ? '#ef4444' : '#000000',
+        customClass: {
+          popup: 'rounded-lg border border-red-500/30',
+          confirmButton: 'bg-red-500 hover:bg-red-600 text-white font-mono px-4 py-2 rounded',
+        },
+      });
+    } finally {
+      setIsDownloadingSsh(false);
+    }
+  };
+
   const handleDownloadFile = async (filePath: string) => {
     try {
       const blob = await downloadFile(filePath);
@@ -4078,6 +4135,36 @@ function ChallengeDetailPanel({
                   Wait for admin to start challenge
                 </div>
               )}
+
+            {/* Sandbox SSH config download */}
+            {challenge.type === 'sandbox' && (
+              <div className={`rounded border p-3 ${theme === 'dark' ? 'bg-gray-900 border-gray-700' : 'bg-gray-50 border-gray-300'}`}>
+                <div className={`text-xs font-mono font-bold mb-2 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                  [SANDBOX ACCESS]
+                </div>
+                <p className={`text-xs font-mono mb-2 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                  Download the SSH key configuration for the sandboxes in this challenge's pool.
+                </p>
+                <button
+                  onClick={handleDownloadSandboxSsh}
+                  disabled={isDownloadingSsh}
+                  className={`w-full flex items-center justify-center gap-2 px-3 py-2 rounded border font-mono text-xs font-bold transition-colors ${
+                    isDownloadingSsh
+                      ? theme === 'dark'
+                        ? 'bg-gray-800 text-gray-500 border-gray-700 cursor-not-allowed'
+                        : 'bg-gray-200 text-gray-400 border-gray-300 cursor-not-allowed'
+                      : theme === 'dark'
+                        ? 'bg-cyan-900/30 text-cyan-400 border-cyan-700 hover:bg-cyan-900/50'
+                        : 'bg-cyan-50 text-cyan-700 border-cyan-300 hover:bg-cyan-100'
+                  }`}
+                >
+                  {isDownloadingSsh
+                    ? <><CircularProgress size={12} sx={{ color: 'currentColor' }} /> Downloading...</>
+                    : <><FaDownload size={12} /> Download SSH Config (.zip)</>
+                  }
+                </button>
+              </div>
+            )}
 
             {challenge.next_id && (
               <div className="mt-6 flex items-center gap-3">

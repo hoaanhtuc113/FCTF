@@ -22,6 +22,7 @@ export const API_ENDPOINTS = {
     CHECK_CACHE: '/challenge/check_cache',
     START_CHECKING: '/challenge/check-status',
     INSTANCES: '/challenge/instances',
+    SANDBOX_SSH: (challengeId: number | string) => `/challenge/${challengeId}/sandbox-ssh`,
   },
   HINTS: {
     GET_ALL: (challengeId: string | number) => `/hint/${challengeId}/all`,

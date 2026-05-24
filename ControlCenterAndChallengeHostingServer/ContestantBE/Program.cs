@@ -104,6 +104,12 @@ builder.Services.AddScoped<IChallengeService, ChallengeService>();
 builder.Services.AddScoped<IFileService, FileService>();
 builder.Services.AddScoped<IActionLogsServices, ActionLogsServices>();
 builder.Services.AddScoped<IUserContext, UserContext>();
+builder.Services.AddSingleton<KypoService>();
+builder.Services.AddHttpClient("kypo")
+    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+    {
+        ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+    });
 // DI services from ResourceShared
 builder.Services.AddResourceShared();
 
