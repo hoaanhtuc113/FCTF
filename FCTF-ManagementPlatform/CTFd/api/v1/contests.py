@@ -145,12 +145,12 @@ class ContestList(Resource):
         if not slug:
             slug = _slugify(name)
 
-        # Ensure slug uniqueness
-        base_slug = slug
-        counter = 1
-        while Contests.query.filter_by(slug=slug).first():
-            slug = f"{base_slug}-{counter}"
-            counter += 1
+        # Check slug uniqueness — reject instead of auto-renaming
+        if Contests.query.filter_by(slug=slug).first():
+            return {
+                "success": False,
+                "errors": {"slug": [f"Slug '{slug}' is already used by another contest."]},
+            }, 400
 
         start_time = _parse_datetime(data.get("start_time"))
         end_time = _parse_datetime(data.get("end_time"))
@@ -222,6 +222,20 @@ class ContestDetail(Resource):
         ]
         int_fields = ["owner_id", "team_size", "incorrect_submissions_per_min"]
         dt_fields = ["start_time", "end_time", "freeze_scoreboard_at"]
+
+        # Validate slug uniqueness before applying changes
+        if "slug" in data:
+            new_slug = (data["slug"] or "").strip()
+            if new_slug:
+                conflict = Contests.query.filter(
+                    Contests.slug == new_slug,
+                    Contests.id != contest_id,
+                ).first()
+                if conflict:
+                    return {
+                        "success": False,
+                        "errors": {"slug": [f"Slug '{new_slug}' is already used by another contest."]},
+                    }, 400
 
         for f in str_fields:
             if f in data:
