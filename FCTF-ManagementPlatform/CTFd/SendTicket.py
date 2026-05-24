@@ -37,7 +37,7 @@ def get_ticket_by_id(ticket_id):
             'author_name': _string_or_empty(author_name),
             'status': _string_or_empty(ticket.status),
             'title': _string_or_empty(ticket.title),
-            'date': ticket.create_at,
+            'date': ticket.created_at,
             'type': _string_or_empty(ticket.type),
             'description': _string_or_empty(ticket.description),
             'replier_name': _string_or_empty(replier_name),
@@ -78,7 +78,7 @@ def get_all_tickets(user_id=None, status=None, type_=None, search=None, page=1, 
             query = query.filter(Tickets.title.ilike(f"%{search}%"))
 
         total = query.count()
-        tickets = query.order_by(Tickets.create_at.desc()).offset((page-1)*per_page).limit(per_page).all()
+        tickets = query.order_by(Tickets.created_at.desc()).offset((page-1)*per_page).limit(per_page).all()
 
         tickets_data = []
         for ticket, author_name, replier_name, team_name in tickets:
@@ -89,7 +89,7 @@ def get_all_tickets(user_id=None, status=None, type_=None, search=None, page=1, 
                 'id': ticket.id,
                 'title': _string_or_empty(ticket.title),
                 'type': _string_or_empty(ticket.type),
-                'date': ticket.create_at,
+                'date': ticket.created_at,
                 'description': _string_or_empty(ticket.description),
                 'replier_name': _string_or_empty(replier_name),
                 'replier_message': _string_or_empty(ticket.replier_message)
