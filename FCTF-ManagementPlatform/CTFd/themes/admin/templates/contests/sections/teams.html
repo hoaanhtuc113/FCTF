@@ -151,7 +151,7 @@
                     </td>
                     <td class="text-center">
                         {% if team.captain %}
-                        <a href="{{ url_for('admin.users_detail', user_id=team.captain.id) }}">
+                        <a href="{{ url_for('admin.contest_user_detail', contest_id=contest.id, user_id=team.captain.id) }}">
                             {{ team.captain.name | truncate(24) }}
                         </a>
                         {% else %}
