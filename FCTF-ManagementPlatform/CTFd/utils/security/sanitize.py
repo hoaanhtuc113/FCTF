@@ -11,7 +11,7 @@ SAFE_ATTRS = {
     'for', 'frame', 'headers', 'height', 'href', 'hreflang', 'hspace', 'id',
     'ismap', 'label', 'lang', 'longdesc', 'maxlength', 'media', 'method',
     'multiple', 'name', 'nohref', 'noshade', 'nowrap', 'prompt', 'readonly',
-    'rel', 'rev', 'rows', 'rowspan', 'rules', 'scope', 'selected', 'shape',
+    'rev', 'rows', 'rowspan', 'rules', 'scope', 'selected', 'shape',
     'size', 'span', 'src', 'start', 'summary', 'tabindex', 'target', 'title',
     'type', 'usemap', 'valign', 'value', 'vspace', 'width',
     # Styling
@@ -66,5 +66,4 @@ def sanitize_html(html):
         attributes=ALLOWED_ATTRIBUTES,
         link_rel="noopener noreferrer nofollow",
         url_schemes={"http", "https", "mailto", "ftp"},
-        allow_comments=True,
     )
