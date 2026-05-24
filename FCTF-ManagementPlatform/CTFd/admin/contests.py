@@ -5,7 +5,7 @@ from io import BytesIO, StringIO
 
 import json
 
-from flask import Response, abort, current_app, flash, redirect, render_template, request, send_file, stream_with_context, url_for
+from flask import Response, abort, current_app, flash, redirect, render_template, request, send_file, session, stream_with_context, url_for
 from sqlalchemy import or_
 from sqlalchemy.orm import joinedload
 
@@ -14,6 +14,50 @@ from CTFd.models import ChallengeStartTracking, ChallengeVersion, Challenges, Co
 from CTFd.plugins.challenges import CHALLENGE_CLASSES, get_chal_class
 from CTFd.utils.dates import ctftime
 from CTFd.utils.decorators import admins_only
+
+
+# ─── Contest access-password enforcement ─────────────────────────────────────
+
+@admin.before_request
+def enforce_contest_access_password():
+    """
+    Trước mỗi request vào admin contest sub-route (trừ verify-access),
+    kiểm tra nếu contest có access_password → yêu cầu admin nhập đúng password
+    trước khi vào. Kết quả được lưu vào session để không hỏi lại.
+    """
+    from CTFd.utils.user import authed, is_admin
+
+    # Chỉ xử lý khi đã đăng nhập (admin); nếu chưa thì để @admins_only lo
+    if not authed():
+        return
+
+    # Match: /admin/contests/<số>  hoặc  /admin/contests/<số>/bất-kỳ
+    m = re.match(r'^/admin/contests/(\d+)(?:/|$)', request.path)
+    if not m:
+        return
+
+    contest_id = int(m.group(1))
+
+    # Không chặn chính trang verify-access (tránh vòng lặp redirect)
+    verify_path = f'/admin/contests/{contest_id}/verify-access'
+    if request.path.rstrip('/') == verify_path.rstrip('/'):
+        return
+
+    contest = Contests.query.filter_by(id=contest_id).first()
+    if contest is None or not contest.access_password:
+        return  # Không có password → tự do vào
+
+    # Kiểm tra session xem đã verify contest này chưa
+    verified_ids = session.get('verified_contest_ids', [])
+    if contest_id in verified_ids:
+        return  # Đã xác thực trong session này
+
+    # Chuyển đến trang nhập password; lưu URL hiện tại để redirect về sau
+    return redirect(url_for(
+        'admin.contest_verify_access',
+        contest_id=contest_id,
+        next=request.path,
+    ))
 
 
 # ─── helpers cho contest instances ───────────────────────────────────────────
@@ -1870,4 +1914,49 @@ def contest_dynamic_reward(contest_id):
         "admin/contests/sections/dynamic_reward.html",
         contest=contest,
         is_detail=is_detail,
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Contest access-password verify page
+# ─────────────────────────────────────────────────────────────────────────────
+
+@admin.route("/admin/contests/<int:contest_id>/verify-access", methods=["GET", "POST"])
+@admins_only
+def contest_verify_access(contest_id):
+    """
+    Hiển thị form nhập access_password của contest.
+    Sau khi nhập đúng, lưu contest_id vào session và redirect về trang đích.
+    """
+    contest = Contests.query.filter_by(id=contest_id).first_or_404()
+
+    # Nếu contest không có password thì vào thẳng
+    if not contest.access_password:
+        return redirect(url_for("admin.contest_dashboard", contest_id=contest_id))
+
+    # Nếu đã verify rồi (ví dụ user back lại) → vào thẳng
+    verified_ids = session.get("verified_contest_ids", [])
+    if contest_id in verified_ids:
+        next_url = request.args.get("next") or url_for("admin.contest_dashboard", contest_id=contest_id)
+        return redirect(next_url)
+
+    error = None
+    next_url = request.args.get("next") or url_for("admin.contest_dashboard", contest_id=contest_id)
+
+    if request.method == "POST":
+        entered = (request.form.get("access_password") or "").strip()
+        if entered == contest.access_password:
+            if contest_id not in verified_ids:
+                verified_ids.append(contest_id)
+                session["verified_contest_ids"] = verified_ids
+                session.modified = True
+            return redirect(next_url)
+        else:
+            error = "Mật khẩu không đúng. Vui lòng thử lại."
+
+    return render_template(
+        "admin/contests/verify_access.html",
+        contest=contest,
+        next_url=next_url,
+        error=error,
     )
