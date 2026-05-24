@@ -8,6 +8,16 @@ function deleteSelectedTeams(_event) {
   let teamIDs = $("input[data-team-id]:checked").map(function () {
     return $(this).data("team-id");
   });
+
+  if (teamIDs.length === 0) {
+    ezAlert({
+      title: "No Teams Selected",
+      body: "Please select at least one team to delete.",
+      button: "OK",
+    });
+    return;
+  }
+
   let target = teamIDs.length === 1 ? "team" : "teams";
 
   ezQuery({
@@ -19,10 +29,19 @@ function deleteSelectedTeams(_event) {
         reqs.push(
           CTFd.fetch(`/api/v1/teams/${teamID}`, {
             method: "DELETE",
-          })
+          }).then((r) => r.json())
         );
       }
-      Promise.all(reqs).then((_responses) => {
+      Promise.all(reqs).then((responses) => {
+        const failed = responses.filter((r) => !r.success);
+        if (failed.length > 0) {
+          ezAlert({
+            title: "Error",
+            body: `Failed to delete ${failed.length} team(s). Check console for details.`,
+            button: "OK",
+          });
+          console.error("Delete errors:", failed);
+        }
         window.location.reload();
       });
     },

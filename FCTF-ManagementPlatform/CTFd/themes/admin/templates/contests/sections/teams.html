@@ -250,6 +250,7 @@
 {% endblock %}
 
 {% block contest_scripts %}
+{{ Assets.js("assets/js/pages/teams.js", theme="admin") }}
 <script>
 // Row click → navigate to team detail
 document.querySelectorAll('#teamsboard tbody tr[data-href]').forEach(function(row) {
