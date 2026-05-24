@@ -309,7 +309,8 @@ public class ScoreHelper
     public async Task<List<StandingDto>> GetStandings(
         int? count = null,
         int? bracketId = null,
-        bool admin = false)
+        bool admin = false,
+        int? contestId = null)
     {
         var freeze = ToLong(_configHelper.GetConfig("freeze"));
         DateTime? freezeUtc = freeze > 0
@@ -319,12 +320,12 @@ public class ScoreHelper
         var userMode = _configHelper.GetConfig<string>("user_mode") ?? "teams";
 
         return userMode == "teams"
-            ? await GetTeamStandings(count, bracketId, admin, freezeUtc)
-            : await GetUserStandings(count, bracketId, admin, freezeUtc);
+            ? await GetTeamStandings(count, bracketId, admin, freezeUtc, contestId)
+            : await GetUserStandings(count, bracketId, admin, freezeUtc, contestId);
     }
 
     private async Task<List<StandingDto>> GetTeamStandings(
-        int? count, int? bracketId, bool admin, DateTime? freezeUtc)
+        int? count, int? bracketId, bool admin, DateTime? freezeUtc, int? contestId)
     {
         // Materialize solve scores per team (explicit JOIN, no navigation inside GroupBy)
         var solveQuery =
@@ -332,7 +333,10 @@ public class ScoreHelper
             join challenge in _context.Challenges on solve.ChallengeId equals challenge.Id
             join submission in _context.Submissions on solve.Id equals submission.Id
             where solve.TeamId != null && (challenge.Value ?? 0) != 0
-            select new { solve.TeamId, ChallengeValue = challenge.Value ?? 0, solve.Id, submission.Date };
+            select new { solve.TeamId, ChallengeValue = challenge.Value ?? 0, ChallengeContestId = challenge.ContestId, solve.Id, submission.Date };
+
+        if (contestId.HasValue)
+            solveQuery = solveQuery.Where(x => x.ChallengeContestId == contestId.Value);
 
         if (!admin && freezeUtc.HasValue)
             solveQuery = solveQuery.Where(x => x.Date < freezeUtc.Value);
@@ -351,6 +355,9 @@ public class ScoreHelper
         // Materialize award scores per team separately
         var awardQuery = _context.Awards
             .Where(a => a.TeamId != null && (a.Value ?? 0) != 0);
+
+        if (contestId.HasValue)
+            awardQuery = awardQuery.Where(a => a.ContestId == contestId.Value);
 
         if (!admin && freezeUtc.HasValue)
             awardQuery = awardQuery.Where(a => a.Date < freezeUtc.Value);
@@ -432,14 +439,17 @@ public class ScoreHelper
     }
 
     private async Task<List<StandingDto>> GetUserStandings(
-        int? count, int? bracketId, bool admin, DateTime? freezeUtc)
+        int? count, int? bracketId, bool admin, DateTime? freezeUtc, int? contestId)
     {
         var solveQuery =
             from solve in _context.Solves
             join challenge in _context.Challenges on solve.ChallengeId equals challenge.Id
             join submission in _context.Submissions on solve.Id equals submission.Id
             where solve.UserId != null && (challenge.Value ?? 0) != 0
-            select new { solve.UserId, ChallengeValue = challenge.Value ?? 0, solve.Id, submission.Date };
+            select new { solve.UserId, ChallengeValue = challenge.Value ?? 0, ChallengeContestId = challenge.ContestId, solve.Id, submission.Date };
+
+        if (contestId.HasValue)
+            solveQuery = solveQuery.Where(x => x.ChallengeContestId == contestId.Value);
 
         if (!admin && freezeUtc.HasValue)
             solveQuery = solveQuery.Where(x => x.Date < freezeUtc.Value);
@@ -457,6 +467,9 @@ public class ScoreHelper
 
         var awardQuery = _context.Awards
             .Where(a => a.UserId != null && (a.Value ?? 0) != 0);
+
+        if (contestId.HasValue)
+            awardQuery = awardQuery.Where(a => a.ContestId == contestId.Value);
 
         if (!admin && freezeUtc.HasValue)
             awardQuery = awardQuery.Where(a => a.Date < freezeUtc.Value);

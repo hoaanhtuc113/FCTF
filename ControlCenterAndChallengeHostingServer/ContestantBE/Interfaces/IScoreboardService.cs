@@ -4,5 +4,5 @@ namespace ContestantBE.Interfaces;
 
 public interface IScoreboardService
 {
-    Task<List<ScoreboardEntryDTO>> GetTopStandings(int count, int? bracketId);
+    Task<List<ScoreboardEntryDTO>> GetTopStandings(int contestId, int count, int? bracketId);
 }

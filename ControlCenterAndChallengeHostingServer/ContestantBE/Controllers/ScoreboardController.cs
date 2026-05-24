@@ -26,7 +26,7 @@ public class ScoreboardController : BaseController
     }
 
     [HttpGet("top/{count:int}")]
-    public async Task<IActionResult> GetTopTeams(int count, [FromQuery] int? bracket_id)
+    public async Task<IActionResult> GetTopTeams([FromRoute] int contestId, int count, [FromQuery] int? bracket_id)
     {
         var scoreVisibility = _configHelper.GetConfig<string>("score_visibility", "public");
 
@@ -50,7 +50,7 @@ public class ScoreboardController : BaseController
                 return StatusCode(403, new { success = false, message = "Scores are currently hidden." });
         }
 
-        var result = await _scoreboardService.GetTopStandings(count, bracket_id);
+        var result = await _scoreboardService.GetTopStandings(contestId, count, bracket_id);
         return Ok(new { success = true, data = result });
     }
 

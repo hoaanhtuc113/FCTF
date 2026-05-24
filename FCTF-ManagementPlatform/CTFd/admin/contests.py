@@ -389,7 +389,7 @@ def _contest_submissions_view(contest_id, submission_type):
 @admins_only
 def contest_scoreboard(contest_id):
     from sqlalchemy.sql.expression import union_all
-    from CTFd.models import AwardBadges, Achievements, Awards, Brackets, Challenges, Solves, Teams, Users, UserTeamMember
+    from CTFd.models import AwardBadges, Achievements, Awards, Brackets, Challenges, Solves, Teams, Users
     from CTFd.utils.config import is_teams_mode
 
     contest = Contests.query.filter_by(id=contest_id).first_or_404()
@@ -435,7 +435,6 @@ def contest_scoreboard(contest_id):
             db.func.sum(sumscores.columns.score).label("score"),
         )
         .join(sumscores, Teams.id == sumscores.columns.account_id)
-        .filter(Teams.contest_id == contest_id)
         .filter(Teams.banned == False)
         .group_by(Teams.id)
         .order_by(
@@ -486,9 +485,6 @@ def contest_scoreboard(contest_id):
                 db.func.sum(u_sumscores.columns.score).label("score"),
             )
             .join(u_sumscores, Users.id == u_sumscores.columns.user_id)
-            .join(UserTeamMember, Users.id == UserTeamMember.user_id)
-            .join(Teams, UserTeamMember.team_id == Teams.id)
-            .filter(Teams.contest_id == contest_id)
             .filter(Users.banned == False, Users.hidden == False)
             .group_by(Users.id)
             .order_by(
@@ -553,7 +549,7 @@ def contest_scoreboard_export(contest_id):
     try:
         import traceback
         from sqlalchemy.sql.expression import union_all
-        from CTFd.models import Awards, Brackets, Challenges, Solves, Teams, Users, UserTeamMember
+        from CTFd.models import Awards, Brackets, Challenges, Solves, Teams, Users
 
         contest = Contests.query.filter_by(id=contest_id).first_or_404()
         bracket_id = request.args.get("bracket_id", type=int)
@@ -598,7 +594,6 @@ def contest_scoreboard_export(contest_id):
                 db.func.max(sumscores.columns.id).label("last_id"),
             )
             .join(sumscores, Teams.id == sumscores.columns.account_id)
-            .filter(Teams.contest_id == contest_id)
             .group_by(
                 Teams.id, Teams.oauth_id, Teams.name,
                 Teams.bracket_id, Teams.hidden, Teams.banned,
@@ -693,9 +688,6 @@ def contest_scoreboard_export(contest_id):
                 db.func.sum(u_sumscores.columns.score).label("score"),
             )
             .join(u_sumscores, Users.id == u_sumscores.columns.user_id)
-            .join(UserTeamMember, Users.id == UserTeamMember.user_id)
-            .join(Teams, UserTeamMember.team_id == Teams.id)
-            .filter(Teams.contest_id == contest_id)
             .filter(Users.banned == False, Users.hidden == False)
             .group_by(Users.id, Users.oauth_id, Users.name, Users.hidden, Users.banned)
             .order_by(
@@ -731,7 +723,7 @@ def contest_scoreboard_export(contest_id):
             )
             .join(Solves, Solves.team_id == Teams.id)
             .join(Challenges, Solves.challenge_id == Challenges.id)
-            .filter(Challenges.contest_id == contest_id, Teams.contest_id == contest_id)
+            .filter(Challenges.contest_id == contest_id)
             .group_by(Teams.id, Teams.name, Teams.hidden, Teams.banned)
             .order_by(db.func.count(Solves.id).desc())
         )

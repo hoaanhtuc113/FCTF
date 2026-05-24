@@ -38,22 +38,36 @@ public class ScoreboardService : IScoreboardService
         return 0;
     }
 
-    public async Task<List<ScoreboardEntryDTO>> GetTopStandings(int count, int? bracketId)
+    public async Task<List<ScoreboardEntryDTO>> GetTopStandings(int contestId, int count, int? bracketId)
     {
-        var standings = await _scoreHelper.GetStandings(count, bracketId);
+        var standings = await _scoreHelper.GetStandings(count, bracketId, contestId: contestId);
         var accountIds = standings.Select(t => t.AccountId).ToList();
         IQueryable<Solf> solvesQuery;
         IQueryable<Award> awardsQuery;
 
         if (_mode == "teams")
         {
-            solvesQuery = _context.Solves.Where(s => s.TeamId.HasValue && accountIds.Contains(s.TeamId.Value));
-            awardsQuery = _context.Awards.Where(a => a.TeamId.HasValue && accountIds.Contains(a.TeamId.Value));
+            solvesQuery = _context.Solves
+                .Where(s => s.TeamId.HasValue
+                    && accountIds.Contains(s.TeamId.Value)
+                    && s.Challenge != null
+                    && s.Challenge.ContestId == contestId);
+            awardsQuery = _context.Awards
+                .Where(a => a.TeamId.HasValue
+                    && accountIds.Contains(a.TeamId.Value)
+                    && a.ContestId == contestId);
         }
         else
         {
-            solvesQuery = _context.Solves.Where(s => s.UserId.HasValue && accountIds.Contains(s.UserId.Value));
-            awardsQuery = _context.Awards.Where(a => a.UserId.HasValue && accountIds.Contains(a.UserId.Value));
+            solvesQuery = _context.Solves
+                .Where(s => s.UserId.HasValue
+                    && accountIds.Contains(s.UserId.Value)
+                    && s.Challenge != null
+                    && s.Challenge.ContestId == contestId);
+            awardsQuery = _context.Awards
+                .Where(a => a.UserId.HasValue
+                    && accountIds.Contains(a.UserId.Value)
+                    && a.ContestId == contestId);
         }
 
             // Freeze logic
