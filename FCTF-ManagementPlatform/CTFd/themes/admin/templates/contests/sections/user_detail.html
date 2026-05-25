@@ -25,9 +25,13 @@
 .user-detail-page .badge {
     padding: 0.4rem 0.75rem;
     border-radius: 4px;
-    font-weight: 500;
-    font-size: 0.85rem;
+    font-weight: 600;
+    font-size: 0.82rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
 }
+.user-detail-page .badge-success { background-color: #28a745; color: #fff; }
+.user-detail-page .badge-danger  { background-color: #dc3545; color: #fff; }
 .user-detail-page .btn-fa {
     color: #495057;
     transition: all 0.2s ease;
@@ -36,25 +40,35 @@
 .user-detail-page .btn-fa:hover { color: #ff6b35; transform: scale(1.15); }
 .user-detail-page .btn-fa.text-danger:hover { color: #c0392b !important; transform: scale(1.15); }
 
-/* Role badge variants */
-.role-badge-contestant  { background-color: #6c757d; color: #fff; }
-.role-badge-jury        { background-color: #6f42c1; color: #fff; }
-.role-badge-writer      { background-color: #17a2b8; color: #fff; }
+/* Platform-admin badge */
 .role-badge-platform-admin { background-color: #dc3545; color: #fff; }
 
-/* Inline role selector */
-.contest-role-select {
+/* Role badge buttons */
+.role-badge-btn {
     display: inline-block;
-    border: 1px solid #dee2e6;
+    padding: 0.4rem 0.75rem;
     border-radius: 4px;
-    padding: 0.3rem 0.5rem;
-    font-size: 0.88rem;
+    font-size: 0.82rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #fff;
     cursor: pointer;
-    background: #fff;
-    color: #495057;
-    transition: border-color 0.2s;
+    border: none;
+    user-select: none;
+    margin: 0 0.15rem;
+    transition: opacity 0.18s ease, transform 0.15s ease;
 }
-.contest-role-select:focus { outline: none; border-color: #ff6b35; box-shadow: 0 0 0 2px rgba(255,107,53,.15); }
+.role-badge-btn[data-role="contestant"]      { background: #6c757d; }
+.role-badge-btn[data-role="jury"]             { background: #6f42c1; }
+.role-badge-btn[data-role="challenge_writer"] { background: #17a2b8; }
+
+/* Inactive — faded */
+.role-badge-btn:not([data-active]) { opacity: 0.3; }
+.role-badge-btn:not([data-active]):hover { opacity: 0.6; transform: scale(1.05); }
+
+/* Role save feedback */
+#role-save-msg { font-size: 0.8rem; min-height: 1.1rem; margin-top: 0.4rem; }
 
 /* Tabs */
 .nav-tabs {
@@ -175,23 +189,30 @@
     <div class="container text-center">
         <h1 class="p-0 m-0">{{ user.name }}</h1>
 
-        <div class="mb-2 mt-2">
-            {# Contest-level role badge #}
-            {% if contest_role == 'jury' %}
-                <span class="badge role-badge-jury">Jury</span>
-            {% elif contest_role == 'challenge_writer' %}
-                <span class="badge role-badge-writer">Challenge Writer</span>
-            {% else %}
-                <span class="badge role-badge-contestant">Contestant</span>
-            {% endif %}
+        {# ── Contest role badges (clickable) ────────────────────────── #}
+        <div class="mt-3 mb-1" id="role-pill-group">
+            <span class="role-badge-btn" data-role="contestant"
+                {% if contest_role == 'contestant' %}data-active{% endif %}>
+                Contestant
+            </span>
+            <span class="role-badge-btn" data-role="jury"
+                {% if contest_role == 'jury' %}data-active{% endif %}>
+                Jury
+            </span>
+            <span class="role-badge-btn" data-role="challenge_writer"
+                {% if contest_role == 'challenge_writer' %}data-active{% endif %}>
+                Challenge Writer
+            </span>
+            <div id="role-save-msg"></div>
+        </div>
 
+        <div class="mb-2 mt-1">
             {# Platform type indicator #}
             {% if user.type == 'admin' %}
-                <span class="badge role-badge-platform-admin" title="This user is a platform-level admin">
+                <span class="badge role-badge-platform-admin" title="Platform-level admin">
                     <i class="fas fa-crown fa-xs"></i> Platform Admin
                 </span>
             {% endif %}
-
             {# Status badges #}
             {% if user.verified %}
                 <span class="badge badge-success">verified</span>
@@ -254,16 +275,6 @@
                 <i class="btn-fa fas fa-trophy fa-2x"></i>
             </a>
 
-            {# Change contest role #}
-            <div class="d-flex flex-column align-items-center" style="gap:0.25rem;">
-                <small class="text-muted" style="font-size:0.75rem;">Contest Role</small>
-                <select id="contest-role-select" class="contest-role-select" title="Change role in this contest">
-                    <option value="contestant" {% if contest_role == 'contestant' %}selected{% endif %}>Contestant</option>
-                    <option value="jury"        {% if contest_role == 'jury'        %}selected{% endif %}>Jury</option>
-                    <option value="challenge_writer" {% if contest_role == 'challenge_writer' %}selected{% endif %}>Challenge Writer</option>
-                </select>
-            </div>
-
             {# Remove from contest #}
             <a class="remove-contest-user text-danger" title="Remove from Contest" style="cursor:pointer;">
                 <i class="btn-fa fas fa-user-minus fa-2x text-danger"></i>
@@ -281,8 +292,6 @@
             {% endif %}
         </div>
 
-        {# Role-save feedback #}
-        <div id="role-save-msg" class="mt-2" style="min-height:1.2rem;font-size:0.85rem;"></div>
     </div>
 </div>
 
@@ -581,13 +590,26 @@
         };
     }
 
-    // ── Change Contest Role ───────────────────────────────────────────────────
-    var roleSelect = document.getElementById('contest-role-select');
-    var roleMsg    = document.getElementById('role-save-msg');
+    // ── Change Contest Role (badge buttons) ──────────────────────────────────
+    var roleMsg   = document.getElementById('role-save-msg');
+    var pillGroup = document.getElementById('role-pill-group');
 
-    if (roleSelect) {
-        roleSelect.addEventListener('change', function () {
-            var newRole = roleSelect.value;
+    if (pillGroup) {
+        pillGroup.addEventListener('click', function (e) {
+            var pill = e.target.closest('.role-badge-btn');
+            if (!pill || pill.hasAttribute('data-active')) return; // already active
+
+            var newRole = pill.getAttribute('data-role');
+            var roleLabel = pill.textContent.trim();
+
+            if (!confirm('Change role of ' + {{ user.name | tojson }} + ' to "' + roleLabel + '"?')) return;
+
+            // Optimistic UI: swap active immediately
+            pillGroup.querySelectorAll('.role-badge-btn').forEach(function (p) {
+                p.removeAttribute('data-active');
+            });
+            pill.setAttribute('data-active', '');
+
             roleMsg.textContent = 'Saving…';
             roleMsg.style.color = '#6c757d';
 
@@ -599,13 +621,17 @@
             .then(function (r) { return r.json(); })
             .then(function (data) {
                 if (data.success) {
-                    roleMsg.textContent = '✔ Role updated';
+                    roleMsg.textContent = '✔ Saved';
                     roleMsg.style.color = '#28a745';
-                    setTimeout(function () {
-                        roleMsg.textContent = '';
-                        window.location.reload();
-                    }, 800);
+                    setTimeout(function () { roleMsg.textContent = ''; }, 1500);
                 } else {
+                    // Revert optimistic UI
+                    pillGroup.querySelectorAll('.role-badge-btn').forEach(function (p) {
+                        p.removeAttribute('data-active');
+                        if (p.getAttribute('data-role') === {{ contest_role | tojson }}) {
+                            p.setAttribute('data-active', '');
+                        }
+                    });
                     roleMsg.textContent = '✘ ' + (data.errors ? Object.values(data.errors).flat().join(', ') : 'Error');
                     roleMsg.style.color = '#dc3545';
                 }
