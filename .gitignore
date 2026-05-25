@@ -1,6 +1,9 @@
 # Local dev overrides (personal machine config, not committed)
 docker-compose.local.yml
 
+# Runtime environment config (contains server-specific URLs/ports — never commit)
+ContestantPortal/public/env.js
+
 # Logs
 logs
 *.log
