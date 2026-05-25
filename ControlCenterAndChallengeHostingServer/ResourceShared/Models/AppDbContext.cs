@@ -27,6 +27,7 @@ public partial class AppDbContext : DbContext
     public virtual DbSet<Comment> Comments { get; set; }
     public virtual DbSet<Config> Configs { get; set; }
     public virtual DbSet<Contest> Contests { get; set; }
+    public virtual DbSet<ContestParticipant> ContestParticipants { get; set; }
     public virtual DbSet<DeployHistory> DeployHistories { get; set; }
     public virtual DbSet<DynamicChallenge> DynamicChallenges { get; set; }
     public virtual DbSet<Field> Fields { get; set; }
@@ -433,6 +434,33 @@ public partial class AppDbContext : DbContext
                 .HasForeignKey(d => d.OwnerId)
                 .OnDelete(DeleteBehavior.SetNull)
                 .HasConstraintName("contests_ibfk_1");
+        });
+
+        modelBuilder.Entity<ContestParticipant>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+            entity.ToTable("contest_participants");
+
+            entity.HasIndex(e => new { e.ContestId, e.UserId }, "uq_contest_participant").IsUnique();
+
+            entity.Property(e => e.Id).HasColumnType("int(11)").HasColumnName("id");
+            entity.Property(e => e.ContestId).HasColumnType("int(11)").HasColumnName("contest_id");
+            entity.Property(e => e.UserId).HasColumnType("int(11)").HasColumnName("user_id");
+            entity.Property(e => e.Role)
+                .HasMaxLength(32)
+                .HasDefaultValueSql("'contestant'")
+                .HasColumnName("role");
+            entity.Property(e => e.JoinedAt).HasMaxLength(6).HasColumnName("joined_at");
+
+            entity.HasOne(d => d.Contest).WithMany(p => p.Participants)
+                .HasForeignKey(d => d.ContestId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("contest_participants_ibfk_1");
+
+            entity.HasOne(d => d.User).WithMany(p => p.ContestParticipations)
+                .HasForeignKey(d => d.UserId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("contest_participants_ibfk_2");
         });
 
         modelBuilder.Entity<DeployHistory>(entity =>

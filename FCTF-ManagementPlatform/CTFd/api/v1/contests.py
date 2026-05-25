@@ -4,7 +4,7 @@ import re
 from flask import request
 from flask_restx import Namespace, Resource
 
-from CTFd.models import Contests, Users, db
+from CTFd.models import ContestParticipant, Contests, Users, db
 from CTFd.utils.decorators import admins_only
 from CTFd.utils.logging.audit_logger import log_audit
 
@@ -279,5 +279,162 @@ class ContestDetail(Resource):
         db.session.commit()
 
         log_audit(action="contest_delete", data={"contest_id": contest_id, "name": name})
+
+        return {"success": True, "data": {}}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# /api/v1/contests/<id>/participants  — quản lý user trong contest
+# ─────────────────────────────────────────────────────────────────────────────
+
+VALID_CONTEST_ROLES = ("contestant", "jury", "challenge_writer")
+
+
+def _participant_to_dict(p: ContestParticipant) -> dict:
+    return {
+        "id": p.id,
+        "contest_id": p.contest_id,
+        "user_id": p.user_id,
+        "user_name": p.user.name if p.user else None,
+        "user_email": p.user.email if p.user else None,
+        "role": p.role,
+        "joined_at": p.joined_at.isoformat() if p.joined_at else None,
+    }
+
+
+@contests_namespace.route("/<int:contest_id>/participants")
+class ContestParticipantList(Resource):
+    method_decorators = [admins_only]
+
+    def get(self, contest_id):
+        """List all participants of a contest."""
+        Contests.query.filter_by(id=contest_id).first_or_404()
+
+        role = request.args.get("role", "").strip()
+        query = ContestParticipant.query.filter_by(contest_id=contest_id)
+        if role and role in VALID_CONTEST_ROLES:
+            query = query.filter_by(role=role)
+
+        participants = query.all()
+        return {
+            "success": True,
+            "data": [_participant_to_dict(p) for p in participants],
+        }
+
+    def post(self, contest_id):
+        """Add a user to a contest with a specific role."""
+        Contests.query.filter_by(id=contest_id).first_or_404()
+
+        data = request.get_json(force=True, silent=True) or {}
+        user_id = data.get("user_id")
+        role = (data.get("role") or "contestant").strip()
+
+        if not user_id:
+            return {"success": False, "errors": {"user_id": ["user_id is required"]}}, 400
+
+        if role not in VALID_CONTEST_ROLES:
+            return {
+                "success": False,
+                "errors": {
+                    "role": [f"role must be one of: {', '.join(VALID_CONTEST_ROLES)}"]
+                },
+            }, 400
+
+        user = Users.query.filter_by(id=user_id).first()
+        if not user:
+            return {"success": False, "errors": {"user_id": ["User not found"]}}, 404
+
+        # Platform admin không cần contest participant record
+        if user.type == "admin":
+            return {
+                "success": False,
+                "errors": {"user_id": ["Platform admins have access to all contests by default"]},
+            }, 400
+
+        existing = ContestParticipant.query.filter_by(
+            contest_id=contest_id, user_id=user_id
+        ).first()
+        if existing:
+            return {
+                "success": False,
+                "errors": {"user_id": ["User is already a participant in this contest"]},
+            }, 409
+
+        participant = ContestParticipant(
+            contest_id=contest_id,
+            user_id=user_id,
+            role=role,
+        )
+        db.session.add(participant)
+        db.session.commit()
+
+        log_audit(
+            action="contest_participant_add",
+            data={"contest_id": contest_id, "user_id": user_id, "role": role},
+        )
+
+        return {"success": True, "data": _participant_to_dict(participant)}, 201
+
+
+@contests_namespace.route("/<int:contest_id>/participants/<int:user_id>")
+class ContestParticipantDetail(Resource):
+    method_decorators = [admins_only]
+
+    def get(self, contest_id, user_id):
+        """Get a specific participant's role in a contest."""
+        p = ContestParticipant.query.filter_by(
+            contest_id=contest_id, user_id=user_id
+        ).first_or_404()
+        return {"success": True, "data": _participant_to_dict(p)}
+
+    def patch(self, contest_id, user_id):
+        """Update a participant's role in a contest."""
+        p = ContestParticipant.query.filter_by(
+            contest_id=contest_id, user_id=user_id
+        ).first_or_404()
+
+        data = request.get_json(force=True, silent=True) or {}
+        role = (data.get("role") or "").strip()
+
+        if not role:
+            return {"success": False, "errors": {"role": ["role is required"]}}, 400
+
+        if role not in VALID_CONTEST_ROLES:
+            return {
+                "success": False,
+                "errors": {
+                    "role": [f"role must be one of: {', '.join(VALID_CONTEST_ROLES)}"]
+                },
+            }, 400
+
+        old_role = p.role
+        p.role = role
+        db.session.commit()
+
+        log_audit(
+            action="contest_participant_update",
+            data={
+                "contest_id": contest_id,
+                "user_id": user_id,
+                "old_role": old_role,
+                "new_role": role,
+            },
+        )
+
+        return {"success": True, "data": _participant_to_dict(p)}
+
+    def delete(self, contest_id, user_id):
+        """Remove a user from a contest."""
+        p = ContestParticipant.query.filter_by(
+            contest_id=contest_id, user_id=user_id
+        ).first_or_404()
+
+        db.session.delete(p)
+        db.session.commit()
+
+        log_audit(
+            action="contest_participant_remove",
+            data={"contest_id": contest_id, "user_id": user_id},
+        )
 
         return {"success": True, "data": {}}

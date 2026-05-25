@@ -100,10 +100,9 @@
                     <label>Role</label>
                     <select name="role" class="clean-form-control ss-select w-100">
                         <option value="">All Roles</option>
-                        <option value="user"             {% if request.args.get('role') == 'user'             %}selected{% endif %}>User</option>
-                        <option value="admin"            {% if request.args.get('role') == 'admin'            %}selected{% endif %}>Admin</option>
-                        <option value="challenge_writer" {% if request.args.get('role') == 'challenge_writer' %}selected{% endif %}>Challenge Writer</option>
+                        <option value="contestant"       {% if request.args.get('role') == 'contestant'       %}selected{% endif %}>Contestant</option>
                         <option value="jury"             {% if request.args.get('role') == 'jury'             %}selected{% endif %}>Jury</option>
+                        <option value="challenge_writer" {% if request.args.get('role') == 'challenge_writer' %}selected{% endif %}>Challenge Writer</option>
                     </select>
                 </div>
                 <div class="col-md-2 px-1">
@@ -163,9 +162,6 @@
     <!-- Action buttons -->
     <div class="d-flex justify-content-between align-items-center action-buttons mt-2">
         <div class="d-flex gap-2" style="gap:0.5rem;">
-            <button type="button" class="clean-btn clean-btn-primary" id="btn-create-user" data-toggle="modal" data-target="#create-user-modal">
-                <i class="fas fa-user-plus"></i> Create User
-            </button>
             <button type="button" class="clean-btn btn-outline-info" id="btn-add-existing-user">
                 <i class="fas fa-user-check"></i> Add Existing User
             </button>
@@ -236,14 +232,12 @@
                         {% endif %}
                     </td>
                     <td class="text-center">
-                        {% if user.type == 'admin' %}
-                            <span class="clean-badge clean-badge-primary">Admin</span>
-                        {% elif user.type == 'challenge_writer' %}
-                            <span class="clean-badge" style="background:#d1ecf1;color:#0c5460;">Challenge Writer</span>
-                        {% elif user.type == 'jury' %}
+                        {% if user.contest_role == 'jury' %}
                             <span class="clean-badge" style="background:#e2d9f3;color:#432874;">Jury</span>
+                        {% elif user.contest_role == 'challenge_writer' %}
+                            <span class="clean-badge" style="background:#d1ecf1;color:#0c5460;">Challenge Writer</span>
                         {% else %}
-                            <span class="clean-badge clean-badge-secondary">User</span>
+                            <span class="clean-badge clean-badge-secondary">Contestant</span>
                         {% endif %}
                     </td>
                     <td class="text-center">
@@ -325,23 +319,6 @@
     <input type="hidden" id="contest-id" value="{{ contest.id }}">
 </div>
 
-<!-- ── Create User Modal ────────────────────────────────────────────── -->
-<div id="create-user-modal" class="modal fade">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 class="text-center w-100">Create User</h2>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
-            </div>
-            <div class="modal-body clearfix">
-                {% include "admin/modals/users/create.html" %}
-            </div>
-        </div>
-    </div>
-</div>
-
 <!-- ── Edit Users Modal ─────────────────────────────────────────────── -->
 <div id="edit-users-modal" class="modal fade" tabindex="-1" role="dialog">
     <div class="modal-dialog" role="document">
@@ -354,6 +331,16 @@
             </div>
             <div class="modal-body">
                 <form id="edit-users-form">
+                    <div class="form-group">
+                        <label for="eu-contest-role">Contest Role</label>
+                        <select id="eu-contest-role" name="contest_role" data-initial="" class="form-control custom-select">
+                            <option value="">-- No change --</option>
+                            <option value="contestant">Contestant</option>
+                            <option value="jury">Jury</option>
+                            <option value="challenge_writer">Challenge Writer</option>
+                        </select>
+                        <small class="form-text text-muted">Contest-level role (distinct from platform admin/user).</small>
+                    </div>
                     <div id="Verified" class="form-group Verified">
                         <label for="eu-verified">Verified</label>
                         <select id="eu-verified" name="verified" data-initial="" class="form-control custom-select">
@@ -416,7 +403,7 @@
         <h5><i class="fas fa-file-import" style="color:#17a2b8;"></i> Import Users from CSV</h5>
         <p style="font-size:0.88rem;color:#666;margin-bottom:1rem;">
             Upload a CSV file with columns: <code>name</code>, <code>email</code>, <code>password</code>.<br>
-            Optional columns: <code>type</code>, <code>verified</code>, <code>hidden</code>, <code>team</code>.
+            Optional: <code>role</code> (contestant/jury/challenge_writer), <code>verified</code>, <code>hidden</code>, <code>team</code>.
         </p>
         <div class="import-drop-zone" id="import-drop-zone">
             <input type="file" id="import-file-input" accept=".csv">
@@ -460,6 +447,15 @@
                 <input type="text" class="clean-form-control w-100" id="ae-team" placeholder="Defaults to user name (solo team)" autocomplete="off">
                 <div id="ae-team-suggestions" class="dropdown-menu w-100" style="display:none; position:absolute; z-index:1000; max-height:200px; overflow-y:auto; margin-top:2px;"></div>
             </div>
+            <div class="form-group mt-2">
+                <label for="ae-role">Contest Role</label>
+                <select id="ae-role" class="clean-form-control w-100">
+                    <option value="contestant">Contestant</option>
+                    <option value="jury">Jury</option>
+                    <option value="challenge_writer">Challenge Writer</option>
+                </select>
+                <small class="form-text text-muted">Contest-level role for this user in this contest.</small>
+            </div>
             <div id="ae-error" class="alert alert-danger mt-2" style="display:none;"></div>
             <div id="ae-success" class="alert alert-success mt-2" style="display:none;"></div>
             <div class="d-flex justify-content-end mt-3" style="gap:0.5rem;">
@@ -477,82 +473,6 @@
 {% block contest_scripts %}
 <script>
 (function() {
-// ── Create User Modal ──────────────────────────────────────────────────────
-const createUserModal     = document.getElementById('create-user-modal');
-const createUserOpenBtn   = document.getElementById('btn-create-user');
-const createUserForm      = document.getElementById('user-info-create-form');
-
-function openCreateUserModal() {
-    if (createUserForm) createUserForm.reset();
-    const results = createUserForm && createUserForm.querySelector('#results');
-    if (results) results.innerHTML = '';
-}
-
-if (createUserOpenBtn)  createUserOpenBtn.addEventListener('click', openCreateUserModal);
-if (window.jQuery && createUserModal) {
-    $(createUserModal).on('show.bs.modal', openCreateUserModal);
-}
-
-if (createUserForm) {
-    createUserForm.addEventListener('submit', function(e) {
-        e.preventDefault();
-        const formData = new FormData(createUserForm);
-        const params = {};
-        params.fields = [];
-        formData.forEach(function(value, key) {
-            if (key === 'notify') return;
-            if (key.match(/fields\[\d+\]/)) {
-                const id = parseInt(key.slice(7, -1));
-                params.fields.push({ field_id: id, value: value });
-            } else {
-                const el = createUserForm.elements[key];
-                params[key] = (el && el.type === 'checkbox') ? el.checked : value;
-            }
-        });
-        params.contest_id = {{ contest.id }};
-
-        const notifyEl = createUserForm.elements['notify'];
-        let url = '/api/v1/users';
-        if (notifyEl && notifyEl.checked) url += '?notify=true';
-
-        const submitBtn = createUserForm.querySelector('[type=submit]');
-        if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Creating…'; }
-
-        fetch(url, {
-            method: 'POST',
-            credentials: 'same-origin',
-            headers: csrfHeaders(),
-            body: JSON.stringify(params),
-        })
-        .then(r => r.json())
-        .then(function(response) {
-            if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Create'; }
-            const results = createUserForm.querySelector('#results');
-            if (results) results.innerHTML = '';
-            if (response.success) {
-                if (window.jQuery && createUserModal) {
-                    $(createUserModal).modal('hide');
-                }
-                window.location.reload();
-            } else {
-                if (results) {
-                    Object.values(response.errors).forEach(function(msg) {
-                        const badge = document.createElement('div');
-                        badge.className = 'alert alert-danger py-1 px-2 mt-1';
-                        badge.style.fontSize = '0.85rem';
-                        badge.textContent = msg;
-                        results.appendChild(badge);
-                    });
-                }
-            }
-        })
-        .catch(function() {
-            if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Create'; }
-            alert('Network error. Please try again.');
-        });
-    });
-}
-
 // ── Helpers ────────────────────────────────────────────────────────────────
 function csrfHeaders() {
     return {
@@ -671,6 +591,16 @@ function bulkEditFormHtml() {
     const jq = window.jQuery || (typeof CTFd !== 'undefined' && CTFd.lib && CTFd.lib.$);
     return jq(
         '<form id="users-bulk-edit">' +
+            '<div class="form-group">' +
+                '<label>Contest Role</label>' +
+                '<select name="contest_role" data-initial="" class="form-control custom-select">' +
+                    '<option value="">-- No change --</option>' +
+                    '<option value="contestant">Contestant</option>' +
+                    '<option value="jury">Jury</option>' +
+                    '<option value="challenge_writer">Challenge Writer</option>' +
+                '</select>' +
+                '<small class="form-text text-muted">Contest-level role (distinct from platform admin/user).</small>' +
+            '</div>' +
             '<div id="Verified" class="form-group Verified">' +
                 '<label>Verified</label>' +
                 '<select name="verified" data-initial="" class="form-control custom-select">' +
@@ -702,6 +632,7 @@ function bulkEditFormHtml() {
 function formDataToUserPatch(form) {
     const data = {};
     Array.from(form.querySelectorAll('select[name]')).forEach(function(select) {
+        if (select.name === 'contest_role') return; // handled separately
         if (select.value !== '') {
             data[select.name] = select.value === 'true';
         }
@@ -711,7 +642,12 @@ function formDataToUserPatch(form) {
 
 function applyUserEdits(ids, form, errorEl, submitBtn) {
     const data = formDataToUserPatch(form);
-    if (!Object.keys(data).length) {
+
+    // Extract contest_role separately (it's a string, not boolean)
+    const roleSelect = form.querySelector('select[name="contest_role"]');
+    const contestRole = roleSelect ? roleSelect.value : '';
+
+    if (!Object.keys(data).length && !contestRole) {
         if (errorEl) {
             errorEl.textContent = 'Please change at least one field.';
             errorEl.style.display = 'block';
@@ -726,13 +662,30 @@ function applyUserEdits(ids, form, errorEl, submitBtn) {
         submitBtn.textContent = 'Applying...';
     }
 
-    Promise.all(ids.map(id =>
-        fetch('/api/v1/users/' + id, {
-            method: 'PATCH',
-            headers: csrfHeaders(),
-            body: JSON.stringify(data)
-        })
-    )).then(() => { window.location.reload(); })
+    const promises = [];
+
+    if (Object.keys(data).length) {
+        ids.forEach(id => promises.push(
+            fetch('/api/v1/users/' + id, {
+                method: 'PATCH',
+                headers: csrfHeaders(),
+                body: JSON.stringify(data)
+            })
+        ));
+    }
+
+    if (contestRole) {
+        ids.forEach(id => promises.push(
+            fetch('/admin/contests/{{ contest.id }}/users/' + id + '/role', {
+                method: 'PATCH',
+                headers: csrfHeaders(),
+                body: JSON.stringify({ role: contestRole })
+            })
+        ));
+    }
+
+    Promise.all(promises)
+      .then(() => { window.location.reload(); })
       .catch(() => {
           if (submitBtn) {
               submitBtn.disabled = false;
@@ -785,14 +738,15 @@ if (editUsersForm) {
         euError.style.display = 'none';
 
         const data = {};
-        const verified = document.getElementById('eu-verified').value;
-        const banned   = document.getElementById('eu-banned').value;
-        const hidden   = document.getElementById('eu-hidden').value;
+        const verified    = document.getElementById('eu-verified').value;
+        const banned      = document.getElementById('eu-banned').value;
+        const hidden      = document.getElementById('eu-hidden').value;
+        const contestRole = document.getElementById('eu-contest-role').value;
         if (verified !== '') data.verified = (verified === 'true');
         if (banned   !== '') data.banned   = (banned   === 'true');
         if (hidden   !== '') data.hidden   = (hidden   === 'true');
 
-        if (!Object.keys(data).length) {
+        if (!Object.keys(data).length && !contestRole) {
             euError.textContent = 'Please change at least one field.';
             euError.style.display = 'block';
             return;
@@ -802,13 +756,28 @@ if (editUsersForm) {
         submitBtn.disabled = true;
         submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Applying…';
 
-        Promise.all(_pendingEditIds.map(id =>
-            fetch('/api/v1/users/' + id, {
-                method: 'PATCH',
-                headers: csrfHeaders(),
-                body: JSON.stringify(data)
-            })
-        )).then(() => { window.location.reload(); })
+        const promises = [];
+        if (Object.keys(data).length) {
+            _pendingEditIds.forEach(id => promises.push(
+                fetch('/api/v1/users/' + id, {
+                    method: 'PATCH',
+                    headers: csrfHeaders(),
+                    body: JSON.stringify(data)
+                })
+            ));
+        }
+        if (contestRole) {
+            _pendingEditIds.forEach(id => promises.push(
+                fetch('/admin/contests/{{ contest.id }}/users/' + id + '/role', {
+                    method: 'PATCH',
+                    headers: csrfHeaders(),
+                    body: JSON.stringify({ role: contestRole })
+                })
+            ));
+        }
+
+        Promise.all(promises)
+          .then(() => { window.location.reload(); })
           .catch(() => {
               submitBtn.disabled = false;
               submitBtn.innerHTML = '<i class="fas fa-save"></i> Apply';
@@ -931,7 +900,7 @@ if (importSubmitBtn) {
                 name:     u.name     || '',
                 email:    u.email    || '',
                 password: u.password || '',
-                type:     u.type     || 'user',
+                role:     u.role     || 'contestant',  // contest-level role
                 verified: (u.verified || 'true').toLowerCase() !== 'false',
                 hidden:   (u.hidden  || 'false').toLowerCase() === 'true',
                 team:     u.team     || '',
@@ -1102,7 +1071,8 @@ if (aeForm) {
 
         const payload = {
             username: document.getElementById('ae-username').value.trim(),
-            team:     document.getElementById('ae-team').value.trim()
+            team:     document.getElementById('ae-team').value.trim(),
+            role:     document.getElementById('ae-role').value || 'contestant',
         };
 
         const submitBtn = document.getElementById('ae-submit');
@@ -1117,7 +1087,8 @@ if (aeForm) {
         .then(data => {
             submitBtn.disabled = false;
             if (data.success) {
-                aeSuccess.textContent = 'User ' + data.data.name + ' added to contest successfully!';
+                const roleLabel = { contestant: 'Contestant', jury: 'Jury', challenge_writer: 'Challenge Writer' }[data.data.role] || data.data.role;
+                aeSuccess.textContent = 'User ' + data.data.name + ' added to contest as ' + roleLabel + '!';
                 aeSuccess.style.display = 'block';
                 setTimeout(() => window.location.reload(), 1000);
             } else {
