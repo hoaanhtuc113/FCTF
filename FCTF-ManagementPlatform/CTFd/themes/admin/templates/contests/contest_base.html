@@ -122,11 +122,11 @@
     }
 
     /* rotate chevron when open */
-    .cs-nav-link.sub-btn.open .bx-chevron-down {
+    .nav-link.sub-btn.open .bx-chevron-down {
         transform: rotate(180deg);
     }
 
-    .cs-nav-link.sub-btn .bx-chevron-down {
+    .nav-link.sub-btn .bx-chevron-down {
         transition: transform 0.2s ease;
     }
 
@@ -224,12 +224,12 @@ Override the entire sidebar block with contest-scoped navigation
     </a>
 
     <a href="{{ url_for('admin.contest_scoreboard', contest_id=contest.id) }}"
-        class="cs-nav-link {% if request.endpoint == 'admin.contest_scoreboard' %}active{% endif %}">
+        class="nav-link {% if request.endpoint == 'admin.contest_scoreboard' %}active{% endif %}">
         <i class="bx bx-trophy"></i> Scoreboard
     </a>
 
     <a href="{{ url_for('admin.contest_submissions', contest_id=contest.id) }}"
-        class="cs-nav-link sub-btn {% if request.endpoint in ['admin.contest_submissions', 'admin.contest_submissions_correct', 'admin.contest_submissions_incorrect'] %}active{% endif %}">
+        class="nav-link sub-btn {% if request.endpoint in ['admin.contest_submissions', 'admin.contest_submissions_correct', 'admin.contest_submissions_incorrect'] %}active{% endif %}">
         <i class="bx bx-radio-circle-marked"></i> Submissions
         <i class="bx bx-chevron-down ml-auto" style="font-size:1rem;"></i>
     </a>
@@ -249,14 +249,13 @@ Override the entire sidebar block with contest-scoped navigation
         </a>
     </div>
 
-  
-
     <a href="{{ url_for('admin.kypo_pools', contest_id=contest.id) }}"
-        class="cs-nav-link sub-btn {% if request.endpoint in ['admin.kypo_pools', 'admin.kypo_sandbox_definitions'] %}active{% endif %}">
+        class="nav-link sub-btn {% if request.endpoint in ['admin.kypo_pools', 'admin.kypo_sandbox_definitions'] %}active{% endif %}">
         <i class="bx bx-chip"></i> KYPO Resources
         <i class="bx bx-chevron-down ml-auto" style="font-size:1rem;"></i>
     </a>
-    <div class="cs-sub-menu" {% if request.endpoint in ['admin.kypo_pools', 'admin.kypo_sandbox_definitions'] %}style="display:block;"{% endif %}>
+    <div class="cs-sub-menu" {% if request.endpoint in ['admin.kypo_pools', 'admin.kypo_sandbox_definitions' ]
+        %}style="display:block;" {% endif %}>
         <a href="{{ url_for('admin.kypo_pools', contest_id=contest.id) }}"
             class="cs-sub-link {% if request.endpoint == 'admin.kypo_pools' %}active{% endif %}">
             Pools
@@ -267,18 +266,19 @@ Override the entire sidebar block with contest-scoped navigation
         </a>
     </div>
 
-    <a href="{{ url_for('admin.contest_settings', contest_id=contest.id) }}"
-        class="cs-nav-link {% if request.endpoint == 'admin.contest_settings' %}active{% endif %}">
-        <i class="bx bx-cog"></i> Settings
-    </a>
-
     <a href="{{ url_for('admin.contest_dynamic_reward', contest_id=contest.id) }}"
         class="nav-link {% if request.endpoint == 'admin.contest_dynamic_reward' %}active{% endif %}">
         <i class="bx bx-line-chart"></i> Dynamic Reward Query
     </a>
+
     <a href="{{ url_for('admin.contest_monitoring', contest_id=contest.id) }}"
-        class="cs-nav-link {% if request.endpoint == 'admin.contest_monitoring' %}active{% endif %}">
+        class="nav-link {% if request.endpoint == 'admin.contest_monitoring' %}active{% endif %}">
         <i class="bx bx-server"></i> Monitoring
+    </a>
+
+    <a href="{{ url_for('admin.contest_settings', contest_id=contest.id) }}"
+        class="nav-link {% if request.endpoint == 'admin.contest_settings' %}active{% endif %}">
+        <i class="bx bx-cog"></i> Settings
     </a>
 
     {# ── Logout at bottom ── #}
@@ -301,7 +301,7 @@ Override the entire sidebar block with contest-scoped navigation
 <script>
     // Sidebar dropdown toggle (supports multiple dropdowns)
     document.addEventListener('DOMContentLoaded', function () {
-        document.querySelectorAll('.cs-nav-link.sub-btn').forEach(function (subBtn) {
+        document.querySelectorAll('.nav-link.sub-btn').forEach(function (subBtn) {
             subBtn.addEventListener('click', function (e) {
                 e.preventDefault();
                 var menu = subBtn.nextElementSibling;
