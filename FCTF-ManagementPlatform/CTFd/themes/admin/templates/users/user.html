@@ -3,687 +3,507 @@
 {% block stylesheets %}
 {{ super() }}
 <style>
-	/* Clean User Detail Page Styles */
-	.user-detail-page .jumbotron {
-		background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
-		border-bottom: 2px solid #e8e8e8;
-		margin-bottom: 0;
-		padding: 3rem 0;
-		text-align: center;
-		text-transform: none;
-	}
-	
-	.user-detail-page .jumbotron h1,
-	.user-detail-page .jumbotron h2,
-	.user-detail-page .jumbotron h3 {
-		color: #2c3e50;
-		text-align: center;
-	}
-	
-	.user-detail-page .jumbotron h1 {
-		display: block;
-		text-align: center;
-		text-transform: none;
-		font-weight: 700;
-		font-size: 2.2rem;
-		margin-bottom: 1rem;
-		letter-spacing: normal;
-	}
-	
-	.user-detail-page .jumbotron h2 {
-		font-weight: 500;
-		font-size: 1.2rem;
-		margin: 0.75rem 0;
-	}
-	
-	.user-detail-page .jumbotron h3 {
-		font-weight: 500;
-		font-size: 1rem;
-	}
-	
-	.user-detail-page .jumbotron hr {
-		border-top: 2px solid #e8e8e8;
-		opacity: 0.3;
-		margin-left: auto;
-		margin-right: auto;
-	}
-	
-	/* Action Icons */
-	.user-detail-page .btn-fa {
-		color: #495057;
-		transition: all 0.2s ease;
-		cursor: pointer;
-	}
-	
-	.user-detail-page .btn-fa:hover {
-		color: #ff6b35;
-		transform: scale(1.15);
-	}
-	
-	/* Badges */
-	.user-detail-page .badge {
-		padding: 0.4rem 0.75rem;
-		border-radius: 4px;
-		font-weight: 500;
-		font-size: 0.85rem;
-	}
-	
-	.user-detail-page .badge-primary {
-		background-color: #ff6b35;
-		color: #ffffff;
-	}
-	
-	.user-detail-page .badge-success {
-		background-color: #28a745;
-		color: #ffffff;
-	}
-	
-	.user-detail-page .badge-danger {
-		background-color: #dc3545;
-		color: #ffffff;
-	}
-	
-	/* Tabs */
-	.nav-tabs {
-		border-bottom: 2px solid #e8e8e8;
-		background: #ffffff;
-		padding: 0.5rem 1rem 0 1rem;
-		border-radius: 8px 8px 0 0;
-		box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-	}
-	
-	.nav-tabs .nav-link {
-		color: #495057;
-		border: none;
-		border-bottom: 3px solid transparent;
-		padding: 0.75rem 1.5rem;
-		font-weight: 500;
-		transition: all 0.2s ease;
-	}
-	
-	.nav-tabs .nav-link:hover {
-		color: #ff6b35;
-		border-bottom-color: #ff6b35;
-		background-color: transparent !important;
-	}
-	
-	.nav-tabs .nav-link.active {
-		color: #ff6b35 !important;
-		background-color: transparent !important;
-		border-bottom-color: #ff6b35 !important;
-		font-weight: 600;
-	}
-	
-	/* Tab Content */
-	.tab-content {
-		background: #ffffff;
-		padding: 2rem;
-		border-radius: 0 0 8px 8px;
-		box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-		border: 1px solid #e8e8e8;
-		border-top: none;
-	}
-	
-	/* Tables in tabs */
-	.tab-content .table {
-		margin-top: 1rem;
-	}
-	
-	.tab-content .table thead th {
-		background-color: #f8f9fa;
-		color: #2c3e50;
-		font-weight: 600;
-		border-bottom: 2px solid #e8e8e8;
-		padding: 0.9rem 0.75rem;
-	}
-	
-	.tab-content .table tbody td {
-		padding: 0.85rem 0.75rem;
-		vertical-align: middle;
-		color: #495057;
-		border-bottom: 1px solid #f1f1f1;
-	}
-	
-	.tab-content .table tbody tr:hover {
-		background-color: #fff5f2;
-	}
-	
-	.tab-content .table tbody td a {
-		color: #2c3e50;
-		font-weight: 500;
-		transition: color 0.2s ease;
-	}
-	
-	.tab-content .table tbody td a:hover {
-		color: #ff6b35;
-		text-decoration: none;
-	}
-	
-	/* Modal Styles */
-	.modal-header {
-		background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
-		border-bottom: 2px solid #e8e8e8;
-		padding: 1.5rem;
-	}
-	
-	.modal-header h2 {
-		color: #2c3e50;
-		font-weight: 600;
-		font-size: 1.5rem;
-		margin: 0;
-	}
-	
-	.modal-body {
-		padding: 2rem;
-	}
-	
-	/* Cards */
-	.card {
-		border: 1px solid #e8e8e8;
-		border-radius: 8px;
-		box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-		margin-bottom: 1.5rem;
-	}
-	
-	.card-header {
-		background-color: #f8f9fa;
-		border-bottom: 2px solid #e8e8e8;
-		padding: 1rem 1.25rem;
-	}
-	
-	.card-header h5 {
-		color: #2c3e50;
-		font-weight: 600;
-		margin: 0;
-	}
-	
-	.card-body {
-		padding: 1.5rem;
-	}
-	
-	/* Buttons */
-	.btn-primary {
-		background-color: #ff6b35;
-		border-color: #ff6b35;
-		transition: all 0.2s ease;
-	}
-	
-	.btn-primary:hover {
-		background-color: #e85d2a;
-		border-color: #e85d2a;
-		transform: translateY(-2px);
-		box-shadow: 0 4px 8px rgba(255, 107, 53, 0.3);
-	}
-	
-	.btn-success {
-		transition: all 0.2s ease;
-	}
-	
-	.btn-success:hover {
-		transform: translateY(-2px);
-	}
-	
-	.btn-danger {
-		transition: all 0.2s ease;
-	}
-	
-	.btn-danger:hover {
-		transform: translateY(-2px);
-	}
+/* ── Hub User Detail ─────────────────────────────────────── */
+.user-detail-page .jumbotron {
+    background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+    border-bottom: 2px solid #e8e8e8;
+    margin-bottom: 0;
+    padding: 3rem 0;
+    text-align: center;
+    text-transform: none;
+}
+.user-detail-page .jumbotron h1 {
+    color: #2c3e50;
+    font-weight: 700;
+    font-size: 2.2rem;
+    margin-bottom: 1rem;
+    text-transform: none;
+    letter-spacing: normal;
+}
+.user-detail-page .jumbotron h2,
+.user-detail-page .jumbotron h3 {
+    color: #2c3e50;
+    font-weight: 500;
+    text-transform: none;
+}
+
+/* badges */
+.user-detail-page .badge {
+    padding: 0.4rem 0.75rem;
+    border-radius: 4px;
+    font-weight: 500;
+    font-size: 0.85rem;
+}
+.user-detail-page .badge-primary   { background-color: #ff6b35; color: #fff; }
+.user-detail-page .badge-success   { background-color: #28a745; color: #fff; }
+.user-detail-page .badge-danger    { background-color: #dc3545; color: #fff; }
+
+/* action icons */
+.user-detail-page .btn-fa {
+    color: #495057;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+.user-detail-page .btn-fa:hover           { color: #ff6b35; transform: scale(1.15); }
+.user-detail-page .btn-fa.text-danger:hover { color: #c0392b !important; transform: scale(1.15); }
+
+/* Info card */
+.hub-info-card {
+    background: #fff;
+    border: 1px solid #e8e8e8;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    padding: 1.75rem 2rem;
+    margin-bottom: 1.5rem;
+}
+.hub-info-card h5 {
+    color: #2c3e50;
+    font-weight: 600;
+    margin-bottom: 1.1rem;
+    border-bottom: 2px solid #f1f1f1;
+    padding-bottom: 0.6rem;
+}
+.hub-info-row {
+    display: flex;
+    align-items: baseline;
+    padding: 0.4rem 0;
+    border-bottom: 1px solid #f8f9fa;
+}
+.hub-info-row:last-child { border-bottom: none; }
+.hub-info-label {
+    width: 140px;
+    flex-shrink: 0;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #6c757d;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+.hub-info-value {
+    color: #2c3e50;
+    font-size: 0.95rem;
+    word-break: break-word;
+}
+
+/* Participations table */
+.participations-card {
+    background: #fff;
+    border: 1px solid #e8e8e8;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    overflow: hidden;
+    margin-bottom: 2rem;
+}
+.participations-card .card-header {
+    background: #f8f9fa;
+    border-bottom: 2px solid #e8e8e8;
+    padding: 1rem 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.participations-card .card-header h5 {
+    color: #2c3e50;
+    font-weight: 600;
+    margin: 0;
+    font-size: 1rem;
+}
+.participations-table thead th {
+    background: #f8f9fa;
+    color: #2c3e50;
+    font-weight: 600;
+    border-bottom: 2px solid #e8e8e8;
+    padding: 0.85rem 1rem;
+    white-space: nowrap;
+}
+.participations-table tbody td {
+    padding: 0.85rem 1rem;
+    vertical-align: middle;
+    color: #495057;
+    border-bottom: 1px solid #f1f1f1;
+}
+.participations-table tbody tr:hover { background-color: #fff5f2; }
+.participations-table tbody tr:last-child td { border-bottom: none; }
+.participations-table a { color: #2c3e50; font-weight: 500; }
+.participations-table a:hover { color: #ff6b35; text-decoration: none; }
+
+/* role badges */
+.role-badge-contestant { background-color: #6c757d; color: #fff; padding: 0.3rem 0.65rem; border-radius: 4px; font-size: 0.8rem; font-weight: 500; }
+.role-badge-jury       { background-color: #6f42c1; color: #fff; padding: 0.3rem 0.65rem; border-radius: 4px; font-size: 0.8rem; font-weight: 500; }
+.role-badge-writer     { background-color: #17a2b8; color: #fff; padding: 0.3rem 0.65rem; border-radius: 4px; font-size: 0.8rem; font-weight: 500; }
+
+/* modals */
+.modal-header {
+    background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+    border-bottom: 2px solid #e8e8e8;
+    padding: 1.5rem;
+}
+.modal-header h2 { color: #2c3e50; font-weight: 600; font-size: 1.5rem; margin: 0; }
+.modal-body { padding: 2rem; }
+
+/* buttons */
+.btn-primary { background-color: #ff6b35; border-color: #ff6b35; }
+.btn-primary:hover { background-color: #e85d2a; border-color: #e85d2a; transform: translateY(-2px); box-shadow: 0 4px 8px rgba(255,107,53,.3); }
+.btn-danger:hover  { transform: translateY(-2px); }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="user-detail-page">
+
+{# ── Edit User Modal ───────────────────────────────────────────── #}
 <div id="user-info-modal" class="modal fade">
-	<div class="modal-dialog">
-		<div class="modal-content">
-			<div class="modal-header">
-				<h2 class="modal-action text-center w-100">Edit User</h2>
-				<button type="button" class="close" data-dismiss="modal" aria-label="Close">
-					<span aria-hidden="true">&times;</span>
-				</button>
-			</div>
-			<div class="modal-body clearfix">
-				{% include "admin/modals/users/edit.html" %}
-			</div>
-		</div>
-	</div>
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="text-center w-100">Edit User</h2>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body clearfix">
+                {% include "admin/modals/users/edit.html" %}
+            </div>
+        </div>
+    </div>
 </div>
 
-<div id="user-statistics-modal" class="modal fade">
-	<div class="modal-dialog modal-xl">
-		<div class="modal-content">
-			<div class="modal-header">
-				<h2 class="modal-action text-center w-100">User Statistics</h2>
-				<button type="button" class="close" data-dismiss="modal" aria-label="Close">
-					<span aria-hidden="true">&times;</span>
-				</button>
-			</div>
-			<div class="modal-body clearfix">
-				{% include "admin/modals/users/statistics.html" %}
-			</div>
-		</div>
-	</div>
-</div>
-
-<div id="user-award-modal" class="modal fade">
-	<div class="modal-dialog">
-		<div class="modal-content">
-			<div class="modal-header">
-				<h2 class="modal-action text-center w-100">Award User</h2>
-				<button type="button" class="close" data-dismiss="modal" aria-label="Close">
-					<span aria-hidden="true">&times;</span>
-				</button>
-			</div>
-			<div class="modal-body clearfix">
-				{% include "admin/modals/awards/create.html" %}
-			</div>
-		</div>
-	</div>
-</div>
-
-
-
+{# ── IP Addresses Modal ────────────────────────────────────────── #}
 <div id="user-addresses-modal" class="modal fade">
-	<div class="modal-dialog modal-lg">
-		<div class="modal-content">
-			<div class="modal-header">
-				<h2 class="modal-action text-center w-100">IP Addresses</h2>
-				<button type="button" class="close" data-dismiss="modal" aria-label="Close">
-					<span aria-hidden="true">&times;</span>
-				</button>
-			</div>
-			<div class="modal-body clearfix">
-				{% include "admin/modals/users/addresses.html" %}
-			</div>
-		</div>
-	</div>
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="text-center w-100">IP Addresses</h2>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body clearfix">
+                {% include "admin/modals/users/addresses.html" %}
+            </div>
+        </div>
+    </div>
 </div>
 
+{# ── Header ────────────────────────────────────────────────────── #}
 <div class="jumbotron">
-	<div class="container text-center">
-		<h1 id="team-id" class="text-center p-0 m-0" style="text-transform: none;">{{ user.name }}</h1>
-		<div class="mb-2 text-center"  style="text-transform: none;">
-			{% if user.type == 'admin' %}
-			<span class="badge badge-primary">Admin</span>
-			{% else %}
-			<span class="badge" style="background-color:#6c757d;color:#fff;">User</span>
-			{% endif %}
-			{% if user.verified %}
-			<span class="badge badge-success">verified</span>
-			{% endif %}
-			{% if user.hidden %}
-			<span class="badge badge-danger">hidden</span>
-			{% endif %}
-			{% if user.banned %}
-			<span class="badge badge-danger">banned</span>
-			{% endif %}
-		</div>
+    <div class="container text-center">
+        <h1 class="p-0 m-0">{{ user.name }}</h1>
 
-		{% if user.affiliation %}
-		<h3 class="d-inline-block text-center" style="text-transform: none;">
-			<span class="badge badge-primary">{{ user.affiliation }}</span>
-		</h3>
-		{% endif %}
+        <div class="mb-2 mt-2">
+            {% if user.type == 'admin' %}
+                <span class="badge badge-primary">Admin</span>
+            {% else %}
+                <span class="badge" style="background-color:#6c757d;color:#fff;">User</span>
+            {% endif %}
+            {% if user.verified %}
+                <span class="badge badge-success">Verified</span>
+            {% endif %}
+            {% if user.hidden %}
+                <span class="badge badge-danger">Hidden</span>
+            {% endif %}
+            {% if user.banned %}
+                <span class="badge badge-danger">Banned</span>
+            {% endif %}
+        </div>
 
-		{% if user.country %}
-		<h3 class="d-inline-block text-center" style="text-transform: none;">
-			<span class="badge badge-primary">
-				<i class="flag-{{ user.country.lower() }}"></i>
-				{{ lookup_country_code(user.country) }}
-			</span>
-		</h3>
-		{% endif %}
+        {% if user.affiliation %}
+        <h3 class="d-inline-block">
+            <span class="badge badge-primary">{{ user.affiliation }}</span>
+        </h3>
+        {% endif %}
 
-		<h2 id="team-email" class="text-center" style="text-transform: none;">{{ user.email }}</h2>
-		{% if user.oauth_id %}
-		<a href="https://majorleaguecyber.org/u/{{ user.name }}">
-			<h3><span class="badge badge-primary">Official</span></h3>
-		</a>
-		{% endif %}
+        {% if user.country %}
+        <h3 class="d-inline-block">
+            <span class="badge badge-primary">
+                <i class="flag-{{ user.country.lower() }}"></i>
+                {{ lookup_country_code(user.country) }}
+            </span>
+        </h3>
+        {% endif %}
 
-		{% if user.team_id %}
-		<h2 id="team-acc" class="text-center" style="text-transform: none;">
-			<a href="{{ url_for('admin.teams_detail', team_id=user.team_id) }}">
-				{{ user.team.name }}
-			</a>
-		</h2>
-		{% endif %}
+        <h2 class="text-center mt-2">{{ user.email }}</h2>
 
-		{% for field in user.get_fields(admin=true) %}
-		<h3 class="d-block text-center" style="text-transform: none;">
-			{{ field.name }}: {{ field.value }}
-		</h3>
-		{% endfor %}
+        <hr class="w-50 mx-auto mt-3">
 
-		<h3 id="team-place" class="text-center" style="text-transform: none;">
-			{% if place %}
-			{{ place }}
-			<small>place</small>
-			{% endif %}
-		</h3>
-		<h3 id="team-score" class="text-center" style="text-transform: none;">
-			{% if score %}
-			{{ score }}
-			<small>points</small>
-			{% endif %}
-		</h3>
-		<hr class="w-50 mx-auto">
-		<div class="pt-3 text-center" style="text-transform: none;">
-			<a class="edit-user text-dark">
-				<i class="btn-fa fas fa-user-edit fa-2x px-2" data-toggle="tooltip" data-placement="top"
-					title="Edit User"></i>
-			</a>
-
-			<a class="statistics-user text-dark">
-				<i class="btn-fa fas fa-chart-pie fa-2x px-2" data-toggle="tooltip" data-placement="top"
-					title="User Statistics"></i>
-			</a>
-			<a class="award-user text-dark">
-				<i class="btn-fa fas fa-trophy fa-2x px-2" data-toggle="tooltip" data-placement="top"
-					title="Award User"></i>
-			</a>
-
-			<a class="delete-user text-dark">
-				<i class="btn-fa fas fa-trash-alt fa-2x px-2" data-toggle="tooltip" data-placement="top"
-					title="Delete User"></i>
-			</a>
-		</div>
-		<div class="pt-3 text-center">
-			<a class="addresses-user text-dark">
-				<i class="btn-fa fas fa-network-wired fa-2x px-2" data-toggle="tooltip" data-placement="top"
-					title="IP Addresses"></i>
-			</a>
-			{% if user.website %}
-			<a href="{{ user.website }}" target="_blank" class="text-decoration-none text-dark" rel="noopener">
-				<i class="btn-fa fas fa-external-link-alt fa-2x px-2" data-toggle="tooltip" data-placement="top"
-					title="{{ user.website }}" aria-hidden="true"></i>
-			</a>
-			{% endif %}
-		</div>
-	</div>
+        {# Actions #}
+        <div class="pt-2 text-center d-flex justify-content-center align-items-center" style="gap:1.4rem;">
+            <a class="edit-user text-dark" style="cursor:pointer;" title="Edit User">
+                <i class="btn-fa fas fa-user-edit fa-2x"></i>
+            </a>
+            <a class="addresses-user text-dark" style="cursor:pointer;" title="IP Addresses">
+                <i class="btn-fa fas fa-network-wired fa-2x"></i>
+            </a>
+            {% if user.website %}
+            <a href="{{ user.website }}" target="_blank" rel="noopener" class="text-dark" title="{{ user.website }}">
+                <i class="btn-fa fas fa-external-link-alt fa-2x"></i>
+            </a>
+            {% endif %}
+            <a class="delete-user text-dark" style="cursor:pointer;" title="Delete User">
+                <i class="btn-fa fas fa-trash-alt fa-2x text-danger"></i>
+            </a>
+        </div>
+    </div>
 </div>
 
-<div class="container">
-	<nav class="nav nav-tabs nav-fill pt-5" id="myTab" role="tablist">
-		<a class="nav-item nav-link active" id="nav-solves-tab" data-toggle="tab" href="#nav-solves" role="tab"
-			aria-controls="nav-solves" aria-selected="true">Solves</a>
+{# ── Body ──────────────────────────────────────────────────────── #}
+<div class="container pt-5 pb-5">
+    <div class="row">
 
-		<a class="nav-item nav-link" id="nav-wrong-tab" data-toggle="tab" href="#nav-wrong" role="tab"
-			aria-controls="nav-wrong" aria-selected="false">Fails</a>
+        {# Left: account info card #}
+        <div class="col-md-4 mb-4">
+            <div class="hub-info-card">
+                <h5><i class="fas fa-id-card mr-2 text-muted"></i>Account Info</h5>
 
-		<a class="nav-item nav-link" id="nav-awards-tab" data-toggle="tab" href="#nav-awards" role="tab"
-			aria-controls="nav-awards" aria-selected="false">Awards</a>
+                <div class="hub-info-row">
+                    <span class="hub-info-label">ID</span>
+                    <span class="hub-info-value">#{{ user.id }}</span>
+                </div>
+                <div class="hub-info-row">
+                    <span class="hub-info-label">Email</span>
+                    <span class="hub-info-value">{{ user.email }}</span>
+                </div>
+                <div class="hub-info-row">
+                    <span class="hub-info-label">Platform Role</span>
+                    <span class="hub-info-value">
+                        {% if user.type == 'admin' %}
+                            <span class="badge badge-primary">Admin</span>
+                        {% else %}
+                            <span class="badge" style="background-color:#6c757d;color:#fff;">User</span>
+                        {% endif %}
+                    </span>
+                </div>
+                {% if user.affiliation %}
+                <div class="hub-info-row">
+                    <span class="hub-info-label">Affiliation</span>
+                    <span class="hub-info-value">{{ user.affiliation }}</span>
+                </div>
+                {% endif %}
+                {% if user.country %}
+                <div class="hub-info-row">
+                    <span class="hub-info-label">Country</span>
+                    <span class="hub-info-value">
+                        <i class="flag-{{ user.country.lower() }}"></i>
+                        {{ lookup_country_code(user.country) }}
+                    </span>
+                </div>
+                {% endif %}
+                {% if user.website %}
+                <div class="hub-info-row">
+                    <span class="hub-info-label">Website</span>
+                    <span class="hub-info-value">
+                        <a href="{{ user.website }}" target="_blank" rel="noopener">{{ user.website }}</a>
+                    </span>
+                </div>
+                {% endif %}
+                {% if user.oauth_id %}
+                <div class="hub-info-row">
+                    <span class="hub-info-label">MLC</span>
+                    <span class="hub-info-value">
+                        <a href="https://majorleaguecyber.org/u/{{ user.name }}" target="_blank">
+                            <span class="badge badge-primary">Official</span>
+                        </a>
+                    </span>
+                </div>
+                {% endif %}
 
-		<a class="nav-item nav-link" id="nav-missing-tab" data-toggle="tab" href="#nav-missing" role="tab"
-			aria-controls="nav-missing" aria-selected="false">Missing</a>
-	</nav>
+                {# Custom fields #}
+                {% for field in user.get_fields(admin=true) %}
+                <div class="hub-info-row">
+                    <span class="hub-info-label">{{ field.name }}</span>
+                    <span class="hub-info-value">{{ field.value }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
 
-	<div class="tab-content min-vh-25 pb-5" id="nav-tabContent">
-		<div class="tab-pane fade show active" id="nav-solves" role="tabpanel" aria-labelledby="nav-solves-tab">
-			<h3 class="text-center pt-5 d-block">Solves</h3>
-			<div class="row">
-				<div class="col-md-12">
-					<div class="float-right pb-3">
-						<div class="btn-group" role="group">
-							<button type="button" class="btn btn-outline-danger" id="solves-delete-button">
-								<i class="btn-fa fas fa-trash-alt"></i>
-							</button>
-						</div>
-					</div>
-				</div>
-			</div>
-			<div class="row">
-				<div class="col-md-12">
-				<div class="clean-table-wrapper">
-					<table class="clean-table table">
-						<thead>
-							<tr>
-								<th data-checkbox>
-									<input type="checkbox" class="table-check" autocomplete="off"
-										data-checkbox-all>
-								</th>
-								<th class="sort-col text-center"><b>Challenge</b></th>
-								<th class="sort-col text-center"><b>Submitted</b></th>
-								<th class="sort-col text-center"><b>Category</b></th>
-								<th class="sort-col text-center"><b>Value</b></th>
-								<th class="sort-col text-center"><b>Time</b></th>
-							</tr>
-						</thead>
-						<tbody>
-							{% for solve in solves %}
-							<tr class="chal-solve" data-href="{{ url_for("admin.challenges_detail",
-								challenge_id=solve.challenge_id) }}">
-								<td data-checkbox>
-									<input type="checkbox" class="table-check" value="{{ solve.id }}"
-										autocomplete="off" data-submission-id="{{ solve.id }}"
-										data-submission-type="{{ solve.type }}"
-										data-submission-challenge="{{ solve.challenge.name }}">
-								</td>
-								<td class="text-center chal" id="{{ solve.challenge_id }}">
-									<a href="{{ url_for("admin.challenges_detail", challenge_id=solve.challenge_id)
-										}}">
-										{{ solve.challenge.name }}
-									</a>
-								</td>
-								<td class="text-center flag" id="{{ solve.id }}">
-									<pre>{{ solve.provided }}</pre>
-								</td>
-								<td class="text-center">{{ solve.challenge.category }}</td>
-								<td class="text-center">{{ solve.challenge.value }}</td>
-								<td class="text-center solve-time">
-									<span data-time="{{ solve.date | isoformat }}"></span>
-								</td>
-							</tr>
-							{% endfor %}
-						</tbody>
-					</table>
-				</div>
-				</div>
-			</div>
-		</div>
+        {# Right: contest participations #}
+        <div class="col-md-8 mb-4">
+            <div class="participations-card">
+                <div class="card-header">
+                    <h5><i class="fas fa-trophy mr-2 text-muted"></i>Contest Participations</h5>
+                    <span class="badge badge-secondary">{{ contest_participations | length }}</span>
+                </div>
 
-		<div class="tab-pane fade" id="nav-wrong" role="tabpanel" aria-labelledby="nav-wrong-tab">
-			<h3 class="text-center pt-5 d-block">Fails</h3>
-			<div class="row">
-				<div class="col-md-12">
-					<div class="float-right pb-3">
-						<div class="btn-group" role="group">
-							<button type="button" class="btn btn-outline-success" id="correct-fail-button">
-								<i class="btn-fa fas fa-check"></i>
-							</button>
-							<button type="button" class="btn btn-outline-danger" id="fails-delete-button">
-								<i class="btn-fa fas fa-trash-alt"></i>
-							</button>
-						</div>
-					</div>
-				</div>
-			</div>
-			<div class="row">
-				<div class="col-md-12">
-				<div class="clean-table-wrapper">
-					<table class="clean-table table">
-						<thead>
-							<tr>
-								<th data-checkbox>
-									<input type="checkbox" class="table-check" autocomplete="off"
-										data-checkbox-all>
-								</th>
-								<th class="sort-col text-center"><b>Challenge</b></th>
-								<th class="sort-col text-center"><b>Submitted</b></th>
-								<th class="sort-col text-center"><b>Time</b></th>
-							</tr>
-						</thead>
-						<tbody>
-							{% for fail in fails %}
-							<tr class="chal-wrong"
-								data-href="{{ url_for('admin.challenges_detail', challenge_id=fail.challenge_id) }}">
-								<td data-checkbox>
-									<input type="checkbox" class="table-check" value="{{ fail.id }}"
-										autocomplete="off" data-submission-id="{{ fail.id }}"
-										data-submission-type="{{ fail.type }}"
-										data-submission-challenge="{{ fail.challenge.name }}">
-								</td>
-								<td class="text-center chal" id="{{ fail.challenge_id }}">
-									<a href="{{ url_for("admin.challenges_detail", challenge_id=fail.challenge_id) }}">
-										{{ fail.challenge.name }}
-									</a>
-								</td>
-								<td class="text-center flag" id="{{ fail.id }}">
-									<pre>{{ fail.provided }}</pre>
-								</td>
-								<td class="text-center solve-time">
-									<span data-time="{{ fail.date | isoformat }}"></span>
-								</td>
-							</tr>
-							{% endfor %}
-						</tbody>
-					</table>
-				</div>
-				</div>
-			</div>
-		</div>
+                {% if contest_participations %}
+                <div class="table-responsive">
+                    <table class="table participations-table mb-0">
+                        <thead>
+                            <tr>
+                                <th>Contest</th>
+                                <th class="text-center">Role</th>
+                                <th class="text-center">Joined</th>
+                                <th class="text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for cp in contest_participations %}
+                            <tr>
+                                <td>
+                                    <a href="{{ url_for('admin.contest_dashboard', contest_id=cp.contest_id) }}">
+                                        {{ cp.contest.name }}
+                                    </a>
+                                </td>
+                                <td class="text-center">
+                                    {% if cp.role == 'jury' %}
+                                        <span class="role-badge-jury">Jury</span>
+                                    {% elif cp.role == 'challenge_writer' %}
+                                        <span class="role-badge-writer">Challenge Writer</span>
+                                    {% else %}
+                                        <span class="role-badge-contestant">Contestant</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    <small class="text-muted cp-joined-at" data-time="{{ cp.joined_at.isoformat() if cp.joined_at else '' }}">
+                                        {{ cp.joined_at.strftime('%Y-%m-%d') if cp.joined_at else '—' }}
+                                    </small>
+                                </td>
+                                <td class="text-center">
+                                    <a href="{{ url_for('admin.contest_user_detail', contest_id=cp.contest_id, user_id=user.id) }}"
+                                       class="btn btn-sm btn-outline-secondary" title="View activity in this contest">
+                                        <i class="fas fa-chart-bar mr-1"></i>View Activity
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center text-muted py-5">
+                    <i class="fas fa-inbox fa-3x mb-3" style="opacity:.3;"></i>
+                    <p class="mb-0">This user has not participated in any contest yet.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
 
-		<div class="tab-pane fade" id="nav-awards" role="tabpanel" aria-labelledby="nav-awards-tab">
-			<h3 class="text-center pt-5 d-block">Awards</h3>
-			<div class="row">
-				<div class="col-md-12">
-					<div class="float-right pb-3">
-						<div class="btn-group" role="group">
-							<button type="button" class="btn btn-outline-danger" id="awards-delete-button">
-								<i class="btn-fa fas fa-trash-alt"></i>
-							</button>
-						</div>
-					</div>
-				</div>
-			</div>
-			<div class="row">
-				<div class="col-md-12">
-				<div class="clean-table-wrapper">
-					<table class="clean-table table">
-						<thead>
-							<tr>
-								<th data-checkbox>
-									<input type="checkbox" class="table-check" autocomplete="off"
-										data-checkbox-all>
-								</th>
-								<th class="sort-col text-center"><b>Name</b></th>
-								<th class="sort-col text-center"><b>Description</b></th>
-								<th class="sort-col text-center"><b>Date</b></th>
-								<th class="sort-col text-center"><b>Value</b></th>
-								<th class="sort-col text-center"><b>Category</b></th>
-								<th class="sort-col text-center"><b>Icon</b></th>
-							</tr>
-						</thead>
-						<tbody id="awards-body">
-							{% for award in awards %}
-							<tr class="award-row">
-								<td data-checkbox>
-									<input type="checkbox" class="table-check" value="{{ award.id }}"
-										autocomplete="off" data-award-id="{{ award.id }}"
-										data-award-name="{{ award.name }}">
-								</td>
-								<td class="text-center chal" id="{{ award.id }}">{{ award.name }}</td>
-								<td class="text-center">
-									<pre>{{ award.description }}</pre>
-								</td>
-								<td class="text-center solve-time">
-									<span data-time="{{ award.date | isoformat }}"></span>
-								</td>
-								<td class="text-center">{{ award.value }}</td>
-								<td class="text-center">{{ award.category }}</td>
-								<td class="text-center"> <i class="award-icon award-{{ award.icon }}"></i> {{ award.icon
-									}}</td>
-							</tr>
-							{% endfor %}
-						</tbody>
-					</table>
-				</div>
-				</div>
-			</div>
-		</div>
-
-		<div class="tab-pane fade" id="nav-missing" role="tabpanel" aria-labelledby="nav-missing-tab">
-			<h3 class="text-center pt-5 d-block">Missing</h3>
-			<div class="row">
-				<div class="col-md-12">
-					<div class="float-right pb-3">
-						<div class="btn-group" role="group">
-							<button type="button" class="btn btn-outline-success" id="missing-solve-button">
-								<i class="btn-fa fas fa-check"></i>
-							</button>
-						</div>
-					</div>
-				</div>
-			</div>
-			<div class="row">
-				<div class="col-md-12">
-				<div class="clean-table-wrapper">
-					<table class="clean-table table">
-						<thead>
-							<tr>
-								<th data-checkbox>
-									<input type="checkbox" class="table-check" autocomplete="off"
-										data-checkbox-all>
-								</th>
-								<th class="sort-col text-center"><b>Challenge</b></th>
-								<th class="sort-col text-center"><b>Category</b></th>
-								<th class="sort-col text-center"><b>Value</b></th>
-							</tr>
-						</thead>
-						<tbody>
-							{% for challenge in missing %}
-							<tr class="chal-solve" data-href="{{ url_for("admin.challenges_detail",
-								challenge_id=challenge.id) }}">
-								<td data-checkbox>
-									<input type="checkbox" class="table-check" value="{{ challenge.id }}"
-										autocomplete="off" data-missing-challenge-id="{{ challenge.id }}"
-										data-missing-challenge-name="{{ challenge.name }}">
-								</td>
-								<td class="text-center chal" id="{{ challenge.id }}">
-									<a href="{{ url_for("admin.challenges_detail", challenge_id=challenge.id) }}">
-										{{ challenge.name }}
-									</a>
-								</td>
-								<td class="text-center">{{ challenge.category }}</td>
-								<td class="text-center">{{ challenge.value }}</td>
-							</tr>
-							{% endfor %}
-						</tbody>
-					</table>
-				</div>
-				</div>
-			</div>
-		</div>
-	</div>
-
-	<div class="row min-vh-25 pt-5">
-		<div class="col-md-10 offset-md-1">
-			<div id="comment-box">
-			</div>
-		</div>
-	</div>
-</div>
+    </div>
 </div>
 
+</div>{# /user-detail-page #}
 {% endblock %}
 
 {% block scripts %}
 {{ super() }}
 <script>
-	var USER_ID = {{ user.id }};
-	var USER_NAME = {{ user.name | tojson }};
-	var TEAM_ID = {{ user.team_id | tojson }};
-	var stats_data = {{ {
-		'type': 'user',
-		'id': user.id,
-		'name': user.name,
-		'account_id': user.id,
-	} | tojson }};
+(function () {
+    var USER_ID = {{ user.id }};
+
+    function csrfHeaders() {
+        return {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'CSRF-Token': (typeof init !== 'undefined' ? init.csrfNonce : '')
+        };
+    }
+
+    // ── Edit modal ───────────────────────────────────────────────────────────
+    var editBtn = document.querySelector('.edit-user');
+    if (editBtn) {
+        editBtn.addEventListener('click', function () {
+            if (window.jQuery) { $('#user-info-modal').modal('show'); }
+        });
+    }
+
+    // Edit form submit → PATCH /api/v1/users/<id>
+    var editForm = document.getElementById('user-info-edit-form');
+    if (editForm) {
+        editForm.addEventListener('submit', function (e) {
+            e.preventDefault();
+            var formData = new FormData(editForm);
+            var params = {};
+            formData.forEach(function (value, key) {
+                if (key === '_submit') return;
+                var el = editForm.elements[key];
+                if (el && el.type === 'checkbox') { params[key] = el.checked; }
+                else { params[key] = value; }
+            });
+            params.id = USER_ID;
+
+            var submitBtn = editForm.querySelector('[type=submit]');
+            if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Saving…'; }
+
+            fetch('/api/v1/users/' + USER_ID, {
+                method: 'PATCH',
+                credentials: 'same-origin',
+                headers: csrfHeaders(),
+                body: JSON.stringify(params)
+            })
+            .then(function (r) { return r.json(); })
+            .then(function (resp) {
+                if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Submit'; }
+                if (resp.success) {
+                    if (window.jQuery) { $('#user-info-modal').modal('hide'); }
+                    window.location.reload();
+                } else {
+                    var resultsEl = editForm.querySelector('#results');
+                    if (resultsEl) {
+                        resultsEl.innerHTML = '';
+                        Object.values(resp.errors || {}).forEach(function (msg) {
+                            var d = document.createElement('div');
+                            d.className = 'alert alert-danger py-1 px-2 mt-1';
+                            d.style.fontSize = '0.85rem';
+                            d.textContent = Array.isArray(msg) ? msg.join(', ') : msg;
+                            resultsEl.appendChild(d);
+                        });
+                    } else {
+                        alert(JSON.stringify(resp.errors));
+                    }
+                }
+            })
+            .catch(function () {
+                if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Submit'; }
+                alert('Network error. Please try again.');
+            });
+        });
+    }
+
+    // ── IP Addresses modal ───────────────────────────────────────────────────
+    var addrBtn = document.querySelector('.addresses-user');
+    if (addrBtn) {
+        addrBtn.addEventListener('click', function () {
+            if (window.jQuery) { $('#user-addresses-modal').modal('show'); }
+        });
+    }
+
+    // ── Delete user ──────────────────────────────────────────────────────────
+    var deleteBtn = document.querySelector('.delete-user');
+    if (deleteBtn) {
+        deleteBtn.addEventListener('click', function () {
+            if (!confirm('Permanently delete user {{ user.name | e }}?\n\nThis action cannot be undone.')) return;
+            fetch('/api/v1/users/' + USER_ID, {
+                method: 'DELETE',
+                credentials: 'same-origin',
+                headers: csrfHeaders()
+            })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (data.success) {
+                    window.location.href = '{{ url_for("admin.users_listing") }}';
+                } else {
+                    alert((data.errors ? Object.values(data.errors).flat().join('\n') : 'Error deleting user'));
+                }
+            })
+            .catch(function () { alert('Network error. Please try again.'); });
+        });
+    }
+
+    // ── Relative time for joined_at ───────────────────────────────────────────
+    document.querySelectorAll('.cp-joined-at[data-time]').forEach(function (el) {
+        var iso = el.getAttribute('data-time');
+        if (!iso) return;
+        try {
+            var d = new Date(iso);
+            el.textContent = d.toLocaleDateString();
+            el.title = d.toLocaleString();
+        } catch (_) {}
+    });
+})();
 </script>
 {% endblock %}
 
 {% block entrypoint %}
+{# user.js handles tooltip init and other common logic #}
 {{ Assets.js("assets/js/pages/user.js", theme="admin") }}
 {% endblock %}

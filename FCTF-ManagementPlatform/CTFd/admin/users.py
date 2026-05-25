@@ -3,7 +3,7 @@ from sqlalchemy.sql import not_
 from sqlalchemy import or_
 
 from CTFd.admin import admin
-from CTFd.models import db, Challenges, Tracking, UserFields, Users, Teams, UserTeamMember
+from CTFd.models import db, Challenges, Tracking, UserFields, Users, Teams, UserTeamMember, ContestParticipant
 from CTFd.utils import get_config
 from CTFd.utils.decorators import admin_or_jury, admins_only
 from CTFd.utils.modes import TEAMS_MODE
@@ -238,64 +238,23 @@ def users_new():
 def users_detail(user_id):
     user = Users.query.filter_by(id=user_id).first_or_404()
 
-    solves = user.get_solves(admin=True)
-
-    # Get challenges that the user is missing
-    user_team = None
-    if get_config("user_mode") == TEAMS_MODE:
-        user_team = (
-            Teams.query
-            .join(UserTeamMember, UserTeamMember.team_id == Teams.id)
-            .filter(UserTeamMember.user_id == user_id)
-            .first()
-        )
-        if user_team:
-            all_solves = user_team.get_solves(admin=True)
-        else:
-            all_solves = user.get_solves(admin=True)
-    else:
-        all_solves = user.get_solves(admin=True)
-
-    user.team = user_team
-    user.team_id = user_team.id if user_team else None
-
-    solve_ids = [s.challenge_id for s in all_solves]
-    if solve_ids:
-        missing = Challenges.query.filter(not_(Challenges.id.in_(solve_ids))).all()
-    else:
-        missing = Challenges.query.all()
-
-    # Get IP addresses that the User has used
+    # IP addresses
     addrs = (
         Tracking.query.filter_by(user_id=user_id).order_by(Tracking.date.desc()).all()
     )
 
-    # Get Fails
-    fails = user.get_fails(admin=True)
-
-    # Get Awards
-    awards = user.get_awards(admin=True)
-
-    # Check if the user has an account (team or user)
-    # so that we don't throw an error if they dont
-    if user.account:
-        score = user.account.get_score(admin=True)
-        place = user.account.get_place(admin=True)
-    else:
-        score = None
-        place = None
-
-    is_detail = True 
+    # Contest participations — list of ContestParticipant with .contest relationship eager-loaded
+    contest_participations = (
+        ContestParticipant.query
+        .filter_by(user_id=user_id)
+        .join(ContestParticipant.contest)
+        .order_by(ContestParticipant.joined_at.desc())
+        .all()
+    )
 
     return render_template(
         "admin/users/user.html",
-        solves=solves,
         user=user,
         addrs=addrs,
-        score=score,
-        missing=missing,
-        place=place,
-        fails=fails,
-        awards=awards,
-        is_detail=is_detail,
+        contest_participations=contest_participations,
     )
