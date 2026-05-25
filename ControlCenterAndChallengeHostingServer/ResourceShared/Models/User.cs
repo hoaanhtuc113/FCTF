@@ -51,6 +51,8 @@ public partial class User
 
     public virtual ICollection<UserTeamMember> TeamMemberships { get; set; } = new List<UserTeamMember>();
 
+    public virtual ICollection<ContestParticipant> ContestParticipations { get; set; } = new List<ContestParticipant>();
+
     public virtual ICollection<Ticket> TicketAuthors { get; set; } = new List<Ticket>();
 
     public virtual ICollection<Ticket> TicketRepliers { get; set; } = new List<Ticket>();

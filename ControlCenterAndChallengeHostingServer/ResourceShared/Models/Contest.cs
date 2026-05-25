@@ -58,4 +58,6 @@ public partial class Contest
     public virtual ICollection<Challenge> Challenges { get; set; } = new List<Challenge>();
 
     public virtual ICollection<Team> Teams { get; set; } = new List<Team>();
+
+    public virtual ICollection<ContestParticipant> Participants { get; set; } = new List<ContestParticipant>();
 }
