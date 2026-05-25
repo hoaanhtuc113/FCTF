@@ -573,6 +573,13 @@ $(() => {
           .then(function (response) {
             if (response.success) {
               window.location = CTFd.config.urlRoot + "/admin/teams";
+            } else {
+              const msg = JSON.stringify(response.errors || response);
+              ezAlert({
+                title: "Error",
+                body: "Failed to delete team: " + msg,
+                button: "OK",
+              });
             }
           });
       },
