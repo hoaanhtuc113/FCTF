@@ -118,8 +118,14 @@ public class ConfigController : BaseController
     {
         var userId = UserContext.UserId;
 
+        // A user can see a contest if:
+        //   1. The contest is not hidden (visible/paused/ended), OR
+        //   2. The contest IS hidden but the user is an explicit participant
+        //      (admin enrolled them before publishing the contest)
+        // In both cases the user must still be in a team that belongs to the contest.
         var contests = await _dbContext.Contests
-            .Where(c => c.State != "hidden"
+            .Where(c =>
+                (c.State != "hidden" || c.Participants.Any(p => p.UserId == userId))
                 && c.Teams.Any(t => t.Members.Any(m => m.UserId == userId)))
             .Select(c => new
             {
