@@ -1,6 +1,6 @@
 """Migrate jury/challenge_writer platform types to user + create ContestParticipant records
 
-Revision ID: a1b2c3d4e5f6
+Revision ID: d0e1f2a3b4c5
 Revises: ccb6204815ab
 Create Date: 2026-05-25
 
@@ -21,7 +21,7 @@ from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.sql import table, column, text
 
-revision = 'a1b2c3d4e5f6'
+revision = 'd0e1f2a3b4c5'
 down_revision = 'ccb6204815ab'
 branch_labels = None
 depends_on = None

@@ -25,9 +25,13 @@
 .user-detail-page .badge {
     padding: 0.4rem 0.75rem;
     border-radius: 4px;
-    font-weight: 500;
-    font-size: 0.85rem;
+    font-weight: 600;
+    font-size: 0.82rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
 }
+.user-detail-page .badge-success { background-color: #28a745; color: #fff; }
+.user-detail-page .badge-danger  { background-color: #dc3545; color: #fff; }
 .user-detail-page .btn-fa {
     color: #495057;
     transition: all 0.2s ease;
@@ -36,25 +40,35 @@
 .user-detail-page .btn-fa:hover { color: #ff6b35; transform: scale(1.15); }
 .user-detail-page .btn-fa.text-danger:hover { color: #c0392b !important; transform: scale(1.15); }
 
-/* Role badge variants */
-.role-badge-contestant  { background-color: #6c757d; color: #fff; }
-.role-badge-jury        { background-color: #6f42c1; color: #fff; }
-.role-badge-writer      { background-color: #17a2b8; color: #fff; }
+/* Platform-admin badge */
 .role-badge-platform-admin { background-color: #dc3545; color: #fff; }
 
-/* Inline role selector */
-.contest-role-select {
+/* Role badge buttons */
+.role-badge-btn {
     display: inline-block;
-    border: 1px solid #dee2e6;
+    padding: 0.4rem 0.75rem;
     border-radius: 4px;
-    padding: 0.3rem 0.5rem;
-    font-size: 0.88rem;
+    font-size: 0.82rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #fff;
     cursor: pointer;
-    background: #fff;
-    color: #495057;
-    transition: border-color 0.2s;
+    border: none;
+    user-select: none;
+    margin: 0 0.15rem;
+    transition: opacity 0.18s ease, transform 0.15s ease;
 }
-.contest-role-select:focus { outline: none; border-color: #ff6b35; box-shadow: 0 0 0 2px rgba(255,107,53,.15); }
+.role-badge-btn[data-role="contestant"]      { background: #6c757d; }
+.role-badge-btn[data-role="jury"]             { background: #6f42c1; }
+.role-badge-btn[data-role="challenge_writer"] { background: #17a2b8; }
+
+/* Inactive — faded */
+.role-badge-btn:not([data-active]) { opacity: 0.3; }
+.role-badge-btn:not([data-active]):hover { opacity: 0.6; transform: scale(1.05); }
+
+/* Role save feedback */
+#role-save-msg { font-size: 0.8rem; min-height: 1.1rem; margin-top: 0.4rem; }
 
 /* Tabs */
 .nav-tabs {
@@ -119,6 +133,40 @@
     </div>
 </div>
 
+{# ── Statistics Modal ────────────────────────────────────────────────── #}
+<div id="user-statistics-modal" class="modal fade">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="text-center w-100">User Statistics</h2>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body clearfix">
+                {% include "admin/modals/users/statistics.html" %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{# ── Award User Modal ────────────────────────────────────────────────── #}
+<div id="user-award-modal" class="modal fade">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="text-center w-100">Award User</h2>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body clearfix">
+                {% include "admin/modals/awards/create.html" %}
+            </div>
+        </div>
+    </div>
+</div>
+
 {# ── IP Addresses Modal ──────────────────────────────────────────────── #}
 <div id="user-addresses-modal" class="modal fade">
     <div class="modal-dialog modal-lg">
@@ -141,23 +189,30 @@
     <div class="container text-center">
         <h1 class="p-0 m-0">{{ user.name }}</h1>
 
-        <div class="mb-2 mt-2">
-            {# Contest-level role badge #}
-            {% if contest_role == 'jury' %}
-                <span class="badge role-badge-jury">Jury</span>
-            {% elif contest_role == 'challenge_writer' %}
-                <span class="badge role-badge-writer">Challenge Writer</span>
-            {% else %}
-                <span class="badge role-badge-contestant">Contestant</span>
-            {% endif %}
+        {# ── Contest role badges (clickable) ────────────────────────── #}
+        <div class="mt-3 mb-1" id="role-pill-group">
+            <span class="role-badge-btn" data-role="contestant"
+                {% if contest_role == 'contestant' %}data-active{% endif %}>
+                Contestant
+            </span>
+            <span class="role-badge-btn" data-role="jury"
+                {% if contest_role == 'jury' %}data-active{% endif %}>
+                Jury
+            </span>
+            <span class="role-badge-btn" data-role="challenge_writer"
+                {% if contest_role == 'challenge_writer' %}data-active{% endif %}>
+                Challenge Writer
+            </span>
+            <div id="role-save-msg"></div>
+        </div>
 
+        <div class="mb-2 mt-1">
             {# Platform type indicator #}
             {% if user.type == 'admin' %}
-                <span class="badge role-badge-platform-admin" title="This user is a platform-level admin">
+                <span class="badge role-badge-platform-admin" title="Platform-level admin">
                     <i class="fas fa-crown fa-xs"></i> Platform Admin
                 </span>
             {% endif %}
-
             {# Status badges #}
             {% if user.verified %}
                 <span class="badge badge-success">verified</span>
@@ -206,22 +261,22 @@
         <div class="pt-2 text-center d-flex justify-content-center align-items-center flex-wrap" style="gap:1.2rem;">
 
             {# Edit platform fields #}
-            <a class="edit-user text-dark" title="Edit platform fields (name, email, verified, banned…)" style="cursor:pointer;">
+            <a class="edit-user text-dark" title="Edit platform fields" style="cursor:pointer;">
                 <i class="btn-fa fas fa-user-edit fa-2x"></i>
             </a>
 
-            {# Change contest role #}
-            <div class="d-flex flex-column align-items-center" style="gap:0.25rem;">
-                <small class="text-muted" style="font-size:0.75rem;">Contest Role</small>
-                <select id="contest-role-select" class="contest-role-select" title="Change this user's role in the contest">
-                    <option value="contestant" {% if contest_role == 'contestant' %}selected{% endif %}>Contestant</option>
-                    <option value="jury"        {% if contest_role == 'jury'        %}selected{% endif %}>Jury</option>
-                    <option value="challenge_writer" {% if contest_role == 'challenge_writer' %}selected{% endif %}>Challenge Writer</option>
-                </select>
-            </div>
+            {# Statistics #}
+            <a class="statistics-user text-dark" title="User Statistics" style="cursor:pointer;">
+                <i class="btn-fa fas fa-chart-pie fa-2x"></i>
+            </a>
+
+            {# Award user #}
+            <a class="award-user text-dark" title="Award User" style="cursor:pointer;">
+                <i class="btn-fa fas fa-trophy fa-2x"></i>
+            </a>
 
             {# Remove from contest #}
-            <a class="remove-contest-user text-danger" title="Remove this user from the contest" style="cursor:pointer;">
+            <a class="remove-contest-user text-danger" title="Remove from Contest" style="cursor:pointer;">
                 <i class="btn-fa fas fa-user-minus fa-2x text-danger"></i>
             </a>
 
@@ -237,8 +292,6 @@
             {% endif %}
         </div>
 
-        {# Role-save feedback #}
-        <div id="role-save-msg" class="mt-2" style="min-height:1.2rem;font-size:0.85rem;"></div>
     </div>
 </div>
 
@@ -263,135 +316,246 @@
 
         {# ── Solves ──────────────────────────────────────────────────── #}
         <div class="tab-pane fade show active" id="nav-solves" role="tabpanel">
-            <h3 class="text-center pt-4">Solves</h3>
-            <div class="clean-table-wrapper mt-2">
-                <table class="clean-table table">
-                    <thead>
-                        <tr>
-                            <th class="text-center"><b>Challenge</b></th>
-                            <th class="text-center"><b>Submitted Flag</b></th>
-                            <th class="text-center"><b>Category</b></th>
-                            <th class="text-center"><b>Points</b></th>
-                            <th class="text-center"><b>Time</b></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for solve in solves %}
-                        <tr>
-                            <td class="text-center">
-                                <a href="{{ url_for('admin.contest_challenge_detail', contest_id=contest.id, challenge_id=solve.challenge_id) }}">
-                                    {{ solve.challenge.name }}
-                                </a>
-                            </td>
-                            <td class="text-center"><pre class="mb-0">{{ solve.provided }}</pre></td>
-                            <td class="text-center">{{ solve.challenge.category }}</td>
-                            <td class="text-center">{{ solve.challenge.value }}</td>
-                            <td class="text-center solve-time">
-                                <span data-time="{{ solve.date | isoformat }}"></span>
-                            </td>
-                        </tr>
-                        {% else %}
-                        <tr><td colspan="5" class="text-center text-muted py-3">No solves yet.</td></tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+            <h3 class="text-center pt-5 d-block">Solves</h3>
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="float-right pb-3">
+                        <div class="btn-group" role="group">
+                            <button type="button" class="btn btn-outline-danger" id="solves-delete-button">
+                                <i class="btn-fa fas fa-trash-alt"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="clean-table-wrapper">
+                        <table class="clean-table table">
+                            <thead>
+                                <tr>
+                                    <th data-checkbox>
+                                        <input type="checkbox" class="table-check" autocomplete="off" data-checkbox-all>
+                                    </th>
+                                    <th class="sort-col text-center"><b>Challenge</b></th>
+                                    <th class="sort-col text-center"><b>Submitted Flag</b></th>
+                                    <th class="sort-col text-center"><b>Category</b></th>
+                                    <th class="sort-col text-center"><b>Points</b></th>
+                                    <th class="sort-col text-center"><b>Time</b></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for solve in solves %}
+                                <tr class="chal-solve" data-href="{{ url_for('admin.contest_challenge_detail', contest_id=contest.id, challenge_id=solve.challenge_id) }}">
+                                    <td data-checkbox>
+                                        <input type="checkbox" class="table-check" value="{{ solve.id }}"
+                                            autocomplete="off"
+                                            data-submission-id="{{ solve.id }}"
+                                            data-submission-type="{{ solve.type }}"
+                                            data-submission-challenge="{{ solve.challenge.name }}">
+                                    </td>
+                                    <td class="text-center chal" id="{{ solve.challenge_id }}">
+                                        <a href="{{ url_for('admin.contest_challenge_detail', contest_id=contest.id, challenge_id=solve.challenge_id) }}">
+                                            {{ solve.challenge.name }}
+                                        </a>
+                                    </td>
+                                    <td class="text-center flag" id="{{ solve.id }}">
+                                        <pre class="mb-0">{{ solve.provided }}</pre>
+                                    </td>
+                                    <td class="text-center">{{ solve.challenge.category }}</td>
+                                    <td class="text-center">{{ solve.challenge.value }}</td>
+                                    <td class="text-center solve-time">
+                                        <span data-time="{{ solve.date | isoformat }}"></span>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr><td colspan="6" class="text-center text-muted py-3">No solves yet.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </div>
 
         {# ── Fails ───────────────────────────────────────────────────── #}
         <div class="tab-pane fade" id="nav-wrong" role="tabpanel">
-            <h3 class="text-center pt-4">Fails</h3>
-            <div class="clean-table-wrapper mt-2">
-                <table class="clean-table table">
-                    <thead>
-                        <tr>
-                            <th class="text-center"><b>Challenge</b></th>
-                            <th class="text-center"><b>Submitted Flag</b></th>
-                            <th class="text-center"><b>Time</b></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for fail in fails %}
-                        <tr>
-                            <td class="text-center">
-                                <a href="{{ url_for('admin.contest_challenge_detail', contest_id=contest.id, challenge_id=fail.challenge_id) }}">
-                                    {{ fail.challenge.name }}
-                                </a>
-                            </td>
-                            <td class="text-center"><pre class="mb-0">{{ fail.provided }}</pre></td>
-                            <td class="text-center solve-time">
-                                <span data-time="{{ fail.date | isoformat }}"></span>
-                            </td>
-                        </tr>
-                        {% else %}
-                        <tr><td colspan="3" class="text-center text-muted py-3">No fails yet.</td></tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+            <h3 class="text-center pt-5 d-block">Fails</h3>
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="float-right pb-3">
+                        <div class="btn-group" role="group">
+                            <button type="button" class="btn btn-outline-success" id="correct-fail-button">
+                                <i class="btn-fa fas fa-check"></i>
+                            </button>
+                            <button type="button" class="btn btn-outline-danger" id="fails-delete-button">
+                                <i class="btn-fa fas fa-trash-alt"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="clean-table-wrapper">
+                        <table class="clean-table table">
+                            <thead>
+                                <tr>
+                                    <th data-checkbox>
+                                        <input type="checkbox" class="table-check" autocomplete="off" data-checkbox-all>
+                                    </th>
+                                    <th class="sort-col text-center"><b>Challenge</b></th>
+                                    <th class="sort-col text-center"><b>Submitted Flag</b></th>
+                                    <th class="sort-col text-center"><b>Time</b></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for fail in fails %}
+                                <tr class="chal-wrong" data-href="{{ url_for('admin.contest_challenge_detail', contest_id=contest.id, challenge_id=fail.challenge_id) }}">
+                                    <td data-checkbox>
+                                        <input type="checkbox" class="table-check" value="{{ fail.id }}"
+                                            autocomplete="off"
+                                            data-submission-id="{{ fail.id }}"
+                                            data-submission-type="{{ fail.type }}"
+                                            data-submission-challenge="{{ fail.challenge.name }}">
+                                    </td>
+                                    <td class="text-center chal" id="{{ fail.challenge_id }}">
+                                        <a href="{{ url_for('admin.contest_challenge_detail', contest_id=contest.id, challenge_id=fail.challenge_id) }}">
+                                            {{ fail.challenge.name }}
+                                        </a>
+                                    </td>
+                                    <td class="text-center flag" id="{{ fail.id }}">
+                                        <pre class="mb-0">{{ fail.provided }}</pre>
+                                    </td>
+                                    <td class="text-center solve-time">
+                                        <span data-time="{{ fail.date | isoformat }}"></span>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr><td colspan="4" class="text-center text-muted py-3">No fails yet.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </div>
 
         {# ── Awards ──────────────────────────────────────────────────── #}
         <div class="tab-pane fade" id="nav-awards" role="tabpanel">
-            <h3 class="text-center pt-4">Awards</h3>
-            <div class="clean-table-wrapper mt-2">
-                <table class="clean-table table">
-                    <thead>
-                        <tr>
-                            <th class="text-center"><b>Name</b></th>
-                            <th class="text-center"><b>Description</b></th>
-                            <th class="text-center"><b>Value</b></th>
-                            <th class="text-center"><b>Category</b></th>
-                            <th class="text-center"><b>Date</b></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for award in awards %}
-                        <tr>
-                            <td class="text-center">{{ award.name }}</td>
-                            <td class="text-center">{{ award.description }}</td>
-                            <td class="text-center">{{ award.value }}</td>
-                            <td class="text-center">{{ award.category }}</td>
-                            <td class="text-center solve-time">
-                                <span data-time="{{ award.date | isoformat }}"></span>
-                            </td>
-                        </tr>
-                        {% else %}
-                        <tr><td colspan="5" class="text-center text-muted py-3">No awards.</td></tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+            <h3 class="text-center pt-5 d-block">Awards</h3>
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="float-right pb-3">
+                        <div class="btn-group" role="group">
+                            <button type="button" class="btn btn-outline-danger" id="awards-delete-button">
+                                <i class="btn-fa fas fa-trash-alt"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="clean-table-wrapper">
+                        <table class="clean-table table">
+                            <thead>
+                                <tr>
+                                    <th data-checkbox>
+                                        <input type="checkbox" class="table-check" autocomplete="off" data-checkbox-all>
+                                    </th>
+                                    <th class="sort-col text-center"><b>Name</b></th>
+                                    <th class="sort-col text-center"><b>Description</b></th>
+                                    <th class="sort-col text-center"><b>Date</b></th>
+                                    <th class="sort-col text-center"><b>Value</b></th>
+                                    <th class="sort-col text-center"><b>Category</b></th>
+                                    <th class="sort-col text-center"><b>Icon</b></th>
+                                </tr>
+                            </thead>
+                            <tbody id="awards-body">
+                                {% for award in awards %}
+                                <tr class="award-row">
+                                    <td data-checkbox>
+                                        <input type="checkbox" class="table-check" value="{{ award.id }}"
+                                            autocomplete="off"
+                                            data-award-id="{{ award.id }}"
+                                            data-award-name="{{ award.name }}">
+                                    </td>
+                                    <td class="text-center chal" id="{{ award.id }}">{{ award.name }}</td>
+                                    <td class="text-center">
+                                        <pre class="mb-0">{{ award.description }}</pre>
+                                    </td>
+                                    <td class="text-center solve-time">
+                                        <span data-time="{{ award.date | isoformat }}"></span>
+                                    </td>
+                                    <td class="text-center">{{ award.value }}</td>
+                                    <td class="text-center">{{ award.category }}</td>
+                                    <td class="text-center">
+                                        <i class="award-icon award-{{ award.icon }}"></i> {{ award.icon }}
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr><td colspan="7" class="text-center text-muted py-3">No awards.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </div>
 
         {# ── Missing ─────────────────────────────────────────────────── #}
         <div class="tab-pane fade" id="nav-missing" role="tabpanel">
-            <h3 class="text-center pt-4">Missing Challenges</h3>
-            <div class="clean-table-wrapper mt-2">
-                <table class="clean-table table">
-                    <thead>
-                        <tr>
-                            <th class="text-center"><b>Challenge</b></th>
-                            <th class="text-center"><b>Category</b></th>
-                            <th class="text-center"><b>Points</b></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for challenge in missing %}
-                        <tr>
-                            <td class="text-center">
-                                <a href="{{ url_for('admin.contest_challenge_detail', contest_id=contest.id, challenge_id=challenge.id) }}">
-                                    {{ challenge.name }}
-                                </a>
-                            </td>
-                            <td class="text-center">{{ challenge.category }}</td>
-                            <td class="text-center">{{ challenge.value }}</td>
-                        </tr>
-                        {% else %}
-                        <tr><td colspan="3" class="text-center text-muted py-3">All challenges solved! 🎉</td></tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+            <h3 class="text-center pt-5 d-block">Missing Challenges</h3>
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="float-right pb-3">
+                        <div class="btn-group" role="group">
+                            <button type="button" class="btn btn-outline-success" id="missing-solve-button">
+                                <i class="btn-fa fas fa-check"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="clean-table-wrapper">
+                        <table class="clean-table table">
+                            <thead>
+                                <tr>
+                                    <th data-checkbox>
+                                        <input type="checkbox" class="table-check" autocomplete="off" data-checkbox-all>
+                                    </th>
+                                    <th class="sort-col text-center"><b>Challenge</b></th>
+                                    <th class="sort-col text-center"><b>Category</b></th>
+                                    <th class="sort-col text-center"><b>Points</b></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for challenge in missing %}
+                                <tr class="chal-solve" data-href="{{ url_for('admin.contest_challenge_detail', contest_id=contest.id, challenge_id=challenge.id) }}">
+                                    <td data-checkbox>
+                                        <input type="checkbox" class="table-check" value="{{ challenge.id }}"
+                                            autocomplete="off"
+                                            data-missing-challenge-id="{{ challenge.id }}"
+                                            data-missing-challenge-name="{{ challenge.name }}">
+                                    </td>
+                                    <td class="text-center chal" id="{{ challenge.id }}">
+                                        <a href="{{ url_for('admin.contest_challenge_detail', contest_id=contest.id, challenge_id=challenge.id) }}">
+                                            {{ challenge.name }}
+                                        </a>
+                                    </td>
+                                    <td class="text-center">{{ challenge.category }}</td>
+                                    <td class="text-center">{{ challenge.value }}</td>
+                                </tr>
+                                {% else %}
+                                <tr><td colspan="4" class="text-center text-muted py-3">All challenges solved! 🎉</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -402,10 +566,22 @@
 
 {% block contest_scripts %}
 <script>
-(function () {
-    var CONTEST_ID = {{ contest.id }};
-    var USER_ID    = {{ user.id }};
+    {# Variables consumed by user.js bulk-action handlers #}
+    var USER_ID   = {{ user.id }};
+    var USER_NAME = {{ user.name | tojson }};
+    var TEAM_ID   = {{ user.team_id | tojson }};
+    var stats_data = {{ {
+        'type': 'user',
+        'id': user.id,
+        'name': user.name,
+        'account_id': user.id,
+    } | tojson }};
 
+    {# Contest-specific vars for inline JS below #}
+    var CONTEST_ID = {{ contest.id }};
+</script>
+<script>
+(function () {
     function csrfHeaders() {
         return {
             'Content-Type': 'application/json',
@@ -414,93 +590,26 @@
         };
     }
 
-    // ── Time formatting ──────────────────────────────────────────────────────
-    document.querySelectorAll('span[data-time]').forEach(function (el) {
-        var iso = el.getAttribute('data-time');
-        if (!iso) return;
-        try {
-            var d = new Date(iso);
-            el.textContent = d.toLocaleString();
-            el.title = d.toISOString();
-        } catch (_) { el.textContent = iso; }
-    });
+    // ── Change Contest Role (badge buttons) ──────────────────────────────────
+    var roleMsg   = document.getElementById('role-save-msg');
+    var pillGroup = document.getElementById('role-pill-group');
 
-    // ── Edit user modal (platform fields) ────────────────────────────────────
-    var editBtn = document.querySelector('.edit-user');
-    if (editBtn) {
-        editBtn.addEventListener('click', function () {
-            if (window.jQuery) { $('#user-info-modal').modal('show'); }
-        });
-    }
+    if (pillGroup) {
+        pillGroup.addEventListener('click', function (e) {
+            var pill = e.target.closest('.role-badge-btn');
+            if (!pill || pill.hasAttribute('data-active')) return; // already active
 
-    // Edit form submit → PATCH /api/v1/users/<id>
-    var editForm = document.getElementById('user-info-edit-form');
-    if (editForm) {
-        editForm.addEventListener('submit', function (e) {
-            e.preventDefault();
-            var formData = new FormData(editForm);
-            var params = {};
-            formData.forEach(function (value, key) {
-                if (key === '_submit') return;
-                var el = editForm.elements[key];
-                if (el && el.type === 'checkbox') { params[key] = el.checked; }
-                else { params[key] = value; }
+            var newRole = pill.getAttribute('data-role');
+            var roleLabel = pill.textContent.trim();
+
+            if (!confirm('Change role of ' + {{ user.name | tojson }} + ' to "' + roleLabel + '"?')) return;
+
+            // Optimistic UI: swap active immediately
+            pillGroup.querySelectorAll('.role-badge-btn').forEach(function (p) {
+                p.removeAttribute('data-active');
             });
-            params.id = USER_ID;
+            pill.setAttribute('data-active', '');
 
-            var submitBtn = editForm.querySelector('[type=submit]');
-            if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Saving…'; }
-
-            fetch('/api/v1/users/' + USER_ID, {
-                method: 'PATCH',
-                credentials: 'same-origin',
-                headers: csrfHeaders(),
-                body: JSON.stringify(params)
-            })
-            .then(function (r) { return r.json(); })
-            .then(function (resp) {
-                if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Submit'; }
-                if (resp.success) {
-                    if (window.jQuery) { $('#user-info-modal').modal('hide'); }
-                    window.location.reload();
-                } else {
-                    var resultsEl = editForm.querySelector('#results');
-                    if (resultsEl) {
-                        resultsEl.innerHTML = '';
-                        Object.values(resp.errors || {}).forEach(function (msg) {
-                            var d = document.createElement('div');
-                            d.className = 'alert alert-danger py-1 px-2 mt-1';
-                            d.style.fontSize = '0.85rem';
-                            d.textContent = Array.isArray(msg) ? msg.join(', ') : msg;
-                            resultsEl.appendChild(d);
-                        });
-                    } else {
-                        alert(JSON.stringify(resp.errors));
-                    }
-                }
-            })
-            .catch(function () {
-                if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Submit'; }
-                alert('Network error. Please try again.');
-            });
-        });
-    }
-
-    // ── IP Addresses modal ───────────────────────────────────────────────────
-    var addrBtn = document.querySelector('.addresses-user');
-    if (addrBtn) {
-        addrBtn.addEventListener('click', function () {
-            if (window.jQuery) { $('#user-addresses-modal').modal('show'); }
-        });
-    }
-
-    // ── Change Contest Role ───────────────────────────────────────────────────
-    var roleSelect = document.getElementById('contest-role-select');
-    var roleMsg    = document.getElementById('role-save-msg');
-
-    if (roleSelect) {
-        roleSelect.addEventListener('change', function () {
-            var newRole = roleSelect.value;
             roleMsg.textContent = 'Saving…';
             roleMsg.style.color = '#6c757d';
 
@@ -512,13 +621,17 @@
             .then(function (r) { return r.json(); })
             .then(function (data) {
                 if (data.success) {
-                    roleMsg.textContent = '✔ Role updated';
+                    roleMsg.textContent = '✔ Saved';
                     roleMsg.style.color = '#28a745';
-                    setTimeout(function () {
-                        roleMsg.textContent = '';
-                        window.location.reload();
-                    }, 800);
+                    setTimeout(function () { roleMsg.textContent = ''; }, 1500);
                 } else {
+                    // Revert optimistic UI
+                    pillGroup.querySelectorAll('.role-badge-btn').forEach(function (p) {
+                        p.removeAttribute('data-active');
+                        if (p.getAttribute('data-role') === {{ contest_role | tojson }}) {
+                            p.setAttribute('data-active', '');
+                        }
+                    });
                     roleMsg.textContent = '✘ ' + (data.errors ? Object.values(data.errors).flat().join(', ') : 'Error');
                     roleMsg.style.color = '#dc3545';
                 }
@@ -555,5 +668,9 @@
 
 })();
 </script>
+{# user.js handles: edit-user, award-user, statistics-user, addresses-user,
+   solves-delete-button, correct-fail-button, fails-delete-button,
+   awards-delete-button, missing-solve-button, user-info-edit-form submit,
+   user-award-form submit, statistics graphs #}
 {{ Assets.js("assets/js/pages/user.js", theme="admin") }}
 {% endblock %}
