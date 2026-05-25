@@ -138,7 +138,15 @@ public class ConfigController : BaseController
                 end_time = c.EndTime,
                 team_count = c.Teams.Count,
                 challenge_count = c.Challenges.Count(ch => ch.State == "visible"),
-                category = "CTF"
+                category = "CTF",
+                my_team_id = (int?)c.Teams
+                    .Where(t => t.Members.Any(m => m.UserId == userId))
+                    .Select(t => t.Id)
+                    .FirstOrDefault(),
+                my_team_name = c.Teams
+                    .Where(t => t.Members.Any(m => m.UserId == userId))
+                    .Select(t => t.Name)
+                    .FirstOrDefault()
             })
             .ToListAsync();
 
@@ -179,7 +187,9 @@ public class ConfigController : BaseController
                 end_time = c.end_time?.ToString("yyyy-MM-ddTHH:mm:ssZ"),
                 c.team_count,
                 c.challenge_count,
-                c.category
+                c.category,
+                c.my_team_id,
+                c.my_team_name
             };
         });
 
