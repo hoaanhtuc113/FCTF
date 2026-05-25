@@ -255,7 +255,7 @@ public class ChallengeController : BaseController
             return BadRequest(new { error = "ChallengeId is required" });
 
         var challenge = await _context.Challenges
-            .FirstOrDefaultAsync(c => c.Id == request.ChallengeId);
+            .FirstOrDefaultAsync(c => c.Id == request.ChallengeId && c.ContestId == contestId);
 
         if (challenge == null)
             return NotFound(new { error = "Challenge not found" });
@@ -1105,11 +1105,11 @@ public class ChallengeController : BaseController
 
     [HttpGet("{challengeId}/sandbox-ssh")]
     [DuringCtfTimeAndAfterOnly]
-    public async Task<IActionResult> DownloadSandboxSshConfig(int challengeId)
+    public async Task<IActionResult> DownloadSandboxSshConfig([FromRoute] int contestId, int challengeId)
     {
         var challenge = await _context.Challenges
             .AsNoTracking()
-            .FirstOrDefaultAsync(c => c.Id == challengeId);
+            .FirstOrDefaultAsync(c => c.Id == challengeId && c.ContestId == contestId);
 
         if (challenge == null)
             return NotFound(new { error = "Challenge not found" });

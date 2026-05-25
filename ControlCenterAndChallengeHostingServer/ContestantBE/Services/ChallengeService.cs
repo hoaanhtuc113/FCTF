@@ -106,7 +106,7 @@ public class ChallengeService : IChallengeService
         var challenge = await _dbContext.Challenges
             .AsNoTracking()
             .Include(c => c.Files)
-            .FirstOrDefaultAsync(c => c.Id == challengeId);
+            .FirstOrDefaultAsync(c => c.Id == challengeId && c.ContestId == contestId);
 
         if (challenge == null)
         {
@@ -135,6 +135,7 @@ public class ChallengeService : IChallengeService
 
         var allChallengeIds = await _dbContext.Challenges
             .AsNoTracking()
+            .Where(c => c.ContestId == contestId)
             .Select(c => c.Id)
             .ToListAsync();
 
