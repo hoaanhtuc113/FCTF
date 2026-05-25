@@ -18,7 +18,7 @@ public class TicketService : ITicketService
         _logger = logger;
     }
 
-    public async Task<BaseResponseDTO<TicketResponseDTO>> CreateTicket(CreateTicketRequestDTO request, int userId)
+    public async Task<BaseResponseDTO<TicketResponseDTO>> CreateTicket(CreateTicketRequestDTO request, int userId, int contestId)
     {
         try
         {
@@ -41,7 +41,8 @@ public class TicketService : ITicketService
                 Type = request.type,
                 Description = request.description,
                 CreatedAt = DateTime.UtcNow,
-                Status = "open"
+                Status = "Open",
+                ContestId = contestId
             };
 
             // Check similarity

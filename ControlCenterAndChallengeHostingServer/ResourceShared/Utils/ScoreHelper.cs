@@ -310,16 +310,18 @@ public class ScoreHelper
         int? count = null,
         int? bracketId = null,
         bool admin = false,
-        int? contestId = null)
+        int? contestId = null,
+        string? userMode = null)   // explicit override; falls back to global config
     {
         var freeze = ToLong(_configHelper.GetConfig("freeze"));
         DateTime? freezeUtc = freeze > 0
             ? DateTimeOffset.FromUnixTimeSeconds(freeze).UtcDateTime
             : null;
 
-        var userMode = _configHelper.GetConfig<string>("user_mode") ?? "teams";
+        // Use the supplied userMode (per-contest) if provided, else fall back to global config
+        var resolvedMode = userMode ?? _configHelper.GetConfig<string>("user_mode") ?? "teams";
 
-        return userMode == "teams"
+        return resolvedMode == "teams"
             ? await GetTeamStandings(count, bracketId, admin, freezeUtc, contestId)
             : await GetUserStandings(count, bracketId, admin, freezeUtc, contestId);
     }

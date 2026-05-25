@@ -948,11 +948,18 @@ def contest_challenge_detail(contest_id, challenge_id):
     expose_port = ""
     image_link_name = ""
     image_link_display = ""
+    sandbox_definition_id = None
+    sandbox_pool_id = None
     if challenge.image_link:
         obj = json.loads(challenge.image_link)
         expose_port = obj.get("exposedPort", "")
         image_link_name = obj.get("imageLink", "")
         image_link_display = image_link_name
+        if challenge.type == "sandbox":
+            sandbox_definition_id = obj.get("definition_id")
+
+    if challenge.type == "sandbox":
+        sandbox_pool_id = getattr(challenge, "pool_id", None)
 
     try:
         challenge_class = get_chal_class(challenge.type)
@@ -995,6 +1002,8 @@ def contest_challenge_detail(contest_id, challenge_id):
         is_detail=True,
         ctf_is_active=ctf_is_active,
         versions=versions,
+        sandbox_definition_id=sandbox_definition_id,
+        sandbox_pool_id=sandbox_pool_id,
     )
 
 

@@ -309,6 +309,10 @@
     var CONTEST_TOKEN = "{{ contest_token | e }}";
     var CURRENT_USER_ID = {{ Session.id if Session and Session.id else 0 }};
 
+    // Guards against challenge.js async AJAX overwriting the sandbox form
+    var sandboxActive   = false;
+    var reinjectingNow  = false;
+
     // Đọc CSRF token lazy (init được set bởi module JS, chạy sau inline script)
     function getCsrfToken() {
         if (typeof init !== 'undefined' && init.csrfNonce) return init.csrfNonce;
@@ -501,6 +505,8 @@
     }
 
     function showSandboxForm() {
+        sandboxActive = true;
+
         // Deselect all normal type cards
         document.querySelectorAll('#create-chals-select .card').forEach(function(c) {
             c.classList.remove('border-primary');
@@ -512,9 +518,11 @@
         document.getElementById('sandbox-type-card').classList.add('active-sandbox');
         document.getElementById('sandbox-radio-clone').checked = true;
 
-        // Inject form into right panel
+        // Inject form into right panel (mark as our own write so MutationObserver ignores it)
         var entryDiv = document.getElementById('create-chal-entry-div');
+        reinjectingNow = true;
         entryDiv.innerHTML = SANDBOX_FORM_HTML;
+        setTimeout(function() { reinjectingNow = false; }, 0);
 
         initSandboxStars(entryDiv);
         loadPools(entryDiv);
@@ -527,10 +535,29 @@
     // Deselect sandbox card when a normal type is selected
     document.querySelectorAll('.card-radio').forEach(function(radio) {
         radio.addEventListener('change', function() {
+            sandboxActive = false;
             document.getElementById('sandbox-type-card').classList.remove('active-sandbox');
             document.getElementById('sandbox-radio-clone').checked = false;
         });
     });
+
+    // Guard: if challenge.js async AJAX overwrites #create-chal-entry-div while
+    // sandbox mode is active, immediately re-inject the sandbox form.
+    (function() {
+        var entryDiv = document.getElementById('create-chal-entry-div');
+        var sbGuardObserver = new MutationObserver(function() {
+            if (sandboxActive && !reinjectingNow) {
+                // challenge.js just stomped our form — put it back
+                reinjectingNow = true;
+                entryDiv.innerHTML = SANDBOX_FORM_HTML;
+                setTimeout(function() { reinjectingNow = false; }, 0);
+                initSandboxStars(entryDiv);
+                loadPools(entryDiv);
+                initSandboxForm(entryDiv);
+            }
+        });
+        sbGuardObserver.observe(entryDiv, { childList: true });
+    })();
 
     $(document).on('change', '#setup_docker', function() {
         const isChecked = $(this).is(':checked');
