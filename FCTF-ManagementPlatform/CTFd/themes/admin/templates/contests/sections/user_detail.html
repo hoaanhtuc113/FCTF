@@ -119,6 +119,40 @@
     </div>
 </div>
 
+{# ── Statistics Modal ────────────────────────────────────────────────── #}
+<div id="user-statistics-modal" class="modal fade">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="text-center w-100">User Statistics</h2>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body clearfix">
+                {% include "admin/modals/users/statistics.html" %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{# ── Award User Modal ────────────────────────────────────────────────── #}
+<div id="user-award-modal" class="modal fade">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="text-center w-100">Award User</h2>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body clearfix">
+                {% include "admin/modals/awards/create.html" %}
+            </div>
+        </div>
+    </div>
+</div>
+
 {# ── IP Addresses Modal ──────────────────────────────────────────────── #}
 <div id="user-addresses-modal" class="modal fade">
     <div class="modal-dialog modal-lg">
@@ -206,14 +240,24 @@
         <div class="pt-2 text-center d-flex justify-content-center align-items-center flex-wrap" style="gap:1.2rem;">
 
             {# Edit platform fields #}
-            <a class="edit-user text-dark" title="Edit platform fields (name, email, verified, banned…)" style="cursor:pointer;">
+            <a class="edit-user text-dark" title="Edit platform fields" style="cursor:pointer;">
                 <i class="btn-fa fas fa-user-edit fa-2x"></i>
+            </a>
+
+            {# Statistics #}
+            <a class="statistics-user text-dark" title="User Statistics" style="cursor:pointer;">
+                <i class="btn-fa fas fa-chart-pie fa-2x"></i>
+            </a>
+
+            {# Award user #}
+            <a class="award-user text-dark" title="Award User" style="cursor:pointer;">
+                <i class="btn-fa fas fa-trophy fa-2x"></i>
             </a>
 
             {# Change contest role #}
             <div class="d-flex flex-column align-items-center" style="gap:0.25rem;">
                 <small class="text-muted" style="font-size:0.75rem;">Contest Role</small>
-                <select id="contest-role-select" class="contest-role-select" title="Change this user's role in the contest">
+                <select id="contest-role-select" class="contest-role-select" title="Change role in this contest">
                     <option value="contestant" {% if contest_role == 'contestant' %}selected{% endif %}>Contestant</option>
                     <option value="jury"        {% if contest_role == 'jury'        %}selected{% endif %}>Jury</option>
                     <option value="challenge_writer" {% if contest_role == 'challenge_writer' %}selected{% endif %}>Challenge Writer</option>
@@ -221,7 +265,7 @@
             </div>
 
             {# Remove from contest #}
-            <a class="remove-contest-user text-danger" title="Remove this user from the contest" style="cursor:pointer;">
+            <a class="remove-contest-user text-danger" title="Remove from Contest" style="cursor:pointer;">
                 <i class="btn-fa fas fa-user-minus fa-2x text-danger"></i>
             </a>
 
@@ -263,135 +307,246 @@
 
         {# ── Solves ──────────────────────────────────────────────────── #}
         <div class="tab-pane fade show active" id="nav-solves" role="tabpanel">
-            <h3 class="text-center pt-4">Solves</h3>
-            <div class="clean-table-wrapper mt-2">
-                <table class="clean-table table">
-                    <thead>
-                        <tr>
-                            <th class="text-center"><b>Challenge</b></th>
-                            <th class="text-center"><b>Submitted Flag</b></th>
-                            <th class="text-center"><b>Category</b></th>
-                            <th class="text-center"><b>Points</b></th>
-                            <th class="text-center"><b>Time</b></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for solve in solves %}
-                        <tr>
-                            <td class="text-center">
-                                <a href="{{ url_for('admin.contest_challenge_detail', contest_id=contest.id, challenge_id=solve.challenge_id) }}">
-                                    {{ solve.challenge.name }}
-                                </a>
-                            </td>
-                            <td class="text-center"><pre class="mb-0">{{ solve.provided }}</pre></td>
-                            <td class="text-center">{{ solve.challenge.category }}</td>
-                            <td class="text-center">{{ solve.challenge.value }}</td>
-                            <td class="text-center solve-time">
-                                <span data-time="{{ solve.date | isoformat }}"></span>
-                            </td>
-                        </tr>
-                        {% else %}
-                        <tr><td colspan="5" class="text-center text-muted py-3">No solves yet.</td></tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+            <h3 class="text-center pt-5 d-block">Solves</h3>
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="float-right pb-3">
+                        <div class="btn-group" role="group">
+                            <button type="button" class="btn btn-outline-danger" id="solves-delete-button">
+                                <i class="btn-fa fas fa-trash-alt"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="clean-table-wrapper">
+                        <table class="clean-table table">
+                            <thead>
+                                <tr>
+                                    <th data-checkbox>
+                                        <input type="checkbox" class="table-check" autocomplete="off" data-checkbox-all>
+                                    </th>
+                                    <th class="sort-col text-center"><b>Challenge</b></th>
+                                    <th class="sort-col text-center"><b>Submitted Flag</b></th>
+                                    <th class="sort-col text-center"><b>Category</b></th>
+                                    <th class="sort-col text-center"><b>Points</b></th>
+                                    <th class="sort-col text-center"><b>Time</b></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for solve in solves %}
+                                <tr class="chal-solve" data-href="{{ url_for('admin.contest_challenge_detail', contest_id=contest.id, challenge_id=solve.challenge_id) }}">
+                                    <td data-checkbox>
+                                        <input type="checkbox" class="table-check" value="{{ solve.id }}"
+                                            autocomplete="off"
+                                            data-submission-id="{{ solve.id }}"
+                                            data-submission-type="{{ solve.type }}"
+                                            data-submission-challenge="{{ solve.challenge.name }}">
+                                    </td>
+                                    <td class="text-center chal" id="{{ solve.challenge_id }}">
+                                        <a href="{{ url_for('admin.contest_challenge_detail', contest_id=contest.id, challenge_id=solve.challenge_id) }}">
+                                            {{ solve.challenge.name }}
+                                        </a>
+                                    </td>
+                                    <td class="text-center flag" id="{{ solve.id }}">
+                                        <pre class="mb-0">{{ solve.provided }}</pre>
+                                    </td>
+                                    <td class="text-center">{{ solve.challenge.category }}</td>
+                                    <td class="text-center">{{ solve.challenge.value }}</td>
+                                    <td class="text-center solve-time">
+                                        <span data-time="{{ solve.date | isoformat }}"></span>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr><td colspan="6" class="text-center text-muted py-3">No solves yet.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </div>
 
         {# ── Fails ───────────────────────────────────────────────────── #}
         <div class="tab-pane fade" id="nav-wrong" role="tabpanel">
-            <h3 class="text-center pt-4">Fails</h3>
-            <div class="clean-table-wrapper mt-2">
-                <table class="clean-table table">
-                    <thead>
-                        <tr>
-                            <th class="text-center"><b>Challenge</b></th>
-                            <th class="text-center"><b>Submitted Flag</b></th>
-                            <th class="text-center"><b>Time</b></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for fail in fails %}
-                        <tr>
-                            <td class="text-center">
-                                <a href="{{ url_for('admin.contest_challenge_detail', contest_id=contest.id, challenge_id=fail.challenge_id) }}">
-                                    {{ fail.challenge.name }}
-                                </a>
-                            </td>
-                            <td class="text-center"><pre class="mb-0">{{ fail.provided }}</pre></td>
-                            <td class="text-center solve-time">
-                                <span data-time="{{ fail.date | isoformat }}"></span>
-                            </td>
-                        </tr>
-                        {% else %}
-                        <tr><td colspan="3" class="text-center text-muted py-3">No fails yet.</td></tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+            <h3 class="text-center pt-5 d-block">Fails</h3>
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="float-right pb-3">
+                        <div class="btn-group" role="group">
+                            <button type="button" class="btn btn-outline-success" id="correct-fail-button">
+                                <i class="btn-fa fas fa-check"></i>
+                            </button>
+                            <button type="button" class="btn btn-outline-danger" id="fails-delete-button">
+                                <i class="btn-fa fas fa-trash-alt"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="clean-table-wrapper">
+                        <table class="clean-table table">
+                            <thead>
+                                <tr>
+                                    <th data-checkbox>
+                                        <input type="checkbox" class="table-check" autocomplete="off" data-checkbox-all>
+                                    </th>
+                                    <th class="sort-col text-center"><b>Challenge</b></th>
+                                    <th class="sort-col text-center"><b>Submitted Flag</b></th>
+                                    <th class="sort-col text-center"><b>Time</b></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for fail in fails %}
+                                <tr class="chal-wrong" data-href="{{ url_for('admin.contest_challenge_detail', contest_id=contest.id, challenge_id=fail.challenge_id) }}">
+                                    <td data-checkbox>
+                                        <input type="checkbox" class="table-check" value="{{ fail.id }}"
+                                            autocomplete="off"
+                                            data-submission-id="{{ fail.id }}"
+                                            data-submission-type="{{ fail.type }}"
+                                            data-submission-challenge="{{ fail.challenge.name }}">
+                                    </td>
+                                    <td class="text-center chal" id="{{ fail.challenge_id }}">
+                                        <a href="{{ url_for('admin.contest_challenge_detail', contest_id=contest.id, challenge_id=fail.challenge_id) }}">
+                                            {{ fail.challenge.name }}
+                                        </a>
+                                    </td>
+                                    <td class="text-center flag" id="{{ fail.id }}">
+                                        <pre class="mb-0">{{ fail.provided }}</pre>
+                                    </td>
+                                    <td class="text-center solve-time">
+                                        <span data-time="{{ fail.date | isoformat }}"></span>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr><td colspan="4" class="text-center text-muted py-3">No fails yet.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </div>
 
         {# ── Awards ──────────────────────────────────────────────────── #}
         <div class="tab-pane fade" id="nav-awards" role="tabpanel">
-            <h3 class="text-center pt-4">Awards</h3>
-            <div class="clean-table-wrapper mt-2">
-                <table class="clean-table table">
-                    <thead>
-                        <tr>
-                            <th class="text-center"><b>Name</b></th>
-                            <th class="text-center"><b>Description</b></th>
-                            <th class="text-center"><b>Value</b></th>
-                            <th class="text-center"><b>Category</b></th>
-                            <th class="text-center"><b>Date</b></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for award in awards %}
-                        <tr>
-                            <td class="text-center">{{ award.name }}</td>
-                            <td class="text-center">{{ award.description }}</td>
-                            <td class="text-center">{{ award.value }}</td>
-                            <td class="text-center">{{ award.category }}</td>
-                            <td class="text-center solve-time">
-                                <span data-time="{{ award.date | isoformat }}"></span>
-                            </td>
-                        </tr>
-                        {% else %}
-                        <tr><td colspan="5" class="text-center text-muted py-3">No awards.</td></tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+            <h3 class="text-center pt-5 d-block">Awards</h3>
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="float-right pb-3">
+                        <div class="btn-group" role="group">
+                            <button type="button" class="btn btn-outline-danger" id="awards-delete-button">
+                                <i class="btn-fa fas fa-trash-alt"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="clean-table-wrapper">
+                        <table class="clean-table table">
+                            <thead>
+                                <tr>
+                                    <th data-checkbox>
+                                        <input type="checkbox" class="table-check" autocomplete="off" data-checkbox-all>
+                                    </th>
+                                    <th class="sort-col text-center"><b>Name</b></th>
+                                    <th class="sort-col text-center"><b>Description</b></th>
+                                    <th class="sort-col text-center"><b>Date</b></th>
+                                    <th class="sort-col text-center"><b>Value</b></th>
+                                    <th class="sort-col text-center"><b>Category</b></th>
+                                    <th class="sort-col text-center"><b>Icon</b></th>
+                                </tr>
+                            </thead>
+                            <tbody id="awards-body">
+                                {% for award in awards %}
+                                <tr class="award-row">
+                                    <td data-checkbox>
+                                        <input type="checkbox" class="table-check" value="{{ award.id }}"
+                                            autocomplete="off"
+                                            data-award-id="{{ award.id }}"
+                                            data-award-name="{{ award.name }}">
+                                    </td>
+                                    <td class="text-center chal" id="{{ award.id }}">{{ award.name }}</td>
+                                    <td class="text-center">
+                                        <pre class="mb-0">{{ award.description }}</pre>
+                                    </td>
+                                    <td class="text-center solve-time">
+                                        <span data-time="{{ award.date | isoformat }}"></span>
+                                    </td>
+                                    <td class="text-center">{{ award.value }}</td>
+                                    <td class="text-center">{{ award.category }}</td>
+                                    <td class="text-center">
+                                        <i class="award-icon award-{{ award.icon }}"></i> {{ award.icon }}
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr><td colspan="7" class="text-center text-muted py-3">No awards.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </div>
 
         {# ── Missing ─────────────────────────────────────────────────── #}
         <div class="tab-pane fade" id="nav-missing" role="tabpanel">
-            <h3 class="text-center pt-4">Missing Challenges</h3>
-            <div class="clean-table-wrapper mt-2">
-                <table class="clean-table table">
-                    <thead>
-                        <tr>
-                            <th class="text-center"><b>Challenge</b></th>
-                            <th class="text-center"><b>Category</b></th>
-                            <th class="text-center"><b>Points</b></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for challenge in missing %}
-                        <tr>
-                            <td class="text-center">
-                                <a href="{{ url_for('admin.contest_challenge_detail', contest_id=contest.id, challenge_id=challenge.id) }}">
-                                    {{ challenge.name }}
-                                </a>
-                            </td>
-                            <td class="text-center">{{ challenge.category }}</td>
-                            <td class="text-center">{{ challenge.value }}</td>
-                        </tr>
-                        {% else %}
-                        <tr><td colspan="3" class="text-center text-muted py-3">All challenges solved! 🎉</td></tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+            <h3 class="text-center pt-5 d-block">Missing Challenges</h3>
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="float-right pb-3">
+                        <div class="btn-group" role="group">
+                            <button type="button" class="btn btn-outline-success" id="missing-solve-button">
+                                <i class="btn-fa fas fa-check"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="clean-table-wrapper">
+                        <table class="clean-table table">
+                            <thead>
+                                <tr>
+                                    <th data-checkbox>
+                                        <input type="checkbox" class="table-check" autocomplete="off" data-checkbox-all>
+                                    </th>
+                                    <th class="sort-col text-center"><b>Challenge</b></th>
+                                    <th class="sort-col text-center"><b>Category</b></th>
+                                    <th class="sort-col text-center"><b>Points</b></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for challenge in missing %}
+                                <tr class="chal-solve" data-href="{{ url_for('admin.contest_challenge_detail', contest_id=contest.id, challenge_id=challenge.id) }}">
+                                    <td data-checkbox>
+                                        <input type="checkbox" class="table-check" value="{{ challenge.id }}"
+                                            autocomplete="off"
+                                            data-missing-challenge-id="{{ challenge.id }}"
+                                            data-missing-challenge-name="{{ challenge.name }}">
+                                    </td>
+                                    <td class="text-center chal" id="{{ challenge.id }}">
+                                        <a href="{{ url_for('admin.contest_challenge_detail', contest_id=contest.id, challenge_id=challenge.id) }}">
+                                            {{ challenge.name }}
+                                        </a>
+                                    </td>
+                                    <td class="text-center">{{ challenge.category }}</td>
+                                    <td class="text-center">{{ challenge.value }}</td>
+                                </tr>
+                                {% else %}
+                                <tr><td colspan="4" class="text-center text-muted py-3">All challenges solved! 🎉</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -402,96 +557,28 @@
 
 {% block contest_scripts %}
 <script>
-(function () {
-    var CONTEST_ID = {{ contest.id }};
-    var USER_ID    = {{ user.id }};
+    {# Variables consumed by user.js bulk-action handlers #}
+    var USER_ID   = {{ user.id }};
+    var USER_NAME = {{ user.name | tojson }};
+    var TEAM_ID   = {{ user.team_id | tojson }};
+    var stats_data = {{ {
+        'type': 'user',
+        'id': user.id,
+        'name': user.name,
+        'account_id': user.id,
+    } | tojson }};
 
+    {# Contest-specific vars for inline JS below #}
+    var CONTEST_ID = {{ contest.id }};
+</script>
+<script>
+(function () {
     function csrfHeaders() {
         return {
             'Content-Type': 'application/json',
             'Accept': 'application/json',
             'CSRF-Token': (typeof init !== 'undefined' ? init.csrfNonce : '')
         };
-    }
-
-    // ── Time formatting ──────────────────────────────────────────────────────
-    document.querySelectorAll('span[data-time]').forEach(function (el) {
-        var iso = el.getAttribute('data-time');
-        if (!iso) return;
-        try {
-            var d = new Date(iso);
-            el.textContent = d.toLocaleString();
-            el.title = d.toISOString();
-        } catch (_) { el.textContent = iso; }
-    });
-
-    // ── Edit user modal (platform fields) ────────────────────────────────────
-    var editBtn = document.querySelector('.edit-user');
-    if (editBtn) {
-        editBtn.addEventListener('click', function () {
-            if (window.jQuery) { $('#user-info-modal').modal('show'); }
-        });
-    }
-
-    // Edit form submit → PATCH /api/v1/users/<id>
-    var editForm = document.getElementById('user-info-edit-form');
-    if (editForm) {
-        editForm.addEventListener('submit', function (e) {
-            e.preventDefault();
-            var formData = new FormData(editForm);
-            var params = {};
-            formData.forEach(function (value, key) {
-                if (key === '_submit') return;
-                var el = editForm.elements[key];
-                if (el && el.type === 'checkbox') { params[key] = el.checked; }
-                else { params[key] = value; }
-            });
-            params.id = USER_ID;
-
-            var submitBtn = editForm.querySelector('[type=submit]');
-            if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Saving…'; }
-
-            fetch('/api/v1/users/' + USER_ID, {
-                method: 'PATCH',
-                credentials: 'same-origin',
-                headers: csrfHeaders(),
-                body: JSON.stringify(params)
-            })
-            .then(function (r) { return r.json(); })
-            .then(function (resp) {
-                if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Submit'; }
-                if (resp.success) {
-                    if (window.jQuery) { $('#user-info-modal').modal('hide'); }
-                    window.location.reload();
-                } else {
-                    var resultsEl = editForm.querySelector('#results');
-                    if (resultsEl) {
-                        resultsEl.innerHTML = '';
-                        Object.values(resp.errors || {}).forEach(function (msg) {
-                            var d = document.createElement('div');
-                            d.className = 'alert alert-danger py-1 px-2 mt-1';
-                            d.style.fontSize = '0.85rem';
-                            d.textContent = Array.isArray(msg) ? msg.join(', ') : msg;
-                            resultsEl.appendChild(d);
-                        });
-                    } else {
-                        alert(JSON.stringify(resp.errors));
-                    }
-                }
-            })
-            .catch(function () {
-                if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Submit'; }
-                alert('Network error. Please try again.');
-            });
-        });
-    }
-
-    // ── IP Addresses modal ───────────────────────────────────────────────────
-    var addrBtn = document.querySelector('.addresses-user');
-    if (addrBtn) {
-        addrBtn.addEventListener('click', function () {
-            if (window.jQuery) { $('#user-addresses-modal').modal('show'); }
-        });
     }
 
     // ── Change Contest Role ───────────────────────────────────────────────────
@@ -555,5 +642,9 @@
 
 })();
 </script>
+{# user.js handles: edit-user, award-user, statistics-user, addresses-user,
+   solves-delete-button, correct-fail-button, fails-delete-button,
+   awards-delete-button, missing-solve-button, user-info-edit-form submit,
+   user-award-form submit, statistics graphs #}
 {{ Assets.js("assets/js/pages/user.js", theme="admin") }}
 {% endblock %}

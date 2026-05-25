@@ -454,13 +454,16 @@ $(() => {
   $("#user-info-edit-form").submit(updateUser);
   $("#user-award-form").submit(awardUser);
 
-  // Insert CommentBox element
-  const commentBox = Vue.extend(CommentBox);
-  let vueContainer = document.createElement("div");
-  document.querySelector("#comment-box").appendChild(vueContainer);
-  new commentBox({
-    propsData: { type: "user", id: window.USER_ID },
-  }).$mount(vueContainer);
+  // Insert CommentBox element (only if the container exists on this page)
+  const commentBoxEl = document.querySelector("#comment-box");
+  if (commentBoxEl) {
+    const commentBox = Vue.extend(CommentBox);
+    let vueContainer = document.createElement("div");
+    commentBoxEl.appendChild(vueContainer);
+    new commentBox({
+      propsData: { type: "user", id: window.USER_ID },
+    }).$mount(vueContainer);
+  }
 
   let type, id, name, account_id;
   ({ type, id, name, account_id } = window.stats_data);
