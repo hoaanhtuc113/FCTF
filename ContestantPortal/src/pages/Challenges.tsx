@@ -29,17 +29,12 @@ import {
   ChallengeListSkeleton,
   ChallengeDetailSkeleton
 } from '../components/Skeleton';
-import { authService } from '../services/authService';
 import { challengeTimerService } from '../services/challengeTimerService';
 
 // Setup PDF worker - mirror legacy behavior using jsDelivr CDN (handles MIME/CORS)
 pdfjs.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
-// Helper function to get team ID from localStorage.
-const getTeamId = (): number | null => {
-  const team = authService.getTeam();
-  return team?.id || null;
-};
+// Team ID is now resolved server-side from contestId — no longer read from localStorage.
 
 interface Category {
   topic_name: string;
@@ -2173,7 +2168,6 @@ function ChallengeDetailPanel({
           method: 'POST',
           body: JSON.stringify({
             challengeId: challenge.id,
-            teamId: getTeamId(),
           }),
         });
         const data = await response.json();

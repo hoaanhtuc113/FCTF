@@ -321,7 +321,7 @@ export function Layout({ children }: LayoutProps) {
                     color: theme === 'dark' ? 'rgb(156, 163, 175)' : 'rgb(107, 114, 128)',
                   }}
                 >
-                  <span style={{ color: theme === 'dark' ? '#fb923c' : '#f97316', fontWeight: 600 }}>//</span> {user?.team?.teamName ?? 'No Team'}
+                  <span style={{ color: theme === 'dark' ? '#fb923c' : '#f97316', fontWeight: 600 }}>//</span> {activeContest?.name ?? 'Select a contest'}
                 </Typography>
               </Box>
 
@@ -380,7 +380,7 @@ export function Layout({ children }: LayoutProps) {
                   <Box className={`mt-2 px-2 py-1 rounded border inline-block ${theme === 'dark' ? 'border-gray-700 text-orange-400' : 'border-gray-300 text-orange-600'
                     }`}>
                     <Typography className="text-xs font-bold font-mono">
-                      {user?.team?.teamName ?? 'No Team'}
+                      {activeContest?.name ?? 'Select a contest'}
                     </Typography>
                   </Box>
                 </div>
