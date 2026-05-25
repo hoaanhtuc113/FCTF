@@ -48,25 +48,22 @@ public class UsersController : BaseController
             return NotFound();
         }
 
-        var userTeam = currentUser.TeamMemberships.FirstOrDefault()?.Team;
-        if (userTeam == null)
+        // Resolve team from the active contest (X-Contest-Id header sent by fetchWithAuth),
+        // falling back to the first team so the profile stays accessible in all cases.
+        Team? userTeam = null;
+        var contestIdHeader = Request.Headers["X-Contest-Id"].FirstOrDefault();
+        if (int.TryParse(contestIdHeader, out int contestId))
         {
-            return NotFound(new
-            {
-                success = false,
-                errors = new
-                {
-                    team = "Team not found"
-                }
-            });
+            userTeam = GetUserTeamForContest(currentUser, contestId);
         }
+        userTeam ??= currentUser.TeamMemberships.FirstOrDefault()?.Team;
 
         var response = new UserDTO
         {
             Username = currentUser.Name,
             Email = currentUser.Email,
-            Team = userTeam.Name,
-            TeamBracketId = userTeam.BracketId,
+            Team = userTeam?.Name,
+            TeamBracketId = userTeam?.BracketId,
         };
 
         return Ok(new

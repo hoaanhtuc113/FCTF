@@ -135,6 +135,7 @@ public class ChallengeService : IChallengeService
 
         var allChallengeIds = await _dbContext.Challenges
             .AsNoTracking()
+            .Where(c => c.ContestId == contestId)
             .Select(c => c.Id)
             .ToListAsync();
 

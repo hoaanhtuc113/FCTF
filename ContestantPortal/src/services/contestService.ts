@@ -12,6 +12,8 @@ export interface Contest {
   team_count: number;
   challenge_count: number;
   category: string;
+  my_team_id?: number | null;
+  my_team_name?: string | null;
 }
 
 class ContestService {

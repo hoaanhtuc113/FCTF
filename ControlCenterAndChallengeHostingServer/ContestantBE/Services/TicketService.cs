@@ -45,9 +45,9 @@ public class TicketService : ITicketService
                 ContestId = contestId
             };
 
-            // Check similarity
+            // Check similarity within the same contest
             var userTickets = await _context.Tickets
-                .Where(t => t.AuthorId == user.Id)
+                .Where(t => t.AuthorId == user.Id && t.ContestId == contestId)
                 .ToListAsync();
             foreach (var ticket in userTickets)
             {

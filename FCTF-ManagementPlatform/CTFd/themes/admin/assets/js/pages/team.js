@@ -28,7 +28,12 @@ function createTeam(event) {
     }
   }
 
-  CTFd.fetch("/api/v1/teams", {
+  const contestId = typeof window.CONTEST_ID !== "undefined" ? window.CONTEST_ID : null;
+  const endpoint = contestId
+    ? CTFd.config.urlRoot + "/admin/contests/" + contestId + "/teams/new"
+    : "/api/v1/teams";
+
+  CTFd.fetch(endpoint, {
     method: "POST",
     credentials: "same-origin",
     headers: {
@@ -43,7 +48,11 @@ function createTeam(event) {
     .then(function (response) {
       if (response.success) {
         const team_id = response.data.id;
-        window.location = CTFd.config.urlRoot + "/admin/teams/" + team_id;
+        if (contestId) {
+          window.location = CTFd.config.urlRoot + "/admin/contests/" + contestId + "/teams/" + team_id;
+        } else {
+          window.location = CTFd.config.urlRoot + "/admin/teams/" + team_id;
+        }
       } else {
         $("#team-info-create-form > #results").empty();
         Object.keys(response.errors).forEach(function (key, _index) {

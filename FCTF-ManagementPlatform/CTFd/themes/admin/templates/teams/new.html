@@ -88,6 +88,9 @@
 {% endblock %}
 
 {% block contest_scripts %}
+<script>
+	var CONTEST_ID = {{ request.view_args.get('contest_id') | tojson }};
+</script>
 {% endblock %}
 
 {% block entrypoint %}
