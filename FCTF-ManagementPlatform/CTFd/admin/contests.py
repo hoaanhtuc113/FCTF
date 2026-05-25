@@ -10,7 +10,7 @@ from sqlalchemy import or_
 from sqlalchemy.orm import joinedload
 
 from CTFd.admin import admin
-from CTFd.models import ChallengeStartTracking, ChallengeVersion, Challenges, Contests, DeployedChallenge, Flags, Solves, Teams, Users, db
+from CTFd.models import ChallengeStartTracking, ChallengeVersion, Challenges, ContestParticipant, Contests, DeployedChallenge, Flags, Solves, Teams, Users, db
 from CTFd.plugins.challenges import CHALLENGE_CLASSES, get_chal_class
 from CTFd.utils.dates import ctftime
 from CTFd.utils.decorators import admins_only
@@ -1030,10 +1030,13 @@ def contest_import_users(contest_id):
     email     = (req.get("email") or "").strip()
     name      = (req.get("name") or "").strip()
     password  = (req.get("password") or "").strip()
-    utype     = req.get("type", "user")
+    utype     = "user"  # import always creates platform-level users (not admins)
     verified  = req.get("verified", True)
     hidden    = req.get("hidden", False)
     team_name = (req.get("team") or "").strip()
+    role      = (req.get("role") or "contestant").strip()
+    if role not in ("contestant", "jury", "challenge_writer"):
+        role = "contestant"
 
     if not email or not name:
         return {"success": False, "errors": {"name": ["Name and email are required."]}}, 400
@@ -1091,6 +1094,16 @@ def contest_import_users(contest_id):
             db.session.flush()
 
         team.members.append(user)
+
+    # Upsert ContestParticipant record with the chosen contest role
+    cp = ContestParticipant.query.filter_by(
+        contest_id=contest_id, user_id=user.id
+    ).first()
+    if cp is None:
+        cp = ContestParticipant(contest_id=contest_id, user_id=user.id, role=role)
+        db.session.add(cp)
+    else:
+        cp.role = role
 
     db.session.commit()
 
@@ -1224,6 +1237,35 @@ def contest_remove_user(contest_id, user_id):
     return {"success": True, "data": {"user_id": user_id}}, 200
 
 
+@admin.route("/admin/contests/<int:contest_id>/users/<int:user_id>/role", methods=["PATCH"])
+@admins_only
+def contest_update_user_role(contest_id, user_id):
+    """Upsert a user's contest-level role in contest_participants."""
+    Contests.query.filter_by(id=contest_id).first_or_404()
+    Users.query.filter_by(id=user_id).first_or_404()
+
+    data = request.get_json(force=True) or {}
+    role = (data.get("role") or "").strip()
+
+    if role not in ("contestant", "jury", "challenge_writer"):
+        return {
+            "success": False,
+            "errors": {"role": ["Role must be one of: contestant, jury, challenge_writer"]},
+        }, 400
+
+    cp = ContestParticipant.query.filter_by(
+        contest_id=contest_id, user_id=user_id
+    ).first()
+    if cp is None:
+        cp = ContestParticipant(contest_id=contest_id, user_id=user_id, role=role)
+        db.session.add(cp)
+    else:
+        cp.role = role
+
+    db.session.commit()
+    return {"success": True, "data": {"user_id": user_id, "role": role}}, 200
+
+
 @admin.route("/admin/contests/<int:contest_id>/add_existing_user", methods=["POST"])
 @admins_only
 def contest_add_existing_user(contest_id):
@@ -1243,6 +1285,9 @@ def contest_add_existing_user(contest_id):
 
     username_or_email = (req.get("username") or "").strip()
     team_name         = (req.get("team") or "").strip()
+    role              = (req.get("role") or "contestant").strip()
+    if role not in ("contestant", "jury", "challenge_writer"):
+        role = "contestant"
 
     if not username_or_email:
         return {"success": False, "errors": {"username": ["Username or email is required."]}}, 400
@@ -1298,6 +1343,17 @@ def contest_add_existing_user(contest_id):
             db.session.flush()
 
     team.members.append(user)
+
+    # Upsert ContestParticipant record with the chosen contest role
+    cp = ContestParticipant.query.filter_by(
+        contest_id=contest_id, user_id=user.id
+    ).first()
+    if cp is None:
+        cp = ContestParticipant(contest_id=contest_id, user_id=user.id, role=role)
+        db.session.add(cp)
+    else:
+        cp.role = role
+
     db.session.commit()
 
     return {
@@ -1307,6 +1363,7 @@ def contest_add_existing_user(contest_id):
             "name": user.name,
             "email": user.email,
             "team": resolved_team_name,
+            "role": role,
         }
     }, 200
 
@@ -1417,8 +1474,14 @@ def contest_users(contest_id):
     if q and Users.__mapper__.has_property(field):
         filters.append(getattr(Users, field).ilike(f"%{q}%"))
 
-    if role_filter:
-        filters.append(Users.type == role_filter)
+    # Filter by contest role (from ContestParticipant), not platform type
+    if role_filter and role_filter in ("contestant", "jury", "challenge_writer"):
+        cp_role_subquery = db.session.query(ContestParticipant.user_id).filter(
+            ContestParticipant.contest_id == contest_id,
+            ContestParticipant.role == role_filter,
+        ).subquery()
+        filters.append(Users.id.in_(cp_role_subquery))
+
     if verified_filter == "true":
         filters.append(Users.verified == True)
     elif verified_filter == "false":
@@ -1446,8 +1509,19 @@ def contest_users(contest_id):
         for team, uid in team_memberships:
             teams_map[uid] = team
 
+    # Build contest-role map from ContestParticipant records
+    contest_roles_map = {}
+    if user_ids:
+        cp_records = ContestParticipant.query.filter(
+            ContestParticipant.contest_id == contest_id,
+            ContestParticipant.user_id.in_(user_ids),
+        ).all()
+        for cp in cp_records:
+            contest_roles_map[cp.user_id] = cp.role
+
     for u in users.items:
         u.contest_team = teams_map.get(u.id)
+        u.contest_role = contest_roles_map.get(u.id, "contestant")  # default: contestant
 
     args = dict(request.args)
     args.pop("page", None)
