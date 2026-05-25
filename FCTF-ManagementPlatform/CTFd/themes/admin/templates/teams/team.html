@@ -478,7 +478,7 @@
 				</thead>
 				<tbody>
 					{% for member in members %}
-					{% set member_url = url_for('admin.contest_user_detail', contest_id=contest.id, user_id=member.id) if contest is defined and contest else url_for('admin.users_detail', user_id=member.id) %}
+					{% set member_url = url_for('admin.users_detail', user_id=member.id) if (is_detail is defined and is_detail) else url_for('admin.contest_user_detail', contest_id=contest.id, user_id=member.id) %}
 					<tr>
 						<td class="text-center" data-href="{{ member_url }}">
 							{% if team.captain_id == member.id %}
@@ -576,7 +576,7 @@
 									</a>
 								</td>
 								<td class="text-center">
-									<a href="{{ url_for("admin.users_detail", user_id=solve.user_id) }}">
+									<a href="{{ url_for('admin.users_detail', user_id=solve.user_id) if (is_detail is defined and is_detail) else url_for('admin.contest_user_detail', contest_id=contest.id, user_id=solve.user_id) }}">
 										{{ solve.user.name }}
 									</a>
 								</td>
@@ -645,7 +645,7 @@
 									</a>
 								</td>
 								<td class="text-center">
-									<a href="{{ url_for("admin.users_detail", user_id=fail.user_id) }}">
+									<a href="{{ url_for('admin.users_detail', user_id=fail.user_id) if (is_detail is defined and is_detail) else url_for('admin.contest_user_detail', contest_id=contest.id, user_id=fail.user_id) }}">
 										{{ fail.user.name }}
 									</a>
 								</td>
@@ -706,7 +706,7 @@
 								</td>
 								<td class="text-center chal" id="{{ award.id }}">{{ award.name }}</td>
 								<td class="text-center">
-									<a href="{{ url_for("admin.users_detail", user_id=award.user_id) }}">
+									<a href="{{ url_for('admin.users_detail', user_id=award.user_id) if (is_detail is defined and is_detail) else url_for('admin.contest_user_detail', contest_id=contest.id, user_id=award.user_id) }}">
 										{{ award.user.name }}
 									</a>
 								</td>
