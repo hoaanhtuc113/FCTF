@@ -87,7 +87,7 @@ public partial class AppDbContext : DbContext
             entity.HasIndex(e => e.UserId, "user_id");
             entity.HasIndex(e => e.ContestId, "contest_id");
 
-            entity.Property(e => e.Id).HasColumnType("int(11)").HasColumnName("id");
+            entity.Property(e => e.Id).ValueGeneratedOnAdd().HasColumnType("int(11)").HasColumnName("id");
             entity.Property(e => e.UserId).HasColumnType("int(11)").HasColumnName("user_id");
             entity.Property(e => e.Date).HasMaxLength(6).HasColumnName("date");
             entity.Property(e => e.Type).HasColumnType("int(11)").HasColumnName("type");

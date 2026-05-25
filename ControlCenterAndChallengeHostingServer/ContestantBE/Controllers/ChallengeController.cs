@@ -1083,7 +1083,7 @@ public class ChallengeController : BaseController
 
         var challenge = await _context.Challenges
             .AsNoTracking()
-            .FirstOrDefaultAsync(c => c.Id == statusReq.challengeId);
+            .FirstOrDefaultAsync(c => c.Id == statusReq.challengeId && c.ContestId == contestId);
 
         if (challenge == null) return BadRequest(new ChallengeDeployResponeDTO
         {

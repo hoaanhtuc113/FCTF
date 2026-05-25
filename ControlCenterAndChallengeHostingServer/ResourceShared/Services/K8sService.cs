@@ -271,17 +271,30 @@ public class K8sService : IK8sService
                 int minutes = challenge.TimeLimit ?? 30;
                 var now = DateTimeOffset.UtcNow;
                 finalUnixFinished = now.AddMinutes(minutes).ToUnixTimeSeconds();
-                //if admin preview challenge skip tracking
+                // Tracking is best-effort; it must not block Redis from marking the pod ready.
                 if(teamId != -1 && teamId != -2)
                 {
-                    dbContext.ChallengeStartTrackings.Add(new ChallengeStartTracking
+                    try
                     {
-                        ChallengeId = challengeId,
-                        TeamId = teamId,
-                        StartedAt = now.DateTime,
-                        Label = $"{podName}"
-                    });
-                    await dbContext.SaveChangesAsync();
+                        dbContext.ChallengeStartTrackings.Add(new ChallengeStartTracking
+                        {
+                            ChallengeId = challengeId,
+                            TeamId = teamId,
+                            UserId = deploymentCache.user_id > 0 ? deploymentCache.user_id : null,
+                            StartedAt = now.DateTime,
+                            Label = $"{podName}"
+                        });
+                        await dbContext.SaveChangesAsync();
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, deploymentCache.user_id, teamId, new
+                        {
+                            challengeId,
+                            podName,
+                            errorType = "ChallengeStartTrackingSaveError"
+                        });
+                    }
                 }
             }
 
