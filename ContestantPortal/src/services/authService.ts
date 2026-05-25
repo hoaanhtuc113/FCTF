@@ -1,5 +1,5 @@
 import { API_ENDPOINTS } from '../config/endpoints';
-import type { User, Team } from '../models/user.model';
+import type { User } from '../models/user.model';
 import type { LoginCredentials, AuthResponse } from '../models/auth.model';
 import type {
   RegisterContestantPayload,
@@ -165,10 +165,7 @@ class AuthService {
     return !!this.getToken();
   }
 
-  getTeam(): Team | null {
-    const user = this.getUser();
-    return user?.team || null;
-  }
+  // Team info is now per-contest — fetch from /team/contestant with the active contestId
 }
 
 export const authService = new AuthService();
