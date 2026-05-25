@@ -828,6 +828,23 @@ class Admins(Users):
     __mapper_args__ = {"polymorphic_identity": "admin"}
 
 
+# ---------------------------------------------------------------------------
+# Compatibility stubs — kept so SQLAlchemy can load legacy DB rows that still
+# have type='jury' or type='challenge_writer'. The migration
+# a1b2c3d4e5f6 updates those rows to type='user'; once migration runs on all
+# environments these stubs can be removed.
+# ---------------------------------------------------------------------------
+class _LegacyJury(Users):
+    """Stub: maps old type='jury' rows → treated as regular Users."""
+    __mapper_args__ = {"polymorphic_identity": "jury"}
+
+
+class _LegacyChallengeWriter(Users):
+    """Stub: maps old type='challenge_writer' rows → treated as regular Users."""
+    __mapper_args__ = {"polymorphic_identity": "challenge_writer"}
+# ---------------------------------------------------------------------------
+
+
 class ContestParticipant(db.Model):
     """
     Contest-scoped role mapping.
