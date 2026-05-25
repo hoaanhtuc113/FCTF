@@ -1,0 +1,467 @@
+{% extends "admin/contests/contest_base.html" %}
+
+{% block stylesheets %}
+{{ super() }}
+<style>
+    .page-header h1 { text-transform: none !important; letter-spacing: normal !important; font-weight: 400 !important; }
+    .topo-card { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden; }
+    .topo-tab-bar { display: flex; border-bottom: 1px solid #dee2e6; padding: 0 8px; }
+    .topo-tab-active { padding: 10px 18px; font-size: 13px; font-weight: 600; color: var(--primary-orange); border-bottom: 3px solid var(--primary-orange); margin-bottom: -1px; }
+    #topology-canvas { width: 100%; height: 600px; background: #f8f9fa; }
+    #topo-loading { text-align: center; padding: 80px 0; color: #888; font-size: 14px; }
+    #topo-error { display: none; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="container">
+        <h1 style="text-transform:none;letter-spacing:normal;font-weight:400">
+            Sandbox Definition <span style="color:var(--primary-orange)">Topology</span>
+        </h1>
+    </div>
+</div>
+
+<div class="container">
+    <div class="mb-3">
+        <a href="javascript:history.back()" class="clean-btn"><i class="fas fa-arrow-left"></i> Back</a>
+    </div>
+    <div class="topo-card">
+        <div class="topo-tab-bar">
+            <span class="topo-tab-active">Topology</span>
+        </div>
+        <div id="topo-loading">
+            <i class="bx bx-loader-alt bx-spin" style="font-size:2rem"></i>
+            <div class="mt-2">Loading topology...</div>
+        </div>
+        <div id="topo-error" class="alert alert-danger m-3"></div>
+        <div id="topology-canvas"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="https://unpkg.com/vis-network@9.1.9/dist/vis-network.min.js"></script>
+<script>
+const CSRF_TOKEN = init.csrfNonce;
+const DEFINITION_ID = {{ definition_id }};
+
+// ── Canvas helpers ─────────────────────────────────────────────────────────────
+function rrect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y); ctx.arcTo(x + w, y, x + w, y + r, r);
+    ctx.lineTo(x + w, y + h - r); ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+    ctx.lineTo(x + r, y + h); ctx.arcTo(x, y + h, x, y + h - r, r);
+    ctx.lineTo(x, y + r); ctx.arcTo(x, y, x + r, y, r);
+    ctx.closePath();
+}
+
+// Globe (Internet node)
+function drawGlobe(ctx, x, y, r, sel) {
+    // Halo
+    ctx.beginPath(); ctx.arc(x, y, r + 8, 0, 2 * Math.PI);
+    ctx.fillStyle = 'rgba(200,215,235,0.22)'; ctx.fill();
+    // Sphere fill
+    ctx.beginPath(); ctx.arc(x, y, r, 0, 2 * Math.PI);
+    ctx.fillStyle = '#e4ecf7'; ctx.fill();
+    ctx.strokeStyle = sel ? '#ff6b35' : '#a0b4cc'; ctx.lineWidth = 1.4; ctx.stroke();
+    // Grid (clipped)
+    ctx.save();
+    ctx.beginPath(); ctx.arc(x, y, r - 0.5, 0, 2 * Math.PI); ctx.clip();
+    ctx.strokeStyle = '#8fa8be'; ctx.lineWidth = 0.9;
+    [-r * 0.5, 0, r * 0.5].forEach(function(dy) {
+        var rx = Math.sqrt(Math.max(0, r * r - dy * dy));
+        ctx.beginPath(); ctx.ellipse(x, y + dy, rx, Math.max(1, Math.abs(dy) * 0.36), 0, 0, 2 * Math.PI); ctx.stroke();
+    });
+    ctx.beginPath(); ctx.ellipse(x, y, r * 0.46, r, 0, 0, 2 * Math.PI); ctx.stroke();
+    ctx.restore();
+    // Label
+    ctx.fillStyle = '#1e2d3d'; ctx.font = 'bold 13px sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('Internet', x, y);
+}
+
+// Tux penguin — clean silhouette matching KYPO style
+function icoLinux(ctx, cx, cy, s) {
+    var r = s * 0.9;
+    // Body (dark)
+    ctx.beginPath();
+    ctx.ellipse(cx, cy + r * 0.05, r * 0.68, r, 0, 0, 2 * Math.PI);
+    ctx.fillStyle = '#2d3748'; ctx.fill();
+    // White belly
+    ctx.beginPath();
+    ctx.ellipse(cx, cy + r * 0.3, r * 0.38, r * 0.55, 0, 0, 2 * Math.PI);
+    ctx.fillStyle = '#f7fafc'; ctx.fill();
+    // Eyes (white circles)
+    ctx.fillStyle = '#f7fafc';
+    ctx.beginPath(); ctx.arc(cx - r * 0.27, cy - r * 0.25, r * 0.16, 0, 2 * Math.PI); ctx.fill();
+    ctx.beginPath(); ctx.arc(cx + r * 0.27, cy - r * 0.25, r * 0.16, 0, 2 * Math.PI); ctx.fill();
+    // Pupils
+    ctx.fillStyle = '#1a202c';
+    ctx.beginPath(); ctx.arc(cx - r * 0.27, cy - r * 0.22, r * 0.08, 0, 2 * Math.PI); ctx.fill();
+    ctx.beginPath(); ctx.arc(cx + r * 0.27, cy - r * 0.22, r * 0.08, 0, 2 * Math.PI); ctx.fill();
+    // Orange beak
+    ctx.beginPath();
+    ctx.moveTo(cx - r * 0.13, cy - r * 0.06);
+    ctx.lineTo(cx, cy + r * 0.1);
+    ctx.lineTo(cx + r * 0.13, cy - r * 0.06);
+    ctx.closePath(); ctx.fillStyle = '#ed8936'; ctx.fill();
+    // Orange feet
+    ctx.fillStyle = '#ed8936';
+    ctx.beginPath(); ctx.ellipse(cx - r * 0.28, cy + r, r * 0.18, r * 0.1, -0.3, 0, 2 * Math.PI); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(cx + r * 0.28, cy + r, r * 0.18, r * 0.1, 0.3, 0, 2 * Math.PI); ctx.fill();
+}
+
+// WiFi router icon — body + 2 antennas + LED status lights
+function icoRouter(ctx, cx, cy, s) {
+    var bw = s * 1.55, bh = s * 0.7;
+    var bodyTop = cy + s * 0.1;
+    // Antennas
+    ctx.strokeStyle = '#4a5568'; ctx.lineWidth = 1.6;
+    ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(cx - bw * 0.26, bodyTop); ctx.lineTo(cx - bw * 0.34, bodyTop - s * 0.85); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx + bw * 0.26, bodyTop); ctx.lineTo(cx + bw * 0.34, bodyTop - s * 0.85); ctx.stroke();
+    ctx.lineCap = 'butt';
+    // Router body
+    rrect(ctx, cx - bw / 2, bodyTop, bw, bh, 3);
+    ctx.fillStyle = '#ebf0fa'; ctx.fill();
+    ctx.strokeStyle = '#a0b0cc'; ctx.lineWidth = 1; ctx.stroke();
+    // Horizontal stripe
+    ctx.fillStyle = '#c8d8ee';
+    ctx.fillRect(cx - bw / 2 + 2, bodyTop + 2, bw - 4, bh * 0.32);
+    // LED dots
+    [['#48bb78', -0.32], ['#4299e1', 0], ['#ed8936', 0.32]].forEach(function(c) {
+        ctx.beginPath(); ctx.arc(cx + c[1] * s, bodyTop + bh * 0.64, s * 0.12, 0, 2 * Math.PI);
+        ctx.fillStyle = c[0]; ctx.fill();
+    });
+}
+
+// Terminal/console — dark window with macOS-style dots + green >_ prompt
+function icoConsole(ctx, cx, cy, s) {
+    var w = s * 1.55, h = s * 1.3;
+    var top = cy - h * 0.5;
+    // Window body
+    rrect(ctx, cx - w / 2, top, w, h, 4);
+    ctx.fillStyle = '#1a202c'; ctx.fill();
+    ctx.strokeStyle = '#4a5568'; ctx.lineWidth = 0.8; ctx.stroke();
+    // Title bar
+    var tbH = h * 0.28;
+    rrect(ctx, cx - w / 2, top, w, tbH, 4);
+    ctx.fillStyle = '#2d3748'; ctx.fill();
+    // Fix bottom of title bar (flat)
+    ctx.fillRect(cx - w / 2, top + tbH - 3, w, 3);
+    // Traffic light dots
+    [['#fc8181', -0.3], ['#f6ad55', -0.02], ['#68d391', 0.26]].forEach(function(c) {
+        ctx.beginPath(); ctx.arc(cx - w / 2 + s * (0.22 + (0.3 + c[1]) * 0.6), top + tbH * 0.5, s * 0.11, 0, 2 * Math.PI);
+        ctx.fillStyle = c[0]; ctx.fill();
+    });
+    // >_ prompt text
+    ctx.fillStyle = '#68d391';
+    ctx.font = 'bold ' + Math.round(s * 0.7) + 'px "Courier New", monospace';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('>_', cx, top + tbH + (h - tbH) * 0.52);
+}
+
+// Desktop monitor — flat screen with stand
+function icoMonitor(ctx, cx, cy, s) {
+    var sw = s * 1.6, sh = s * 1.05;
+    var screenH = sh * 0.72;
+    var top = cy - sh * 0.52;
+    // Outer bezel
+    rrect(ctx, cx - sw / 2, top, sw, screenH, 4);
+    ctx.fillStyle = '#2d3748'; ctx.fill();
+    ctx.strokeStyle = '#718096'; ctx.lineWidth = 0.9; ctx.stroke();
+    // Screen display area (blue)
+    ctx.fillStyle = '#4299e1';
+    ctx.fillRect(cx - sw / 2 + 3, top + 3, sw - 6, screenH - 6);
+    // Subtle grid lines on screen
+    ctx.strokeStyle = 'rgba(255,255,255,0.15)'; ctx.lineWidth = 0.6;
+    ctx.beginPath(); ctx.moveTo(cx - sw / 2 + 3, top + 3 + (screenH - 6) * 0.45); ctx.lineTo(cx + sw / 2 - 3, top + 3 + (screenH - 6) * 0.45); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx, top + 3); ctx.lineTo(cx, top + screenH - 3); ctx.stroke();
+    // Stand neck
+    ctx.fillStyle = '#718096';
+    ctx.fillRect(cx - 3, top + screenH, 6, sh * 0.22);
+    // Stand base
+    rrect(ctx, cx - sw * 0.3, top + screenH + sh * 0.22, sw * 0.6, sh * 0.09, 2);
+    ctx.fillStyle = '#718096'; ctx.fill();
+}
+
+var ICON_SIZE = 16;
+var ICON_SPACING = 30;
+
+// Draw router/host box node
+function drawBox(ctx, x, y, name, ip, icons, sel) {
+    ctx.font = 'bold 12px sans-serif';
+    var nameW = ctx.measureText(name).width;
+    ctx.font = '11px monospace';
+    var ipW = ip ? ctx.measureText(ip).width : 0;
+    var bw = Math.max(nameW, ipW, 110) + 44;
+    var bh = ip ? 106 : 90;
+    var bx = x - bw / 2, by = y - bh / 2;
+    // Card shadow
+    ctx.shadowColor = 'rgba(0,0,0,0.12)'; ctx.shadowBlur = 10; ctx.shadowOffsetY = 4;
+    rrect(ctx, bx, by, bw, bh, 10);
+    ctx.fillStyle = '#ffffff'; ctx.fill();
+    ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+    ctx.strokeStyle = sel ? '#ff6b35' : '#d4dde8'; ctx.lineWidth = 1.5; ctx.stroke();
+    // Icons row — positioned in top section, enough clearance for antennas
+    var iY = by + 36;
+    var startX = x - (icons.length - 1) * ICON_SPACING / 2;
+    icons.forEach(function(fn, i) { fn(ctx, startX + i * ICON_SPACING, iY, ICON_SIZE); });
+    // Divider line
+    ctx.strokeStyle = '#edf2f7'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(bx + 8, by + 62); ctx.lineTo(bx + bw - 8, by + 62); ctx.stroke();
+    // Name label
+    ctx.fillStyle = '#1a2535'; ctx.font = 'bold 12px sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(name, x, by + 75);
+    // IP label
+    if (ip) {
+        ctx.fillStyle = '#5a6a7a'; ctx.font = '11px monospace';
+        ctx.fillText(ip, x, by + 91);
+    }
+    return { width: bw, height: bh };
+}
+
+// Draw network circle node
+function drawNet(ctx, x, y, name, cidr, sel) {
+    var r = 52;
+    ctx.beginPath(); ctx.arc(x, y, r, 0, 2 * Math.PI);
+    ctx.fillStyle = 'rgba(219,242,255,0.55)'; ctx.fill();
+    ctx.setLineDash([6, 5]);
+    ctx.strokeStyle = sel ? '#ff6b35' : '#82c4f0'; ctx.lineWidth = 1.8; ctx.stroke();
+    ctx.setLineDash([]);
+    var lines = cidr ? [name, cidr] : [name];
+    var lh = 16, startY = y - (lines.length - 1) * lh / 2;
+    lines.forEach(function(line, i) {
+        ctx.fillStyle = i === 0 ? '#1a2535' : '#5a6a7a';
+        ctx.font = (i === 0 ? 'bold ' : '') + '12px sans-serif';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(line, x, startY + i * lh);
+    });
+}
+
+// ── Normalize topology data (handle various KYPO API response formats) ─────────
+function normalizeTopologyData(raw) {
+    var d = raw || {};
+    if (!d.routers && !d.networks && !d.hosts && !d.nodes) {
+        d = d.topology_definition || d.topology || d.definition || d.content || d;
+    }
+    return d;
+}
+
+// ── Build topology graph ───────────────────────────────────────────────────────
+function renderTopology(rawData) {
+    var data = normalizeTopologyData(rawData);
+    var nodes = [], edges = [];
+    var idMap = {}, counter = 1;
+    function gid(name) { if (!(name in idMap)) idMap[name] = counter++; return idMap[name]; }
+
+    function makeBoxNode(id, name, ip, icons) {
+        (function(n, ipAddr, ico) {
+            nodes.push({
+                id: id, shape: 'custom',
+                ctxRenderer: function(_ref) {
+                    var ctx = _ref.ctx, x = _ref.x, y = _ref.y, state = _ref.state || {};
+                    return {
+                        drawNode: function() { drawBox(ctx, x, y, n, ipAddr, ico, state.selected); },
+                        nodeDimensions: { width: 180, height: ipAddr ? 110 : 94 }
+                    };
+                }
+            });
+        })(name, ip, icons);
+    }
+
+    function makeNetNode(id, name, cidr) {
+        (function(n, c) {
+            nodes.push({
+                id: id, shape: 'custom',
+                ctxRenderer: function(_ref) {
+                    var ctx = _ref.ctx, x = _ref.x, y = _ref.y, state = _ref.state || {};
+                    return {
+                        drawNode: function() { drawNet(ctx, x, y, n, c, state.selected); },
+                        nodeDimensions: { width: 108, height: 108 }
+                    };
+                }
+            });
+        })(name, cidr);
+    }
+
+    function edge(from, to) {
+        edges.push({ from: from, to: to, color: { color: '#7a8fa6' }, arrows: '' });
+    }
+
+    // Internet node
+    var inetId = gid('__internet__');
+    nodes.push({
+        id: inetId, shape: 'custom',
+        ctxRenderer: function(_ref) {
+            var ctx = _ref.ctx, x = _ref.x, y = _ref.y, state = _ref.state || {};
+            return {
+                drawNode: function() { drawGlobe(ctx, x, y, 44, state.selected); },
+                nodeDimensions: { width: 110, height: 110 }
+            };
+        }
+    });
+
+    // ── Format A: routers[].subnets[].hosts[]  (KYPO topology API actual format)
+    //    {"routers": [{"name":"lab-router","subnets":[{"name":"student-net","cidr":"...","hosts":[...]}]}]}
+    (data.routers || []).forEach(function(router) {
+        var rid = gid(router.name);
+        makeBoxNode(rid, router.name, '', [icoLinux, icoRouter, icoConsole]);
+        edge(inetId, rid);
+
+        (router.subnets || []).forEach(function(subnet) {
+            var snid = gid(subnet.name);
+            makeNetNode(snid, subnet.name, subnet.cidr || '');
+            edge(rid, snid);
+
+            var hostList = subnet.hosts || subnet.nodes || subnet.vms || [];
+            hostList.forEach(function(host) {
+                var hid = gid(host.name);
+                makeBoxNode(hid, host.name, host.ip || '', [icoLinux, icoMonitor, icoConsole]);
+                edge(snid, hid);
+            });
+        });
+    });
+
+    // ── Format B: flat networks[] + hosts[] (fallback for other KYPO versions)
+    //    Only runs when Format A produced no subnets (routers had no .subnets)
+    var hasSubnets = (data.routers || []).some(function(r) { return (r.subnets || []).length > 0; });
+    if (!hasSubnets) {
+        var allNets = (data.networks || []).map(function(n) { return n.name; });
+
+        function getConns(node) { return node.connections || node.interfaces || node.networks || []; }
+
+        function extractNetNames(node) {
+            var found = [];
+            function check(v) { if (v && allNets.indexOf(v) >= 0 && found.indexOf(v) < 0) found.push(v); }
+            check(node.network); check(node.network_name);
+            getConns(node).forEach(function(c) {
+                if (typeof c === 'string') { check(c); return; }
+                check(c.network); check(c.network_name); check(c.name);
+            });
+            return found;
+        }
+
+        // Build network nodes
+        (data.networks || []).forEach(function(net) {
+            makeNetNode(gid(net.name), net.name, net.cidr || net.subnet || '');
+        });
+
+        // Connect networks to routers
+        var routerNetMap = {};
+        (data.routers || []).forEach(function(r) { routerNetMap[r.name] = extractNetNames(r); });
+        (data.nodes || []).forEach(function(n) {
+            var role = (n.role || n.type || n.node_type || '').toLowerCase();
+            if (role.indexOf('router') >= 0 || (n.name || '').toLowerCase().indexOf('router') >= 0) {
+                routerNetMap[n.name] = extractNetNames(n);
+            }
+        });
+
+        (data.networks || []).forEach(function(net) {
+            var nid = gid(net.name);
+            var connected = false;
+            Object.keys(routerNetMap).forEach(function(rName) {
+                if (routerNetMap[rName].indexOf(net.name) >= 0) { edge(gid(rName), nid); connected = true; }
+            });
+            if (!connected) {
+                var rKeys = Object.keys(routerNetMap);
+                edge(rKeys.length > 0 ? gid(rKeys[0]) : inetId, nid);
+            }
+        });
+
+        // Nodes from data.nodes (router or host)
+        (data.nodes || []).forEach(function(n) {
+            var role = (n.role || n.type || n.node_type || '').toLowerCase();
+            var isRtr = role.indexOf('router') >= 0 || (n.name || '').toLowerCase().indexOf('router') >= 0;
+            var nid = gid(n.name || String(n.id));
+            var ip = n.ip || '';
+            makeBoxNode(nid, n.name, ip, isRtr ? [icoLinux, icoRouter, icoConsole] : [icoLinux, icoMonitor, icoConsole]);
+            if (isRtr) {
+                edge(inetId, nid);
+            } else {
+                var nets = extractNetNames(n);
+                var parentId = nets.length > 0 ? gid(nets[0]) : (allNets.length > 0 ? gid(allNets[0]) : inetId);
+                edge(parentId, nid);
+            }
+        });
+
+        // Hosts from data.hosts
+        (data.hosts || []).forEach(function(h) {
+            var hid = gid(h.name);
+            var nets = extractNetNames(h);
+            makeBoxNode(hid, h.name, h.ip || '', [icoLinux, icoMonitor, icoConsole]);
+            var parentId = nets.length > 0 ? gid(nets[0]) : (allNets.length > 0 ? gid(allNets[0]) : inetId);
+            edge(parentId, hid);
+        });
+
+        // Flat links
+        (data.links || data.edges || []).forEach(function(link) {
+            var src = link.source || link.from || link.src;
+            var dst = link.target || link.to || link.dst;
+            if (src && dst && idMap[src] && idMap[dst]) edge(idMap[src], idMap[dst]);
+        });
+    }
+
+    if (nodes.length <= 1) {
+        document.getElementById('topology-canvas').innerHTML =
+            '<div class="text-center text-muted" style="padding:80px 0">' +
+            '<i class="bx bx-info-circle" style="font-size:2rem"></i><br>No topology data available for this definition.</div>';
+        return;
+    }
+
+    new vis.Network(
+        document.getElementById('topology-canvas'),
+        { nodes: new vis.DataSet(nodes), edges: new vis.DataSet(edges) },
+        {
+            layout: {
+                hierarchical: {
+                    enabled: true, direction: 'UD', sortMethod: 'directed',
+                    levelSeparation: 160, nodeSpacing: 200,
+                    blockShifting: true, edgeMinimization: true,
+                }
+            },
+            physics: false,
+            interaction: { hover: true, zoomView: true, dragView: true },
+            edges: { smooth: false, width: 1.5, color: { color: '#7a8fa6' } },
+        }
+    );
+}
+
+// ── Load topology data ────────────────────────────────────────────────────────
+async function loadTopology() {
+    try {
+        var topologyData = null;
+        var resp = await fetch('/api/v1/kypo/sandbox-definitions/' + DEFINITION_ID + '/topology', {
+            headers: { 'Authorization': 'Token ' + CSRF_TOKEN }
+        });
+        if (resp.ok) {
+            var j = await resp.json();
+            topologyData = j.data || j;
+        } else {
+            var resp2 = await fetch('/api/v1/kypo/sandbox-definitions/' + DEFINITION_ID, {
+                headers: { 'Authorization': 'Token ' + CSRF_TOKEN }
+            });
+            if (!resp2.ok) throw new Error('HTTP ' + resp2.status);
+            var j2 = await resp2.json();
+            topologyData = (j2.data || {}).topology_definition
+                        || (j2.data || {}).topology
+                        || j2.data
+                        || {};
+        }
+        console.log('[Topology raw]', topologyData);
+        document.getElementById('topo-loading').style.display = 'none';
+        renderTopology(topologyData);
+    } catch(e) {
+        document.getElementById('topo-loading').style.display = 'none';
+        document.getElementById('topo-error').style.display = 'block';
+        document.getElementById('topo-error').textContent = 'Error: ' + e.message;
+    }
+}
+
+document.addEventListener('DOMContentLoaded', loadTopology);
+</script>
+{% endblock %}

@@ -217,7 +217,7 @@
                         <th class="text-center"><b>Name</b></th>
                         <th class="text-center"><b>Git URL</b></th>
                         <th class="text-center"><b>Branch</b></th>
-                        <th class="text-center"><b>State</b></th>
+                        <th class="text-center"><b>Actions</b></th>
                     </tr>
                 </thead>
                 <tbody id="kypo-def-tbody">
@@ -516,14 +516,21 @@
             var name = d.name || d.title || ('Definition #' + d.id);
             var url = d.url || '';
             var rev = d.rev || 'main';
-            var state = d.state || '';
-            var badgeCls = state === 'READY' ? 'clean-badge-success' : 'clean-badge-warning';
             return '<tr>' +
                 '<td class="text-center"><code>' + d.id + '</code></td>' +
                 '<td class="text-center">' + name + '</td>' +
                 '<td class="text-center">' + (url ? '<span class="git-url" title="' + url + '">' + url + '</span>' : '<span class="text-muted">&mdash;</span>') + '</td>' +
                 '<td class="text-center"><code>' + rev + '</code></td>' +
-                '<td class="text-center">' + (state ? '<span class="clean-badge ' + badgeCls + '">' + state + '</span>' : '<span class="text-muted">&mdash;</span>') + '</td>' +
+                '<td class="text-center">' +
+                '  <div class="action-dropdown">' +
+                '    <button type="button" class="clean-btn clean-action-btn-sm" onclick="toggleActionMenu(this,event)">Actions <i class="fas fa-chevron-down" style="font-size:.7rem"></i></button>' +
+                '    <div class="action-menu">' +
+                '      <a class="action-menu-item" href="/admin/contests/' + CONTEST_ID + '/kypo/sandbox-definitions/' + d.id + '/topology" onclick="closeAllActionMenus();"><i class="fas fa-project-diagram fa-fw"></i> Display Topology</a>' +
+                '      <div class="action-menu-divider"></div>' +
+                '      <a class="action-menu-item danger" href="#" onclick="deleteDefinition(' + d.id + ');closeAllActionMenus();return false;"><i class="fas fa-trash-alt fa-fw"></i> Delete</a>' +
+                '    </div>' +
+                '  </div>' +
+                '</td>' +
                 '</tr>';
         }).join('');
         document.getElementById('def-pagination').textContent = 'Page 1 of 1 • ' + items.length + ' total';
@@ -879,6 +886,19 @@
             });
             const json = await resp.json();
             if (resp.ok) { kypoToast('&#10003; Pool deleted', 'success'); loadPools(); }
+            else { kypoToast('Error: ' + (json.error || 'Delete failed'), 'error'); }
+        } catch (e) { kypoToast('Error: ' + e.message, 'error'); }
+    }
+
+    async function deleteDefinition(defId) {
+        if (!confirm('Are you sure you want to delete Definition #' + defId + '?\nThis action cannot be undone.')) return;
+        try {
+            const resp = await fetch('/api/v1/kypo/sandbox-definitions/' + defId, {
+                method: 'DELETE',
+                headers: { 'CSRF-Token': CSRF_TOKEN },
+            });
+            const json = await resp.json();
+            if (resp.ok) { kypoToast('&#10003; Definition deleted', 'success'); loadSandboxDefinitions(); }
             else { kypoToast('Error: ' + (json.error || 'Delete failed'), 'error'); }
         } catch (e) { kypoToast('Error: ' + e.message, 'error'); }
     }
