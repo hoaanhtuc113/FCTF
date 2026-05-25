@@ -21,7 +21,14 @@
 
 	<div class="form-group">
 		<div class="form-check form-check-inline">
-			{{ form.type(class="form-control form-inline custom-select", id="type-select") }}
+			{% if contest %}
+				{{ form.type(class="form-control form-inline custom-select", id="type-select") }}
+			{% else %}
+				<select class="form-control form-inline custom-select" id="type-select" name="type">
+					<option value="user">User</option>
+					<option value="admin">Admin</option>
+				</select>
+			{% endif %}
 		</div>
 		<div class="form-check form-check-inline">
 			{{ form.verified(class="form-check-input", autocomplete="off", checked=True) }}
