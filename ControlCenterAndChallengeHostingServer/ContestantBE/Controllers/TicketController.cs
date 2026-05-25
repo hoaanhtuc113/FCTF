@@ -26,13 +26,13 @@ public class TicketController : BaseController
 
     [HttpPost("sendticket")]
     [DuringCtfTimeOnly]
-    public async Task<IActionResult> CreateTicketByUser([FromBody] CreateTicketRequestDTO request)
+    public async Task<IActionResult> CreateTicketByUser([FromRoute] int contestId, [FromBody] CreateTicketRequestDTO request)
     {
         var userId = UserContext.UserId;
         _userBehaviorLogger.Log("CREATE_TICKET", userId, UserContext.TeamId, new { request.title, request.description });
         await Console.Out.WriteLineAsync($"[Requesst Send Ticket] User {userId}: Title {request.title}, message {request.description}");
 
-        var result = await _ticketService.CreateTicket(request, userId);
+        var result = await _ticketService.CreateTicket(request, userId, contestId);
         if (!result.Success) return BadRequest(new { message = result.Message });
         return Created("", result.Data);
     }

@@ -40,12 +40,16 @@ public class ScoreboardService : IScoreboardService
 
     public async Task<List<ScoreboardEntryDTO>> GetTopStandings(int contestId, int count, int? bracketId)
     {
-        var standings = await _scoreHelper.GetStandings(count, bracketId, contestId: contestId);
+        // Use per-contest user_mode; fall back to global config if contest not found
+        var contest = await _context.Contests.AsNoTracking().FirstOrDefaultAsync(c => c.Id == contestId);
+        var mode = contest?.UserMode ?? _mode;
+
+        var standings = await _scoreHelper.GetStandings(count, bracketId, contestId: contestId, userMode: mode);
         var accountIds = standings.Select(t => t.AccountId).ToList();
         IQueryable<Solf> solvesQuery;
         IQueryable<Award> awardsQuery;
 
-        if (_mode == "teams")
+        if (mode == "teams")
         {
             solvesQuery = _context.Solves
                 .Where(s => s.TeamId.HasValue
@@ -82,7 +86,7 @@ public class ScoreboardService : IScoreboardService
             List<SolveEntryDTO> solves;
             List<SolveEntryDTO> awards;
 
-            if (_mode == "teams")
+            if (mode == "teams")
             {
                 solves = await solvesQuery
                     .AsNoTracking()
@@ -175,7 +179,7 @@ public class ScoreboardService : IScoreboardService
                 result.Add(new ScoreboardEntryDTO
                 {
                     Id = team.AccountId ?? 0,
-                    AccountUrl = $"/{_mode}/{team.AccountId}",
+                    AccountUrl = $"/{mode}/{team.AccountId}",
                     Name = team.Name,
                     Score = (int)team.Score,
                     BracketId = team.BracketId,

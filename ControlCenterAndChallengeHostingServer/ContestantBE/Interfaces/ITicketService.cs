@@ -5,7 +5,7 @@ namespace ContestantBE.Interfaces;
 
 public interface ITicketService
 {
-    Task<BaseResponseDTO<TicketResponseDTO>> CreateTicket(CreateTicketRequestDTO request, int user);
+    Task<BaseResponseDTO<TicketResponseDTO>> CreateTicket(CreateTicketRequestDTO request, int user, int contestId);
     Task<List<TicketResponseDTO>> GetTicketsByUser(int user);
     Task<BaseResponseDTO<TicketResponseDTO>> GetTicketById(int ticketId, int userId);
     Task<PaginatedTicketsDTO> GetAllTickets(int? userId, string? status, string? type, string? search, int page, int perPage);
