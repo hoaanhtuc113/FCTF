@@ -23,7 +23,7 @@ public interface IChallengeService
     Task<BaseResponseDTO<ChallengeByIdDTO>> GetById(int challengeId, User user, int contestId);
     Task<List<TopicDTO>> GetTopic(User user, int contestId);
     Task<List<ChallengeByCategoryDTO>> GetChallengeByCategories(string cacategory_name, int? team_id, int contestId);
-    Task<List<ChallengeInstanceDTO>> GetAllInstances(int teamId);
+    Task<List<ChallengeInstanceDTO>> GetAllInstances(int teamId, int contestId);
 }
 
 public class ChallengeService : IChallengeService
@@ -317,6 +317,7 @@ public class ChallengeService : IChallengeService
 
         var allChallengeIds = (await _dbContext.Challenges
             .AsNoTracking()
+            .Where(c => c.ContestId == contestId)
             .Select(c => c.Id)
             .ToListAsync())
             .ToHashSet();
@@ -645,7 +646,7 @@ public class ChallengeService : IChallengeService
         }
     }
 
-    public async Task<List<ChallengeInstanceDTO>> GetAllInstances(int teamId)
+    public async Task<List<ChallengeInstanceDTO>> GetAllInstances(int teamId, int contestId)
     {
         var deployments = await _redisHelper
             .GetCacheByPatternAsync<ChallengeDeploymentCacheDTO>($"deploy_challenge_*_{teamId}");
@@ -660,7 +661,7 @@ public class ChallengeService : IChallengeService
 
         var challenges = await _dbContext.Challenges
             .AsNoTracking()
-            .Where(c => challengeIds.Contains(c.Id))
+            .Where(c => c.ContestId == contestId && challengeIds.Contains(c.Id))
             .Select(c => new
             {
                 c.Id,

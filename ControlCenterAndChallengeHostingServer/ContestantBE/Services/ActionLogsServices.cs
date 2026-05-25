@@ -70,10 +70,10 @@ public class ActionLogsServices : IActionLogsServices
 
     public async Task<ActionLogsDTO> SaveActionLogs(ActionLogsReq req, int userId)
     {
-        var topic_name = await _context.Challenges
+        var challengeInfo = await _context.Challenges
             .AsNoTracking()
             .Where(c => c.Id == req.ChallengeId)
-            .Select(c => c.Category)
+            .Select(c => new { c.Category, c.ContestId })
             .FirstOrDefaultAsync();
 
         var log = new ActionLog
@@ -82,7 +82,8 @@ public class ActionLogsServices : IActionLogsServices
             Detail = req.ActionDetail,
             Date = DateTime.UtcNow,
             UserId = userId,
-            TopicName = topic_name ?? "Null",
+            TopicName = challengeInfo?.Category ?? "Null",
+            ContestId = challengeInfo?.ContestId,
         };
         _context.ActionLogs.Add(log);
         await _context.SaveChangesAsync();
