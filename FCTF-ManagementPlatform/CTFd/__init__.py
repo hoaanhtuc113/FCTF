@@ -286,18 +286,78 @@ def create_app(config="CTFd.config.Config"):
             # This creates tables instead of db.create_all()
             # Allows migrations to happen properly
             #
-            # Guard: if alembic_version is empty but DB tables already exist
-            # (e.g. local dev where DB was created without migrations),
-            # stamp to head first so upgrade() doesn't re-run from scratch.
+            # Guard: fix inconsistent alembic_version state before calling upgrade().
+            # Two problematic cases are handled:
+            #   (A) alembic_version is empty / table missing but DB tables already exist —
+            #       stamp to head so upgrade() doesn't re-run from scratch.
+            #   (B) alembic_version has multiple rows where some are ancestors of others —
+            #       this causes Alembic's "overlapping revisions" error; fix by re-stamping.
             try:
                 from CTFd.utils.migrations import get_current_revision, stamp_latest_revision
+                from sqlalchemy import text as _sa_text
+
+                # Case (B): detect multiple rows in alembic_version (potential overlap)
+                try:
+                    with db.engine.connect() as _chk:
+                        _av_rows = _chk.execute(
+                            _sa_text("SELECT version_num FROM alembic_version")
+                        ).fetchall()
+                    if len(_av_rows) > 1:
+                        # Multiple stamps — at least one may be an ancestor of another.
+                        # Re-stamp to head to collapse them into a single canonical row.
+                        print(f"[INFO] alembic_version has {len(_av_rows)} rows "
+                              f"({[r[0] for r in _av_rows]}); re-stamping to head.")
+                        try:
+                            stamp_latest_revision()
+                        except Exception as _s2:
+                            print(f"[WARNING] Re-stamp failed ({_s2}); upgrade() will attempt to recover.")
+                except Exception:
+                    pass  # alembic_version may not exist yet — handled by Case (A) below
+
+                # Case (A): no tracking at all
                 current_rev = get_current_revision()
                 if current_rev is None:
                     inspector = db.inspect(db.engine)
                     existing_tables = inspector.get_table_names()
                     if "users" in existing_tables or "challenges" in existing_tables:
-                        # DB has tables but no alembic tracking — stamp to head
-                        stamp_latest_revision()
+                        # DB has tables but no alembic tracking — stamp to head.
+                        try:
+                            stamp_latest_revision()
+                        except Exception as _stamp_err:
+                            # Fallback: write head revision directly via SQL.
+                            print(f"[WARNING] stamp_latest_revision() failed ({_stamp_err}); "
+                                  "attempting direct SQL stamp.")
+                            try:
+                                # Resolve the actual head revision from migration files
+                                import os as _os
+                                from alembic.config import Config as _AlembicConfig
+                                from alembic.script import ScriptDirectory as _ScriptDir
+                                _mig_dir = _os.path.join(
+                                    _os.path.dirname(app.root_path), "migrations"
+                                )
+                                _alembic_cfg = _AlembicConfig()
+                                _alembic_cfg.set_main_option("script_location", _mig_dir)
+                                _script = _ScriptDir.from_config(_alembic_cfg)
+                                _heads = _script.get_heads()
+                                if len(_heads) == 1:
+                                    _head_rev = _heads[0]
+                                    with db.engine.begin() as _conn:
+                                        _conn.execute(_sa_text(
+                                            "CREATE TABLE IF NOT EXISTS alembic_version "
+                                            "(version_num VARCHAR(32) NOT NULL, "
+                                            "CONSTRAINT alembic_version_pkc "
+                                            "PRIMARY KEY (version_num))"
+                                        ))
+                                        _existing = _conn.execute(_sa_text(
+                                            "SELECT version_num FROM alembic_version"
+                                        )).fetchall()
+                                        if not _existing:
+                                            _conn.execute(_sa_text(
+                                                "INSERT INTO alembic_version (version_num) "
+                                                "VALUES (:rev)"
+                                            ), {"rev": _head_rev})
+                            except Exception as _sql_err:
+                                print(f"[WARNING] SQL stamp fallback also failed: {_sql_err}")
             except Exception:
                 pass
             upgrade()
