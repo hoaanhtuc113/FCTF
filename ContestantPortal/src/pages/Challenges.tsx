@@ -1,8 +1,9 @@
 import { Typography, CircularProgress, Box, Tabs, Tab, Tooltip } from '@mui/material';
 import { motion, AnimatePresence } from 'framer-motion';
 import React, { useEffect, useState, useRef } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useParams } from 'react-router-dom';
 import { challengeService } from '../services/challengeService';
+import { contestService } from '../services/contestService';
 import { useTheme } from '../context/ThemeContext';
 import {
   LockOpen,
@@ -91,6 +92,8 @@ interface Hint {
 
 export function Challenges() {
   const { theme } = useTheme();
+  const { contestId: contestIdParam } = useParams<{ contestId: string }>();
+  const contestId = parseInt(contestIdParam ?? '0');
   const [searchParams, setSearchParams] = useSearchParams();
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('');
@@ -99,7 +102,7 @@ export function Challenges() {
   const [loadingChallengeDetail, setLoadingChallengeDetail] = useState(false);
   const [error, setError] = useState('');
   const [isContestActive, setIsContestActive] = useState(true);
-  const [contestReason, setContestReason] = useState<import('../services/challengeService').ContestAccessReason>('active');
+  const [contestReason, setContestReason] = useState<import('../services/contestService').ContestAccessReason>('active');
   // true when CTF is active OR ended but view_after_ctf is enabled — controls card click & appearance
   const canViewChallenges = isContestActive || contestReason === 'ended_view_allowed';
   const [prerequisiteInfo, setPrerequisiteInfo] = useState<Map<number, PrerequisiteChallenge[]>>(new Map());
@@ -216,7 +219,7 @@ export function Challenges() {
       try {
         setLoading(true);
 
-        const access = await challengeService.getContestAccess();
+        const access = await contestService.getContestAccess(contestId);
         setIsContestActive(access.reason === 'active');
         setContestReason(access.reason);
 
