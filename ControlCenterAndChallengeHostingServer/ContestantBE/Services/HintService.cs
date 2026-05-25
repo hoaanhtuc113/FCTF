@@ -93,6 +93,7 @@ public class HintService : IHintService
 
             var allChallengeIds = (await _context.Challenges
                     .AsNoTracking()
+                    .Where(c => c.ContestId == contestId)
                     .Select(c => c.Id)
                     .ToListAsync())
                 .ToHashSet();
@@ -154,6 +155,7 @@ public class HintService : IHintService
                 .FirstOrDefaultAsync(h => h.Id == id);
 
             if (hint == null) return null;
+            if (hint.Challenge.ContestId != contestId) return null;
             if (!hint.Challenge.State.Equals("visible"))
             {
                 return null;
@@ -235,7 +237,7 @@ public class HintService : IHintService
     {
         try
         {
-            var challenge = await _context.Challenges.FirstOrDefaultAsync(c => c.Id == challengeId);
+            var challenge = await _context.Challenges.FirstOrDefaultAsync(c => c.Id == challengeId && c.ContestId == contestId);
             if (challenge == null) return null;
             if (!challenge.State.Equals("visible"))
             {
@@ -317,6 +319,7 @@ public class HintService : IHintService
 
             if (target == null) return null;
             if (target.Challenge == null) return null;
+            if (target.Challenge.ContestId != contestId) return null;
             if (!target.Challenge.State.Equals("visible"))
             {
                 return null;
@@ -370,7 +373,7 @@ public class HintService : IHintService
                     var unlockIds = new HashSet<int>(allUnlocks.Where(t => t.HasValue).Select(t => t.Value));
 
                     var freeHints = await _context.Hints
-                        .Where(h => h.Cost == null || h.Cost == 0)
+                        .Where(h => (h.Cost == null || h.Cost == 0) && h.Challenge.ContestId == contestId)
                         .Select(h => h.Id)
                         .ToListAsync();
                     var freeIds = new HashSet<int>(freeHints);
@@ -378,6 +381,7 @@ public class HintService : IHintService
                     unlockIds.UnionWith(freeIds);
 
                     var allHintIds = await _context.Hints
+                        .Where(h => h.Challenge.ContestId == contestId)
                         .Select(h => h.Id)
                         .ToListAsync();
                     var allHintIdsSet = new HashSet<int>(allHintIds);
