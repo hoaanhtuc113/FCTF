@@ -117,22 +117,15 @@
     <div class="clean-search-container">
         <div class="row no-gutters align-items-end">
             <div class="col-md-2 px-1">
-                <label>State</label>
-                <select id="def-state-filter" class="clean-form-control ss-select w-100" onchange="applyFilters()">
-                    <option value="">All States</option>
-                    <option value="READY">Ready</option>
-                    <option value="OTHER">Other</option>
-                </select>
-            </div>
-            <div class="col-md-2 px-1">
                 <label>Search Field</label>
-                <select id="def-search-field" class="clean-form-control ss-select w-100">
+                <select id="def-search-field" class="clean-form-control w-100">
                     <option value="name">Name</option>
+                    <option value="id">KYPO ID</option>
                     <option value="url">Git URL</option>
                     <option value="rev">Branch</option>
                 </select>
             </div>
-            <div class="col-md-6 px-1">
+            <div class="col-md-8 px-1">
                 <label>Search Text</label>
                 <input type="text" id="def-search-text" class="clean-form-control w-100"
                     placeholder="Search definitions..." onkeyup="if(event.key==='Enter') applyFilters()">
@@ -275,10 +268,13 @@ function closeAllActionMenus() {
 document.addEventListener('click', closeAllActionMenus);
 
 // ── Render rows ────────────────────────────────────────────────────────────────
-function renderRows(items) {
+function renderRows(items, isFiltered) {
     var tbody = document.getElementById('defs-tbody');
     if (!items.length) {
-        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4"><i class="bx bx-info-circle"></i> No Sandbox Definitions found on KYPO.</td></tr>';
+        var msg = isFiltered
+            ? '<i class="bx bx-search-alt"></i> No definitions match the search criteria.'
+            : '<i class="bx bx-info-circle"></i> No Sandbox Definitions found on KYPO.';
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">' + msg + '</td></tr>';
         document.getElementById('def-pagination').textContent = '';
         return;
     }
@@ -321,7 +317,7 @@ async function loadDefinitions() {
         }
         const raw = json.data || [];
         _allDefinitions = Array.isArray(raw) ? raw : (raw.content || raw.results || []);
-        renderRows(_allDefinitions);
+        renderRows(_allDefinitions, false);
     } catch(e) {
         tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">Connection error: ' + e.message + '</td></tr>';
     }
@@ -329,31 +325,26 @@ async function loadDefinitions() {
 
 // ── Filters ────────────────────────────────────────────────────────────────────
 function applyFilters() {
-    var stateFilter = document.getElementById('def-state-filter').value;
     var field = document.getElementById('def-search-field').value;
     var text = (document.getElementById('def-search-text').value || '').toLowerCase().trim();
     var filtered = _allDefinitions.filter(function(d) {
-        if (stateFilter) {
-            var s = d.state || '';
-            if (stateFilter === 'OTHER' ? s === 'READY' : s !== stateFilter) return false;
-        }
         if (text) {
             var val = '';
-            if (field === 'name') val = (d.name || d.title || '').toLowerCase();
+            if (field === 'id') val = String(d.id || '');
+            else if (field === 'name') val = (d.name || d.title || '').toLowerCase();
             else if (field === 'url') val = (d.url || '').toLowerCase();
             else if (field === 'rev') val = (d.rev || '').toLowerCase();
             if (!val.includes(text)) return false;
         }
         return true;
     });
-    renderRows(filtered);
+    renderRows(filtered, !!text);
 }
 
 function clearFilters() {
-    document.getElementById('def-state-filter').value = '';
     document.getElementById('def-search-field').value = 'name';
     document.getElementById('def-search-text').value = '';
-    renderRows(_allDefinitions);
+    renderRows(_allDefinitions, false);
 }
 
 // ── Create Definition ──────────────────────────────────────────────────────────
