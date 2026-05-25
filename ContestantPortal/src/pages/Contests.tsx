@@ -594,6 +594,17 @@ export function Contests() {
                                 </Typography>
                               </Box>
                             </Box>
+
+                            {/* My team in this contest */}
+                            {contest.my_team_name && (
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                                <Shield size={13} style={{ color: activeColors.primary }} />
+                                <Typography sx={{ fontSize: 11, fontFamily: '"JetBrains Mono", monospace', fontWeight: 700 }}>
+                                  <span style={{ fontWeight: 400, color: activeColors.textSecondary }}>My Team: </span>
+                                  <span style={{ color: activeColors.primary }}>{contest.my_team_name}</span>
+                                </Typography>
+                              </Box>
+                            )}
                           </Box>
 
                           {/* Action Button */}
