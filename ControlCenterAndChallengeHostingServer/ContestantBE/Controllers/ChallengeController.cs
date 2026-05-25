@@ -222,7 +222,7 @@ public class ChallengeController : BaseController
             var teamId = team.Id;
 
             _userBehaviorLogger.Log("VIEW_TEAM_CHALLENGE_INSTANCES", userId, teamId, null);
-            var instances = await _challengeServices.GetAllInstances(teamId);
+            var instances = await _challengeServices.GetAllInstances(teamId, contestId);
             return Ok(new
             {
                 success = true,
@@ -378,6 +378,7 @@ public class ChallengeController : BaseController
 
                     var all_challenge_ids = (await _context.Challenges
                                             .AsNoTracking()
+                                            .Where(c => c.ContestId == contestId)
                                             .Select(c => c.Id)
                                             .ToListAsync()).ToHashSet();
 
@@ -803,6 +804,7 @@ public class ChallengeController : BaseController
 
                     var all_challenge_ids = (await _context.Challenges
                                             .AsNoTracking()
+                                            .Where(c => c.ContestId == contestId)
                                             .Select(c => c.Id)
                                             .ToListAsync()).ToHashSet();
 
