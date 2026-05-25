@@ -285,6 +285,21 @@ def create_app(config="CTFd.config.Config"):
         else:
             # This creates tables instead of db.create_all()
             # Allows migrations to happen properly
+            #
+            # Guard: if alembic_version is empty but DB tables already exist
+            # (e.g. local dev where DB was created without migrations),
+            # stamp to head first so upgrade() doesn't re-run from scratch.
+            try:
+                from CTFd.utils.migrations import get_current_revision, stamp_latest_revision
+                current_rev = get_current_revision()
+                if current_rev is None:
+                    inspector = db.inspect(db.engine)
+                    existing_tables = inspector.get_table_names()
+                    if "users" in existing_tables or "challenges" in existing_tables:
+                        # DB has tables but no alembic tracking — stamp to head
+                        stamp_latest_revision()
+            except Exception:
+                pass
             upgrade()
 
         from CTFd.models import ma
