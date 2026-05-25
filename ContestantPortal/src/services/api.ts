@@ -7,7 +7,7 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}, API 
   
   let finalUrl = url;
   if (selectedContestId) {
-    const contestSpecificPrefixes = ['/challenge', '/ticket', '/scoreboard', '/hint', '/ActionLogs', '/Team'];
+    const contestSpecificPrefixes = ['/challenge', '/ticket', '/scoreboard', '/hint', '/ActionLogs', '/team'];
     if (contestSpecificPrefixes.some(prefix => finalUrl.startsWith(prefix))) {
       finalUrl = `/contest/${selectedContestId}${finalUrl}`;
     }
