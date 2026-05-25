@@ -1150,6 +1150,10 @@ def contest_user_detail(contest_id, user_id):
     user.team = user_team
     user.team_id = user_team.id if user_team else None
 
+    # Contest-level role
+    cp = ContestParticipant.query.filter_by(contest_id=contest_id, user_id=user_id).first()
+    contest_role = cp.role if cp else "contestant"
+
     # Solves scoped to this contest's challenges
     solves = (
         Solves.query
@@ -1189,7 +1193,7 @@ def contest_user_detail(contest_id, user_id):
     place = None  # Per-contest place calculation is complex; skip for now
 
     return render_template(
-        "admin/users/user.html",
+        "admin/contests/sections/user_detail.html",
         solves=solves,
         user=user,
         addrs=addrs,
@@ -1198,6 +1202,7 @@ def contest_user_detail(contest_id, user_id):
         place=place,
         fails=fails,
         awards=awards,
+        contest_role=contest_role,
         is_detail=True,
         contest=contest,
     )

@@ -80,6 +80,25 @@
     border-radius: 8px; font-size: 12px; display: none;
     max-width: 340px; box-shadow: 0 4px 12px rgba(0,0,0,.2);
 }
+
+.action-dropdown { position: relative; display: inline-block; }
+.action-menu {
+    display: none; position: fixed; z-index: 9999;
+    min-width: 170px; background: #fff;
+    border: 1px solid #dee2e6; border-radius: 4px;
+    box-shadow: 0 4px 12px rgba(0,0,0,.08);
+    padding: 4px 0; font-size: .875rem;
+}
+.action-menu.open { display: block; }
+.action-menu-item {
+    display: flex; align-items: center; gap: 6px;
+    padding: .45rem .9rem; color: #495057 !important;
+    text-decoration: none; font-weight: 500; font-size: .875rem;
+    transition: all .15s; white-space: nowrap; cursor: pointer;
+}
+.action-menu-item:hover { background: #fff5f2; color: #ff6b35 !important; text-decoration: none; }
+.action-menu-divider { height: 1px; background: #dee2e6; margin: 4px 0; }
+.action-menu-item.danger:hover { background: #ffebee; color: #c62828 !important; }
 </style>
 {% endblock %}
 
@@ -150,7 +169,7 @@
                     <th class="text-center"><b>Name</b></th>
                     <th class="text-center"><b>Git URL</b></th>
                     <th class="text-center"><b>Branch</b></th>
-                    <th class="text-center"><b>State</b></th>
+                    <th class="text-center"><b>Actions</b></th>
                 </tr>
             </thead>
             <tbody id="defs-tbody">
@@ -212,6 +231,7 @@
 {% block contest_scripts %}
 <script>
 const CSRF_TOKEN = init.csrfNonce;
+const CONTEST_ID = {{ contest.id }};
 
 var _allDefinitions = [];
 
@@ -236,6 +256,24 @@ function toast(msg, type) {
     _toastTimer = setTimeout(function() { el.style.display = 'none'; }, 3200);
 }
 
+// ── Action dropdown ────────────────────────────────────────────────────────────
+function toggleActionMenu(btn, e) {
+    e.stopPropagation();
+    var menu = btn.nextElementSibling;
+    var isOpen = menu.classList.contains('open');
+    closeAllActionMenus();
+    if (!isOpen) {
+        menu.classList.add('open');
+        var r = btn.getBoundingClientRect();
+        menu.style.top = (r.bottom + 4) + 'px';
+        menu.style.left = r.left + 'px';
+    }
+}
+function closeAllActionMenus() {
+    document.querySelectorAll('.action-menu.open').forEach(function(m) { m.classList.remove('open'); });
+}
+document.addEventListener('click', closeAllActionMenus);
+
 // ── Render rows ────────────────────────────────────────────────────────────────
 function renderRows(items) {
     var tbody = document.getElementById('defs-tbody');
@@ -248,14 +286,21 @@ function renderRows(items) {
         var name = d.name || d.title || ('Definition #' + d.id);
         var url = d.url || '';
         var rev = d.rev || 'main';
-        var state = d.state || '';
-        var badgeCls = state === 'READY' ? 'clean-badge-success' : 'clean-badge-warning';
         return '<tr>' +
             '<td class="text-center"><code>' + d.id + '</code></td>' +
             '<td class="text-center">' + name + '</td>' +
             '<td class="text-center">' + (url ? '<span class="git-url" title="' + url + '">' + url + '</span>' : '<span class="text-muted">&mdash;</span>') + '</td>' +
             '<td class="text-center"><code>' + rev + '</code></td>' +
-            '<td class="text-center">' + (state ? '<span class="clean-badge ' + badgeCls + '">' + state + '</span>' : '<span class="text-muted">&mdash;</span>') + '</td>' +
+            '<td class="text-center">' +
+            '  <div class="action-dropdown">' +
+            '    <button type="button" class="clean-btn clean-action-btn-sm" onclick="toggleActionMenu(this,event)">Actions <i class="fas fa-chevron-down" style="font-size:.7rem"></i></button>' +
+            '    <div class="action-menu">' +
+            '      <a class="action-menu-item" href="/admin/contests/' + CONTEST_ID + '/kypo/sandbox-definitions/' + d.id + '/topology" onclick="closeAllActionMenus();"><i class="fas fa-project-diagram fa-fw"></i> Display Topology</a>' +
+            '      <div class="action-menu-divider"></div>' +
+            '      <a class="action-menu-item danger" href="#" onclick="deleteDefinition(' + d.id + ');closeAllActionMenus();return false;"><i class="fas fa-trash-alt fa-fw"></i> Delete</a>' +
+            '    </div>' +
+            '  </div>' +
+            '</td>' +
             '</tr>';
     }).join('');
     document.getElementById('def-pagination').textContent = 'Page 1 of 1 • ' + items.length + ' total';
@@ -334,6 +379,20 @@ async function submitCreateDefinition() {
             toast('Error: ' + (json.error || JSON.stringify(json.errors)), 'error');
         }
     } catch(e) { toast('Connection error: ' + e.message, 'error'); }
+}
+
+// ── Delete Definition ──────────────────────────────────────────────────────────
+async function deleteDefinition(defId) {
+    if (!confirm('Are you sure you want to delete Definition #' + defId + '?\nThis action cannot be undone.')) return;
+    try {
+        const resp = await fetch('/api/v1/kypo/sandbox-definitions/' + defId, {
+            method: 'DELETE',
+            headers: { 'CSRF-Token': CSRF_TOKEN },
+        });
+        const json = await resp.json();
+        if (resp.ok) { toast('&#10003; Definition deleted', 'success'); loadDefinitions(); }
+        else { toast('Error: ' + (json.error || 'Delete failed'), 'error'); }
+    } catch(e) { toast('Error: ' + e.message, 'error'); }
 }
 
 document.addEventListener('DOMContentLoaded', loadDefinitions);

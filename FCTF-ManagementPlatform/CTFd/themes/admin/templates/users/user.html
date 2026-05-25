@@ -1,4 +1,4 @@
-{% extends "admin/contests/contest_base.html" if contest is defined and contest else "admin/management_hub_base.html" %}
+{% extends "admin/management_hub_base.html" %}
 
 {% block stylesheets %}
 {{ super() }}
@@ -307,10 +307,6 @@
 		<div class="mb-2 text-center"  style="text-transform: none;">
 			{% if user.type == 'admin' %}
 			<span class="badge badge-primary">Admin</span>
-			{% elif user.type == 'challenge_writer' %}
-			<span class="badge badge-info">Challenge Writer</span>
-			{% elif user.type == 'jury' %}
-			<span class="badge" style="background-color:#6f42c1;color:#fff;">Jury</span>
 			{% else %}
 			<span class="badge" style="background-color:#6c757d;color:#fff;">User</span>
 			{% endif %}
@@ -375,13 +371,10 @@
 		</h3>
 		<hr class="w-50 mx-auto">
 		<div class="pt-3 text-center" style="text-transform: none;">
-			{% if not is_jury()%}
-
 			<a class="edit-user text-dark">
 				<i class="btn-fa fas fa-user-edit fa-2x px-2" data-toggle="tooltip" data-placement="top"
 					title="Edit User"></i>
 			</a>
-			{% endif %}
 
 			<a class="statistics-user text-dark">
 				<i class="btn-fa fas fa-chart-pie fa-2x px-2" data-toggle="tooltip" data-placement="top"
@@ -392,12 +385,10 @@
 					title="Award User"></i>
 			</a>
 
-			{% if not is_jury()%}
 			<a class="delete-user text-dark">
 				<i class="btn-fa fas fa-trash-alt fa-2x px-2" data-toggle="tooltip" data-placement="top"
 					title="Delete User"></i>
 			</a>
-			{% endif %}
 		</div>
 		<div class="pt-3 text-center">
 			<a class="addresses-user text-dark">

@@ -83,6 +83,27 @@ class SandboxDefinitionDetail(Resource):
         except Exception as e:
             return {"success": False, "error": str(e)}, 502
 
+    def delete(self, definition_id):
+        """Delete a sandbox definition from KYPO."""
+        try:
+            kypo_service.delete_sandbox_definition(definition_id)
+            return {"success": True}, 200
+        except Exception as e:
+            return {"success": False, "error": str(e)}, 502
+
+
+@kypo_namespace.route("/sandbox-definitions/<int:definition_id>/topology")
+class SandboxDefinitionTopology(Resource):
+    method_decorators = [admins_only]
+
+    def get(self, definition_id):
+        """Fetch topology data of a sandbox definition from KYPO."""
+        try:
+            data = kypo_service.get_definition_topology(definition_id)
+            return {"success": True, "data": data}, 200
+        except Exception as e:
+            return {"success": False, "error": str(e)}, 502
+
 
 # ════════════════════════════════════════════════════════════════
 # Pools — mapping stored in FCTF DB, details fetched from KYPO API

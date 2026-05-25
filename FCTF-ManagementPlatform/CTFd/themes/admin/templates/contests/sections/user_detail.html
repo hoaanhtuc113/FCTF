@@ -1,0 +1,559 @@
+{% extends "admin/contests/contest_base.html" %}
+
+{% block contest_stylesheets %}
+<style>
+.user-detail-page .jumbotron {
+    background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+    border-bottom: 2px solid #e8e8e8;
+    margin-bottom: 0;
+    padding: 2.5rem 0;
+    text-align: center;
+}
+.user-detail-page .jumbotron h1 {
+    color: #2c3e50;
+    font-weight: 700;
+    font-size: 2rem;
+    margin-bottom: 0.75rem;
+    text-transform: none;
+}
+.user-detail-page .jumbotron h2,
+.user-detail-page .jumbotron h3 {
+    color: #2c3e50;
+    font-weight: 500;
+    text-transform: none;
+}
+.user-detail-page .badge {
+    padding: 0.4rem 0.75rem;
+    border-radius: 4px;
+    font-weight: 500;
+    font-size: 0.85rem;
+}
+.user-detail-page .btn-fa {
+    color: #495057;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+.user-detail-page .btn-fa:hover { color: #ff6b35; transform: scale(1.15); }
+.user-detail-page .btn-fa.text-danger:hover { color: #c0392b !important; transform: scale(1.15); }
+
+/* Role badge variants */
+.role-badge-contestant  { background-color: #6c757d; color: #fff; }
+.role-badge-jury        { background-color: #6f42c1; color: #fff; }
+.role-badge-writer      { background-color: #17a2b8; color: #fff; }
+.role-badge-platform-admin { background-color: #dc3545; color: #fff; }
+
+/* Inline role selector */
+.contest-role-select {
+    display: inline-block;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    padding: 0.3rem 0.5rem;
+    font-size: 0.88rem;
+    cursor: pointer;
+    background: #fff;
+    color: #495057;
+    transition: border-color 0.2s;
+}
+.contest-role-select:focus { outline: none; border-color: #ff6b35; box-shadow: 0 0 0 2px rgba(255,107,53,.15); }
+
+/* Tabs */
+.nav-tabs {
+    border-bottom: 2px solid #e8e8e8;
+    background: #ffffff;
+    padding: 0.5rem 1rem 0 1rem;
+    border-radius: 8px 8px 0 0;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+.nav-tabs .nav-link {
+    color: #495057; border: none; border-bottom: 3px solid transparent;
+    padding: 0.75rem 1.5rem; font-weight: 500; transition: all 0.2s ease;
+}
+.nav-tabs .nav-link:hover { color: #ff6b35; border-bottom-color: #ff6b35; background: transparent !important; }
+.nav-tabs .nav-link.active {
+    color: #ff6b35 !important; background: transparent !important;
+    border-bottom-color: #ff6b35 !important; font-weight: 600;
+}
+.tab-content {
+    background: #ffffff; padding: 2rem;
+    border-radius: 0 0 8px 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    border: 1px solid #e8e8e8; border-top: none;
+}
+.tab-content .table thead th {
+    background-color: #f8f9fa; color: #2c3e50;
+    font-weight: 600; border-bottom: 2px solid #e8e8e8; padding: 0.9rem 0.75rem;
+}
+.tab-content .table tbody td {
+    padding: 0.85rem 0.75rem; vertical-align: middle;
+    color: #495057; border-bottom: 1px solid #f1f1f1;
+}
+.tab-content .table tbody tr:hover { background-color: #fff5f2; }
+.tab-content .table tbody td a { color: #2c3e50; font-weight: 500; transition: color 0.2s ease; }
+.tab-content .table tbody td a:hover { color: #ff6b35; text-decoration: none; }
+.modal-header {
+    background: linear-gradient(135deg,#ffffff 0%,#f8f9fa 100%);
+    border-bottom: 2px solid #e8e8e8; padding: 1.5rem;
+}
+.modal-header h2 { color: #2c3e50; font-weight: 600; font-size: 1.5rem; margin: 0; }
+.modal-body { padding: 2rem; }
+</style>
+{% endblock %}
+
+{% block contest_content %}
+<div class="user-detail-page">
+
+{# ── Edit User Modal (platform fields) ──────────────────────────────── #}
+<div id="user-info-modal" class="modal fade">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="text-center w-100">Edit User</h2>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body clearfix">
+                {% include "admin/modals/users/edit.html" %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{# ── IP Addresses Modal ──────────────────────────────────────────────── #}
+<div id="user-addresses-modal" class="modal fade">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="text-center w-100">IP Addresses</h2>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body clearfix">
+                {% include "admin/modals/users/addresses.html" %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{# ── Header / Jumbotron ──────────────────────────────────────────────── #}
+<div class="jumbotron">
+    <div class="container text-center">
+        <h1 class="p-0 m-0">{{ user.name }}</h1>
+
+        <div class="mb-2 mt-2">
+            {# Contest-level role badge #}
+            {% if contest_role == 'jury' %}
+                <span class="badge role-badge-jury">Jury</span>
+            {% elif contest_role == 'challenge_writer' %}
+                <span class="badge role-badge-writer">Challenge Writer</span>
+            {% else %}
+                <span class="badge role-badge-contestant">Contestant</span>
+            {% endif %}
+
+            {# Platform type indicator #}
+            {% if user.type == 'admin' %}
+                <span class="badge role-badge-platform-admin" title="This user is a platform-level admin">
+                    <i class="fas fa-crown fa-xs"></i> Platform Admin
+                </span>
+            {% endif %}
+
+            {# Status badges #}
+            {% if user.verified %}
+                <span class="badge badge-success">verified</span>
+            {% endif %}
+            {% if user.hidden %}
+                <span class="badge badge-danger">hidden</span>
+            {% endif %}
+            {% if user.banned %}
+                <span class="badge badge-danger">banned</span>
+            {% endif %}
+        </div>
+
+        {% if user.affiliation %}
+        <h3 class="d-inline-block text-center">
+            <span class="badge badge-primary">{{ user.affiliation }}</span>
+        </h3>
+        {% endif %}
+
+        {% if user.country %}
+        <h3 class="d-inline-block text-center">
+            <span class="badge badge-primary">
+                <i class="flag-{{ user.country.lower() }}"></i>
+                {{ lookup_country_code(user.country) }}
+            </span>
+        </h3>
+        {% endif %}
+
+        <h2 class="text-center">{{ user.email }}</h2>
+
+        {% if user.team_id %}
+        <h2 class="text-center">
+            <a href="{{ url_for('admin.contest_team_detail', contest_id=contest.id, team_id=user.team_id) }}">
+                {{ user.team.name }}
+            </a>
+        </h2>
+        {% else %}
+        <h3 class="text-muted"><small>No team in this contest</small></h3>
+        {% endif %}
+
+        {% if place %}<h3 class="text-center">{{ place }} <small>place</small></h3>{% endif %}
+        {% if score %}<h3 class="text-center">{{ score }} <small>points</small></h3>{% endif %}
+
+        <hr class="w-50 mx-auto">
+
+        {# ── Action row ────────────────────────────────────────────── #}
+        <div class="pt-2 text-center d-flex justify-content-center align-items-center flex-wrap" style="gap:1.2rem;">
+
+            {# Edit platform fields #}
+            <a class="edit-user text-dark" title="Edit platform fields (name, email, verified, banned…)" style="cursor:pointer;">
+                <i class="btn-fa fas fa-user-edit fa-2x"></i>
+            </a>
+
+            {# Change contest role #}
+            <div class="d-flex flex-column align-items-center" style="gap:0.25rem;">
+                <small class="text-muted" style="font-size:0.75rem;">Contest Role</small>
+                <select id="contest-role-select" class="contest-role-select" title="Change this user's role in the contest">
+                    <option value="contestant" {% if contest_role == 'contestant' %}selected{% endif %}>Contestant</option>
+                    <option value="jury"        {% if contest_role == 'jury'        %}selected{% endif %}>Jury</option>
+                    <option value="challenge_writer" {% if contest_role == 'challenge_writer' %}selected{% endif %}>Challenge Writer</option>
+                </select>
+            </div>
+
+            {# Remove from contest #}
+            <a class="remove-contest-user text-danger" title="Remove this user from the contest" style="cursor:pointer;">
+                <i class="btn-fa fas fa-user-minus fa-2x text-danger"></i>
+            </a>
+
+            {# IP Addresses #}
+            <a class="addresses-user text-dark" title="IP Addresses" style="cursor:pointer;">
+                <i class="btn-fa fas fa-network-wired fa-2x"></i>
+            </a>
+
+            {% if user.website %}
+            <a href="{{ user.website }}" target="_blank" rel="noopener" class="text-dark" title="{{ user.website }}">
+                <i class="btn-fa fas fa-external-link-alt fa-2x"></i>
+            </a>
+            {% endif %}
+        </div>
+
+        {# Role-save feedback #}
+        <div id="role-save-msg" class="mt-2" style="min-height:1.2rem;font-size:0.85rem;"></div>
+    </div>
+</div>
+
+{# ── Tabs ────────────────────────────────────────────────────────────── #}
+<div class="container">
+    <nav class="nav nav-tabs nav-fill pt-5" id="myTab" role="tablist">
+        <a class="nav-item nav-link active" data-toggle="tab" href="#nav-solves" role="tab">
+            Solves <span class="badge badge-secondary ml-1">{{ solves|length }}</span>
+        </a>
+        <a class="nav-item nav-link" data-toggle="tab" href="#nav-wrong" role="tab">
+            Fails <span class="badge badge-secondary ml-1">{{ fails|length }}</span>
+        </a>
+        <a class="nav-item nav-link" data-toggle="tab" href="#nav-awards" role="tab">
+            Awards <span class="badge badge-secondary ml-1">{{ awards|length }}</span>
+        </a>
+        <a class="nav-item nav-link" data-toggle="tab" href="#nav-missing" role="tab">
+            Missing <span class="badge badge-secondary ml-1">{{ missing|length }}</span>
+        </a>
+    </nav>
+
+    <div class="tab-content min-vh-25 pb-5" id="nav-tabContent">
+
+        {# ── Solves ──────────────────────────────────────────────────── #}
+        <div class="tab-pane fade show active" id="nav-solves" role="tabpanel">
+            <h3 class="text-center pt-4">Solves</h3>
+            <div class="clean-table-wrapper mt-2">
+                <table class="clean-table table">
+                    <thead>
+                        <tr>
+                            <th class="text-center"><b>Challenge</b></th>
+                            <th class="text-center"><b>Submitted Flag</b></th>
+                            <th class="text-center"><b>Category</b></th>
+                            <th class="text-center"><b>Points</b></th>
+                            <th class="text-center"><b>Time</b></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for solve in solves %}
+                        <tr>
+                            <td class="text-center">
+                                <a href="{{ url_for('admin.contest_challenge_detail', contest_id=contest.id, challenge_id=solve.challenge_id) }}">
+                                    {{ solve.challenge.name }}
+                                </a>
+                            </td>
+                            <td class="text-center"><pre class="mb-0">{{ solve.provided }}</pre></td>
+                            <td class="text-center">{{ solve.challenge.category }}</td>
+                            <td class="text-center">{{ solve.challenge.value }}</td>
+                            <td class="text-center solve-time">
+                                <span data-time="{{ solve.date | isoformat }}"></span>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="5" class="text-center text-muted py-3">No solves yet.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        {# ── Fails ───────────────────────────────────────────────────── #}
+        <div class="tab-pane fade" id="nav-wrong" role="tabpanel">
+            <h3 class="text-center pt-4">Fails</h3>
+            <div class="clean-table-wrapper mt-2">
+                <table class="clean-table table">
+                    <thead>
+                        <tr>
+                            <th class="text-center"><b>Challenge</b></th>
+                            <th class="text-center"><b>Submitted Flag</b></th>
+                            <th class="text-center"><b>Time</b></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for fail in fails %}
+                        <tr>
+                            <td class="text-center">
+                                <a href="{{ url_for('admin.contest_challenge_detail', contest_id=contest.id, challenge_id=fail.challenge_id) }}">
+                                    {{ fail.challenge.name }}
+                                </a>
+                            </td>
+                            <td class="text-center"><pre class="mb-0">{{ fail.provided }}</pre></td>
+                            <td class="text-center solve-time">
+                                <span data-time="{{ fail.date | isoformat }}"></span>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="3" class="text-center text-muted py-3">No fails yet.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        {# ── Awards ──────────────────────────────────────────────────── #}
+        <div class="tab-pane fade" id="nav-awards" role="tabpanel">
+            <h3 class="text-center pt-4">Awards</h3>
+            <div class="clean-table-wrapper mt-2">
+                <table class="clean-table table">
+                    <thead>
+                        <tr>
+                            <th class="text-center"><b>Name</b></th>
+                            <th class="text-center"><b>Description</b></th>
+                            <th class="text-center"><b>Value</b></th>
+                            <th class="text-center"><b>Category</b></th>
+                            <th class="text-center"><b>Date</b></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for award in awards %}
+                        <tr>
+                            <td class="text-center">{{ award.name }}</td>
+                            <td class="text-center">{{ award.description }}</td>
+                            <td class="text-center">{{ award.value }}</td>
+                            <td class="text-center">{{ award.category }}</td>
+                            <td class="text-center solve-time">
+                                <span data-time="{{ award.date | isoformat }}"></span>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="5" class="text-center text-muted py-3">No awards.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        {# ── Missing ─────────────────────────────────────────────────── #}
+        <div class="tab-pane fade" id="nav-missing" role="tabpanel">
+            <h3 class="text-center pt-4">Missing Challenges</h3>
+            <div class="clean-table-wrapper mt-2">
+                <table class="clean-table table">
+                    <thead>
+                        <tr>
+                            <th class="text-center"><b>Challenge</b></th>
+                            <th class="text-center"><b>Category</b></th>
+                            <th class="text-center"><b>Points</b></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for challenge in missing %}
+                        <tr>
+                            <td class="text-center">
+                                <a href="{{ url_for('admin.contest_challenge_detail', contest_id=contest.id, challenge_id=challenge.id) }}">
+                                    {{ challenge.name }}
+                                </a>
+                            </td>
+                            <td class="text-center">{{ challenge.category }}</td>
+                            <td class="text-center">{{ challenge.value }}</td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="3" class="text-center text-muted py-3">All challenges solved! 🎉</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>{# /tab-content #}
+</div>{# /container #}
+</div>{# /user-detail-page #}
+{% endblock %}
+
+{% block contest_scripts %}
+<script>
+(function () {
+    var CONTEST_ID = {{ contest.id }};
+    var USER_ID    = {{ user.id }};
+
+    function csrfHeaders() {
+        return {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'CSRF-Token': (typeof init !== 'undefined' ? init.csrfNonce : '')
+        };
+    }
+
+    // ── Time formatting ──────────────────────────────────────────────────────
+    document.querySelectorAll('span[data-time]').forEach(function (el) {
+        var iso = el.getAttribute('data-time');
+        if (!iso) return;
+        try {
+            var d = new Date(iso);
+            el.textContent = d.toLocaleString();
+            el.title = d.toISOString();
+        } catch (_) { el.textContent = iso; }
+    });
+
+    // ── Edit user modal (platform fields) ────────────────────────────────────
+    var editBtn = document.querySelector('.edit-user');
+    if (editBtn) {
+        editBtn.addEventListener('click', function () {
+            if (window.jQuery) { $('#user-info-modal').modal('show'); }
+        });
+    }
+
+    // Edit form submit → PATCH /api/v1/users/<id>
+    var editForm = document.getElementById('user-info-edit-form');
+    if (editForm) {
+        editForm.addEventListener('submit', function (e) {
+            e.preventDefault();
+            var formData = new FormData(editForm);
+            var params = {};
+            formData.forEach(function (value, key) {
+                if (key === '_submit') return;
+                var el = editForm.elements[key];
+                if (el && el.type === 'checkbox') { params[key] = el.checked; }
+                else { params[key] = value; }
+            });
+            params.id = USER_ID;
+
+            var submitBtn = editForm.querySelector('[type=submit]');
+            if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Saving…'; }
+
+            fetch('/api/v1/users/' + USER_ID, {
+                method: 'PATCH',
+                credentials: 'same-origin',
+                headers: csrfHeaders(),
+                body: JSON.stringify(params)
+            })
+            .then(function (r) { return r.json(); })
+            .then(function (resp) {
+                if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Submit'; }
+                if (resp.success) {
+                    if (window.jQuery) { $('#user-info-modal').modal('hide'); }
+                    window.location.reload();
+                } else {
+                    var resultsEl = editForm.querySelector('#results');
+                    if (resultsEl) {
+                        resultsEl.innerHTML = '';
+                        Object.values(resp.errors || {}).forEach(function (msg) {
+                            var d = document.createElement('div');
+                            d.className = 'alert alert-danger py-1 px-2 mt-1';
+                            d.style.fontSize = '0.85rem';
+                            d.textContent = Array.isArray(msg) ? msg.join(', ') : msg;
+                            resultsEl.appendChild(d);
+                        });
+                    } else {
+                        alert(JSON.stringify(resp.errors));
+                    }
+                }
+            })
+            .catch(function () {
+                if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Submit'; }
+                alert('Network error. Please try again.');
+            });
+        });
+    }
+
+    // ── IP Addresses modal ───────────────────────────────────────────────────
+    var addrBtn = document.querySelector('.addresses-user');
+    if (addrBtn) {
+        addrBtn.addEventListener('click', function () {
+            if (window.jQuery) { $('#user-addresses-modal').modal('show'); }
+        });
+    }
+
+    // ── Change Contest Role ───────────────────────────────────────────────────
+    var roleSelect = document.getElementById('contest-role-select');
+    var roleMsg    = document.getElementById('role-save-msg');
+
+    if (roleSelect) {
+        roleSelect.addEventListener('change', function () {
+            var newRole = roleSelect.value;
+            roleMsg.textContent = 'Saving…';
+            roleMsg.style.color = '#6c757d';
+
+            fetch('/admin/contests/' + CONTEST_ID + '/users/' + USER_ID + '/role', {
+                method: 'PATCH',
+                headers: csrfHeaders(),
+                body: JSON.stringify({ role: newRole })
+            })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (data.success) {
+                    roleMsg.textContent = '✔ Role updated';
+                    roleMsg.style.color = '#28a745';
+                    setTimeout(function () {
+                        roleMsg.textContent = '';
+                        window.location.reload();
+                    }, 800);
+                } else {
+                    roleMsg.textContent = '✘ ' + (data.errors ? Object.values(data.errors).flat().join(', ') : 'Error');
+                    roleMsg.style.color = '#dc3545';
+                }
+            })
+            .catch(function () {
+                roleMsg.textContent = '✘ Network error';
+                roleMsg.style.color = '#dc3545';
+            });
+        });
+    }
+
+    // ── Remove from Contest ───────────────────────────────────────────────────
+    var removeBtn = document.querySelector('.remove-contest-user');
+    if (removeBtn) {
+        removeBtn.addEventListener('click', function () {
+            if (!confirm('Remove ' + {{ user.name | tojson }} + ' from this contest?\n\nTheir global account will NOT be deleted.')) {
+                return;
+            }
+            fetch('/admin/contests/' + CONTEST_ID + '/users/' + USER_ID, {
+                method: 'DELETE',
+                headers: csrfHeaders()
+            })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (data.success) {
+                    window.location.href = '{{ url_for("admin.contest_users", contest_id=contest.id) }}';
+                } else {
+                    alert((data.errors ? Object.values(data.errors).flat().join('\n') : 'Error removing user'));
+                }
+            })
+            .catch(function () { alert('Network error. Please try again.'); });
+        });
+    }
+
+})();
+</script>
+{{ Assets.js("assets/js/pages/user.js", theme="admin") }}
+{% endblock %}

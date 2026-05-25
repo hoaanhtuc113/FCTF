@@ -259,6 +259,33 @@ class KypoService:
         )
         resp.raise_for_status()
 
+    def delete_sandbox_definition(self, definition_id: int) -> None:
+        """
+        Delete a sandbox definition from KYPO.
+        DELETE /sandbox-service/api/v1/definitions/{id}
+        """
+        resp = requests.delete(
+            self._url(f"/sandbox-service/api/v1/definitions/{definition_id}"),
+            headers=self._headers(),
+            verify=False,
+            timeout=15,
+        )
+        resp.raise_for_status()
+
+    def get_definition_topology(self, definition_id: int) -> dict:
+        """
+        Fetch topology data of a sandbox definition.
+        GET /sandbox-service/api/v1/definitions/{id}/topology
+        """
+        resp = requests.get(
+            self._url(f"/sandbox-service/api/v1/definitions/{definition_id}/topology"),
+            headers=self._headers(),
+            verify=False,
+            timeout=15,
+        )
+        resp.raise_for_status()
+        return resp.json()
+
 
 # Singleton — shared across the entire application
 kypo_service = KypoService()
