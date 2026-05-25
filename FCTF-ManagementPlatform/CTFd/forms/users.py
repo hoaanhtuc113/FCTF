@@ -186,8 +186,6 @@ class UserBaseForm(BaseForm):
         choices=[
             ("user", "User"),
             ("admin", "Admin"),
-            ("challenge_writer", "Challenge Writer"),
-            ("jury","Jury"),
         ],
     )
     verified = BooleanField("Verified")

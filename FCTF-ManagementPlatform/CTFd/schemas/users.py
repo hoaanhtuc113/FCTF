@@ -39,6 +39,16 @@ class UserSchema(ma.ModelSchema):
     )
     password = field_for(Users, "password", required=True, allow_none=False)
     bracket_id = field_for(Users, "bracket_id")
+    type = field_for(
+        Users,
+        "type",
+        validate=validate.OneOf(
+            ["user", "admin"],
+            error="User type must be either 'user' or 'admin'. "
+                  "Contest-level roles (contestant, jury, challenge_writer) "
+                  "are assigned per-contest via contest participants.",
+        ),
+    )
     fields = Nested(
         UserFieldEntriesSchema, partial=True, many=True, attribute="field_entries"
     )
