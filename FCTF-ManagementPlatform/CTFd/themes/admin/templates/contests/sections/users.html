@@ -162,9 +162,6 @@
     <!-- Action buttons -->
     <div class="d-flex justify-content-between align-items-center action-buttons mt-2">
         <div class="d-flex gap-2" style="gap:0.5rem;">
-            <button type="button" class="clean-btn clean-btn-primary" id="btn-create-user" data-toggle="modal" data-target="#create-user-modal">
-                <i class="fas fa-user-plus"></i> Create User
-            </button>
             <button type="button" class="clean-btn btn-outline-info" id="btn-add-existing-user">
                 <i class="fas fa-user-check"></i> Add Existing User
             </button>
@@ -322,23 +319,6 @@
     <input type="hidden" id="contest-id" value="{{ contest.id }}">
 </div>
 
-<!-- ── Create User Modal ────────────────────────────────────────────── -->
-<div id="create-user-modal" class="modal fade">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 class="text-center w-100">Create User</h2>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
-            </div>
-            <div class="modal-body clearfix">
-                {% include "admin/modals/users/create.html" %}
-            </div>
-        </div>
-    </div>
-</div>
-
 <!-- ── Edit Users Modal ─────────────────────────────────────────────── -->
 <div id="edit-users-modal" class="modal fade" tabindex="-1" role="dialog">
     <div class="modal-dialog" role="document">
@@ -493,82 +473,6 @@
 {% block contest_scripts %}
 <script>
 (function() {
-// ── Create User Modal ──────────────────────────────────────────────────────
-const createUserModal     = document.getElementById('create-user-modal');
-const createUserOpenBtn   = document.getElementById('btn-create-user');
-const createUserForm      = document.getElementById('user-info-create-form');
-
-function openCreateUserModal() {
-    if (createUserForm) createUserForm.reset();
-    const results = createUserForm && createUserForm.querySelector('#results');
-    if (results) results.innerHTML = '';
-}
-
-if (createUserOpenBtn)  createUserOpenBtn.addEventListener('click', openCreateUserModal);
-if (window.jQuery && createUserModal) {
-    $(createUserModal).on('show.bs.modal', openCreateUserModal);
-}
-
-if (createUserForm) {
-    createUserForm.addEventListener('submit', function(e) {
-        e.preventDefault();
-        const formData = new FormData(createUserForm);
-        const params = {};
-        params.fields = [];
-        formData.forEach(function(value, key) {
-            if (key === 'notify') return;
-            if (key.match(/fields\[\d+\]/)) {
-                const id = parseInt(key.slice(7, -1));
-                params.fields.push({ field_id: id, value: value });
-            } else {
-                const el = createUserForm.elements[key];
-                params[key] = (el && el.type === 'checkbox') ? el.checked : value;
-            }
-        });
-        params.contest_id = {{ contest.id }};
-
-        const notifyEl = createUserForm.elements['notify'];
-        let url = '/api/v1/users';
-        if (notifyEl && notifyEl.checked) url += '?notify=true';
-
-        const submitBtn = createUserForm.querySelector('[type=submit]');
-        if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Creating…'; }
-
-        fetch(url, {
-            method: 'POST',
-            credentials: 'same-origin',
-            headers: csrfHeaders(),
-            body: JSON.stringify(params),
-        })
-        .then(r => r.json())
-        .then(function(response) {
-            if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Create'; }
-            const results = createUserForm.querySelector('#results');
-            if (results) results.innerHTML = '';
-            if (response.success) {
-                if (window.jQuery && createUserModal) {
-                    $(createUserModal).modal('hide');
-                }
-                window.location.reload();
-            } else {
-                if (results) {
-                    Object.values(response.errors).forEach(function(msg) {
-                        const badge = document.createElement('div');
-                        badge.className = 'alert alert-danger py-1 px-2 mt-1';
-                        badge.style.fontSize = '0.85rem';
-                        badge.textContent = msg;
-                        results.appendChild(badge);
-                    });
-                }
-            }
-        })
-        .catch(function() {
-            if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Create'; }
-            alert('Network error. Please try again.');
-        });
-    });
-}
-
 // ── Helpers ────────────────────────────────────────────────────────────────
 function csrfHeaders() {
     return {
