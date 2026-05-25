@@ -110,7 +110,7 @@
         <div class="row no-gutters align-items-end">
             <div class="col-md-2 px-1">
                 <label>Lock Status</label>
-                <select id="pool-lock-filter" class="clean-form-control ss-select w-100" onchange="applyFilters()">
+                <select id="pool-lock-filter" class="clean-form-control w-100" onchange="applyFilters()">
                     <option value="">All</option>
                     <option value="locked">Locked</option>
                     <option value="unlocked">Unlocked</option>
@@ -118,7 +118,8 @@
             </div>
             <div class="col-md-2 px-1">
                 <label>Search Field</label>
-                <select id="pool-search-field" class="clean-form-control ss-select w-100">
+                <select id="pool-search-field" class="clean-form-control w-100">
+                    <option value="id">Pool ID</option>
                     <option value="comment">Comment</option>
                     <option value="definition">Definition</option>
                 </select>
@@ -326,24 +327,38 @@ function closeAllActionMenus() {
 document.addEventListener('click', closeAllActionMenus);
 
 // ── Render rows ────────────────────────────────────────────────────────────────
-function renderRows(items) {
+function renderRows(items, isFiltered) {
     var tbody = document.getElementById('pools-tbody');
     if (!items.length) {
-        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4"><i class="bx bx-info-circle"></i> No pools found for this contest.</td></tr>';
+        var msg = isFiltered
+            ? '<i class="bx bx-search-alt"></i> No pools match the search criteria.'
+            : '<i class="bx bx-info-circle"></i> No pools found for this contest.';
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">' + msg + '</td></tr>';
         document.getElementById('pool-pagination').textContent = '';
         return;
     }
     tbody.innerHTML = items.map(function(p) {
         var pid = p.kypo_pool_id;
+        var commentHtml = p._comment !== undefined ? (p._comment || '&mdash;') : '<span class="text-muted">&mdash;</span>';
+        var defHtml = p._defName || '<span class="text-muted">&mdash;</span>';
+        var used = p._used !== undefined ? p._used : 0;
+        var maxSize = p._maxSize !== undefined ? p._maxSize : 0;
+        var pct = maxSize > 0 ? Math.round(used / maxSize * 100) : 0;
+        var sizeHtml = p._used !== undefined ? '<strong>' + used + ' / ' + maxSize + '</strong>' : '&mdash;';
+        var lockHtml = p._locked !== undefined
+            ? (p._locked
+                ? '<span class="clean-badge clean-badge-warning"><i class="fas fa-lock"></i> Locked</span>'
+                : '<span class="clean-badge clean-badge-secondary"><i class="fas fa-lock-open"></i> Unlocked</span>')
+            : '<span class="text-muted">&mdash;</span>';
         return '<tr>' +
             '<td class="text-center"><code>' + pid + '</code></td>' +
-            '<td class="text-center" id="pool-comment-' + pid + '"><span class="text-muted">&mdash;</span></td>' +
-            '<td class="text-center" id="pool-def-' + pid + '"><span class="text-muted">&mdash;</span></td>' +
+            '<td class="text-center" id="pool-comment-' + pid + '">' + commentHtml + '</td>' +
+            '<td class="text-center" id="pool-def-' + pid + '">' + defHtml + '</td>' +
             '<td class="text-center">' +
-            '  <span id="pool-size-' + pid + '">&mdash;</span>' +
-            '  <div class="pool-bar"><div class="pool-bar-fill" id="pool-bar-' + pid + '" style="width:0%"></div></div>' +
+            '  <span id="pool-size-' + pid + '">' + sizeHtml + '</span>' +
+            '  <div class="pool-bar"><div class="pool-bar-fill" id="pool-bar-' + pid + '" style="width:' + pct + '%"></div></div>' +
             '</td>' +
-            '<td class="text-center" id="pool-lock-' + pid + '"><span class="text-muted">&mdash;</span></td>' +
+            '<td class="text-center" id="pool-lock-' + pid + '">' + lockHtml + '</td>' +
             '<td class="text-center">' +
             '  <div class="action-dropdown">' +
             '    <button type="button" class="clean-btn clean-action-btn-sm" onclick="toggleActionMenu(this,event)">Actions <i class="fas fa-chevron-down" style="font-size:.7rem"></i></button>' +
@@ -362,7 +377,6 @@ function renderRows(items) {
             '</tr>';
     }).join('');
     document.getElementById('pool-pagination').textContent = 'Page 1 of 1 • ' + items.length + ' total';
-    items.forEach(function(p) { loadPoolDetail(p.kypo_pool_id); });
 }
 
 // ── Load Pools ─────────────────────────────────────────────────────────────────
@@ -379,7 +393,8 @@ async function loadPools() {
             return;
         }
         _allPools = json.data || [];
-        renderRows(_allPools);
+        await Promise.all(_allPools.map(function(p) { return loadPoolDetail(p.kypo_pool_id); }));
+        renderRows(_allPools, false);
     } catch(e) {
         tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">Connection error: ' + e.message + '</td></tr>';
     }
@@ -398,20 +413,21 @@ function applyFilters() {
         }
         if (text) {
             var val = '';
-            if (field === 'comment') val = (p._comment || '').toLowerCase();
+            if (field === 'id') val = String(p.kypo_pool_id || '');
+            else if (field === 'comment') val = (p._comment || '').toLowerCase();
             else if (field === 'definition') val = (p._defName || '').toLowerCase();
             if (!val.includes(text)) return false;
         }
         return true;
     });
-    renderRows(filtered);
+    renderRows(filtered, !!(lockFilter || text));
 }
 
 function clearFilters() {
     document.getElementById('pool-lock-filter').value = '';
-    document.getElementById('pool-search-field').value = 'comment';
+    document.getElementById('pool-search-field').value = 'id';
     document.getElementById('pool-search-text').value = '';
-    renderRows(_allPools);
+    renderRows(_allPools, false);
 }
 
 async function loadPoolDetail(pid) {
@@ -446,6 +462,8 @@ async function loadPoolDetail(pid) {
             poolObj._locked = !!d.lock_id;
             poolObj._comment = d.comment || '';
             poolObj._defName = d.definition ? d.definition.name : '';
+            poolObj._used = d.size || 0;
+            poolObj._maxSize = d.max_size || 0;
         }
     } catch(e) {}
 }

@@ -39,14 +39,6 @@ public class TokenAuthenticationMiddleware
                     return;
                 }
 
-                var teamIdStr = context.User.FindFirstValue("teamId");
-                if (string.IsNullOrEmpty(teamIdStr) || !int.TryParse(teamIdStr, out var claimTeamId))
-                {
-                    context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-                    await context.Response.WriteAsync("Invalid user token.");
-                    return;
-                }
-
                 // Try read from Redis cache first
                 var cacheKey = $"auth:user:{id}";
                 AuthInfoCacheDTO? authInfoCache = null;
@@ -67,14 +59,6 @@ public class TokenAuthenticationMiddleware
                     {
                         context.Response.StatusCode = StatusCodes.Status401Unauthorized;
                         await context.Response.WriteAsync("Invalid user token");
-                        return;
-                    }
-
-                    var cachedTeamId = authInfoCache.TeamId ?? 0;
-                    if (cachedTeamId != claimTeamId)
-                    {
-                        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-                        await context.Response.WriteAsync("Invalid user token.");
                         return;
                     }
 
@@ -119,14 +103,10 @@ public class TokenAuthenticationMiddleware
                         u.Verified,
                         u.Banned,
                         u.Hidden,
-                        TeamId = db.UserTeamMembers
-                            .Where(m => m.UserId == u.Id)
-                            .Select(m => (int?)m.TeamId)
-                            .FirstOrDefault(),
+                        // TeamBanned: user is banned if ANY of their teams is banned
                         TeamBanned = db.UserTeamMembers
                             .Where(m => m.UserId == u.Id)
-                            .Select(m => (bool?)m.Team.Banned)
-                            .FirstOrDefault(),
+                            .Any(m => m.Team.Banned == true),
                         TokenValueFromDb = db.Tokens
                             .Where(t => t.UserId == id && t.Type == Enums.UserType.User)
                             .Select(t => t.Value)
@@ -146,14 +126,6 @@ public class TokenAuthenticationMiddleware
                 {
                     context.Response.StatusCode = StatusCodes.Status401Unauthorized;
                     await context.Response.WriteAsync("Invalid user token");
-                    return;
-                }
-
-                var dbTeamId = authInfo.TeamId ?? 0;
-                if (dbTeamId != claimTeamId)
-                {
-                    context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-                    await context.Response.WriteAsync("Invalid user token.");
                     return;
                 }
 
@@ -191,7 +163,6 @@ public class TokenAuthenticationMiddleware
                     var dto = new AuthInfoCacheDTO
                     {
                         TokenValueFromDb = authInfo.TokenValueFromDb,
-                        TeamId = authInfo.TeamId,
                         Verified = authInfo.Verified,
                         Banned = authInfo.Banned,
                         Hidden = authInfo.Hidden,
@@ -225,7 +196,6 @@ public class TokenAuthenticationMiddleware
     private class AuthInfoCacheDTO
     {
         public string? TokenValueFromDb { get; set; }
-        public int? TeamId { get; set; }
         public bool? Verified { get; set; }
         public bool? Banned { get; set; }
         public bool? Hidden { get; set; }
