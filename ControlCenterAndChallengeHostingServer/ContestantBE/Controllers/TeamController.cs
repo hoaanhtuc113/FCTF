@@ -19,21 +19,21 @@ public class TeamController : BaseController
     }
 
     [HttpGet("contestant")]
-    public async Task<IActionResult> GetScoreTeam()
+    public async Task<IActionResult> GetScoreTeam([FromRoute] int contestId)
     {
         var userId = UserContext.UserId;
-        var teamScore = await _teamService.GetTeamScore(userId);
+        var teamScore = await _teamService.GetTeamScore(userId, contestId);
         if (teamScore == null) return NotFound(new { success = false, message = "Team not found" });
 
         return Ok(new { success = true, data = teamScore });
     }
 
     [HttpGet("solves")]
-    public async Task<IActionResult> GetSolvesTeam()
+    public async Task<IActionResult> GetSolvesTeam([FromRoute] int contestId)
     {
         var userId = UserContext.UserId;
 
-        var solves = await _teamService.GetTeamSolves(userId);
+        var solves = await _teamService.GetTeamSolves(userId, contestId);
         return Ok(new { success = true, data = solves, meta = new { count = solves.Count } });
     }
 }

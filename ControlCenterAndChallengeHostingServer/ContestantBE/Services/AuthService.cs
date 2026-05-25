@@ -602,11 +602,6 @@ public class AuthService : IAuthService
             {
                 return BaseResponseDTO<AuthResponseDTO>.Fail("Your account is not allowed");
             }
-            var userTeam = user.TeamMemberships.FirstOrDefault()?.Team;
-            if (userTeam?.Banned ?? false)
-            {
-                return BaseResponseDTO<AuthResponseDTO>.Fail("Your team has been banned");
-            }
             var dateTime = DateTime.Now.AddDays(1);
             var jwt = await _tokenHelper.GenerateUserToken(user, dateTime, "Login token");
 
@@ -652,13 +647,6 @@ public class AuthService : IAuthService
                 id = user.Id,
                 username = user.Name ?? string.Empty,
                 email = user.Email ?? string.Empty,
-                team = userTeam == null
-                    ? null
-                    : new TeamResponse
-                    {
-                        id = userTeam.Id,
-                        teamName = userTeam.Name ?? string.Empty
-                    },
                 token = jwt
             };
 

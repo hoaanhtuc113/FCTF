@@ -13,5 +13,4 @@ public class UserContext : IUserContext
     }
 
     public int UserId => int.Parse(_httpContextAccessor.HttpContext!.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-    public int TeamId => int.Parse(_httpContextAccessor.HttpContext!.User.FindFirstValue("teamId")!);
 }

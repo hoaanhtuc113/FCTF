@@ -42,7 +42,12 @@ public class ScoreboardController : BaseController
                 // If bracket_view_other is disabled, restrict to user's own bracket
                 if (!_configHelper.GetConfig<bool>("bracket_view_other"))
                 {
-                    var team = await _context.Teams.FindAsync(UserContext.TeamId);
+                    var userId = UserContext.UserId;
+                    var user = await _context.Users
+                        .Include(u => u.TeamMemberships).ThenInclude(m => m.Team)
+                        .AsNoTracking()
+                        .FirstOrDefaultAsync(u => u.Id == userId);
+                    var team = GetUserTeamForContest(user, contestId);
                     bracket_id = team?.BracketId;
                 }
                 break;

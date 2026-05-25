@@ -17,10 +17,10 @@ namespace ContestantBE.Services;
 
 public interface IChallengeService
 {
-    Task<ChallengeDeployResponeDTO> ChallengeStart(Challenge challenge, User user, int? deploymentTeamId = null);
-    Task<ChallengeDeployResponeDTO> ForceStopChallenge(int challengeId, User user);
+    Task<ChallengeDeployResponeDTO> ChallengeStart(Challenge challenge, User user, int contestId, int? deploymentTeamId = null);
+    Task<ChallengeDeployResponeDTO> ForceStopChallenge(int challengeId, User user, int contestId);
     Task<ChallengeDeployResponeDTO> CheckChallengeStart(int challengeId, int teamId);
-    Task<BaseResponseDTO<ChallengeByIdDTO>> GetById(int challengeId, User user);
+    Task<BaseResponseDTO<ChallengeByIdDTO>> GetById(int challengeId, User user, int contestId);
     Task<List<TopicDTO>> GetTopic(User user, int contestId);
     Task<List<ChallengeByCategoryDTO>> GetChallengeByCategories(string cacategory_name, int? team_id, int contestId);
     Task<List<ChallengeInstanceDTO>> GetAllInstances(int teamId);
@@ -96,10 +96,12 @@ public class ChallengeService : IChallengeService
         return true;
     }
 
-    public async Task<BaseResponseDTO<ChallengeByIdDTO>> GetById(int challengeId, User user)
+    public async Task<BaseResponseDTO<ChallengeByIdDTO>> GetById(int challengeId, User user, int contestId)
     {
-        var teamId = (int?)user.TeamMemberships.FirstOrDefault()?.TeamId;
-        var userTeam = user.TeamMemberships.FirstOrDefault()?.Team;
+        var userTeam = user.TeamMemberships
+            .Select(m => m.Team)
+            .FirstOrDefault(t => t.ContestId == contestId);
+        var teamId = (int?)userTeam?.Id;
 
         var challenge = await _dbContext.Challenges
             .AsNoTracking()
@@ -370,7 +372,10 @@ public class ChallengeService : IChallengeService
 
     public async Task<List<TopicDTO>> GetTopic(User user, int contestId)
     {
-        var teamId = (int?)user.TeamMemberships.FirstOrDefault()?.TeamId;
+        var teamId = (int?)user.TeamMemberships
+            .Select(m => m.Team)
+            .FirstOrDefault(t => t.ContestId == contestId)
+            ?.Id;
 
         var challengeStats = await _dbContext.Challenges
             .AsNoTracking()
@@ -417,10 +422,12 @@ public class ChallengeService : IChallengeService
         return topics;
     }
 
-    public async Task<ChallengeDeployResponeDTO> ChallengeStart(Challenge challenge, User user, int? deploymentTeamId = null)
+    public async Task<ChallengeDeployResponeDTO> ChallengeStart(Challenge challenge, User user, int contestId, int? deploymentTeamId = null)
     {
-        var userTeamId = user.TeamMemberships.FirstOrDefault()?.TeamId
-            ?? throw new InvalidOperationException("User has no team");
+        var userTeamId = user.TeamMemberships
+            .Select(m => m.Team)
+            .FirstOrDefault(t => t.ContestId == contestId)?.Id
+            ?? throw new InvalidOperationException("User has no team in this contest");
         var teamId = deploymentTeamId ?? userTeamId;
         try
         {
@@ -487,7 +494,7 @@ public class ChallengeService : IChallengeService
         }
         catch (TaskCanceledException ex)
         {
-            _logger.LogError(ex, user?.Id, (int?)user?.TeamMemberships.FirstOrDefault()?.TeamId, new { challengeId = challenge.Id });
+            _logger.LogError(ex, user?.Id, null, new { challengeId = challenge.Id });
             return new ChallengeDeployResponeDTO
             {
                 status = (int)HttpStatusCode.GatewayTimeout,
@@ -497,7 +504,7 @@ public class ChallengeService : IChallengeService
         }
         catch (TimeoutException ex)
         {
-            _logger.LogError(ex, user?.Id, (int?)user?.TeamMemberships.FirstOrDefault()?.TeamId, new { challengeId = challenge.Id });
+            _logger.LogError(ex, user?.Id, null, new { challengeId = challenge.Id });
             return new ChallengeDeployResponeDTO
             {
                 status = (int)HttpStatusCode.GatewayTimeout,
@@ -507,7 +514,7 @@ public class ChallengeService : IChallengeService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, user?.Id, (int?)user?.TeamMemberships.FirstOrDefault()?.TeamId, new { challengeId = challenge.Id });
+            _logger.LogError(ex, user?.Id, null, new { challengeId = challenge.Id });
             return new ChallengeDeployResponeDTO
             {
                 status = (int)HttpStatusCode.InternalServerError,
@@ -517,16 +524,19 @@ public class ChallengeService : IChallengeService
         }
     }
 
-    public async Task<ChallengeDeployResponeDTO> ForceStopChallenge(int challengeId, User user)
+    public async Task<ChallengeDeployResponeDTO> ForceStopChallenge(int challengeId, User user, int contestId)
     {
-        var teamId = (int?)user?.TeamMemberships.FirstOrDefault()?.TeamId;
+        var teamId = (int?)user?.TeamMemberships
+            .Select(m => m.Team)
+            .FirstOrDefault(t => t.ContestId == contestId)
+            ?.Id;
         if (teamId == null)
         {
             return new ChallengeDeployResponeDTO
             {
                 status = (int)HttpStatusCode.BadRequest,
                 success = false,
-                message = "User team not found"
+                message = "User team not found in this contest"
             };
         }
 
@@ -617,7 +627,7 @@ public class ChallengeService : IChallengeService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, user?.Id, (int?)user?.TeamMemberships.FirstOrDefault()?.TeamId, new { challengeId });
+            _logger.LogError(ex, user?.Id, null, new { challengeId });
             return new ChallengeDeployResponeDTO
             {
                 status = (int)HttpStatusCode.InternalServerError,

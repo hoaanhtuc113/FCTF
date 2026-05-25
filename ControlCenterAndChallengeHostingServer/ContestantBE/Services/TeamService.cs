@@ -24,14 +24,14 @@ public class TeamService : ITeamService
         _logger = logger;
     }
 
-    public async Task<TeamScoreDTO?> GetTeamScore(int userId)
+    public async Task<TeamScoreDTO?> GetTeamScore(int userId, int contestId)
     {
         try
         {
             var team = await _context.Teams
                 .AsNoTracking()
                 .Include(t => t.Members).ThenInclude(m => m.User)
-                .FirstOrDefaultAsync(t => t.Members.Any(m => m.UserId == userId));
+                .FirstOrDefaultAsync(t => t.ContestId == contestId && t.Members.Any(m => m.UserId == userId));
             var bracketId = team?.BracketId;
             if (team == null) return null;
 
@@ -52,13 +52,13 @@ public class TeamService : ITeamService
 
             var challenges = await _context.Challenges
                 .AsNoTracking()
-                .Where(c => c.State == "visible")
+                .Where(c => c.ContestId == contestId && c.State == "visible")
                 .Select(c => new { c.Value })
                 .ToListAsync();
 
             var totalTeamsQuery = _context.Teams
                 .AsNoTracking()
-                .Where(t => t.Banned == false && t.Hidden == false);
+                .Where(t => t.ContestId == contestId && t.Banned == false && t.Hidden == false);
             if (bracketId.HasValue)
                 totalTeamsQuery = totalTeamsQuery.Where(t => t.BracketId == bracketId.Value);
             var totalTeams = await totalTeamsQuery.CountAsync();
@@ -80,14 +80,14 @@ public class TeamService : ITeamService
         }
     }
 
-    public async Task<List<SubmissionDto>> GetTeamSolves(int userId)
+    public async Task<List<SubmissionDto>> GetTeamSolves(int userId, int contestId)
     {
         try
         {
             var team = await _context.Teams
                 .AsNoTracking()
                 .Include(t => t.Members).ThenInclude(m => m.User)
-                .FirstOrDefaultAsync(t => t.Members.Any(m => m.UserId == userId));
+                .FirstOrDefaultAsync(t => t.ContestId == contestId && t.Members.Any(m => m.UserId == userId));
 
             if (team == null) return [];
 

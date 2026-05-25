@@ -26,16 +26,10 @@ namespace ResourceShared.Utils
             // Tạo UUID unique cho mỗi lần login
             var tokenUuid = Guid.NewGuid().ToString();
 
-            var teamId = await _context.UserTeamMembers
-                .AsNoTracking()
-                .Where(m => m.UserId == user.Id)
-                .Select(m => m.TeamId)
-                .FirstOrDefaultAsync();
-
+            // JWT chỉ chứa userId. teamId được resolve per-request từ contestId trên route.
             AuthInfo authInfo = new()
             {
-                userId = user.Id,
-                teamId = teamId
+                userId = user.Id
             };
             var jwt = CreateToken(authInfo, tokenUuid, expireMinutes: 60 * 24 * 7); // 7 days
 

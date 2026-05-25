@@ -33,7 +33,7 @@ public class AuthController : BaseController
                 message = result.Message,
             });
         }
-        _userBehaviorLogger.Log("LOGIN", result.Data.id, result.Data.team?.id, result.Data);
+        _userBehaviorLogger.Log("LOGIN", result.Data.id, null, result.Data);
         await Console.Out.WriteLineAsync($"[Auth] Account {loginDto.username} login success");
 
         return Ok(new
@@ -104,11 +104,10 @@ public class AuthController : BaseController
     public async Task<IActionResult> Logout()
     {
         var userId = UserContext.UserId;
-        var teamId = UserContext.TeamId;
 
         var result = await _authService.Logout(userId);
         await Console.Out.WriteLineAsync($"[Auth] Account {userId} logout");
-        _userBehaviorLogger.Log("LOGOUT", userId, teamId, null);
+        _userBehaviorLogger.Log("LOGOUT", userId, null, null);
 
         if (!result.Success)
         {

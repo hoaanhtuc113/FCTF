@@ -27,8 +27,7 @@ public class FilesController : BaseController
     public async Task<IActionResult> GetFile([FromQuery] string path, [FromQuery] string token)
     {
         var userId = UserContext.UserId;
-        var teamId = UserContext.TeamId;
-        _userBehaviorLogger.Log("GET_FILE", userId, teamId, new { file_path = path });
+        _userBehaviorLogger.Log("GET_FILE", userId, null, new { file_path = path });
 
         if (string.IsNullOrWhiteSpace(path))
         {

@@ -30,7 +30,7 @@ public class UsersController : BaseController
         var user = await _context.Users
                          .Include(u => u.TeamMemberships).ThenInclude(m => m.Team)
                          .FirstOrDefaultAsync(u => u.Id == userId);
-        _userBehaviorLogger.Log("GET_PROFILE", userId, UserContext.TeamId, null);
+        _userBehaviorLogger.Log("GET_PROFILE", userId, null, null);
         if (user == null || user is not User currentUser)
         {
             return NotFound(new

@@ -37,42 +37,56 @@ public class HintController : BaseController
 
     [HttpGet("{id}")]
     [DuringCtfTimeAndAfterOnly]
-    public async Task<IActionResult> GetHintById(int id, [FromQuery] bool preview = false)
+    public async Task<IActionResult> GetHintById([FromRoute] int contestId, int id, [FromQuery] bool preview = false)
     {
         var userId = UserContext.UserId;
+        var user = await _context.Users
+            .Include(u => u.TeamMemberships).ThenInclude(m => m.Team)
+            .AsNoTracking()
+            .FirstOrDefaultAsync(u => u.Id == userId);
+        var hintTeamId = GetUserTeamForContest(user, contestId)?.Id;
 
         _userBehaviorLogger.Log(
             "GET_HINT",
             userId,
-            UserContext.TeamId,
+            hintTeamId,
             new { hint_id = id, preview });
 
-        var hint = await _hintService.GetHintById(id, userId, preview);
+        var hint = await _hintService.GetHintById(id, userId, preview, contestId);
         if (hint == null) return NotFound(new { message = "Hint not found" });
         return Ok(new { success = true, data = hint });
     }
 
     [HttpGet("{id}/all")]
     [DuringCtfTimeAndAfterOnly]
-    public async Task<IActionResult> GetHintByChallengeId(int id)
+    public async Task<IActionResult> GetHintByChallengeId([FromRoute] int contestId, int id)
     {
         var userId = UserContext.UserId;
+        var user = await _context.Users
+            .Include(u => u.TeamMemberships).ThenInclude(m => m.Team)
+            .AsNoTracking()
+            .FirstOrDefaultAsync(u => u.Id == userId);
+        var hintTeamId = GetUserTeamForContest(user, contestId)?.Id;
 
-        _userBehaviorLogger.Log("GET_HINTS_BY_CHALLENGE", userId, UserContext.TeamId, new { challenge_id = id });
-        var data = await _hintService.GetHintsByChallengeId(id, userId);
+        _userBehaviorLogger.Log("GET_HINTS_BY_CHALLENGE", userId, hintTeamId, new { challenge_id = id });
+        var data = await _hintService.GetHintsByChallengeId(id, userId, contestId);
         return Ok(new { success = true, hints = data });
     }
 
     [HttpPost("unlock")]
     [DuringCtfTimeOnly]
-    public async Task<IActionResult> PostUnlock([FromBody] UnlockRequestDto req)
+    public async Task<IActionResult> PostUnlock([FromRoute] int contestId, [FromBody] UnlockRequestDto req)
     {
         var userId = UserContext.UserId;
-        var teamId = UserContext.TeamId;
+        var user = await _context.Users
+            .Include(u => u.TeamMemberships).ThenInclude(m => m.Team)
+            .AsNoTracking()
+            .FirstOrDefaultAsync(u => u.Id == userId);
+        var teamId = GetUserTeamForContest(user, contestId)?.Id;
 
-        if (teamId == 0 || userId == 0)
+        if (teamId == null || userId == 0)
         {
-            return Unauthorized(new { success = false, error = "PermisUnlockHintsion denied" });
+            return Unauthorized(new { success = false, error = "User not in a team for this contest" });
         }
         try
         {
@@ -100,7 +114,7 @@ public class HintController : BaseController
 
             await Console.Out.WriteLineAsync($"[Requesst Unlock Hint Challenge] User {userId} : Team {teamId} : Challenge {target.Challenge.Name}");
 
-            var result = await _hintService.UnlockHint(req, userId);
+            var result = await _hintService.UnlockHint(req, userId, contestId);
             if (result == null)
             {
                 return BadRequest(new { success = false, error = "Unable to unlock hint" });
