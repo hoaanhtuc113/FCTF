@@ -8,12 +8,12 @@ namespace ResourceShared.Utils
         public MultiServiceConnector()
         {
         }
-        private static RestClient CreateClient(string baseUrl)
+        private static RestClient CreateClient(string baseUrl, TimeSpan? timeout = null)
         {
             return new RestClient(new RestClientOptions(baseUrl)
             {
                 CookieContainer = new(),
-                Timeout = TimeSpan.FromMinutes(5),
+                Timeout = timeout ?? TimeSpan.FromMinutes(5),
                 RemoteCertificateValidationCallback = (request, certificate, chain, sslPolicyErrors) =>
                 {
                     // Argo server in secure mode commonly uses an internal/self-signed cert.
@@ -182,7 +182,8 @@ namespace ResourceShared.Utils
             string apiPath,
             Method method,
             object body,
-            Dictionary<string, string>? headers = null)
+            Dictionary<string, string>? headers = null,
+            TimeSpan? timeout = null)
         {
             var request = new RestRequest(apiPath, method)
                 .AddHeader("Content-Type", "application/json")
@@ -192,7 +193,9 @@ namespace ResourceShared.Utils
                 foreach (var h in headers)
                     request.AddHeader(h.Key, h.Value);
 
-            var response = await CreateClient(baseUrl).ExecuteAsync(request);
+            var response = await CreateClient(baseUrl, timeout).ExecuteAsync(request);
+            if (response.ResponseStatus == ResponseStatus.TimedOut)
+                throw new TimeoutException($"Request to {baseUrl}{apiPath} timed out.");
             if (!response.IsSuccessful)
                 throw new Exception($"[{(int)response.StatusCode}] {response.StatusDescription}\n{response.Content}");
 

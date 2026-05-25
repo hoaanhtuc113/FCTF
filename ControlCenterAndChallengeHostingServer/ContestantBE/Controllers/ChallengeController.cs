@@ -61,6 +61,13 @@ public class ChallengeController : BaseController
             || message.Contains("constraint", StringComparison.OrdinalIgnoreCase);
     }
 
+    private static Team? GetUserTeamForContest(User? user, int contestId)
+    {
+        return user?.TeamMemberships
+            .Select(m => m.Team)
+            .FirstOrDefault(t => t.ContestId == contestId);
+    }
+
     // Helper method: Increment and check KPM using Redis atomic INCR
     private async Task<(bool exceeded, int current)> CheckAndIncrementKpmAsync(int userId, int limit)
     {
@@ -747,18 +754,20 @@ public class ChallengeController : BaseController
 
     [HttpPost("start")]
     [DuringCtfTimeOnly]
-    public async Task<IActionResult> StartChallenge([FromBody] ChallengeStartStopReqDTO challengeStartReq)
+    public async Task<IActionResult> StartChallenge([FromRoute] int contestId, [FromBody] ChallengeStartStopReqDTO challengeStartReq)
     {
+        if (challengeStartReq == null || challengeStartReq.challengeId <= 0)
+            return BadRequest(new { error = "ChallengeId is required" });
 
         var userId = UserContext.UserId;
-        var teamId = (int?)UserContext.TeamId;
         var user = await _context.Users
             .AsNoTracking()
             .Include(u => u.TeamMemberships).ThenInclude(m => m.Team)
             .FirstOrDefaultAsync(u => u.Id == userId);
-        var userTeam = user?.TeamMemberships.FirstOrDefault()?.Team;
-        if (userTeam == null || teamId == null)
+        var userTeam = GetUserTeamForContest(user, contestId);
+        if (userTeam == null)
             return NotFound(new { error = "Team not found" });
+        var teamId = userTeam.Id;
 
         _userBehaviorLogger.Log("START_CHALLENGE", user!.Id, teamId, new { challengeId = challengeStartReq.challengeId });
         var challenge = await _context.Challenges
@@ -766,6 +775,7 @@ public class ChallengeController : BaseController
             .FirstOrDefaultAsync(c => c.Id == challengeStartReq.challengeId);
 
         if (challenge == null) return NotFound(new { error = "Challenge not found" });
+        if (challenge.ContestId != contestId) return NotFound(new { error = "Challenge not found in this contest" });
         if (!challenge.RequireDeploy) return BadRequest(new { error = "This challenge does not require deploy" });
         if (challenge.State == ChallengeState.HIDDEN) return BadRequest(new { error = "This challenge is not available for deployment" });
 
@@ -864,7 +874,7 @@ public class ChallengeController : BaseController
         // Check limit_challenges - maximum concurrent challenges per team
         var limit_challenges = _configHelper.LimitChallenges();
 
-        var deploymentTeamId = challenge.SharedInstant ? -2 : teamId!.Value;
+        var deploymentTeamId = challenge.SharedInstant ? -2 : teamId;
         var deploymentKey = ChallengeHelper.GetCacheKey(challengeStartReq.challengeId, deploymentTeamId);
         var teamIdStr = deploymentTeamId.ToString();
         var challengeIdStr = challenge.Id.ToString();

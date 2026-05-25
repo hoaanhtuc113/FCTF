@@ -450,7 +450,8 @@ public class ChallengeService : IChallengeService
                 "/api/challenge/start",
                 Method.Post,
                 parammeters,
-                headers);
+                headers,
+                TimeSpan.FromSeconds(15));
 
             if (body == null)
                 return new ChallengeDeployResponeDTO
@@ -482,6 +483,26 @@ public class ChallengeService : IChallengeService
                 status = (int)HttpStatusCode.BadGateway,
                 success = false,
                 message = "Unable to connect to deployment server. Please contact support."
+            };
+        }
+        catch (TaskCanceledException ex)
+        {
+            _logger.LogError(ex, user?.Id, (int?)user?.TeamMemberships.FirstOrDefault()?.TeamId, new { challengeId = challenge.Id });
+            return new ChallengeDeployResponeDTO
+            {
+                status = (int)HttpStatusCode.GatewayTimeout,
+                success = false,
+                message = "Deployment service timed out. Please try again later."
+            };
+        }
+        catch (TimeoutException ex)
+        {
+            _logger.LogError(ex, user?.Id, (int?)user?.TeamMemberships.FirstOrDefault()?.TeamId, new { challengeId = challenge.Id });
+            return new ChallengeDeployResponeDTO
+            {
+                status = (int)HttpStatusCode.GatewayTimeout,
+                success = false,
+                message = "Deployment service timed out. Please try again later."
             };
         }
         catch (Exception ex)
