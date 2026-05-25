@@ -107,6 +107,8 @@ class KypoService:
             verify=False,
             timeout=30,
         )
+        if not resp.ok:
+            current_app.logger.error("KYPO create_sandbox_definition error %s: %s", resp.status_code, resp.text)
         resp.raise_for_status()
         return resp.json()
 

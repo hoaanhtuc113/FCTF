@@ -251,10 +251,21 @@ Override the entire sidebar block with contest-scoped navigation
 
   
 
-    <a href="{{ url_for('admin.kypo_resources', contest_id=contest.id) }}"
-        class="cs-nav-link {% if request.endpoint == 'admin.kypo_resources' %}active{% endif %}">
+    <a href="{{ url_for('admin.kypo_pools', contest_id=contest.id) }}"
+        class="cs-nav-link sub-btn {% if request.endpoint in ['admin.kypo_pools', 'admin.kypo_sandbox_definitions'] %}active{% endif %}">
         <i class="bx bx-chip"></i> KYPO Resources
+        <i class="bx bx-chevron-down ml-auto" style="font-size:1rem;"></i>
     </a>
+    <div class="cs-sub-menu" {% if request.endpoint in ['admin.kypo_pools', 'admin.kypo_sandbox_definitions'] %}style="display:block;"{% endif %}>
+        <a href="{{ url_for('admin.kypo_pools', contest_id=contest.id) }}"
+            class="cs-sub-link {% if request.endpoint == 'admin.kypo_pools' %}active{% endif %}">
+            Pools
+        </a>
+        <a href="{{ url_for('admin.kypo_sandbox_definitions', contest_id=contest.id) }}"
+            class="cs-sub-link {% if request.endpoint == 'admin.kypo_sandbox_definitions' %}active{% endif %}">
+            Sandbox Definitions
+        </a>
+    </div>
 
     <a href="{{ url_for('admin.contest_settings', contest_id=contest.id) }}"
         class="cs-nav-link {% if request.endpoint == 'admin.contest_settings' %}active{% endif %}">
@@ -288,10 +299,9 @@ Override the entire sidebar block with contest-scoped navigation
 
 {% block scripts %}
 <script>
-    // Submissions dropdown toggle
+    // Sidebar dropdown toggle (supports multiple dropdowns)
     document.addEventListener('DOMContentLoaded', function () {
-        var subBtn = document.querySelector('.cs-nav-link.sub-btn');
-        if (subBtn) {
+        document.querySelectorAll('.cs-nav-link.sub-btn').forEach(function (subBtn) {
             subBtn.addEventListener('click', function (e) {
                 e.preventDefault();
                 var menu = subBtn.nextElementSibling;
@@ -300,7 +310,7 @@ Override the entire sidebar block with contest-scoped navigation
                 menu.style.display = isOpen ? 'none' : 'block';
                 subBtn.classList.toggle('open', !isOpen);
             });
-        }
+        });
     });
 </script>
 {% block contest_scripts %}{% endblock %}

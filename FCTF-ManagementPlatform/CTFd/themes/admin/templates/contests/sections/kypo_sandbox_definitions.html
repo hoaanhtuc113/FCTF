@@ -1,0 +1,341 @@
+{% extends "admin/contests/contest_base.html" %}
+
+{% block contest_stylesheets %}
+<style>
+.kypo-status-bar {
+    background: #e8f5e9;
+    border: 1px solid #a5d6a7;
+    border-radius: 6px;
+    padding: 8px 13px;
+    font-size: 13px;
+    color: #2e7d32;
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+}
+.kypo-dot {
+    width: 7px; height: 7px; background: #2e7d32;
+    border-radius: 50%; flex-shrink: 0;
+    animation: kypo-pulse 1.5s infinite;
+}
+@keyframes kypo-pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+.git-url {
+    font-size: 12px; color: #6c757d; font-family: monospace;
+    max-width: 240px; overflow: hidden; text-overflow: ellipsis;
+    white-space: nowrap; display: block;
+}
+
+.kypo-modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,.45); z-index: 1060;
+    align-items: center; justify-content: center;
+}
+.kypo-modal-overlay.show { display: flex; }
+.kypo-modal {
+    background: #fff; border-radius: 12px;
+    width: 540px; max-width: 96vw; max-height: 88vh;
+    overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,.2);
+    animation: kypoSlideUp .18s ease;
+}
+@keyframes kypoSlideUp { from{transform:translateY(14px);opacity:0} to{transform:none;opacity:1} }
+.kypo-modal-hd {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 16px 20px 14px; border-bottom: 1px solid #e8e8e8;
+}
+.kypo-modal-title { font-weight: 700; font-size: 15px; }
+.kypo-modal-title .hl { color: var(--primary-orange); }
+.kypo-modal-close {
+    width: 28px; height: 28px; border-radius: 50%;
+    border: none; background: #f5f5f5; font-size: 16px;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+}
+.kypo-modal-close:hover { background: #fee; color: #c62828; }
+.kypo-modal-body { padding: 18px 20px; }
+.kypo-modal-ft {
+    padding: 14px 20px; border-top: 1px solid #e8e8e8;
+    display: flex; justify-content: flex-end; gap: 8px;
+}
+.kypo-form-group { margin-bottom: 14px; }
+.kypo-form-label { display: block; font-size: 12px; font-weight: 700; margin-bottom: 5px; color: #495057; }
+.kypo-form-control {
+    width: 100%; padding: 8px 10px; border: 1px solid #dee2e6;
+    border-radius: 6px; font-size: 13px; background: #fff; color: #2c3e50;
+    box-sizing: border-box;
+}
+.kypo-form-control:focus { outline: none; border-color: var(--primary-orange); box-shadow: 0 0 0 3px rgba(255,107,53,.12); }
+.kypo-form-hint { font-size: 11px; color: #6c757d; margin-top: 4px; }
+.kypo-info-box {
+    background: #e3f2fd; border: 1px solid #90caf9;
+    border-radius: 6px; padding: 9px 12px; font-size: 11px;
+    color: #1565c0; margin-bottom: 14px; line-height: 1.5;
+}
+.kypo-row { display: flex; gap: 12px; }
+.kypo-col { flex: 1; min-width: 0; }
+
+#kypo-toast {
+    position: fixed; bottom: 18px; right: 18px; z-index: 9999;
+    background: #333; color: #fff; padding: 10px 16px;
+    border-radius: 8px; font-size: 12px; display: none;
+    max-width: 340px; box-shadow: 0 4px 12px rgba(0,0,0,.2);
+}
+</style>
+{% endblock %}
+
+{% block contest_content %}
+<div class="page-header">
+    <div class="container">
+        <h1><i class="bx bx-git-branch"></i> Sandbox Definitions
+            <small class="text-muted ml-2" style="font-size:0.75rem;font-weight:400;">{{ contest.name }}</small>
+        </h1>
+    </div>
+</div>
+
+<div class="container">
+
+    <!-- Filter bar -->
+    <div class="clean-search-container">
+        <div class="row no-gutters align-items-end">
+            <div class="col-md-2 px-1">
+                <label>State</label>
+                <select id="def-state-filter" class="clean-form-control ss-select w-100" onchange="applyFilters()">
+                    <option value="">All States</option>
+                    <option value="READY">Ready</option>
+                    <option value="OTHER">Other</option>
+                </select>
+            </div>
+            <div class="col-md-2 px-1">
+                <label>Search Field</label>
+                <select id="def-search-field" class="clean-form-control ss-select w-100">
+                    <option value="name">Name</option>
+                    <option value="url">Git URL</option>
+                    <option value="rev">Branch</option>
+                </select>
+            </div>
+            <div class="col-md-6 px-1">
+                <label>Search Text</label>
+                <input type="text" id="def-search-text" class="clean-form-control w-100"
+                    placeholder="Search definitions..." onkeyup="if(event.key==='Enter') applyFilters()">
+            </div>
+            <div class="col-md-2 px-1 d-flex">
+                <button type="button" class="clean-btn clean-btn-primary flex-grow-1 mr-1" onclick="applyFilters()">
+                    <i class="fas fa-search"></i> Search
+                </button>
+                <button type="button" class="clean-btn btn-outline-secondary" onclick="clearFilters()" title="Reset">
+                    <i class="fas fa-sync-alt"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center action-buttons mt-3">
+        <div>
+            <button class="clean-btn clean-btn-primary" onclick="openModal('modal-create-def')">
+                <i class="fas fa-plus"></i> Create Definition
+            </button>
+        </div>
+        <div>
+            <button class="clean-btn" onclick="loadDefinitions()" title="Refresh list">
+                <i class="fas fa-sync-alt"></i> Refresh
+            </button>
+        </div>
+    </div>
+
+    <div class="clean-table-wrapper mt-2">
+        <table class="clean-table table">
+            <thead>
+                <tr>
+                    <th class="text-center"><b>KYPO ID</b></th>
+                    <th class="text-center"><b>Name</b></th>
+                    <th class="text-center"><b>Git URL</b></th>
+                    <th class="text-center"><b>Branch</b></th>
+                    <th class="text-center"><b>State</b></th>
+                </tr>
+            </thead>
+            <tbody id="defs-tbody">
+                <tr>
+                    <td colspan="5" class="text-center text-muted py-4">
+                        <i class="bx bx-loader-alt bx-spin"></i> Loading...
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    <div id="def-pagination" class="mt-2" style="font-size:13px;color:var(--text-light)"></div>
+
+</div>
+
+<!-- Modal: Create Sandbox Definition -->
+<div class="kypo-modal-overlay" id="modal-create-def" onclick="overlayClose(event,'modal-create-def')">
+    <div class="kypo-modal">
+        <div class="kypo-modal-hd">
+            <div class="kypo-modal-title">&#128230; Create <span class="hl">Sandbox Definition</span></div>
+            <button class="kypo-modal-close" onclick="closeModal('modal-create-def')">&times;</button>
+        </div>
+        <div class="kypo-modal-body">
+            <div class="kypo-info-box">
+                &#8505; KYPO will clone the repository and build the sandbox environment.
+                Make sure the repo contains a <code>topology.yml</code> file.
+            </div>
+            <div class="kypo-form-group">
+                <label class="kypo-form-label">Git Repository URL *</label>
+                <input class="kypo-form-control" id="def-git-url" type="url"
+                    placeholder="https://github.com/org/sandbox-lab.git">
+            </div>
+            <div class="kypo-row">
+                <div class="kypo-col">
+                    <div class="kypo-form-group">
+                        <label class="kypo-form-label">Branch / Tag *</label>
+                        <input class="kypo-form-control" id="def-git-revision" type="text" value="main">
+                    </div>
+                </div>
+                <div class="kypo-col">
+                    <div class="kypo-form-group">
+                        <label class="kypo-form-label">Display Name</label>
+                        <input class="kypo-form-control" id="def-name" type="text"
+                            placeholder="Auto-detected from repo name">
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="kypo-modal-ft">
+            <button class="clean-btn" onclick="closeModal('modal-create-def')">Cancel</button>
+            <button class="clean-btn clean-btn-primary" onclick="submitCreateDefinition()">&#10003; Create</button>
+        </div>
+    </div>
+</div>
+
+<div id="kypo-toast"></div>
+{% endblock %}
+
+{% block contest_scripts %}
+<script>
+const CSRF_TOKEN = init.csrfNonce;
+
+var _allDefinitions = [];
+
+// ── Modal helpers ──────────────────────────────────────────────────────────────
+function openModal(id) { document.getElementById(id).classList.add('show'); }
+function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+function overlayClose(e, id) { if (e.target === e.currentTarget) closeModal(id); }
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        document.querySelectorAll('.kypo-modal-overlay.show').forEach(function(m) { m.classList.remove('show'); });
+    }
+});
+
+// ── Toast ──────────────────────────────────────────────────────────────────────
+var _toastTimer;
+function toast(msg, type) {
+    var el = document.getElementById('kypo-toast');
+    el.style.background = type === 'success' ? '#2e7d32' : type === 'error' ? '#c62828' : '#333';
+    el.innerHTML = msg;
+    el.style.display = 'block';
+    clearTimeout(_toastTimer);
+    _toastTimer = setTimeout(function() { el.style.display = 'none'; }, 3200);
+}
+
+// ── Render rows ────────────────────────────────────────────────────────────────
+function renderRows(items) {
+    var tbody = document.getElementById('defs-tbody');
+    if (!items.length) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4"><i class="bx bx-info-circle"></i> No Sandbox Definitions found on KYPO.</td></tr>';
+        document.getElementById('def-pagination').textContent = '';
+        return;
+    }
+    tbody.innerHTML = items.map(function(d) {
+        var name = d.name || d.title || ('Definition #' + d.id);
+        var url = d.url || '';
+        var rev = d.rev || 'main';
+        var state = d.state || '';
+        var badgeCls = state === 'READY' ? 'clean-badge-success' : 'clean-badge-warning';
+        return '<tr>' +
+            '<td class="text-center"><code>' + d.id + '</code></td>' +
+            '<td class="text-center">' + name + '</td>' +
+            '<td class="text-center">' + (url ? '<span class="git-url" title="' + url + '">' + url + '</span>' : '<span class="text-muted">&mdash;</span>') + '</td>' +
+            '<td class="text-center"><code>' + rev + '</code></td>' +
+            '<td class="text-center">' + (state ? '<span class="clean-badge ' + badgeCls + '">' + state + '</span>' : '<span class="text-muted">&mdash;</span>') + '</td>' +
+            '</tr>';
+    }).join('');
+    document.getElementById('def-pagination').textContent = 'Page 1 of 1 • ' + items.length + ' total';
+}
+
+// ── Load Definitions ───────────────────────────────────────────────────────────
+async function loadDefinitions() {
+    var tbody = document.getElementById('defs-tbody');
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4"><i class="bx bx-loader-alt bx-spin"></i> Loading...</td></tr>';
+    try {
+        const resp = await fetch('/api/v1/kypo/sandbox-definitions', {
+            headers: { 'Authorization': 'Token ' + CSRF_TOKEN }
+        });
+        const json = await resp.json();
+        if (!resp.ok) {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">Failed to load definitions: ' + (json.error || resp.status) + '</td></tr>';
+            return;
+        }
+        const raw = json.data || [];
+        _allDefinitions = Array.isArray(raw) ? raw : (raw.content || raw.results || []);
+        renderRows(_allDefinitions);
+    } catch(e) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">Connection error: ' + e.message + '</td></tr>';
+    }
+}
+
+// ── Filters ────────────────────────────────────────────────────────────────────
+function applyFilters() {
+    var stateFilter = document.getElementById('def-state-filter').value;
+    var field = document.getElementById('def-search-field').value;
+    var text = (document.getElementById('def-search-text').value || '').toLowerCase().trim();
+    var filtered = _allDefinitions.filter(function(d) {
+        if (stateFilter) {
+            var s = d.state || '';
+            if (stateFilter === 'OTHER' ? s === 'READY' : s !== stateFilter) return false;
+        }
+        if (text) {
+            var val = '';
+            if (field === 'name') val = (d.name || d.title || '').toLowerCase();
+            else if (field === 'url') val = (d.url || '').toLowerCase();
+            else if (field === 'rev') val = (d.rev || '').toLowerCase();
+            if (!val.includes(text)) return false;
+        }
+        return true;
+    });
+    renderRows(filtered);
+}
+
+function clearFilters() {
+    document.getElementById('def-state-filter').value = '';
+    document.getElementById('def-search-field').value = 'name';
+    document.getElementById('def-search-text').value = '';
+    renderRows(_allDefinitions);
+}
+
+// ── Create Definition ──────────────────────────────────────────────────────────
+async function submitCreateDefinition() {
+    var gitUrl = document.getElementById('def-git-url').value.trim();
+    var rev = document.getElementById('def-git-revision').value.trim() || 'main';
+    if (!gitUrl) { toast('Please enter a Git URL', 'error'); return; }
+    toast('Creating Sandbox Definition on KYPO...');
+    try {
+        const resp = await fetch('/api/v1/kypo/sandbox-definitions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'CSRF-Token': CSRF_TOKEN },
+            body: JSON.stringify({ git_url: gitUrl, git_revision: rev }),
+        });
+        const json = await resp.json();
+        if (resp.ok) {
+            toast('&#10003; Created successfully! KYPO ID: ' + json.data.id, 'success');
+            closeModal('modal-create-def');
+            document.getElementById('def-git-url').value = '';
+            document.getElementById('def-git-revision').value = 'main';
+            loadDefinitions();
+        } else {
+            toast('Error: ' + (json.error || JSON.stringify(json.errors)), 'error');
+        }
+    } catch(e) { toast('Connection error: ' + e.message, 'error'); }
+}
+
+document.addEventListener('DOMContentLoaded', loadDefinitions);
+</script>
+{% endblock %}

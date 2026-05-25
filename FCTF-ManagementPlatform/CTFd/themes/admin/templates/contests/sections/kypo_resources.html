@@ -3,53 +3,33 @@
 {% block stylesheets %}
 {{ super() }}
 <style>
-    /* ── Status bar ──────────────────────────────────────────── */
     .kypo-status-bar {
         background: #e8f5e9;
         border: 1px solid #a5d6a7;
         border-radius: 6px;
         padding: 8px 13px;
-        font-size: 12px;
+        font-size: 13px;
         color: #2e7d32;
         margin-bottom: 16px;
         display: flex;
         align-items: center;
         gap: 7px;
-        font-family: "Space Mono", monospace;
     }
-
     .kypo-dot {
-        width: 7px;
-        height: 7px;
-        background: #2e7d32;
-        border-radius: 50%;
-        flex-shrink: 0;
+        width: 7px; height: 7px; background: #2e7d32;
+        border-radius: 50%; flex-shrink: 0;
         animation: kypo-pulse 1.5s infinite;
     }
+    @keyframes kypo-pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
 
-    @keyframes kypo-pulse {
-
-        0%,
-        100% {
-            opacity: 1
-        }
-
-        50% {
-            opacity: .3
-        }
-    }
-
-    /* ── Tabs ────────────────────────────────────────────────── */
     .kypo-tabs {
         display: flex;
         border-bottom: 2px solid var(--border-light);
         margin-bottom: 16px;
     }
-
     .kypo-tab {
-        padding: 9px 16px;
-        font-family: "Space Mono", monospace;
-        font-size: 12px;
+        padding: 9px 18px;
+        font-size: 13px;
         font-weight: 700;
         border: none;
         background: none;
@@ -59,388 +39,108 @@
         margin-bottom: -2px;
         transition: all .15s;
     }
-
-    .kypo-tab:hover {
-        color: var(--primary-orange);
-    }
-
+    .kypo-tab:hover { color: var(--primary-orange); }
     .kypo-tab.active {
         color: var(--primary-orange);
         border-bottom-color: var(--primary-orange);
     }
+    .kypo-tab-pane { display: none; }
+    .kypo-tab-pane.active { display: block; }
 
-    .kypo-tab-pane {
-        display: none;
+    .pool-bar { height: 4px; background: #e0e0e0; border-radius: 2px; margin-top: 5px; overflow: hidden; }
+    .pool-bar-fill { height: 100%; background: var(--primary-orange); border-radius: 2px; transition: width .3s; }
+
+    .git-url {
+        font-size: 12px; color: #6c757d; font-family: monospace;
+        max-width: 240px; overflow: hidden; text-overflow: ellipsis;
+        white-space: nowrap; display: block;
     }
 
-    .kypo-tab-pane.active {
-        display: block;
+    .action-dropdown { position: relative; display: inline-block; }
+    .action-menu {
+        display: none; position: fixed; z-index: 9999;
+        min-width: 170px; background: #fff;
+        border: 1px solid #dee2e6; border-radius: 4px;
+        box-shadow: 0 4px 12px rgba(0,0,0,.08);
+        padding: 4px 0; font-size: .875rem;
     }
-
-    /* ── Toolbar ─────────────────────────────────────────────── */
-    .kypo-toolbar {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 12px;
-        gap: 10px;
+    .action-menu.open { display: block; }
+    .action-menu-item {
+        display: flex; align-items: center; gap: 6px;
+        padding: .45rem .9rem; color: #495057 !important;
+        text-decoration: none; font-weight: 500; font-size: .875rem;
+        transition: all .15s; white-space: nowrap; cursor: pointer;
     }
+    .action-menu-item:hover { background: #fff5f2; color: #ff6b35 !important; text-decoration: none; }
+    .action-menu-divider { height: 1px; background: #dee2e6; margin: 4px 0; }
+    .action-menu-item.danger:hover { background: #ffebee; color: #c62828 !important; }
 
-    .kypo-toolbar-hint {
-        font-size: 11px;
-        color: var(--text-light);
-        line-height: 1.5;
-    }
-
-    /* ── Cards ───────────────────────────────────────────────── */
-    .kypo-card {
-        background: var(--bg-white);
-        border: 1px solid var(--border-light);
-        border-radius: 8px;
-        padding: 14px 16px;
-        margin-bottom: 9px;
-        box-shadow: var(--shadow-sm);
-        transition: box-shadow .15s;
-    }
-
-    .kypo-card:hover {
-        box-shadow: var(--shadow-md);
-    }
-
-    .kypo-card-hd {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        margin-bottom: 9px;
-    }
-
-    .kypo-card-title {
-        font-weight: 700;
-        font-size: 13px;
-        margin-bottom: 3px;
-        color: var(--text-dark);
-        font-family: "Space Mono", monospace;
-    }
-
-    .kypo-card-id {
-        font-size: 11px;
-        color: var(--text-light);
-        background: #f5f5f5;
-        padding: 1px 7px;
-        border-radius: 4px;
-        font-family: monospace;
-    }
-
-    .kypo-card-meta {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 12px;
-        font-size: 11px;
-        color: var(--text-medium);
-    }
-
-    .kypo-meta-item {
-        display: flex;
-        align-items: center;
-        gap: 4px;
-    }
-
-    .kypo-meta-icon {
-        color: var(--primary-orange);
-    }
-
-    .kypo-card-actions {
-        display: flex;
-        gap: 5px;
-        align-items: center;
-        flex-shrink: 0;
-        margin-left: 10px;
-    }
-
-    /* ── Badges ──────────────────────────────────────────────── */
-    .kypo-badge {
-        display: inline-block;
-        padding: 2px 8px;
-        border-radius: 12px;
-        font-size: 11px;
-        font-weight: 700;
-    }
-
-    .kypo-badge-green {
-        background: #e8f5e9;
-        color: #2e7d32;
-    }
-
-    .kypo-badge-orange {
-        background: #fff3e0;
-        color: #e65100;
-    }
-
-    .kypo-badge-gray {
-        background: #f5f5f5;
-        color: #616161;
-    }
-
-    /* ── Pool progress bar ───────────────────────────────────── */
-    .kypo-pool-bar {
-        height: 4px;
-        background: #e0e0e0;
-        border-radius: 2px;
-        margin-top: 8px;
-        overflow: hidden;
-    }
-
-    .kypo-pool-fill {
-        height: 100%;
-        background: var(--primary-orange);
-        border-radius: 2px;
-    }
-
-    /* ── Buttons ─────────────────────────────────────────────── */
-    .kypo-btn {
-        display: inline-flex;
-        align-items: center;
-        gap: 5px;
-        padding: 7px 14px;
-        border-radius: 6px;
-        font-family: "Space Mono", monospace;
-        font-size: 12px;
-        font-weight: 700;
-        cursor: pointer;
-        border: none;
-        transition: all .15s;
-        white-space: nowrap;
-        text-decoration: none;
-    }
-
-    .kypo-btn-primary {
-        background: var(--primary-orange);
-        color: #fff !important;
-    }
-
-    .kypo-btn-primary:hover {
-        background: var(--primary-orange-dark);
-    }
-
-    .kypo-btn-secondary {
-        background: var(--bg-white);
-        color: var(--text-medium);
-        border: 1px solid var(--border-light);
-        font-weight: 400;
-    }
-
-    .kypo-btn-secondary:hover {
-        border-color: var(--primary-orange);
-        color: var(--primary-orange);
-    }
-
-    /* ── Icon buttons ────────────────────────────────────────── */
-    .kypo-icon-btn {
-        width: 28px;
-        height: 28px;
-        border-radius: 5px;
-        border: 1px solid var(--border-light);
-        background: var(--bg-white);
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        font-size: 13px;
-        color: var(--text-medium);
-        transition: all .15s;
-        text-decoration: none;
-    }
-
-    .kypo-icon-btn:hover {
-        background: var(--bg-light);
-        color: var(--primary-orange);
-        border-color: var(--primary-orange);
-    }
-
-    .kypo-icon-btn.k-danger:hover {
-        background: #ffebee;
-        color: #c62828;
-        border-color: #ef9a9a;
-    }
-
-    /* ── Modal ───────────────────────────────────────────────── */
+    /* Modal */
     .kypo-modal-overlay {
-        display: none;
-        position: fixed;
-        inset: 0;
-        background: rgba(0, 0, 0, .45);
-        z-index: 1060;
-        align-items: center;
-        justify-content: center;
+        display: none; position: fixed; inset: 0;
+        background: rgba(0,0,0,.45); z-index: 1060;
+        align-items: center; justify-content: center;
     }
-
-    .kypo-modal-overlay.show {
-        display: flex;
-    }
-
+    .kypo-modal-overlay.show { display: flex; }
     .kypo-modal {
-        background: var(--bg-white);
-        border-radius: 12px;
-        width: 560px;
-        max-width: 96vw;
-        max-height: 88vh;
-        overflow-y: auto;
-        box-shadow: 0 20px 60px rgba(0, 0, 0, .2);
+        background: var(--bg-white); border-radius: 12px;
+        width: 560px; max-width: 96vw; max-height: 88vh;
+        overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,.2);
         animation: kypoSlideUp .18s ease;
     }
-
-    @keyframes kypoSlideUp {
-        from {
-            transform: translateY(14px);
-            opacity: 0
-        }
-
-        to {
-            transform: none;
-            opacity: 1
-        }
-    }
-
+    @keyframes kypoSlideUp { from{transform:translateY(14px);opacity:0} to{transform:none;opacity:1} }
     .kypo-modal-hd {
-        padding: 16px 20px 13px;
-        border-bottom: 1px solid var(--border-light);
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        position: sticky;
-        top: 0;
-        background: var(--bg-white);
-        z-index: 1;
+        padding: 16px 20px 13px; border-bottom: 1px solid var(--border-light);
+        display: flex; justify-content: space-between; align-items: center;
+        position: sticky; top: 0; background: var(--bg-white); z-index: 1;
     }
-
     .kypo-modal-title {
-        font-size: 14px;
-        font-weight: 700;
-        font-family: "Space Mono", monospace;
-        display: flex;
-        align-items: center;
-        gap: 7px;
+        font-size: 14px; font-weight: 700;
+        display: flex; align-items: center; gap: 7px;
     }
-
-    .kypo-modal-title .hl {
-        color: var(--primary-orange);
-    }
-
+    .kypo-modal-title .hl { color: var(--primary-orange); }
     .kypo-modal-close {
-        background: none;
-        border: none;
-        font-size: 22px;
-        color: var(--text-light);
-        cursor: pointer;
-        line-height: 1;
+        background: none; border: none; font-size: 22px;
+        color: var(--text-light); cursor: pointer; line-height: 1;
     }
-
-    .kypo-modal-close:hover {
-        color: var(--text-dark);
-    }
-
-    .kypo-modal-body {
-        padding: 18px 20px;
-    }
-
+    .kypo-modal-close:hover { color: var(--text-dark); }
+    .kypo-modal-body { padding: 18px 20px; }
     .kypo-modal-ft {
-        padding: 13px 20px;
-        border-top: 1px solid var(--border-light);
-        display: flex;
-        justify-content: flex-end;
-        gap: 8px;
-        position: sticky;
-        bottom: 0;
-        background: var(--bg-white);
+        padding: 13px 20px; border-top: 1px solid var(--border-light);
+        display: flex; justify-content: flex-end; gap: 8px;
+        position: sticky; bottom: 0; background: var(--bg-white);
     }
-
-    /* ── Forms ───────────────────────────────────────────────── */
-    .kypo-form-group {
-        margin-bottom: 14px;
-    }
-
+    .kypo-form-group { margin-bottom: 14px; }
     .kypo-form-label {
-        display: block;
-        font-size: 11px;
-        font-weight: 700;
-        color: var(--text-medium);
-        letter-spacing: .5px;
-        text-transform: uppercase;
-        margin-bottom: 5px;
-        font-family: "Space Mono", monospace;
+        display: block; font-size: 11px; font-weight: 700;
+        color: var(--text-medium); letter-spacing: .5px;
+        text-transform: uppercase; margin-bottom: 5px;
     }
-
     .kypo-form-control {
-        width: 100%;
-        padding: 8px 10px;
-        border: 1px solid var(--border-medium);
-        border-radius: 6px;
-        font-family: "Space Mono", monospace;
-        font-size: 12px;
-        color: var(--text-dark);
-        background: var(--bg-white);
-        transition: border .15s;
-        box-sizing: border-box;
+        width: 100%; padding: 8px 10px; border: 1px solid var(--border-medium);
+        border-radius: 6px; font-size: 13px; color: var(--text-dark);
+        background: var(--bg-white); transition: border .15s; box-sizing: border-box;
     }
-
     .kypo-form-control:focus {
-        outline: none;
-        border-color: var(--primary-orange);
-        box-shadow: 0 0 0 3px rgba(255, 107, 53, .1);
+        outline: none; border-color: var(--primary-orange);
+        box-shadow: 0 0 0 3px rgba(255,107,53,.1);
     }
-
-    textarea.kypo-form-control {
-        resize: vertical;
-        min-height: 80px;
-    }
-
-    select.kypo-form-control {
-        cursor: pointer;
-    }
-
-    .kypo-form-hint {
-        font-size: 11px;
-        color: var(--text-light);
-        margin-top: 4px;
-        line-height: 1.4;
-    }
-
+    textarea.kypo-form-control { resize: vertical; min-height: 80px; }
+    select.kypo-form-control { cursor: pointer; }
+    .kypo-form-hint { font-size: 11px; color: var(--text-light); margin-top: 4px; line-height: 1.4; }
     .kypo-info-box {
-        background: #e3f2fd;
-        border: 1px solid #90caf9;
-        border-radius: 6px;
-        padding: 9px 12px;
-        font-size: 11px;
-        color: #1565c0;
-        margin-bottom: 14px;
-        line-height: 1.5;
+        background: #e3f2fd; border: 1px solid #90caf9;
+        border-radius: 6px; padding: 9px 12px; font-size: 11px;
+        color: #1565c0; margin-bottom: 14px; line-height: 1.5;
     }
+    .kypo-row { display: flex; gap: 12px; }
+    .kypo-col { flex: 1; min-width: 0; }
 
-    .kypo-row {
-        display: flex;
-        gap: 12px;
-    }
-
-    .kypo-col {
-        flex: 1;
-        min-width: 0;
-    }
-
-    /* ── Toast ───────────────────────────────────────────────── */
     #kypo-toast {
-        position: fixed;
-        bottom: 18px;
-        right: 18px;
-        z-index: 9999;
-        background: #333;
-        color: #fff;
-        padding: 10px 16px;
-        border-radius: 8px;
-        font-size: 12px;
-        display: none;
-        max-width: 340px;
-        font-family: "Space Mono", monospace;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, .2);
+        position: fixed; bottom: 18px; right: 18px; z-index: 9999;
+        background: #333; color: #fff; padding: 10px 16px;
+        border-radius: 8px; font-size: 12px; display: none;
+        max-width: 340px; box-shadow: 0 4px 12px rgba(0,0,0,.2);
     }
 </style>
 {% endblock %}
@@ -454,43 +154,158 @@
 
 <div class="container">
 
-    <!-- Status Bar -->
-    <div class="kypo-status-bar">
-        <div class="kypo-dot"></div>
-        Connected to KYPO &rarr; <strong>https://vuontre.iahn.hanoi.vn</strong>
-    </div>
-
-    <!-- Tabs -->
     <div class="kypo-tabs">
-        <button class="kypo-tab" onclick="kypoSwitchTab('definitions', this)">&#128230; Sandbox Definitions</button>
-        <button class="kypo-tab active" onclick="kypoSwitchTab('pools', this)">&#127882; Pools</button>
+        <button class="kypo-tab {% if active_tab == 'definitions' %}active{% endif %}" onclick="kypoSwitchTab('definitions', this)">&#128230; Sandbox Definitions</button>
+        <button class="kypo-tab {% if active_tab == 'pools' %}active{% endif %}" onclick="kypoSwitchTab('pools', this)">&#127882; Pools</button>
     </div>
 
     <!-- ══ TAB: Sandbox Definitions ══ -->
-    <div id="kypo-tab-definitions" class="kypo-tab-pane">
-        <div class="kypo-toolbar">
-            <span class="kypo-toolbar-hint">Sandbox Definition = a lab configuration from a Git repository. KYPO clones the repo and builds the VM environment from it.</span>
-            <button class="kypo-btn kypo-btn-primary" onclick="kypoOpenModal('kypo-modal-def')">+ Create Definition</button>
+    <div id="kypo-tab-definitions" class="kypo-tab-pane {% if active_tab == 'definitions' %}active{% endif %}">
+
+        <div class="clean-search-container">
+            <div class="row no-gutters align-items-end">
+                <div class="col-md-2 px-1">
+                    <label>State</label>
+                    <select id="def-state-filter" class="clean-form-control ss-select w-100" onchange="applyDefFilters()">
+                        <option value="">All States</option>
+                        <option value="READY">Ready</option>
+                        <option value="OTHER">Other</option>
+                    </select>
+                </div>
+                <div class="col-md-2 px-1">
+                    <label>Search Field</label>
+                    <select id="def-search-field" class="clean-form-control ss-select w-100">
+                        <option value="name">Name</option>
+                        <option value="url">Git URL</option>
+                        <option value="rev">Branch</option>
+                    </select>
+                </div>
+                <div class="col-md-6 px-1">
+                    <label>Search Text</label>
+                    <input type="text" id="def-search-text" class="clean-form-control w-100"
+                        placeholder="Search definitions..." onkeyup="if(event.key==='Enter') applyDefFilters()">
+                </div>
+                <div class="col-md-2 px-1 d-flex">
+                    <button type="button" class="clean-btn clean-btn-primary flex-grow-1 mr-1" onclick="applyDefFilters()">
+                        <i class="fas fa-search"></i> Search
+                    </button>
+                    <button type="button" class="clean-btn btn-outline-secondary" onclick="clearDefFilters()" title="Reset">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                </div>
+            </div>
         </div>
-        <div id="kypo-def-list">
-            <div class="kypo-card" style="text-align:center;color:var(--text-light)">Loading...</div>
+
+        <div class="d-flex justify-content-between align-items-center action-buttons mt-3">
+            <div>
+                <button type="button" class="clean-btn clean-btn-primary" onclick="kypoOpenModal('kypo-modal-def')">
+                    <i class="fas fa-plus"></i> Create Definition
+                </button>
+            </div>
+            <div>
+                <button type="button" class="clean-btn" onclick="loadSandboxDefinitions()" title="Refresh">
+                    <i class="fas fa-sync-alt"></i> Refresh
+                </button>
+            </div>
         </div>
+
+        <div class="clean-table-wrapper mt-2">
+            <table class="clean-table table">
+                <thead>
+                    <tr>
+                        <th class="text-center"><b>KYPO ID</b></th>
+                        <th class="text-center"><b>Name</b></th>
+                        <th class="text-center"><b>Git URL</b></th>
+                        <th class="text-center"><b>Branch</b></th>
+                        <th class="text-center"><b>State</b></th>
+                    </tr>
+                </thead>
+                <tbody id="kypo-def-tbody">
+                    <tr>
+                        <td colspan="5" class="text-center text-muted py-4">
+                            <i class="bx bx-loader-alt bx-spin"></i> Loading...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <div id="def-pagination" class="mt-2" style="font-size:13px;color:var(--text-light)"></div>
     </div>
 
     <!-- ══ TAB: Pools ══ -->
-    <div id="kypo-tab-pools" class="kypo-tab-pane active">
-        <div class="kypo-toolbar">
-            <span class="kypo-toolbar-hint">Pool = a set of sandboxes allocated from one Definition. The pool determines how many teams can play simultaneously.</span>
-            <button class="kypo-btn kypo-btn-primary" onclick="kypoOpenModal('kypo-modal-pool')">+ Create Pool</button>
+    <div id="kypo-tab-pools" class="kypo-tab-pane {% if active_tab == 'pools' %}active{% endif %}">
+
+        <div class="clean-search-container">
+            <div class="row no-gutters align-items-end">
+                <div class="col-md-2 px-1">
+                    <label>Lock Status</label>
+                    <select id="pool-lock-filter" class="clean-form-control ss-select w-100" onchange="applyPoolFilters()">
+                        <option value="">All</option>
+                        <option value="locked">Locked</option>
+                        <option value="unlocked">Unlocked</option>
+                    </select>
+                </div>
+                <div class="col-md-2 px-1">
+                    <label>Search Field</label>
+                    <select id="pool-search-field" class="clean-form-control ss-select w-100">
+                        <option value="comment">Comment</option>
+                        <option value="definition">Definition</option>
+                    </select>
+                </div>
+                <div class="col-md-6 px-1">
+                    <label>Search Text</label>
+                    <input type="text" id="pool-search-text" class="clean-form-control w-100"
+                        placeholder="Search pools..." onkeyup="if(event.key==='Enter') applyPoolFilters()">
+                </div>
+                <div class="col-md-2 px-1 d-flex">
+                    <button type="button" class="clean-btn clean-btn-primary flex-grow-1 mr-1" onclick="applyPoolFilters()">
+                        <i class="fas fa-search"></i> Search
+                    </button>
+                    <button type="button" class="clean-btn btn-outline-secondary" onclick="clearPoolFilters()" title="Reset">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                </div>
+            </div>
         </div>
-        <div id="kypo-pool-list">
-            <div class="kypo-card" style="text-align:center;color:var(--text-light)">Loading...</div>
+
+        <div class="d-flex justify-content-between align-items-center action-buttons mt-3">
+            <div>
+                <button type="button" class="clean-btn clean-btn-primary" onclick="kypoOpenModal('kypo-modal-pool')">
+                    <i class="fas fa-plus"></i> Create Pool
+                </button>
+            </div>
+            <div>
+                <button type="button" class="clean-btn" onclick="loadPools()" title="Refresh">
+                    <i class="fas fa-sync-alt"></i> Refresh
+                </button>
+            </div>
         </div>
+
+        <div class="clean-table-wrapper mt-2">
+            <table class="clean-table table">
+                <thead>
+                    <tr>
+                        <th class="text-center"><b>KYPO Pool ID</b></th>
+                        <th class="text-center"><b>Comment</b></th>
+                        <th class="text-center"><b>Definition</b></th>
+                        <th class="text-center"><b>Allocated / Max</b></th>
+                        <th class="text-center"><b>Lock</b></th>
+                        <th class="text-center"><b>Actions</b></th>
+                    </tr>
+                </thead>
+                <tbody id="kypo-pool-tbody">
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-4">
+                            <i class="bx bx-loader-alt bx-spin"></i> Loading...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <div id="pool-pagination" class="mt-2" style="font-size:13px;color:var(--text-light)"></div>
     </div>
 
 </div>
-
-</div><!-- /container -->
 
 <!-- ══════════════════════════ MODALS ══════════════════════════ -->
 
@@ -502,12 +317,10 @@
             <button class="kypo-modal-close" onclick="kypoCloseModal('kypo-modal-def')">&times;</button>
         </div>
         <div class="kypo-modal-body">
-            <div class="kypo-info-box">&#8505; KYPO will clone the repo and build the sandbox. Make sure the repo contains a <code>topology.yml</code> file.
-            </div>
+            <div class="kypo-info-box">&#8505; KYPO will clone the repo and build the sandbox. Make sure the repo contains a <code>topology.yml</code> file.</div>
             <div class="kypo-form-group">
                 <label class="kypo-form-label">Git Repository URL *</label>
-                <input class="kypo-form-control" id="def-git-url" type="url"
-                    placeholder="https://github.com/org/sandbox-lab.git">
+                <input class="kypo-form-control" id="def-git-url" type="url" placeholder="https://github.com/org/sandbox-lab.git">
             </div>
             <div class="kypo-row">
                 <div class="kypo-col">
@@ -525,8 +338,39 @@
             </div>
         </div>
         <div class="kypo-modal-ft">
-            <button class="kypo-btn kypo-btn-secondary" onclick="kypoCloseModal('kypo-modal-def')">Cancel</button>
-            <button class="kypo-btn kypo-btn-primary" onclick="kypoSubmitSandboxDef()">&#10003; Create</button>
+            <button class="clean-btn" onclick="kypoCloseModal('kypo-modal-def')">Cancel</button>
+            <button class="clean-btn clean-btn-primary" onclick="kypoSubmitSandboxDef()">&#10003; Create</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Create Pool -->
+<div class="kypo-modal-overlay" id="kypo-modal-pool" onclick="kypoOverlayClose(event,'kypo-modal-pool')">
+    <div class="kypo-modal">
+        <div class="kypo-modal-hd">
+            <div class="kypo-modal-title">&#127882; Create <span class="hl">Pool</span></div>
+            <button class="kypo-modal-close" onclick="kypoCloseModal('kypo-modal-pool')">&times;</button>
+        </div>
+        <div class="kypo-modal-body">
+            <div class="kypo-form-group">
+                <label class="kypo-form-label">Sandbox Pool Size *</label>
+                <input class="kypo-form-control" id="pool-max-size" type="number" value="1" min="1">
+                <div class="kypo-form-hint">Number of sandboxes that can be allocated in this pool</div>
+            </div>
+            <div class="kypo-form-group">
+                <label class="kypo-form-label">Sandbox Definition *</label>
+                <select class="kypo-form-control" id="pool-def-id">
+                    <option value="">-- Loading definitions... --</option>
+                </select>
+            </div>
+            <div class="kypo-form-group">
+                <label class="kypo-form-label">Comment</label>
+                <textarea class="kypo-form-control" id="pool-comment" rows="3" placeholder="A description/info regarding your pool"></textarea>
+            </div>
+        </div>
+        <div class="kypo-modal-ft">
+            <button class="clean-btn" onclick="kypoCloseModal('kypo-modal-pool')">Cancel</button>
+            <button class="clean-btn clean-btn-primary" onclick="kypoSubmitPool()">&#10003; Create</button>
         </div>
     </div>
 </div>
@@ -555,8 +399,7 @@
                     </div>
                     <div class="kypo-form-group">
                         <label style="display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer">
-                            <input type="checkbox" id="edit-pool-email"
-                                style="accent-color:var(--primary-orange);width:16px;height:16px">
+                            <input type="checkbox" id="edit-pool-email" style="accent-color:var(--primary-orange);width:16px;height:16px">
                             Send e-mail notifications upon build progression
                         </label>
                     </div>
@@ -564,21 +407,20 @@
                 <div class="kypo-col">
                     <div class="kypo-form-group">
                         <label class="kypo-form-label">Comment</label>
-                        <textarea class="kypo-form-control" id="edit-pool-comment" rows="6"
-                            placeholder="A description/info regarding your pool"></textarea>
+                        <textarea class="kypo-form-control" id="edit-pool-comment" rows="6" placeholder="A description/info regarding your pool"></textarea>
                         <div class="kypo-form-hint">A description/info regarding your pool</div>
                     </div>
                 </div>
             </div>
         </div>
         <div class="kypo-modal-ft">
-            <button class="kypo-btn kypo-btn-secondary" onclick="kypoCloseModal('kypo-modal-edit-pool')">Cancel</button>
-            <button class="kypo-btn kypo-btn-primary" onclick="kypoSubmitEditPool()">&#10003; Save</button>
+            <button class="clean-btn" onclick="kypoCloseModal('kypo-modal-edit-pool')">Cancel</button>
+            <button class="clean-btn clean-btn-primary" onclick="kypoSubmitEditPool()">&#10003; Save</button>
         </div>
     </div>
 </div>
 
-<!-- Modal: Allocate specific count -->
+<!-- Modal: Allocate -->
 <div class="kypo-modal-overlay" id="kypo-modal-allocate" onclick="kypoOverlayClose(event,'kypo-modal-allocate')">
     <div class="kypo-modal">
         <div class="kypo-modal-hd">
@@ -594,45 +436,12 @@
             </div>
         </div>
         <div class="kypo-modal-ft">
-            <button class="kypo-btn kypo-btn-secondary" onclick="kypoCloseModal('kypo-modal-allocate')">Cancel</button>
-            <button class="kypo-btn kypo-btn-primary" onclick="kypoSubmitAllocate()">&#10003; Allocate</button>
+            <button class="clean-btn" onclick="kypoCloseModal('kypo-modal-allocate')">Cancel</button>
+            <button class="clean-btn clean-btn-primary" onclick="kypoSubmitAllocate()">&#10003; Allocate</button>
         </div>
     </div>
 </div>
 
-<!-- Modal: Create Pool -->
-<div class="kypo-modal-overlay" id="kypo-modal-pool" onclick="kypoOverlayClose(event,'kypo-modal-pool')">
-    <div class="kypo-modal">
-        <div class="kypo-modal-hd">
-            <div class="kypo-modal-title">&#127882; Create <span class="hl">Pool</span></div>
-            <button class="kypo-modal-close" onclick="kypoCloseModal('kypo-modal-pool')">&times;</button>
-        </div>
-        <div class="kypo-modal-body">
-            <div class="kypo-form-group">
-                <label class="kypo-form-label">Sandbox Pool Size *</label>
-                <input class="kypo-form-control" id="pool-max-size" type="number" value="1" min="1">
-                <div class="kypo-form-hint">Pool of sandboxes that can be allocated</div>
-            </div>
-            <div class="kypo-form-group">
-                <label class="kypo-form-label">Sandbox Definition *</label>
-                <select class="kypo-form-control" id="pool-def-id">
-                    <option value="">-- Loading definitions... --</option>
-                </select>
-            </div>
-            <div class="kypo-form-group">
-                <label class="kypo-form-label">Comment</label>
-                <textarea class="kypo-form-control" id="pool-comment" rows="3"
-                    placeholder="A description/info regarding your pool"></textarea>
-            </div>
-        </div>
-        <div class="kypo-modal-ft">
-            <button class="kypo-btn kypo-btn-secondary" onclick="kypoCloseModal('kypo-modal-pool')">Cancel</button>
-            <button class="kypo-btn kypo-btn-primary" onclick="kypoSubmitPool()">&#10003; Create</button>
-        </div>
-    </div>
-</div>
-
-<!-- Toast -->
 <div id="kypo-toast"></div>
 {% endblock %}
 
@@ -642,7 +451,10 @@
     const CONTEST_ID = {{ contest.id }};
     const CSRF_TOKEN = init.csrfNonce;
 
-    // ── Tab switching ─────────────────────────────────────────────
+    var _allDefinitions = [];
+    var _allPools = [];
+
+    // ── Tab switching ──────────────────────────────────────────────────────────
     function kypoSwitchTab(name, btn) {
         document.querySelectorAll('.kypo-tab').forEach(function (t) { t.classList.remove('active'); });
         document.querySelectorAll('.kypo-tab-pane').forEach(function (p) { p.classList.remove('active'); });
@@ -650,20 +462,35 @@
         document.getElementById('kypo-tab-' + name).classList.add('active');
     }
 
-    // ── Modal helpers ─────────────────────────────────────────────
+    // ── Modal helpers ──────────────────────────────────────────────────────────
     function kypoOpenModal(id) { document.getElementById(id).classList.add('show'); }
     function kypoCloseModal(id) { document.getElementById(id).classList.remove('show'); }
     function kypoOverlayClose(e, id) { if (e.target === e.currentTarget) kypoCloseModal(id); }
-
     document.addEventListener('keydown', function (e) {
         if (e.key === 'Escape') {
-            document.querySelectorAll('.kypo-modal-overlay.show').forEach(function (m) {
-                m.classList.remove('show');
-            });
+            document.querySelectorAll('.kypo-modal-overlay.show').forEach(function (m) { m.classList.remove('show'); });
         }
     });
 
-    // ── Toast ─────────────────────────────────────────────────────
+    // ── Action dropdown ────────────────────────────────────────────────────────
+    function toggleActionMenu(btn, e) {
+        e.stopPropagation();
+        var menu = btn.nextElementSibling;
+        var isOpen = menu.classList.contains('open');
+        closeAllActionMenus();
+        if (!isOpen) {
+            menu.classList.add('open');
+            var r = btn.getBoundingClientRect();
+            menu.style.top = (r.bottom + 4) + 'px';
+            menu.style.left = r.left + 'px';
+        }
+    }
+    function closeAllActionMenus() {
+        document.querySelectorAll('.action-menu.open').forEach(function (m) { m.classList.remove('open'); });
+    }
+    document.addEventListener('click', closeAllActionMenus);
+
+    // ── Toast ──────────────────────────────────────────────────────────────────
     var _kypoToastTimer;
     function kypoToast(msg, type) {
         var el = document.getElementById('kypo-toast');
@@ -674,161 +501,224 @@
         _kypoToastTimer = setTimeout(function () { el.style.display = 'none'; }, 3200);
     }
 
-    // ── Active nav link highlight ─────────────────────────────────
-    (function () {
-        var links = document.querySelectorAll('#sidebar .nav-link');
-        links.forEach(function (link) {
-            if (link.href && link.href === window.location.href) {
-                link.classList.add('active');
-            }
-        });
-    })();
+    // ══════════════════════════════════════════════════════════════════════════
+    // SANDBOX DEFINITIONS
+    // ══════════════════════════════════════════════════════════════════════════
 
-    // ════════════════════════════════════════════════════════════
-    // API CALLS
-    // ════════════════════════════════════════════════════════════
+    function renderDefRows(items) {
+        var tbody = document.getElementById('kypo-def-tbody');
+        if (!items.length) {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4"><i class="bx bx-info-circle"></i> No Sandbox Definitions found on KYPO.</td></tr>';
+            document.getElementById('def-pagination').textContent = '';
+            return;
+        }
+        tbody.innerHTML = items.map(function (d) {
+            var name = d.name || d.title || ('Definition #' + d.id);
+            var url = d.url || '';
+            var rev = d.rev || 'main';
+            var state = d.state || '';
+            var badgeCls = state === 'READY' ? 'clean-badge-success' : 'clean-badge-warning';
+            return '<tr>' +
+                '<td class="text-center"><code>' + d.id + '</code></td>' +
+                '<td class="text-center">' + name + '</td>' +
+                '<td class="text-center">' + (url ? '<span class="git-url" title="' + url + '">' + url + '</span>' : '<span class="text-muted">&mdash;</span>') + '</td>' +
+                '<td class="text-center"><code>' + rev + '</code></td>' +
+                '<td class="text-center">' + (state ? '<span class="clean-badge ' + badgeCls + '">' + state + '</span>' : '<span class="text-muted">&mdash;</span>') + '</td>' +
+                '</tr>';
+        }).join('');
+        document.getElementById('def-pagination').textContent = 'Page 1 of 1 • ' + items.length + ' total';
+    }
 
-    // ── Load Sandbox Definitions ──────────────────────────────────
     async function loadSandboxDefinitions() {
+        var tbody = document.getElementById('kypo-def-tbody');
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4"><i class="bx bx-loader-alt bx-spin"></i> Loading...</td></tr>';
         try {
             const resp = await fetch('/api/v1/kypo/sandbox-definitions', {
                 headers: { 'Authorization': 'Token ' + CSRF_TOKEN }
             });
             const json = await resp.json();
-            const list = document.getElementById('kypo-def-list');
-
             if (!resp.ok) {
-                list.innerHTML = '<div class="kypo-card" style="color:#c62828">Failed to load definitions: ' + (json.error || resp.status) + '</div>';
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">Failed to load definitions: ' + (json.error || resp.status) + '</td></tr>';
                 return;
             }
-
             const raw = json.data || [];
-            const items = Array.isArray(raw) ? raw
-                : (raw.content  ? raw.content
-                : (raw.results  ? raw.results : []));
-
-            if (!items.length) {
-                list.innerHTML = '<div class="kypo-card" style="text-align:center;color:var(--text-light)">No Sandbox Definitions found on KYPO</div>';
-                return;
-            }
-
-            list.innerHTML = items.map(function (d) {
-                var title = d.name || d.title || ('Definition #' + d.id);
-                var url = d.url || '';
-                var rev = d.rev || 'main';
-                var state = d.state || '';
-                var badgeCls = state === 'READY' ? 'kypo-badge-green' : 'kypo-badge-orange';
-                return '<div class="kypo-card">' +
-                    '<div class="kypo-card-hd"><div>' +
-                    '<div class="kypo-card-title">' + title + '</div>' +
-                    '<span class="kypo-card-id">KYPO ID: ' + d.id + '</span>' +
-                    '</div><div class="kypo-card-actions">' +
-                    (state ? '<span class="kypo-badge ' + badgeCls + '">' + state + '</span>' : '') +
-                    '</div></div>' +
-                    '<div class="kypo-card-meta">' +
-                    '<div class="kypo-meta-item"><span class="kypo-meta-icon">&#9135;</span> ' + rev + '</div>' +
-                    (url ? '<div class="kypo-meta-item"><span class="kypo-meta-icon">&#128279;</span> ' + url + '</div>' : '') +
-                    '</div></div>';
-            }).join('');
-
-            // Populate dropdowns
-            ['pool-def-id', 'edit-pool-def-id'].forEach(function (selId) {
-                var sel = document.getElementById(selId);
-                if (sel) {
-                    sel.innerHTML = '<option value="">-- Select a Definition --</option>' +
-                        items.map(function (d) {
-                            return '<option value="' + d.id + '">' + (d.name || d.title) + ' (ID: ' + d.id + ')</option>';
-                        }).join('');
-                }
-            });
+            _allDefinitions = Array.isArray(raw) ? raw : (raw.content ? raw.content : (raw.results ? raw.results : []));
+            renderDefRows(_allDefinitions);
+            populateDefDropdowns(_allDefinitions);
         } catch (e) {
-            var list = document.getElementById('kypo-def-list');
-            if (list) list.innerHTML = '<div class="kypo-card" style="color:#c62828">Connection error: ' + e.message + '</div>';
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">Connection error: ' + e.message + '</td></tr>';
         }
     }
 
-    // ── Load Pools ────────────────────────────────────────────────
+    function applyDefFilters() {
+        var stateFilter = document.getElementById('def-state-filter').value;
+        var field = document.getElementById('def-search-field').value;
+        var text = (document.getElementById('def-search-text').value || '').toLowerCase().trim();
+        var filtered = _allDefinitions.filter(function (d) {
+            if (stateFilter) {
+                var s = d.state || '';
+                if (stateFilter === 'OTHER' ? s === 'READY' : s !== stateFilter) return false;
+            }
+            if (text) {
+                var val = '';
+                if (field === 'name') val = (d.name || d.title || '').toLowerCase();
+                else if (field === 'url') val = (d.url || '').toLowerCase();
+                else if (field === 'rev') val = (d.rev || '').toLowerCase();
+                if (!val.includes(text)) return false;
+            }
+            return true;
+        });
+        renderDefRows(filtered);
+    }
+
+    function clearDefFilters() {
+        document.getElementById('def-state-filter').value = '';
+        document.getElementById('def-search-field').value = 'name';
+        document.getElementById('def-search-text').value = '';
+        renderDefRows(_allDefinitions);
+    }
+
+    function populateDefDropdowns(items) {
+        var opts = '<option value="">-- Select a Definition --</option>' +
+            items.map(function (d) {
+                return '<option value="' + d.id + '">' + (d.name || d.title) + ' (ID: ' + d.id + ')</option>';
+            }).join('');
+        ['pool-def-id', 'edit-pool-def-id'].forEach(function (selId) {
+            var sel = document.getElementById(selId);
+            if (sel) sel.innerHTML = opts;
+        });
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // POOLS
+    // ══════════════════════════════════════════════════════════════════════════
+
+    function renderPoolRows(items) {
+        var tbody = document.getElementById('kypo-pool-tbody');
+        if (!items.length) {
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4"><i class="bx bx-info-circle"></i> No Pools found for this contest.</td></tr>';
+            document.getElementById('pool-pagination').textContent = '';
+            return;
+        }
+        tbody.innerHTML = items.map(function (p) {
+            var pid = p.kypo_pool_id;
+            return '<tr id="pool-row-' + pid + '">' +
+                '<td class="text-center"><code>' + pid + '</code></td>' +
+                '<td class="text-center" id="pool-comment-' + pid + '"><span class="text-muted">&mdash;</span></td>' +
+                '<td class="text-center" id="pool-def-' + pid + '"><span class="text-muted">&mdash;</span></td>' +
+                '<td class="text-center">' +
+                '  <span id="pool-size-' + pid + '">&mdash;</span>' +
+                '  <div class="pool-bar"><div class="pool-bar-fill" id="pool-bar-' + pid + '" style="width:0%"></div></div>' +
+                '</td>' +
+                '<td class="text-center" id="pool-lock-' + pid + '"><span class="text-muted">&mdash;</span></td>' +
+                '<td class="text-center">' +
+                '  <div class="action-dropdown">' +
+                '    <button type="button" class="clean-btn clean-action-btn-sm" onclick="toggleActionMenu(this,event)">Actions <i class="fas fa-chevron-down" style="font-size:.7rem"></i></button>' +
+                '    <div class="action-menu">' +
+                '      <a class="action-menu-item" href="#" onclick="editPool(' + pid + ');closeAllActionMenus();return false;"><i class="fas fa-edit fa-fw"></i> Edit</a>' +
+                '      <a class="action-menu-item" href="#" onclick="allocateSpecific(' + pid + ');closeAllActionMenus();return false;"><i class="fas fa-layer-group fa-fw"></i> Allocate N</a>' +
+                '      <a class="action-menu-item" href="#" onclick="allocateOne(' + pid + ');closeAllActionMenus();return false;"><i class="fas fa-plus fa-fw"></i> Allocate +1</a>' +
+                '      <a class="action-menu-item" href="#" onclick="toggleResourceLimit(' + pid + ');closeAllActionMenus();return false;"><i class="fas fa-lock fa-fw"></i> Toggle Lock</a>' +
+                '      <a class="action-menu-item" href="#" onclick="loadPoolDetail(' + pid + ');closeAllActionMenus();return false;"><i class="fas fa-sync-alt fa-fw"></i> Refresh</a>' +
+                '      <a class="action-menu-item" href="/api/v1/kypo/contests/' + CONTEST_ID + '/pools/' + pid + '/ssh-config" target="_blank" onclick="closeAllActionMenus();"><i class="fas fa-key fa-fw"></i> SSH Config</a>' +
+                '      <div class="action-menu-divider"></div>' +
+                '      <a class="action-menu-item danger" href="#" onclick="deletePool(' + pid + ');closeAllActionMenus();return false;"><i class="fas fa-trash-alt fa-fw"></i> Delete</a>' +
+                '    </div>' +
+                '  </div>' +
+                '</td>' +
+                '</tr>';
+        }).join('');
+        document.getElementById('pool-pagination').textContent = 'Page 1 of 1 • ' + items.length + ' total';
+        items.forEach(function (p) { loadPoolDetail(p.kypo_pool_id); });
+    }
+
     async function loadPools() {
+        var tbody = document.getElementById('kypo-pool-tbody');
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4"><i class="bx bx-loader-alt bx-spin"></i> Loading...</td></tr>';
         try {
             const resp = await fetch('/api/v1/kypo/contests/' + CONTEST_ID + '/pools', {
                 headers: { 'Authorization': 'Token ' + CSRF_TOKEN }
             });
             const json = await resp.json();
-            const list = document.getElementById('kypo-pool-list');
-
             if (!resp.ok) {
-                list.innerHTML = '<div class="kypo-card" style="color:#c62828">Failed to load pools: ' + (json.error || resp.status) + '</div>';
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">Failed to load pools: ' + (json.error || resp.status) + '</td></tr>';
                 return;
             }
-
-            const items = json.data || [];
-            if (!items.length) {
-                list.innerHTML = '<div class="kypo-card" style="text-align:center;color:var(--text-light)">No Pools found for this contest</div>';
-                return;
-            }
-
-            list.innerHTML = items.map(function (p) {
-                var pid = p.kypo_pool_id;
-                return '<div class="kypo-card" id="pool-card-' + pid + '">' +
-                    '<div class="kypo-card-hd"><div>' +
-                    '<div class="kypo-card-title" id="pool-title-' + pid + '">Pool #' + pid + '</div>' +
-                    '<span class="kypo-card-id">KYPO Pool ID: ' + pid + '</span>' +
-                    '</div><div class="kypo-card-actions">' +
-                    '<button class="kypo-icon-btn" title="Edit pool" onclick="editPool(' + pid + ')" style="font-size:15px">&#9998;</button>' +
-                    '<button class="kypo-icon-btn" title="Allocate specific count" onclick="allocateSpecific(' + pid + ')" style="font-size:15px">&#9776;</button>' +
-                    '<button class="kypo-icon-btn" title="Allocate +1" onclick="allocateOne(' + pid + ')" style="font-size:11px;font-weight:700">+1</button>' +
-                    '<button class="kypo-icon-btn k-danger" title="Delete pool" onclick="deletePool(' + pid + ')" style="font-size:15px">&#128465;</button>' +
-                    '<button class="kypo-icon-btn" title="Toggle resource limit" onclick="toggleResourceLimit(' + pid + ')" style="font-size:15px">&#128274;</button>' +
-                    '<button class="kypo-icon-btn" title="Refresh" onclick="loadPoolDetail(' + pid + ')" style="font-size:15px">&#8635;</button>' +
-                    '<a class="kypo-icon-btn" title="Download SSH Config" href="/api/v1/kypo/contests/' + CONTEST_ID + '/pools/' + pid + '/ssh-config" target="_blank" style="font-size:15px">&#128273;</a>' +
-                    '</div></div>' +
-                    '<div class="kypo-card-meta" id="pool-meta-' + pid + '">' +
-                    '<div class="kypo-meta-item"><span class="kypo-meta-icon">&#128230;</span> Loading details...</div>' +
-                    '</div>' +
-                    '<div class="kypo-pool-bar"><div class="kypo-pool-fill" id="pool-bar-' + pid + '" style="width:0%"></div></div>' +
-                    '</div>';
-            }).join('');
-
-            items.forEach(function (p) { loadPoolDetail(p.kypo_pool_id); });
+            _allPools = json.data || [];
+            renderPoolRows(_allPools);
         } catch (e) {
-            document.getElementById('kypo-pool-list').innerHTML =
-                '<div class="kypo-card" style="color:#c62828">Connection error: ' + e.message + '</div>';
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">Connection error: ' + e.message + '</td></tr>';
         }
     }
 
-    // ── Load pool detail from KYPO ────────────────────────────────
+    function applyPoolFilters() {
+        var lockFilter = document.getElementById('pool-lock-filter').value;
+        var field = document.getElementById('pool-search-field').value;
+        var text = (document.getElementById('pool-search-text').value || '').toLowerCase().trim();
+
+        var filtered = _allPools.filter(function (p) {
+            if (lockFilter) {
+                var locked = !!p._locked;
+                if (lockFilter === 'locked' && !locked) return false;
+                if (lockFilter === 'unlocked' && locked) return false;
+            }
+            if (text) {
+                var val = '';
+                if (field === 'comment') val = (p._comment || '').toLowerCase();
+                else if (field === 'definition') val = (p._defName || '').toLowerCase();
+                if (!val.includes(text)) return false;
+            }
+            return true;
+        });
+        renderPoolRows(filtered);
+    }
+
+    function clearPoolFilters() {
+        document.getElementById('pool-lock-filter').value = '';
+        document.getElementById('pool-search-field').value = 'comment';
+        document.getElementById('pool-search-text').value = '';
+        renderPoolRows(_allPools);
+    }
+
     async function loadPoolDetail(kypoPoolId) {
         try {
             const resp = await fetch('/api/v1/kypo/contests/' + CONTEST_ID + '/pools/' + kypoPoolId, {
                 headers: { 'Authorization': 'Token ' + CSRF_TOKEN }
             });
             if (!resp.ok) return;
-            const json = await resp.json();
-            const d = json.data || {};
-
-            const meta = document.getElementById('pool-meta-' + kypoPoolId);
-            const bar = document.getElementById('pool-bar-' + kypoPoolId);
-            if (!meta) return;
+            const d = (await resp.json()).data || {};
 
             var maxSize = d.max_size || 0;
             var used = d.size || 0;
             var pct = maxSize > 0 ? Math.round(used / maxSize * 100) : 0;
-            var lockIcon = d.lock_id ? '&#128274;' : '&#128275;';
-            var lockText = d.lock_id ? 'locked' : 'unlocked';
 
-            var titleEl = document.getElementById('pool-title-' + kypoPoolId);
-            if (titleEl && d.comment) titleEl.textContent = d.comment;
+            var commentEl = document.getElementById('pool-comment-' + kypoPoolId);
+            var defEl = document.getElementById('pool-def-' + kypoPoolId);
+            var sizeEl = document.getElementById('pool-size-' + kypoPoolId);
+            var barEl = document.getElementById('pool-bar-' + kypoPoolId);
+            var lockEl = document.getElementById('pool-lock-' + kypoPoolId);
 
-            meta.innerHTML =
-                (d.definition ? '<div class="kypo-meta-item"><span class="kypo-meta-icon">&#128230;</span> ' + d.definition.name + ' (' + d.definition.rev + ')</div>' : '') +
-                '<div class="kypo-meta-item">' + lockIcon + ' ' + lockText + '</div>' +
-                '<div class="kypo-meta-item"><strong>' + used + '/' + maxSize + '</strong></div>';
+            if (commentEl) commentEl.textContent = d.comment || '—';
+            if (defEl && d.definition) defEl.textContent = d.definition.name + ' (' + (d.definition.rev || 'main') + ')';
+            if (sizeEl) sizeEl.innerHTML = '<strong>' + used + ' / ' + maxSize + '</strong>';
+            if (barEl) barEl.style.width = pct + '%';
+            if (lockEl) {
+                lockEl.innerHTML = d.lock_id
+                    ? '<span class="clean-badge clean-badge-warning"><i class="fas fa-lock"></i> Locked</span>'
+                    : '<span class="clean-badge clean-badge-secondary"><i class="fas fa-lock-open"></i> Unlocked</span>';
+            }
 
-            if (bar) bar.style.width = pct + '%';
+            // Cache on pool object for filtering
+            var poolObj = _allPools.find(function (p) { return p.kypo_pool_id === kypoPoolId; });
+            if (poolObj) {
+                poolObj._locked = !!d.lock_id;
+                poolObj._comment = d.comment || '';
+                poolObj._defName = d.definition ? d.definition.name : '';
+            }
         } catch (e) { }
     }
 
-    // ── Submit: Create Sandbox Definition ───────────────────────────
+    // ── Submit: Create Sandbox Definition ─────────────────────────────────────
     async function kypoSubmitSandboxDef() {
         var gitUrl = document.getElementById('def-git-url').value.trim();
         var rev = document.getElementById('def-git-revision').value.trim() || 'main';
@@ -842,19 +732,17 @@
             });
             const json = await resp.json();
             if (resp.ok) {
-                kypoToast('✓ Created successfully! KYPO ID: ' + json.data.id, 'success');
+                kypoToast('&#10003; Created successfully! KYPO ID: ' + json.data.id, 'success');
                 kypoCloseModal('kypo-modal-def');
                 document.getElementById('def-git-url').value = '';
                 loadSandboxDefinitions();
             } else {
                 kypoToast('Error: ' + (json.error || JSON.stringify(json.errors)), 'error');
             }
-        } catch (e) {
-            kypoToast('Connection error: ' + e.message, 'error');
-        }
+        } catch (e) { kypoToast('Connection error: ' + e.message, 'error'); }
     }
 
-    // ── Submit: Create Pool ──────────────────────────────────────────
+    // ── Submit: Create Pool ────────────────────────────────────────────────────
     async function kypoSubmitPool() {
         var defId = document.getElementById('pool-def-id').value;
         var comment = document.getElementById('pool-comment').value.trim();
@@ -869,28 +757,24 @@
             });
             const json = await resp.json();
             if (resp.ok) {
-                kypoToast('✓ Pool created successfully! KYPO Pool ID: ' + json.data.kypo_pool_id, 'success');
+                kypoToast('&#10003; Pool created! KYPO Pool ID: ' + json.data.kypo_pool_id, 'success');
                 kypoCloseModal('kypo-modal-pool');
                 loadPools();
             } else {
                 kypoToast('Error: ' + (json.error || 'Failed to create pool'), 'error');
             }
-        } catch (e) {
-            kypoToast('Connection error: ' + e.message, 'error');
-        }
+        } catch (e) { kypoToast('Connection error: ' + e.message, 'error'); }
     }
 
-    // ── Pool actions ──────────────────────────────────────────────
+    // ── Pool: Edit ─────────────────────────────────────────────────────────────
     async function editPool(kypoPoolId) {
         document.getElementById('edit-pool-id').value = kypoPoolId;
         document.getElementById('edit-pool-comment').value = '';
         document.getElementById('edit-pool-size').value = 1;
         document.getElementById('edit-pool-email').checked = false;
-
         var sel = document.getElementById('edit-pool-def-id');
         var srcSel = document.getElementById('pool-def-id');
         if (srcSel && srcSel.options.length > 1) sel.innerHTML = srcSel.innerHTML;
-
         try {
             const resp = await fetch('/api/v1/kypo/contests/' + CONTEST_ID + '/pools/' + kypoPoolId, {
                 headers: { 'Authorization': 'Token ' + CSRF_TOKEN }
@@ -922,7 +806,7 @@
             });
             const json = await resp.json();
             if (resp.ok) {
-                kypoToast('✓ Pool updated successfully', 'success');
+                kypoToast('&#10003; Pool updated successfully', 'success');
                 kypoCloseModal('kypo-modal-edit-pool');
                 loadPoolDetail(parseInt(pid));
             } else {
@@ -931,6 +815,7 @@
         } catch (e) { kypoToast('Error: ' + e.message, 'error'); }
     }
 
+    // ── Pool: Allocate ─────────────────────────────────────────────────────────
     function allocateSpecific(kypoPoolId) {
         document.getElementById('allocate-pool-id').value = kypoPoolId;
         document.getElementById('allocate-count').value = 1;
@@ -950,7 +835,7 @@
             });
             const json = await resp.json();
             if (resp.ok) {
-                kypoToast('✓ ' + count + ' sandbox(es) allocated successfully', 'success');
+                kypoToast('&#10003; ' + count + ' sandbox(es) allocated', 'success');
                 loadPoolDetail(parseInt(pid));
             } else {
                 kypoToast('Error: ' + (json.error || 'Allocation failed'), 'error');
@@ -967,12 +852,8 @@
                 body: JSON.stringify({ count: 1 }),
             });
             const json = await resp.json();
-            if (resp.ok) {
-                kypoToast('✓ Allocated successfully', 'success');
-                loadPoolDetail(kypoPoolId);
-            } else {
-                kypoToast('Error: ' + (json.error || 'Allocation failed'), 'error');
-            }
+            if (resp.ok) { kypoToast('&#10003; Allocated successfully', 'success'); loadPoolDetail(kypoPoolId); }
+            else { kypoToast('Error: ' + (json.error || 'Allocation failed'), 'error'); }
         } catch (e) { kypoToast('Error: ' + e.message, 'error'); }
     }
 
@@ -984,12 +865,8 @@
                 headers: { 'Content-Type': 'application/json', 'CSRF-Token': CSRF_TOKEN },
             });
             const json = await resp.json();
-            if (resp.ok) {
-                kypoToast('✓ Resource limit toggled successfully', 'success');
-                loadPoolDetail(kypoPoolId);
-            } else {
-                kypoToast('Error: ' + (json.error || 'Failed'), 'error');
-            }
+            if (resp.ok) { kypoToast('&#10003; Resource limit toggled', 'success'); loadPoolDetail(kypoPoolId); }
+            else { kypoToast('Error: ' + (json.error || 'Failed'), 'error'); }
         } catch (e) { kypoToast('Error: ' + e.message, 'error'); }
     }
 
@@ -1001,16 +878,12 @@
                 headers: { 'CSRF-Token': CSRF_TOKEN },
             });
             const json = await resp.json();
-            if (resp.ok) {
-                kypoToast('✓ Pool deleted successfully', 'success');
-                loadPools();
-            } else {
-                kypoToast('Error: ' + (json.error || 'Delete failed'), 'error');
-            }
+            if (resp.ok) { kypoToast('&#10003; Pool deleted', 'success'); loadPools(); }
+            else { kypoToast('Error: ' + (json.error || 'Delete failed'), 'error'); }
         } catch (e) { kypoToast('Error: ' + e.message, 'error'); }
     }
 
-    // ── Initialization ─────────────────────────────────────────────────
+    // ── Init ───────────────────────────────────────────────────────────────────
     document.addEventListener('DOMContentLoaded', function () {
         loadSandboxDefinitions();
         loadPools();
