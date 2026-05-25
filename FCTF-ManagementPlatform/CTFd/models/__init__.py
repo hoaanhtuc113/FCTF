@@ -669,12 +669,45 @@ class Users(db.Model):
         self._team_id_cache = value
 
     @property
-    def is_challenge_writer(self):
-        return self.type == "challenge_writer"
+    def is_admin(self):
+        """Platform-level admin — bypass mọi contest permission."""
+        return self.type == "admin"
 
-    @property
-    def is_jury(self):
-        return self.type == "jury"
+    def get_contest_role(self, contest_id):
+        """
+        Trả về role của user trong contest cụ thể.
+        Platform admin không cần contest role — dùng is_admin để check.
+        """
+        if self.type == "admin":
+            return None
+        p = ContestParticipant.query.filter_by(
+            user_id=self.id, contest_id=contest_id
+        ).first()
+        return p.role if p else None
+
+    def is_jury(self, contest_id):
+        """Jury trong contest cụ thể. Admin bypass."""
+        if self.type == "admin":
+            return True
+        return self.get_contest_role(contest_id) == "jury"
+
+    def is_challenge_writer(self, contest_id):
+        """Challenge writer trong contest cụ thể. Admin bypass."""
+        if self.type == "admin":
+            return True
+        return self.get_contest_role(contest_id) == "challenge_writer"
+
+    def is_contestant(self, contest_id):
+        """Contestant trong contest cụ thể."""
+        if self.type == "admin":
+            return True
+        return self.get_contest_role(contest_id) == "contestant"
+
+    def has_contest_access(self, contest_id):
+        """User có tham gia contest này không (bất kỳ role nào)."""
+        if self.type == "admin":
+            return True
+        return self.get_contest_role(contest_id) is not None
 
     @property
     def filled_all_required_fields(self):
@@ -795,14 +828,44 @@ class Admins(Users):
     __mapper_args__ = {"polymorphic_identity": "admin"}
 
 
-class ChallengeWriter(Users):
-    __tablename__ = "challenge_writers"
-    __mapper_args__ = {"polymorphic_identity": "challenge_writer"}
+class ContestParticipant(db.Model):
+    """
+    Contest-scoped role mapping.
+    1 user có thể có role khác nhau ở từng contest.
+    Platform admin (users.type='admin') không cần record ở đây — bypass toàn bộ.
+    """
+    __tablename__ = "contest_participants"
+    __table_args__ = (
+        db.UniqueConstraint("contest_id", "user_id", name="uq_contest_participant"),
+        {},
+    )
 
+    id = db.Column(db.Integer, primary_key=True)
+    contest_id = db.Column(
+        db.Integer, db.ForeignKey("contests.id", ondelete="CASCADE"), nullable=False
+    )
+    user_id = db.Column(
+        db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    # admin không có ở đây — admin là platform-level (users.type)
+    role = db.Column(
+        db.Enum("contestant", "jury", "challenge_writer", name="contest_role_enum"),
+        nullable=False,
+        default="contestant",
+    )
+    joined_at = db.Column(db.DateTime, default=datetime.datetime.utcnow, nullable=False)
 
-class Jury(Users):
-    __tablename__ = "jurys"
-    __mapper_args__ = {"polymorphic_identity": "jury"}
+    contest = db.relationship(
+        "Contests", foreign_keys=[contest_id], lazy="select",
+        backref=db.backref("participants", lazy="dynamic")
+    )
+    user = db.relationship(
+        "Users", foreign_keys=[user_id], lazy="select",
+        backref=db.backref("contest_participations", lazy="dynamic")
+    )
+
+    def __repr__(self):
+        return f"<ContestParticipant user_id={self.user_id} contest_id={self.contest_id} role={self.role}>"
 
 
 def _get_team_invite_secret_key():
