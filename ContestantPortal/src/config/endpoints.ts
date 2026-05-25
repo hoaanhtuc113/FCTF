@@ -9,8 +9,11 @@ export const API_ENDPOINTS = {
   CONFIG: {
     DATE_CONFIG: '/Config/get_date_config',
     PUBLIC: '/Config/get_public_config',
-    CONTEST_ACCESS: '/Config/contest_access',
-    CONTEST_LIST: '/Config/contest_list',
+  },
+  CONTESTS: {
+    LIST: '/contests',
+    DETAIL: (contestId: number | string) => `/contests/${contestId}`,
+    ACCESS: (contestId: number | string) => `/contests/${contestId}/access`,
   },
   CHALLENGES: {
     BY_TOPIC: '/challenge/by-topic',
