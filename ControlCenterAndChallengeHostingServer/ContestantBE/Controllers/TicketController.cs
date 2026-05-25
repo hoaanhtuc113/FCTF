@@ -29,7 +29,7 @@ public class TicketController : BaseController
     public async Task<IActionResult> CreateTicketByUser([FromRoute] int contestId, [FromBody] CreateTicketRequestDTO request)
     {
         var userId = UserContext.UserId;
-        _userBehaviorLogger.Log("CREATE_TICKET", userId, UserContext.TeamId, new { request.title, request.description });
+        _userBehaviorLogger.Log("CREATE_TICKET", userId, null, new { request.title, request.description });
         await Console.Out.WriteLineAsync($"[Requesst Send Ticket] User {userId}: Title {request.title}, message {request.description}");
 
         var result = await _ticketService.CreateTicket(request, userId, contestId);
@@ -42,7 +42,7 @@ public class TicketController : BaseController
     public async Task<IActionResult> GetTicketByUser()
     {
         var userId = UserContext.UserId;
-        _userBehaviorLogger.Log("GET_TICKETS_BY_USER", userId, UserContext.TeamId, null);
+        _userBehaviorLogger.Log("GET_TICKETS_BY_USER", userId, null, null);
         var tickets = await _ticketService.GetTicketsByUser(userId);
         return Ok(new { tickets });
     }
@@ -53,7 +53,7 @@ public class TicketController : BaseController
     {
         var userId = UserContext.UserId;
 
-        _userBehaviorLogger.Log("GET_TICKET_BY_ID", userId, UserContext.TeamId, new { ticket_id = ticketId });
+        _userBehaviorLogger.Log("GET_TICKET_BY_ID", userId, null, new { ticket_id = ticketId });
         var result = await _ticketService.GetTicketById(ticketId, userId);
 
         if (!result.Success)
@@ -73,7 +73,7 @@ public class TicketController : BaseController
     public async Task<IActionResult> DeleteTicket(int ticketId)
     {
         var userId = UserContext.UserId;
-        _userBehaviorLogger.Log("DELETE_TICKET", userId, UserContext.TeamId, new { ticket_id = ticketId });
+        _userBehaviorLogger.Log("DELETE_TICKET", userId, null, new { ticket_id = ticketId });
         await Console.Out.WriteLineAsync($"[Requesst Remove Ticket] User {userId}: Ticket ID {ticketId}");
         var result = await _ticketService.DeleteTicket(ticketId, userId);
         if (!result.Success) return BadRequest(new { message = result.Message });

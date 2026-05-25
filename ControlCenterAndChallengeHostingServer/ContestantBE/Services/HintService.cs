@@ -57,14 +57,29 @@ public class HintService : IHintService
         return result;
     }
 
-    private async Task EnsureChallengePrerequisitesUnlockedAsync(Challenge challenge, User user)
+    private static int? ResolveTeamIdForContest(User user, int contestId)
+    {
+        return (int?)user.TeamMemberships
+            .Select(m => m.Team)
+            .FirstOrDefault(t => t.ContestId == contestId)
+            ?.Id;
+    }
+
+    private static ResourceShared.Models.Team? ResolveTeamForContest(User user, int contestId)
+    {
+        return user.TeamMemberships
+            .Select(m => m.Team)
+            .FirstOrDefault(t => t.ContestId == contestId);
+    }
+
+    private async Task EnsureChallengePrerequisitesUnlockedAsync(Challenge challenge, User user, int contestId)
     {
         if (string.IsNullOrWhiteSpace(challenge.Requirements))
         {
             return;
         }
 
-        var userTeamId = (int?)user.TeamMemberships.FirstOrDefault()?.TeamId;
+        var userTeamId = ResolveTeamIdForContest(user, contestId);
 
         try
         {
@@ -129,7 +144,7 @@ public class HintService : IHintService
         }
     }
 
-    public async Task<HintResponseDTO?> GetHintById(int id, int? userId, bool preview)
+    public async Task<HintResponseDTO?> GetHintById(int id, int? userId, bool preview, int contestId)
     {
         try
         {
@@ -146,9 +161,9 @@ public class HintService : IHintService
             var hasCost = (hint.Cost ?? 0) > 0;
 
             var user = await _context.Users
-                .Include(u => u.TeamMemberships)
+                .Include(u => u.TeamMemberships).ThenInclude(m => m.Team)
                 .FirstOrDefaultAsync(u => u.Id == userId);
-            var userTeamId = (int?)user?.TeamMemberships.FirstOrDefault()?.TeamId;
+            var userTeamId = user == null ? null : ResolveTeamIdForContest(user, contestId);
 
             // If unauthenticated/null user and hint has cost, keep the old behavior: locked.
             if (user == null && hasCost)
@@ -216,7 +231,7 @@ public class HintService : IHintService
         }
     }
 
-    public async Task<HintListDTO?> GetHintsByChallengeId(int challengeId, int user)
+    public async Task<HintListDTO?> GetHintsByChallengeId(int challengeId, int user, int contestId)
     {
         try
         {
@@ -239,9 +254,9 @@ public class HintService : IHintService
             {
                 var currentUser = await _context.Users
                     .AsNoTracking()
-                    .Include(u => u.TeamMemberships)
+                    .Include(u => u.TeamMemberships).ThenInclude(m => m.Team)
                     .FirstOrDefaultAsync(u => u.Id == user);
-                var currentUserTeamId = (int?)currentUser?.TeamMemberships.FirstOrDefault()?.TeamId;
+                var currentUserTeamId = currentUser == null ? null : ResolveTeamIdForContest(currentUser, contestId);
 
                 if (currentUser != null)
                 {
@@ -292,7 +307,7 @@ public class HintService : IHintService
         }
     }
 
-    public async Task<UnlockResponseDTO?> UnlockHint(UnlockRequestDto req, int userId)
+    public async Task<UnlockResponseDTO?> UnlockHint(UnlockRequestDto req, int userId, int contestId)
     {
         try
         {
@@ -314,8 +329,8 @@ public class HintService : IHintService
             if (user == null)
                 throw new InvalidOperationException("User not found");
 
-            var userTeamId = (int?)user.TeamMemberships.FirstOrDefault()?.TeamId;
-            var userTeam = user.TeamMemberships.FirstOrDefault()?.Team;
+            var userTeamId = ResolveTeamIdForContest(user, contestId);
+            var userTeam = ResolveTeamForContest(user, contestId);
 
             // Use distributed lock to prevent race condition across multiple backend replicas
             // Lock key is based on team/user to allow parallel unlocks for different teams
@@ -331,7 +346,7 @@ public class HintService : IHintService
 
             try
             {
-                await EnsureChallengePrerequisitesUnlockedAsync(target.Challenge, user);
+                await EnsureChallengePrerequisitesUnlockedAsync(target.Challenge, user, contestId);
 
                 // Re-check prerequisites inside lock to avoid TOCTOU
                 var prerequisites = GetPrerequisites(target.Requirements);

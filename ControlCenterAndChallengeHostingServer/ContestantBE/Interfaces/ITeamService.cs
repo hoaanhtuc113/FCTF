@@ -6,6 +6,6 @@ namespace ContestantBE.Interfaces;
 
 public interface ITeamService
 {
-    Task<TeamScoreDTO?> GetTeamScore(int currentUser);
-    Task<List<SubmissionDto>> GetTeamSolves(int currentUser);
+    Task<TeamScoreDTO?> GetTeamScore(int currentUser, int contestId);
+    Task<List<SubmissionDto>> GetTeamSolves(int currentUser, int contestId);
 }

@@ -61,13 +61,6 @@ public class ChallengeController : BaseController
             || message.Contains("constraint", StringComparison.OrdinalIgnoreCase);
     }
 
-    private static Team? GetUserTeamForContest(User? user, int contestId)
-    {
-        return user?.TeamMemberships
-            .Select(m => m.Team)
-            .FirstOrDefault(t => t.ContestId == contestId);
-    }
-
     // Helper method: Increment and check KPM using Redis atomic INCR
     private async Task<(bool exceeded, int current)> CheckAndIncrementKpmAsync(int userId, int limit)
     {
@@ -101,7 +94,7 @@ public class ChallengeController : BaseController
 
     [HttpGet("{id}")]
     [DuringCtfTimeAndAfterOnly]
-    public async Task<IActionResult> GetById(int id)
+    public async Task<IActionResult> GetById([FromRoute] int contestId, int id)
     {
         try
         {
@@ -114,9 +107,10 @@ public class ChallengeController : BaseController
             if (user == null)
                 return NotFound(new { error = "User not found" });
 
-            _userBehaviorLogger.Log("VIEW_CHALLENGE", user.Id, UserContext.TeamId, new { challengeId = id });
+            var teamId = GetUserTeamForContest(user, contestId)?.Id;
+            _userBehaviorLogger.Log("VIEW_CHALLENGE", user.Id, teamId, new { challengeId = id });
 
-            var result = await _challengeServices.GetById(id, user);
+            var result = await _challengeServices.GetById(id, user, contestId);
 
             if (result.HttpStatusCode != HttpStatusCode.OK || result.Data == null)
             {
@@ -173,7 +167,8 @@ public class ChallengeController : BaseController
 
         try
         {
-            _userBehaviorLogger.Log("VIEW_All_TOPIC", user.Id, UserContext.TeamId, null);
+            var topicTeamId = GetUserTeamForContest(user, contestId)?.Id;
+            _userBehaviorLogger.Log("VIEW_All_TOPIC", user.Id, topicTeamId, null);
             var result = await _challengeServices.GetTopic(user, contestId);
             return Ok(new
             {
@@ -196,7 +191,11 @@ public class ChallengeController : BaseController
     public async Task<IActionResult> ListChallengesByCategoryName([FromRoute] int contestId, [FromRoute] string category_name)
     {
         var userId = UserContext.UserId;
-        var teamId = UserContext.TeamId;
+        var user = await _context.Users
+            .Include(u => u.TeamMemberships).ThenInclude(m => m.Team)
+            .AsNoTracking()
+            .FirstOrDefaultAsync(u => u.Id == userId);
+        var teamId = (int?)GetUserTeamForContest(user, contestId)?.Id;
         _userBehaviorLogger.Log("VIEW_CHALLENGES_BY_CATEGORY", userId, teamId, new { category = category_name });
         var challenges = await _challengeServices.GetChallengeByCategories(category_name, teamId, contestId);
         return Ok(new
@@ -208,12 +207,19 @@ public class ChallengeController : BaseController
 
     [HttpGet("instances")]
     [DuringCtfTimeAndAfterOnly]
-    public async Task<IActionResult> GetAllInstances()
+    public async Task<IActionResult> GetAllInstances([FromRoute] int contestId)
     {
         try
         {
             var userId = UserContext.UserId;
-            var teamId = UserContext.TeamId;
+            var user = await _context.Users
+                .Include(u => u.TeamMemberships).ThenInclude(m => m.Team)
+                .AsNoTracking()
+                .FirstOrDefaultAsync(u => u.Id == userId);
+            var team = GetUserTeamForContest(user, contestId);
+            if (team == null)
+                return NotFound(new { success = false, message = "Team not found for this contest" });
+            var teamId = team.Id;
 
             _userBehaviorLogger.Log("VIEW_TEAM_CHALLENGE_INSTANCES", userId, teamId, null);
             var instances = await _challengeServices.GetAllInstances(teamId);
@@ -235,14 +241,15 @@ public class ChallengeController : BaseController
 
     [DuringCtfTimeOnly]
     [HttpPost("attempt")]
-    public async Task<IActionResult> Attempt([FromBody] ChallengeAttemptRequest request)
+    public async Task<IActionResult> Attempt([FromRoute] int contestId, [FromBody] ChallengeAttemptRequest request)
     {
         var userId = UserContext.UserId;
-        var teamId = (int?)UserContext.TeamId;
         var user = await _context.Users
             .Include(u => u.TeamMemberships).ThenInclude(m => m.Team)
             .AsNoTracking()
             .FirstOrDefaultAsync(u => u.Id == userId);
+        var userTeam = GetUserTeamForContest(user, contestId);
+        var teamId = (int?)userTeam?.Id;
 
         if (request.ChallengeId == 0)
             return BadRequest(new { error = "ChallengeId is required" });
@@ -269,7 +276,6 @@ public class ChallengeController : BaseController
             });
         }
 
-        var userTeam = user?.TeamMemberships.FirstOrDefault()?.Team;
         if (_configHelper.IsUserMode() && userTeam == null)
             return Forbid();
 
@@ -574,7 +580,7 @@ public class ChallengeController : BaseController
             {
                 try
                 {
-                    _ = await _challengeServices.ForceStopChallenge(challenge.Id, user);
+                    _ = await _challengeServices.ForceStopChallenge(challenge.Id, user, contestId);
                 }
                 catch (Exception ex)
                 {
@@ -731,7 +737,7 @@ public class ChallengeController : BaseController
         {
             try
             {
-                await _challengeServices.ForceStopChallenge(challenge.Id, user);
+                await _challengeServices.ForceStopChallenge(challenge.Id, user, contestId);
             }
             catch (Exception ex)
             {
@@ -948,7 +954,7 @@ public class ChallengeController : BaseController
 
         try
         {
-            var response = await _challengeServices.ChallengeStart(challenge, user, deploymentTeamId);
+            var response = await _challengeServices.ChallengeStart(challenge, user, contestId, deploymentTeamId);
             if (response.status != (int)HttpStatusCode.OK)
             {
                 // >>> ROLLBACK: Xóa ngay slot vừa chiếm trong Redis <<<
@@ -993,19 +999,20 @@ public class ChallengeController : BaseController
 
     [HttpPost("stop-by-user")]
     [DuringCtfTimeOnly]
-    public async Task<IActionResult> StopChallengeByUser([FromBody] ChallengeStartStopReqDTO challengeStartReq)
+    public async Task<IActionResult> StopChallengeByUser([FromRoute] int contestId, [FromBody] ChallengeStartStopReqDTO challengeStartReq)
     {
         if (challengeStartReq == null || challengeStartReq.challengeId <= 0)
             return BadRequest(new { error = "ChallengeId is required" });
 
         var userId = UserContext.UserId;
-        var teamId = (int?)UserContext.TeamId;
         var user = await _context.Users
             .Include(u => u.TeamMemberships).ThenInclude(m => m.Team)
             .AsNoTracking()
             .FirstOrDefaultAsync(u => u.Id == userId);
+        var userTeamStop = GetUserTeamForContest(user, contestId);
+        var teamId = (int?)userTeamStop?.Id;
         if (teamId == null || user == null)
-            return BadRequest(new { error = "User no join team" });
+            return BadRequest(new { error = "User no join team in this contest" });
 
         _userBehaviorLogger.Log("STOP_CHALLENGE", userId, teamId, new { challengeStartReq.challengeId });
 
@@ -1023,7 +1030,7 @@ public class ChallengeController : BaseController
         {
             await Console.Out.WriteLineAsync($"[Requesst Stop Challenge] User {userId} : Team {teamId} : Challenge {challenge.Name}");
 
-            var response = await _challengeServices.ForceStopChallenge(challenge.Id, user);
+            var response = await _challengeServices.ForceStopChallenge(challenge.Id, user, contestId);
             return response.status switch
             {
                 (int)HttpStatusCode.OK => Ok(response),
@@ -1045,7 +1052,7 @@ public class ChallengeController : BaseController
 
     [HttpPost("check-status")]
     [DuringCtfTimeOnly]
-    public async Task<IActionResult> CheckChallengeStatus([FromBody] ChallengCheckStatusReqDTO statusReq)
+    public async Task<IActionResult> CheckChallengeStatus([FromRoute] int contestId, [FromBody] ChallengCheckStatusReqDTO statusReq)
     {
         if (statusReq == null || statusReq.challengeId <= 0)
         {
@@ -1058,13 +1065,17 @@ public class ChallengeController : BaseController
             });
         }
         var userId = UserContext.UserId;
-        var teamIdClaim = UserContext.TeamId;
-        if (teamIdClaim == 0)
+        var user = await _context.Users
+            .Include(u => u.TeamMemberships).ThenInclude(m => m.Team)
+            .AsNoTracking()
+            .FirstOrDefaultAsync(u => u.Id == userId);
+        var resolvedTeam = GetUserTeamForContest(user, contestId);
+        if (resolvedTeam == null)
         {
             return BadRequest(new ChallengeDeployResponeDTO
             {
                 success = false,
-                message = "User no join team",
+                message = "User no join team in this contest",
                 status = (int)HttpStatusCode.BadRequest,
                 pod_status = Enums.DeploymentStatusEnum.Failed
             });
@@ -1081,11 +1092,7 @@ public class ChallengeController : BaseController
             status = (int)HttpStatusCode.BadRequest,
             pod_status = Enums.DeploymentStatusEnum.Failed
         });
-        int teamId = teamIdClaim;
-        if (challenge.SharedInstant)
-        {
-            teamId = -2; // Use -2 to indicate shared instance in cache keys and service logic
-        }
+        int teamId = challenge.SharedInstant ? -2 : resolvedTeam.Id;
         var response = await _challengeServices.CheckChallengeStart(challenge.Id, teamId);
         return response.status switch
         {

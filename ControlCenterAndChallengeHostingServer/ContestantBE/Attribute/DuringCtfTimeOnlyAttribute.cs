@@ -1,7 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using ResourceShared.Utils;
-using System.Security.Claims;
 
 namespace ContestantBE.Attribute;
 
@@ -48,12 +47,8 @@ public class DuringCtfTimeOnlyFilter : IAsyncActionFilter
             return;
         }
 
-        if (_configHelper.IsTeamsMode()
-            && context.HttpContext.User.FindFirstValue("teamId") == null)
-        {
-            context.Result = new JsonResult(new { error = "You must join a team to participate in this CTF" }) { StatusCode = 403 };
-            return;
-        }
+        // Team membership is now validated per-contest at the controller level
+        // (contestId is resolved from the route, not embedded in the JWT)
 
         await next();
     }
@@ -112,12 +107,7 @@ public class ViewOrDuringCtfTimeOnlyFilter : IAsyncActionFilter
             return;
         }
 
-        if (_configHelper.IsTeamsMode()
-            && context.HttpContext.User.FindFirstValue("teamId") == null)
-        {
-            context.Result = new JsonResult(new { error = "You must join a team to participate in this CTF" }) { StatusCode = 403 };
-            return;
-        }
+        // Team membership is now validated per-contest at the controller level
 
         await next();
     }
