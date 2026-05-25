@@ -229,7 +229,7 @@ export function Contests() {
                 {user?.username}
               </Typography>
               <Typography sx={{ fontSize: 11, color: activeColors.textSecondary, fontFamily: '"JetBrains Mono", monospace' }}>
-                <span style={{ color: activeColors.primary, fontWeight: 700 }}>#</span> {user?.team?.teamName ?? 'No Team'}
+                <span style={{ color: activeColors.primary, fontWeight: 700 }}>#</span> {user?.username}
               </Typography>
             </Box>
 
