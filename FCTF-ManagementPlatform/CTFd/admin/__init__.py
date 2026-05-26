@@ -507,7 +507,7 @@ def config():
 @admins_only
 def platform_settings():
     if request.method == "POST":
-        allowed_keys = {"registration_visibility", "ctf_name"}
+        allowed_keys = {"registration_visibility"}
         for key, values in request.form.lists():
             if key == "nonce" or key not in allowed_keys:
                 continue
@@ -522,12 +522,10 @@ def platform_settings():
 
     clear_config()
     registration_visibility = get_config("registration_visibility") or "private"
-    ctf_name = get_config("ctf_name") or "FCTF"
 
     return render_template(
         "admin/platform_settings.html",
         registration_visibility=registration_visibility,
-        ctf_name=ctf_name,
     )
 
 
