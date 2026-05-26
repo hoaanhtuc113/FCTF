@@ -28,9 +28,12 @@ public class ScoreboardController : BaseController
     [HttpGet("top/{count:int}")]
     public async Task<IActionResult> GetTopTeams([FromRoute] int contestId, int count, [FromQuery] int? bracket_id)
     {
-        var scoreVisibility = _configHelper.GetConfig<string>("score_visibility", "public");
+        var contest = await _context.Contests.AsNoTracking()
+            .FirstOrDefaultAsync(c => c.Id == contestId);
+        if (contest == null)
+            return NotFound(new { success = false, message = "Contest not found." });
 
-        switch (scoreVisibility)
+        switch (contest.ScoreVisibility)
         {
             case "public":
                 // Everyone can view — no auth required
@@ -60,12 +63,16 @@ public class ScoreboardController : BaseController
     }
 
     [HttpGet("brackets")]
-    public async Task<IActionResult> GetBrackets()
+    public async Task<IActionResult> GetBrackets([FromRoute] int contestId)
     {
-        var scoreVisibility = _configHelper.GetConfig<string>("score_visibility", "public");
+        var contest = await _context.Contests.AsNoTracking()
+            .FirstOrDefaultAsync(c => c.Id == contestId);
+        if (contest == null)
+            return NotFound(new { success = false, message = "Contest not found." });
+
         var bracketViewOther = _configHelper.GetConfig<bool>("bracket_view_other");
 
-        if (scoreVisibility == "private" && !bracketViewOther)
+        if (contest.ScoreVisibility == "private" && !bracketViewOther)
             return Ok(new { success = true, data = Array.Empty<object>() });
 
         var brackets = await _context.Brackets
@@ -77,12 +84,16 @@ public class ScoreboardController : BaseController
 
     [AllowAnonymous]
     [HttpGet("freeze-status")]
-    public IActionResult GetFreezeStatus()
+    public async Task<IActionResult> GetFreezeStatus([FromRoute] int contestId)
     {
-        var freezeRaw = _configHelper.GetConfig("freeze");
-        long freeze = 0;
-        if (freezeRaw != null)
-            long.TryParse(freezeRaw.ToString(), out freeze);
+        var contest = await _context.Contests.AsNoTracking()
+            .FirstOrDefaultAsync(c => c.Id == contestId);
+        if (contest == null)
+            return NotFound(new { success = false, message = "Contest not found." });
+
+        long freeze = contest.FreezeScoreboardAt.HasValue
+            ? new DateTimeOffset(contest.FreezeScoreboardAt.Value, TimeSpan.Zero).ToUnixTimeSeconds()
+            : 0;
 
         var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         var isFrozen = freeze > 0 && now >= freeze;

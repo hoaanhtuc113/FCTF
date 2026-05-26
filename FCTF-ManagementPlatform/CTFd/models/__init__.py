@@ -1366,7 +1366,6 @@ class Contests(db.Model):
     name = db.Column(db.String(255), nullable=False)
     description = db.Column(db.Text, nullable=True)
     slug = db.Column(db.String(128), unique=True, nullable=False)
-    access_password = db.Column(db.String(128), nullable=True)
     owner_id = db.Column(
         db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
@@ -1380,9 +1379,7 @@ class Contests(db.Model):
     view_after_ctf = db.Column(db.Boolean, nullable=False, default=False)
 
     # Visibility settings
-    challenge_visibility = db.Column(db.String(32), nullable=False, default="private")
-    score_visibility = db.Column(db.String(32), nullable=False, default="private")
-    account_visibility = db.Column(db.String(32), nullable=False, default="private")
+    score_visibility = db.Column(db.String(32), nullable=False, default="public")
     registration_visibility = db.Column(db.String(32), nullable=False, default="private")
 
     # Team settings

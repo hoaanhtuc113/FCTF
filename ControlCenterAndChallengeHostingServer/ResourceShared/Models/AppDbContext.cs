@@ -409,7 +409,6 @@ public partial class AppDbContext : DbContext
             entity.Property(e => e.Name).HasMaxLength(255).HasColumnName("name");
             entity.Property(e => e.Description).HasColumnType("text").HasColumnName("description");
             entity.Property(e => e.Slug).HasMaxLength(128).HasColumnName("slug");
-            entity.Property(e => e.AccessPassword).HasMaxLength(128).HasColumnName("access_password");
             entity.Property(e => e.OwnerId).HasColumnType("int(11)").HasColumnName("owner_id");
             entity.Property(e => e.UserMode).HasMaxLength(32).HasDefaultValueSql("'teams'").HasColumnName("user_mode");
             entity.Property(e => e.State).HasMaxLength(32).HasDefaultValueSql("'hidden'").HasColumnName("state");
@@ -417,9 +416,7 @@ public partial class AppDbContext : DbContext
             entity.Property(e => e.EndTime).HasMaxLength(6).HasColumnName("end_time");
             entity.Property(e => e.FreezeScoreboardAt).HasMaxLength(6).HasColumnName("freeze_scoreboard_at");
             entity.Property(e => e.ViewAfterCtf).HasColumnName("view_after_ctf");
-            entity.Property(e => e.ChallengeVisibility).HasMaxLength(32).HasDefaultValueSql("'private'").HasColumnName("challenge_visibility");
-            entity.Property(e => e.ScoreVisibility).HasMaxLength(32).HasDefaultValueSql("'private'").HasColumnName("score_visibility");
-            entity.Property(e => e.AccountVisibility).HasMaxLength(32).HasDefaultValueSql("'private'").HasColumnName("account_visibility");
+            entity.Property(e => e.ScoreVisibility).HasMaxLength(32).HasDefaultValueSql("'public'").HasColumnName("score_visibility");
             entity.Property(e => e.RegistrationVisibility).HasMaxLength(32).HasDefaultValueSql("'private'").HasColumnName("registration_visibility");
             entity.Property(e => e.TeamSize).HasColumnType("int(11)").HasColumnName("team_size");
             entity.Property(e => e.CaptainOnlyStartChallenge).HasColumnName("captain_only_start_challenge");
