@@ -236,6 +236,15 @@
                         </select>
                     </div>
                 </div>
+                <div class="col-md-3">
+                    <div class="form-group">
+                        <label class="form-label-sm">Challenge Difficulty</label>
+                        <select name="challenge_difficulty_visibility" class="clean-form-control w-100">
+                            <option value="disabled" {% if contest.challenge_difficulty_visibility != 'enabled' %}selected{% endif %}>Hidden</option>
+                            <option value="enabled"  {% if contest.challenge_difficulty_visibility == 'enabled' %}selected{% endif %}>Visible</option>
+                        </select>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -292,6 +301,14 @@
                                {% if contest.allow_name_change %}checked{% endif %}>
                         <label class="custom-control-label" for="name-change">Allow name change</label>
                     </div>
+                </div>
+            </div>
+            <div class="row mt-2">
+                <div class="col-md-4">
+                    <label class="form-label">Concurrent challenge limit <span class="text-muted">(0 = unlimited)</span></label>
+                    <input type="number" class="clean-form-control w-100" name="limit_challenges" min="0"
+                           value="{{ contest.limit_challenges if contest.limit_challenges is not none else '' }}"
+                           placeholder="0 (unlimited)">
                 </div>
             </div>
         </div>
@@ -412,6 +429,8 @@ function validateContestTimes(startVal, endVal, freezeVal) {
             captain_only_submit_challenge: form.captain_only_submit_challenge.checked,
             team_disbanding: form.team_disbanding.checked,
             allow_name_change: form.allow_name_change.checked,
+            challenge_difficulty_visibility: form.challenge_difficulty_visibility.value,
+            limit_challenges: form.limit_challenges.value ? parseInt(form.limit_challenges.value) : null,
         };
 
         // Validate time constraints before submitting

@@ -46,6 +46,8 @@ def _contest_to_dict(contest: Contests) -> dict:
         "captain_only_submit_challenge": contest.captain_only_submit_challenge,
         "team_disbanding": contest.team_disbanding,
         "allow_name_change": contest.allow_name_change,
+        "challenge_difficulty_visibility": contest.challenge_difficulty_visibility,
+        "limit_challenges": contest.limit_challenges,
         "incorrect_submissions_per_min": contest.incorrect_submissions_per_min,
         "created_at": contest.created_at.isoformat() if contest.created_at else None,
         "updated_at": contest.updated_at.isoformat() if contest.updated_at else None,
@@ -181,6 +183,8 @@ class ContestList(Resource):
             captain_only_submit_challenge=bool(data.get("captain_only_submit_challenge", False)),
             team_disbanding=bool(data.get("team_disbanding", True)),
             allow_name_change=bool(data.get("allow_name_change", True)),
+            challenge_difficulty_visibility=data.get("challenge_difficulty_visibility") or "disabled",
+            limit_challenges=data.get("limit_challenges") or None,
             incorrect_submissions_per_min=data.get("incorrect_submissions_per_min") or None,
         )
 
@@ -220,7 +224,8 @@ class ContestDetail(Resource):
             "view_after_ctf", "captain_only_start_challenge",
             "captain_only_submit_challenge", "team_disbanding", "allow_name_change",
         ]
-        int_fields = ["owner_id", "team_size", "incorrect_submissions_per_min"]
+        str_fields += ["challenge_difficulty_visibility"]
+        int_fields = ["owner_id", "team_size", "incorrect_submissions_per_min", "limit_challenges"]
         dt_fields = ["start_time", "end_time", "freeze_scoreboard_at"]
 
         # Validate slug uniqueness before applying changes
