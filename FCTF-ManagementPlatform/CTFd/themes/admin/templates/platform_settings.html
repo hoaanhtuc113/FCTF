@@ -37,9 +37,9 @@
                     <label for="registration_visibility" class="form-label" style="font-size: 0.85rem; font-weight: 600; color: var(--text-medium);">
                         Registration Visibility
                     </label>
-                    <select class="form-control custom-select" id="registration_visibility" name="registration_visibility" style="max-width: 320px;">
-                        <option value="public" {% if registration_visibility == 'public' %}selected{% endif %}>Public — Anyone can register</option>
-                        <option value="private" {% if registration_visibility != 'public' %}selected{% endif %}>Private — Registration disabled</option>
+                    <select class="form-control custom-select" id="registration_visibility" name="registration_visibility" style="max-width: 200px;">
+                        <option value="public" {% if registration_visibility == 'public' %}selected{% endif %}>Enabled</option>
+                        <option value="private" {% if registration_visibility != 'public' %}selected{% endif %}>Disabled</option>
                     </select>
                     <small class="form-text text-muted mt-1">
                         Controls whether new users can self-register on the contestant portal login page.
