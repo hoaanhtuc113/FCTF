@@ -59,6 +59,14 @@ def _build_registration_custom_field_data(user_items):
     return custom_field_columns, custom_field_value_map
 
 
+def _coerce_bool(value, default=False):
+    if isinstance(value, bool):
+        return value
+    if value is None or value == "":
+        return default
+    return str(value).strip().lower() in ("1", "true", "yes", "y", "on")
+
+
 @admin.route("/admin/users")
 @admin_or_jury
 def users_listing():
@@ -231,6 +239,97 @@ def users_pending_listing():
 @admins_only
 def users_new():
     return render_template("admin/users/new.html")
+
+
+@admin.route("/admin/users/import_users", methods=["POST"])
+@admins_only
+def users_import_users():
+    """
+    Upsert platform users from the management hub.
+
+    CSV/import roles are intentionally limited to platform roles only:
+    user or admin. Contest-level roles are managed from each contest.
+    """
+    req = request.get_json(force=True) or {}
+
+    email = (req.get("email") or "").strip()
+    name = (req.get("name") or "").strip()
+    password = (req.get("password") or "").strip()
+    role = (req.get("role") or "user").strip().lower()
+    verified = _coerce_bool(req.get("verified"), True)
+    hidden = _coerce_bool(req.get("hidden"), False)
+    banned = _coerce_bool(req.get("banned"), False)
+
+    if role not in ("user", "admin"):
+        return {
+            "success": False,
+            "errors": {"role": ["Role must be either user or admin."]},
+        }, 400
+
+    if not name or not email:
+        return {
+            "success": False,
+            "errors": {"name": ["Name and email are required."]},
+        }, 400
+
+    existing_by_email = Users.query.filter_by(email=email).first()
+    existing_by_name = Users.query.filter_by(name=name).first()
+
+    if existing_by_email is None and existing_by_name and existing_by_name.email != email:
+        return {
+            "success": False,
+            "errors": {"name": ["User name has already been taken."]},
+        }, 400
+
+    if existing_by_email is None:
+        if not password:
+            return {
+                "success": False,
+                "errors": {"password": ["Password is required for new users."]},
+            }, 400
+
+        user = Users(
+            name=name,
+            email=email,
+            password=password,
+            type=role,
+            verified=verified,
+            hidden=hidden,
+            banned=banned,
+        )
+        db.session.add(user)
+        db.session.flush()
+        created = True
+    else:
+        user = existing_by_email
+        created = False
+
+        if existing_by_name and existing_by_name.id != user.id:
+            return {
+                "success": False,
+                "errors": {"name": ["User name has already been taken."]},
+            }, 400
+
+        user.name = name
+        user.type = role
+        user.verified = verified
+        user.hidden = hidden
+        user.banned = banned
+        if password:
+            user.password = password
+
+    db.session.commit()
+
+    return {
+        "success": True,
+        "data": {
+            "id": user.id,
+            "name": user.name,
+            "email": user.email,
+            "role": user.type,
+            "created": created,
+        },
+    }, 200
 
 
 @admin.route("/admin/users/<int:user_id>")
