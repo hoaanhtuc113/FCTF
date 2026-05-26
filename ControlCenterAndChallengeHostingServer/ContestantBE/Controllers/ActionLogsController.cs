@@ -37,7 +37,7 @@ public class ActionLogsController : BaseController
             return NotFound(new { success = false, message = "Team not found for this contest" });
 
         var teamId = team.Id;
-        var logs_with_details = await _actionLogsServices.GetActionLogsTeam(teamId);
+        var logs_with_details = await _actionLogsServices.GetActionLogsTeam(teamId, contestId);
 
         if (logs_with_details == null || logs_with_details.Count == 0)
         {
