@@ -1104,15 +1104,15 @@ def contest_user_detail(contest_id, user_id):
 def contest_remove_user(contest_id, user_id):
     """
     Remove a user from a contest by deleting their UserTeamMember entries
-    for teams in this contest. If a team becomes empty, delete it too.
+    for teams in this contest and their ContestParticipant record.
+    If a team becomes empty, delete it too.
     Does NOT delete the global user account.
     """
     from CTFd.models import Teams, UserTeamMember
 
-    contest = Contests.query.filter_by(id=contest_id).first_or_404()
-    user = Users.query.filter_by(id=user_id).first_or_404()
+    Contests.query.filter_by(id=contest_id).first_or_404()
+    Users.query.filter_by(id=user_id).first_or_404()
 
-    # Find all team memberships for this user in this contest
     memberships = (
         db.session.query(UserTeamMember)
         .join(Teams, Teams.id == UserTeamMember.team_id)
@@ -1123,7 +1123,11 @@ def contest_remove_user(contest_id, user_id):
         .all()
     )
 
-    if not memberships:
+    cp = ContestParticipant.query.filter_by(
+        contest_id=contest_id, user_id=user_id
+    ).first()
+
+    if not memberships and not cp:
         return {"success": False, "errors": {"user": ["User is not in this contest."]}}, 404
 
     for membership in memberships:
@@ -1131,12 +1135,14 @@ def contest_remove_user(contest_id, user_id):
         db.session.delete(membership)
         db.session.flush()
 
-        # If team is now empty, delete it
         remaining = UserTeamMember.query.filter_by(team_id=team_id).count()
         if remaining == 0:
             team = Teams.query.get(team_id)
             if team:
                 db.session.delete(team)
+
+    if cp:
+        db.session.delete(cp)
 
     db.session.commit()
     return {"success": True, "data": {"user_id": user_id}}, 200
@@ -1175,11 +1181,12 @@ def contest_update_user_role(contest_id, user_id):
 @admins_only
 def contest_add_existing_user(contest_id):
     """
-    Add an existing user from the system into a contest:
-    - User is found by username (name) or email
-    - We check if they already have a team in this contest
-    - We resolve the team name (either custom team or solo team)
-    - Add user to the team in this contest
+    Add an existing user from the system into a contest.
+
+    user_mode == "users": auto-creates a solo team for the user (1 user = 1 team).
+    user_mode == "teams": creates a ContestParticipant; optionally assigns to an
+                          existing team (team=<name>, create_team=false) or creates
+                          a new team (team=<name>, create_team=true).
     """
     from CTFd.models import Teams, UserTeamMember, Users
     from CTFd.utils.crypto import hash_password
@@ -1190,6 +1197,7 @@ def contest_add_existing_user(contest_id):
 
     username_or_email = (req.get("username") or "").strip()
     team_name         = (req.get("team") or "").strip()
+    create_team       = bool(req.get("create_team", False))
     role              = (req.get("role") or "contestant").strip()
     if role not in ("contestant", "jury", "challenge_writer"):
         role = "contestant"
@@ -1208,35 +1216,36 @@ def contest_add_existing_user(contest_id):
     if user is None:
         return {"success": False, "errors": {"username": ["User not found in system."]}}, 404
 
-    # 2. Check if user is already in this contest
-    existing_team = (
-        db.session.query(Teams)
-        .join(UserTeamMember, UserTeamMember.team_id == Teams.id)
-        .filter(
-            Teams.contest_id == contest_id,
-            UserTeamMember.user_id == user.id,
+    resolved_team_name = None
+
+    if contest.user_mode == "users":
+        # --- user mode: 1 user = 1 solo team ---
+
+        # 2a. Check if user already has a team in this contest
+        existing_team = (
+            db.session.query(Teams)
+            .join(UserTeamMember, UserTeamMember.team_id == Teams.id)
+            .filter(
+                Teams.contest_id == contest_id,
+                UserTeamMember.user_id == user.id,
+            )
+            .first()
         )
-        .first()
-    )
+        if existing_team:
+            return {"success": False, "errors": {"username": ["User is already in this contest."]}}, 400
 
-    if existing_team:
-        return {"success": False, "errors": {"username": ["User is already in this contest."]}}, 400
+        # 3a. Determine target team name
+        resolved_team_name = team_name if team_name else user.name
 
-    # 3. Determine target team name
-    resolved_team_name = team_name if team_name else user.name
+        # 4a. Find or create the solo team
+        team = Teams.query.filter_by(
+            contest_id=contest_id,
+            name=resolved_team_name,
+        ).first()
 
-    # 4. Find or create the team in this contest
-    team = Teams.query.filter_by(
-        contest_id=contest_id,
-        name=resolved_team_name
-    ).first()
-
-    if team is None:
-        if team_name:
-            # If the admin explicitly provided a team name, it MUST exist
-            return {"success": False, "errors": {"team": ["Team does not exist in this contest."]}}, 400
-        else:
-            # Otherwise, create a solo team with the user's name
+        if team is None:
+            if team_name:
+                return {"success": False, "errors": {"team": ["Team does not exist in this contest."]}}, 400
             team = Teams(
                 name=resolved_team_name,
                 email=user.email,
@@ -1247,7 +1256,47 @@ def contest_add_existing_user(contest_id):
             db.session.add(team)
             db.session.flush()
 
-    team.members.append(user)
+        team.members.append(user)
+
+    else:
+        # --- team mode: register participant, optionally assign to a team ---
+
+        # 2b. Check if user is already a participant in this contest
+        existing_cp = ContestParticipant.query.filter_by(
+            contest_id=contest_id, user_id=user.id
+        ).first()
+        if existing_cp:
+            return {"success": False, "errors": {"username": ["User is already in this contest."]}}, 400
+
+        # 3b. Optional team assignment
+        if team_name:
+            if create_team:
+                if Teams.query.filter_by(contest_id=contest_id, name=team_name).first():
+                    return {"success": False, "errors": {"team": ["A team with this name already exists in this contest."]}}, 400
+                team = Teams(
+                    name=team_name,
+                    email=user.email,
+                    password=hash_password("changeme"),
+                    contest_id=contest_id,
+                    captain_user_id=user.id,
+                )
+                db.session.add(team)
+                db.session.flush()
+            else:
+                team = Teams.query.filter_by(contest_id=contest_id, name=team_name).first()
+                if not team:
+                    return {"success": False, "errors": {"team": ["Team not found in this contest."]}}, 404
+                # Check if team already has this user (safety check)
+                already = (
+                    db.session.query(UserTeamMember)
+                    .filter_by(user_id=user.id, team_id=team.id)
+                    .first()
+                )
+                if already:
+                    return {"success": False, "errors": {"team": ["User is already in this team."]}}, 400
+
+            team.members.append(user)
+            resolved_team_name = team_name
 
     # Upsert ContestParticipant record with the chosen contest role
     cp = ContestParticipant.query.filter_by(
@@ -1296,17 +1345,24 @@ def contest_teams_search(contest_id):
 @admins_only
 def contest_users_search(contest_id):
     from CTFd.models import Teams, UserTeamMember, Users
-    from sqlalchemy import or_
+    from sqlalchemy import or_, union
 
     q = request.args.get("q", "").strip()
     if not q:
         return {"success": True, "data": []}
 
-    users_in_contest = (
+    # A user is "in the contest" if they have a team membership OR a ContestParticipant
+    # record. We use UNION so both modes (users / teams) are handled correctly.
+    team_member_ids = (
         db.session.query(UserTeamMember.user_id)
         .join(Teams, Teams.id == UserTeamMember.team_id)
         .filter(Teams.contest_id == contest_id)
     )
+    cp_user_ids = (
+        db.session.query(ContestParticipant.user_id)
+        .filter(ContestParticipant.contest_id == contest_id)
+    )
+    users_in_contest = team_member_ids.union(cp_user_ids)
 
     users = (
         Users.query
@@ -1360,12 +1416,20 @@ def contest_users(contest_id):
     page = abs(request.args.get("page", 1, type=int))
 
     filters = [Users.type == "user"]
-    # In team mode, users belong to a contest if they are members of a team in that contest
+
+    # Users "in" a contest: team member OR ContestParticipant (covers teams mode
+    # where a user was added but not yet assigned to any team).
     team_users_subquery = db.session.query(UserTeamMember.user_id)\
         .join(Teams, Teams.id == UserTeamMember.team_id)\
         .filter(Teams.contest_id == contest_id).subquery()
 
-    contest_or_submitted = [Users.id.in_(team_users_subquery)]
+    cp_users_subquery = db.session.query(ContestParticipant.user_id)\
+        .filter(ContestParticipant.contest_id == contest_id).subquery()
+
+    contest_or_submitted = [
+        Users.id.in_(team_users_subquery),
+        Users.id.in_(cp_users_subquery),
+    ]
 
     if challenge_ids:
         participant_ids = [r[0] for r in db.session.query(Submissions.user_id.distinct())
@@ -1621,11 +1685,130 @@ def contest_member_ids(contest_id):
 @admin.route("/admin/contests/<int:contest_id>/teams/<int:team_id>/delete", methods=["POST"])
 @admins_only
 def contest_delete_team(contest_id, team_id):
-    Contests.query.filter_by(id=contest_id).first_or_404()
+    contest = Contests.query.filter_by(id=contest_id).first_or_404()
     team = Teams.query.filter_by(id=team_id, contest_id=contest_id).first_or_404()
-    db.session.delete(team)
+
+    if contest.user_mode == "users":
+        # In user mode each team represents exactly one user, so deleting the
+        # team also removes those users from the contest entirely.
+        member_ids = [m.id for m in team.members]
+        db.session.delete(team)
+        db.session.flush()
+        if member_ids:
+            ContestParticipant.query.filter(
+                ContestParticipant.contest_id == contest_id,
+                ContestParticipant.user_id.in_(member_ids),
+            ).delete(synchronize_session=False)
+    else:
+        # In team mode, just disband the team; the members keep their
+        # ContestParticipant records and can be assigned to another team later.
+        db.session.delete(team)
+
     db.session.commit()
     return {"success": True}, 200
+
+
+@admin.route("/admin/contests/<int:contest_id>/teams/<int:team_id>/add_member", methods=["POST"])
+@admins_only
+def contest_add_team_member(contest_id, team_id):
+    """Add a user to a contest team directly (bypasses global team-mode restriction)."""
+    from CTFd.models import Teams, UserTeamMember, Users
+    from flask import jsonify
+
+    Contests.query.filter_by(id=contest_id).first_or_404()
+    team = Teams.query.filter_by(id=team_id, contest_id=contest_id).first_or_404()
+
+    data = request.get_json(force=True) or {}
+    user_id = data.get("user_id")
+    if not user_id:
+        return {"success": False, "errors": {"user_id": ["user_id is required"]}}, 400
+
+    user = Users.query.filter_by(id=user_id).first_or_404()
+
+    if not user.verified:
+        return (
+            {"success": False, "errors": {"user_id": ["User must be verified before adding to a team"]}},
+            400,
+        )
+
+    cp = ContestParticipant.query.filter_by(contest_id=contest_id, user_id=user_id).first()
+    if cp is None:
+        return (
+            {"success": False, "errors": {"user_id": ["User must be added to the contest before being added to a team"]}},
+            400,
+        )
+
+    existing = (
+        db.session.query(UserTeamMember)
+        .join(Teams, Teams.id == UserTeamMember.team_id)
+        .filter(
+            UserTeamMember.user_id == user_id,
+            Teams.contest_id == contest_id,
+        )
+        .first()
+    )
+    if existing:
+        return (
+            {"success": False, "errors": {"user_id": ["User is already in a team in this contest"]}},
+            400,
+        )
+
+    team.members.append(user)
+
+    db.session.commit()
+    return {"success": True, "data": {"user_id": user_id}}, 200
+
+
+@admin.route("/admin/contests/<int:contest_id>/available_members_search", methods=["GET"])
+@admins_only
+def contest_available_members_search(contest_id):
+    """Search contest participants not yet assigned to any team in this contest."""
+    from CTFd.models import Teams, UserTeamMember, Users
+    from sqlalchemy import or_
+    from flask import jsonify
+
+    Contests.query.filter_by(id=contest_id).first_or_404()
+    q = request.args.get("q", "").strip()
+    if not q:
+        return jsonify({"success": True, "data": []})
+
+    # Subquery: user IDs already assigned to any team in this contest
+    users_in_team = (
+        db.session.query(UserTeamMember.user_id)
+        .join(Teams, Teams.id == UserTeamMember.team_id)
+        .filter(Teams.contest_id == contest_id)
+    )
+
+    # Only search among users who are already contest participants (ContestParticipant),
+    # excluding those already in a team.
+    contest_participant_ids = (
+        db.session.query(ContestParticipant.user_id)
+        .filter(ContestParticipant.contest_id == contest_id)
+    )
+
+    users = (
+        db.session.query(Users)
+        .filter(
+            Users.type == "user",
+            Users.id.in_(contest_participant_ids),
+            ~Users.id.in_(users_in_team),
+            or_(
+                Users.name.ilike(f"%{q}%"),
+                Users.email.ilike(f"%{q}%"),
+            ),
+        )
+        .order_by(Users.name.asc())
+        .limit(10)
+        .all()
+    )
+
+    return jsonify({
+        "success": True,
+        "data": [
+            {"id": u.id, "name": u.name, "email": u.email, "verified": u.verified}
+            for u in users
+        ],
+    })
 
 
 @admin.route("/admin/contests/<int:contest_id>/action_logs")
