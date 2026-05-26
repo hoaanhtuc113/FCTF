@@ -417,7 +417,7 @@ public class HintService : IHintService
                 if (userTeam == null)
                     throw new InvalidOperationException("User team not found");
 
-                var score = await _scoreHelper.GetTeamScore(userTeam, admin: true);
+                var score = await _scoreHelper.GetTeamScore(userTeam, admin: true, contestId);
 
                 if (target.Cost != null && target.Cost > score)
                     throw new InvalidOperationException("Not enough points to unlock this hint");
