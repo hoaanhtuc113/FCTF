@@ -37,7 +37,6 @@ def _contest_to_dict(contest: Contests) -> dict:
             else None
         ),
         "view_after_ctf": contest.view_after_ctf,
-        "challenge_visibility": contest.challenge_visibility,
         "score_visibility": contest.score_visibility,
         "account_visibility": contest.account_visibility,
         "registration_visibility": contest.registration_visibility,
@@ -174,7 +173,7 @@ class ContestList(Resource):
             end_time=end_time,
             freeze_scoreboard_at=freeze_scoreboard_at,
             view_after_ctf=bool(data.get("view_after_ctf", False)),
-            challenge_visibility=data.get("challenge_visibility") or "private",
+
             score_visibility=data.get("score_visibility") or "private",
             account_visibility=data.get("account_visibility") or "private",
             registration_visibility=data.get("registration_visibility") or "private",
@@ -217,7 +216,7 @@ class ContestDetail(Resource):
         str_fields = [
             "name", "description", "slug", "access_password",
             "user_mode", "state",
-            "challenge_visibility", "score_visibility",
+            "score_visibility",
             "account_visibility", "registration_visibility",
         ]
         bool_fields = [
