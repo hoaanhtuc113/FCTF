@@ -1366,6 +1366,7 @@ class Contests(db.Model):
     name = db.Column(db.String(255), nullable=False)
     description = db.Column(db.Text, nullable=True)
     slug = db.Column(db.String(128), unique=True, nullable=False)
+    access_password = db.Column(db.String(128), nullable=True)
     owner_id = db.Column(
         db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )

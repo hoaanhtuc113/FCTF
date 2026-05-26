@@ -409,6 +409,7 @@ public partial class AppDbContext : DbContext
             entity.Property(e => e.Name).HasMaxLength(255).HasColumnName("name");
             entity.Property(e => e.Description).HasColumnType("text").HasColumnName("description");
             entity.Property(e => e.Slug).HasMaxLength(128).HasColumnName("slug");
+            entity.Property(e => e.AccessPassword).HasMaxLength(128).HasColumnName("access_password");
             entity.Property(e => e.OwnerId).HasColumnType("int(11)").HasColumnName("owner_id");
             entity.Property(e => e.UserMode).HasMaxLength(32).HasDefaultValueSql("'teams'").HasColumnName("user_mode");
             entity.Property(e => e.State).HasMaxLength(32).HasDefaultValueSql("'hidden'").HasColumnName("state");
