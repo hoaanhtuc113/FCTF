@@ -50,7 +50,8 @@ public class ContestsController : BaseController
                 my_team_name = c.Teams
                     .Where(t => t.Members.Any(m => m.UserId == userId))
                     .Select(t => t.Name)
-                    .FirstOrDefault()
+                    .FirstOrDefault(),
+                score_visibility = c.ScoreVisibility
             })
             .ToListAsync();
 
@@ -69,7 +70,8 @@ public class ContestsController : BaseController
             c.challenge_count,
             c.category,
             c.my_team_id,
-            c.my_team_name
+            c.my_team_name,
+            c.score_visibility
         }));
     }
 
