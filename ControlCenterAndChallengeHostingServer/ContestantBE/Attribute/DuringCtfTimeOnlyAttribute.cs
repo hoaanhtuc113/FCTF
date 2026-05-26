@@ -44,7 +44,15 @@ public class DuringCtfTimeOnlyFilter : IAsyncActionFilter
             if (contest != null)
             {
                 var now = DateTime.UtcNow;
-                bool isRunning = contest.State != "paused" && contest.State != "ended" &&
+
+                // When paused: let request through — controller will return "paused" response
+                if (contest.State == "paused")
+                {
+                    await next();
+                    return;
+                }
+
+                bool isRunning = contest.State != "ended" &&
                     (contest.StartTime == null || now >= contest.StartTime) &&
                     (contest.EndTime == null || now <= contest.EndTime);
 
@@ -54,7 +62,7 @@ public class DuringCtfTimeOnlyFilter : IAsyncActionFilter
                     return;
                 }
 
-                bool ended = contest.State is "ended" or "paused" ||
+                bool ended = contest.State == "ended" ||
                     (contest.EndTime.HasValue && now > contest.EndTime.Value);
 
                 if (ended)
@@ -133,7 +141,15 @@ public class ViewOrDuringCtfTimeOnlyFilter : IAsyncActionFilter
             if (contest != null)
             {
                 var now = DateTime.UtcNow;
-                bool isRunning = contest.State != "paused" && contest.State != "ended" &&
+
+                // When paused: viewing is always allowed
+                if (contest.State == "paused")
+                {
+                    await next();
+                    return;
+                }
+
+                bool isRunning = contest.State != "ended" &&
                     (contest.StartTime == null || now >= contest.StartTime) &&
                     (contest.EndTime == null || now <= contest.EndTime);
 
@@ -143,7 +159,7 @@ public class ViewOrDuringCtfTimeOnlyFilter : IAsyncActionFilter
                     return;
                 }
 
-                bool ended = contest.State is "ended" or "paused" ||
+                bool ended = contest.State == "ended" ||
                     (contest.EndTime.HasValue && now > contest.EndTime.Value);
 
                 if (ended && contest.ViewAfterCtf)

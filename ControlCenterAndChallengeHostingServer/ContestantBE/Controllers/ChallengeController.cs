@@ -263,7 +263,10 @@ public class ChallengeController : BaseController
         await Console.Out.WriteLineAsync($"[Requesst Attempt Challenge] User {userId} : Team {teamId} : Challenge {challenge.Name} with flag {request.Submission}");
 
         _userBehaviorLogger.Log("ATTEMPT_CHALLENGE", user?.Id, teamId, new { challengeId = request.ChallengeId, flag = request.Submission });
-        if (_configHelper.GetConfig("paused", false))
+
+        // Per-contest pause check
+        var contestForPause = await _context.Contests.AsNoTracking().FirstOrDefaultAsync(c => c.Id == contestId);
+        if (contestForPause?.State == "paused")
         {
             return StatusCode(StatusCodes.Status403Forbidden, new
             {
@@ -271,7 +274,7 @@ public class ChallengeController : BaseController
                 data = new
                 {
                     status = "paused",
-                    message = $"{_configHelper.CtfName().ToString()} is paused"
+                    message = $"{contestForPause.Name} is paused"
                 }
             });
         }

@@ -25,7 +25,7 @@ from CTFd.models import (
     DeployedChallenge,
     ChallengeVersion,
 )
-from CTFd.models import Challenges
+from CTFd.models import Challenges, Contests
 from CTFd.models import ChallengeTopics as ChallengeTopicsModel
 from CTFd.models import Fails, Flags, Hints, HintUnlocks, Solves, Submissions, Tags, db
 from CTFd.plugins.challenges import CHALLENGE_CLASSES, get_chal_class
@@ -918,13 +918,15 @@ class ChallengeAttempt(Resource):
                     },
                 }
 
-        if ctf_paused():
+        # Per-contest pause check
+        contest = Contests.query.filter_by(id=challenge.contest_id).first()
+        if contest and contest.state == "paused":
             return (
                 {
                     "success": True,
                     "data": {
                         "status": "paused",
-                        "message": "{} is paused".format(config.ctf_name()),
+                        "message": "{} is paused".format(contest.name),
                     },
                 },
                 403,

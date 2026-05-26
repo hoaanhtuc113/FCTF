@@ -57,8 +57,20 @@
 
 {% block contest_content %}
 <div class="page-header">
-	<div class="container">
+	<div class="container d-flex align-items-center justify-content-between flex-wrap gap-2">
 		<h1><i class="bx bx-bar-chart-alt-2"></i> Dashboard — {{ contest.name }}</h1>
+		{% if contest.state in ('visible', 'paused') %}
+		<button id="pause-toggle-btn"
+			class="btn btn-sm {% if contest.state == 'paused' %}btn-success{% else %}btn-warning{% endif %}"
+			style="font-size:0.85rem; font-weight:600; padding:0.35rem 1rem;"
+			onclick="togglePause()">
+			{% if contest.state == 'paused' %}
+				<i class="bx bx-play"></i> Resume CTF
+			{% else %}
+				<i class="bx bx-pause"></i> Pause CTF
+			{% endif %}
+		</button>
+		{% endif %}
 	</div>
 </div>
 
@@ -509,5 +521,37 @@ document.getElementById("challenge-analytics-export").addEventListener("click", 
 });
 
 })();
+
+// ── Pause / Resume toggle ────────────────────────────────────────────────
+window.togglePause = function() {
+    const btn = document.getElementById('pause-toggle-btn');
+    if (!btn) return;
+    const isPaused = btn.classList.contains('btn-success'); // currently paused → resume
+    const newState = isPaused ? 'visible' : 'paused';
+    btn.disabled = true;
+
+    fetch('/api/v1/contests/' + CONTEST_ID, {
+        method: 'PATCH',
+        headers: {
+            'Content-Type': 'application/json',
+            'CSRF-Token': init.csrfNonce
+        },
+        body: JSON.stringify({ state: newState })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            // Reload page so button + badge reflect new state
+            window.location.reload();
+        } else {
+            alert('Failed to update contest state.');
+            btn.disabled = false;
+        }
+    })
+    .catch(() => {
+        alert('Network error.');
+        btn.disabled = false;
+    });
+};
 </script>
 {% endblock %}

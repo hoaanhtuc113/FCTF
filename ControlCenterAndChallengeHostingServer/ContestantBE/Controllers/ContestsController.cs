@@ -198,8 +198,10 @@ public class ContestsController : BaseController
 
     private static string ComputeStatus(string? state, DateTime? startTime, DateTime? endTime, DateTime now)
     {
-        if (state is "paused" or "ended")
+        if (state == "ended")
             return "ended";
+        if (state == "paused")
+            return "paused";
         if (startTime == null || endTime == null)
             return "active";
         if (now < startTime)
