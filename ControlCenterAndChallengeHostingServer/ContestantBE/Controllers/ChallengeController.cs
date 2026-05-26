@@ -881,8 +881,9 @@ public class ChallengeController : BaseController
 
         await Console.Out.WriteLineAsync($"[Requesst Start Challenge] User {userId} : Team {teamId} : Challenge {challenge.Name}");
 
-        // Check limit_challenges - maximum concurrent challenges per team
-        var limit_challenges = _configHelper.LimitChallenges();
+        // Check limit_challenges — per-contest setting
+        var limitContest = await _context.Contests.AsNoTracking().FirstOrDefaultAsync(c => c.Id == contestId);
+        var limit_challenges = (long)(limitContest?.LimitChallenges ?? 0);
 
         var deploymentTeamId = challenge.SharedInstant ? -2 : teamId;
         var deploymentKey = ChallengeHelper.GetCacheKey(challengeStartReq.challengeId, deploymentTeamId);

@@ -55,7 +55,9 @@ public class ContestsController : BaseController
                 team_disbanding = c.TeamDisbanding,
                 allow_name_change = c.AllowNameChange,
                 captain_only_start = c.CaptainOnlyStartChallenge,
-                captain_only_submit = c.CaptainOnlySubmitChallenge
+                captain_only_submit = c.CaptainOnlySubmitChallenge,
+                challenge_difficulty_visibility = c.ChallengeDifficultyVisibility,
+                limit_challenges = c.LimitChallenges
             })
             .ToListAsync();
 
@@ -79,7 +81,9 @@ public class ContestsController : BaseController
             c.team_disbanding,
             c.allow_name_change,
             c.captain_only_start,
-            c.captain_only_submit
+            c.captain_only_submit,
+            c.challenge_difficulty_visibility,
+            c.limit_challenges
         }));
     }
 
@@ -121,7 +125,9 @@ public class ContestsController : BaseController
                 team_disbanding = c.TeamDisbanding,
                 allow_name_change = c.AllowNameChange,
                 captain_only_start = c.CaptainOnlyStartChallenge,
-                captain_only_submit = c.CaptainOnlySubmitChallenge
+                captain_only_submit = c.CaptainOnlySubmitChallenge,
+                challenge_difficulty_visibility = c.ChallengeDifficultyVisibility,
+                limit_challenges = c.LimitChallenges
             })
             .FirstOrDefaultAsync();
 
@@ -150,7 +156,9 @@ public class ContestsController : BaseController
             c.team_disbanding,
             c.allow_name_change,
             c.captain_only_start,
-            c.captain_only_submit
+            c.captain_only_submit,
+            c.challenge_difficulty_visibility,
+            c.limit_challenges
         });
     }
 

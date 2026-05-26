@@ -425,6 +425,8 @@ public partial class AppDbContext : DbContext
             entity.Property(e => e.TeamDisbanding).HasColumnName("team_disbanding");
             entity.Property(e => e.AllowNameChange).HasColumnName("allow_name_change");
             entity.Property(e => e.IncorrectSubmissionsPerMin).HasColumnType("int(11)").HasColumnName("incorrect_submissions_per_min");
+            entity.Property(e => e.ChallengeDifficultyVisibility).HasMaxLength(32).HasDefaultValueSql("'disabled'").HasColumnName("challenge_difficulty_visibility");
+            entity.Property(e => e.LimitChallenges).HasColumnType("int(11)").HasColumnName("limit_challenges");
             entity.Property(e => e.CreatedAt).HasMaxLength(6).HasColumnName("created_at");
             entity.Property(e => e.UpdatedAt).HasMaxLength(6).HasColumnName("updated_at");
 

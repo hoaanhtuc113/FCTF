@@ -21,6 +21,8 @@ export interface Contest {
   allow_name_change?: boolean;
   captain_only_start?: boolean;
   captain_only_submit?: boolean;
+  challenge_difficulty_visibility?: 'enabled' | 'disabled';
+  limit_challenges?: number | null;
 }
 
 export type ContestAccessReason = 'active' | 'ended_view_allowed' | 'ended' | 'not_started' | 'not_accessible';

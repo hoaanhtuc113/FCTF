@@ -1393,6 +1393,10 @@ class Contests(db.Model):
     allow_name_change = db.Column(db.Boolean, nullable=False, default=True)
     incorrect_submissions_per_min = db.Column(db.Integer, nullable=True)
 
+    # Challenge settings
+    challenge_difficulty_visibility = db.Column(db.String(32), nullable=False, default="disabled")
+    limit_challenges = db.Column(db.Integer, nullable=True)  # null = unlimited
+
     created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow, nullable=False)
     updated_at = db.Column(
         db.DateTime,

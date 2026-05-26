@@ -181,7 +181,7 @@ public class ChallengeService : IChallengeService
         var contestForCaptain = await _dbContext.Contests.AsNoTracking().FirstOrDefaultAsync(c => c.Id == contestId);
         var captainOnlyStart = contestForCaptain?.CaptainOnlyStartChallenge ?? true;
         var captainOnlySubmit = contestForCaptain?.CaptainOnlySubmitChallenge ?? false;
-        var difficultyVisible = _configHelper.GetConfig<string>("challenge_difficulty_visibility", "disabled") == "enabled";
+        var difficultyVisible = (contestForCaptain?.ChallengeDifficultyVisibility ?? "disabled") == "enabled";
 
         // attempt to resolve the name for next challenge if available
         string? nextName = null;
@@ -305,7 +305,8 @@ public class ChallengeService : IChallengeService
             .ToListAsync();
 
         var topics_data = new List<ChallengeByCategoryDTO>();
-        var difficultyVisible = _configHelper.GetConfig<string>("challenge_difficulty_visibility", "disabled") == "enabled";
+        var contestForDiff = await _dbContext.Contests.AsNoTracking().FirstOrDefaultAsync(c => c.Id == contestId);
+        var difficultyVisible = (contestForDiff?.ChallengeDifficultyVisibility ?? "disabled") == "enabled";
 
         var solvedChallengeIds = team_id.HasValue
                 ? (await _dbContext.Solves

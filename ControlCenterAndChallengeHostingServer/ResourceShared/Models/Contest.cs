@@ -45,6 +45,10 @@ public partial class Contest
 
     public int? IncorrectSubmissionsPerMin { get; set; }
 
+    public string ChallengeDifficultyVisibility { get; set; } = "disabled";
+
+    public int? LimitChallenges { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
