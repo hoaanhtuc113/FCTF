@@ -35,11 +35,13 @@ interface UserInfo {
 }
 
 interface TeamPointInfo {
+  name: string;
   place: number;
   score: number;
   challengeTotalScore: number;
   members: TeamMember[];
   totalTeams: number;
+  isCaptain?: boolean;
 }
 
 interface TeamMember {
@@ -81,6 +83,7 @@ export function Profile() {
     team: '',
   });
   const [teamPointInfo, setTeamPointInfo] = useState<TeamPointInfo>({
+    name: '',
     place: 0,
     score: 0,
     challengeTotalScore: 0,
