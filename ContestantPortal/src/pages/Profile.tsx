@@ -118,8 +118,8 @@ export function Profile() {
   const [isDisbanding, setIsDisbanding] = useState(false);
 
   const activeContest = contestService.getActiveContest();
-  const allowNameChange = activeContest?.allow_name_change ?? true;
-  const teamDisbanding = activeContest?.team_disbanding ?? true;
+  const allowNameChange = activeContest?.allow_name_change ?? false;
+  const teamDisbanding = activeContest?.team_disbanding ?? false;
 
   useEffect(() => {
     fetchAllData();
