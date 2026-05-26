@@ -106,7 +106,8 @@ public class ContestsController : BaseController
                     .Select(t => t.Name)
                     .FirstOrDefault(),
                 view_after_ctf = c.ViewAfterCtf,
-                freeze_scoreboard_at = c.FreezeScoreboardAt
+                freeze_scoreboard_at = c.FreezeScoreboardAt,
+                score_visibility = c.ScoreVisibility
             })
             .FirstOrDefaultAsync();
 
@@ -130,7 +131,8 @@ public class ContestsController : BaseController
             c.my_team_id,
             c.my_team_name,
             c.view_after_ctf,
-            freeze_scoreboard_at = c.freeze_scoreboard_at?.ToString("yyyy-MM-ddTHH:mm:ssZ")
+            freeze_scoreboard_at = c.freeze_scoreboard_at?.ToString("yyyy-MM-ddTHH:mm:ssZ"),
+            c.score_visibility
         });
     }
 
