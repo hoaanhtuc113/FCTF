@@ -57,24 +57,45 @@
 
 {% block contest_content %}
 <div class="page-header">
-	<div class="container d-flex align-items-center justify-content-between flex-wrap gap-2">
+	<div class="container">
 		<h1><i class="bx bx-bar-chart-alt-2"></i> Dashboard — {{ contest.name }}</h1>
-		{% if contest.state in ('visible', 'paused') %}
-		<button id="pause-toggle-btn"
-			class="btn btn-sm {% if contest.state == 'paused' %}btn-success{% else %}btn-warning{% endif %}"
-			style="font-size:0.85rem; font-weight:600; padding:0.35rem 1rem;"
-			onclick="togglePause()">
-			{% if contest.state == 'paused' %}
-				<i class="bx bx-play"></i> Resume CTF
-			{% else %}
-				<i class="bx bx-pause"></i> Pause CTF
-			{% endif %}
-		</button>
-		{% endif %}
 	</div>
 </div>
 
 <div class="container">
+
+	{% if contest.state in ('visible', 'paused') %}
+	<div class="d-flex align-items-center justify-content-between px-3 py-2 mb-3"
+		 style="background:#fff; border:1px solid var(--border-light); border-radius:6px; box-shadow:var(--shadow-sm);">
+		<div>
+			<span style="font-weight:600; font-size:0.9rem; color:var(--text-dark);">
+				{% if contest.state == 'paused' %}
+				<span class="badge" style="background:#fff3cd; color:#856404; font-size:0.75rem; padding:0.2em 0.55em; border-radius:3px; margin-right:6px;">PAUSED</span>
+				{% endif %}
+				Pause CTF
+			</span>
+			<div style="font-size:0.82rem; color:var(--text-light); margin-top:2px;">
+				{% if contest.state == 'paused' %}
+				Submissions are currently blocked. Click <strong>Resume</strong> to re-enable.
+				{% else %}
+				Prevent users from submitting answers until unpaused. Challenges can still be viewed.
+				{% endif %}
+			</div>
+		</div>
+		<button id="pause-toggle-btn"
+			onclick="togglePause()"
+			class="btn btn-sm {% if contest.state == 'paused' %}btn-success{% else %}btn-warning{% endif %}"
+			style="font-size:0.82rem; font-weight:600; padding:0.3rem 0.9rem; white-space:nowrap; margin-left:1rem;">
+			{% if contest.state == 'paused' %}
+			<i class="bx bx-play"></i> Resume CTF
+			{% else %}
+			<i class="bx bx-pause"></i> Pause CTF
+			{% endif %}
+		</button>
+	</div>
+	{% endif %}
+
+<div class="container" style="padding:0;">
 	<div class="row d-flex align-items-stretch">
 		<div class="col-md-4 mb-4">
 			<div class="statistics-text h-100">
@@ -236,6 +257,7 @@
 			</div>
 		</div>
 	</div>
+</div>
 </div>
 {% endblock %}
 
@@ -526,9 +548,18 @@ document.getElementById("challenge-analytics-export").addEventListener("click", 
 window.togglePause = function() {
     const btn = document.getElementById('pause-toggle-btn');
     if (!btn) return;
-    const isPaused = btn.classList.contains('btn-success'); // currently paused → resume
+    const isPaused = btn.classList.contains('btn-success');
     const newState = isPaused ? 'visible' : 'paused';
+
+    const confirmed = confirm(
+        isPaused
+            ? 'Resume CTF?\n\nParticipants will be able to submit answers again.'
+            : 'Pause CTF?\n\nParticipants will not be able to submit answers until you resume.'
+    );
+    if (!confirmed) return;
+
     btn.disabled = true;
+    btn.innerHTML = '<i class="bx bx-loader-alt bx-spin"></i>';
 
     fetch('/api/v1/contests/' + CONTEST_ID, {
         method: 'PATCH',
@@ -541,7 +572,6 @@ window.togglePause = function() {
     .then(r => r.json())
     .then(data => {
         if (data.success) {
-            // Reload page so button + badge reflect new state
             window.location.reload();
         } else {
             alert('Failed to update contest state.');
