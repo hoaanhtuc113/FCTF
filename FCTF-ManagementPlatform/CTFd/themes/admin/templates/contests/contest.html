@@ -436,7 +436,9 @@ function validateContestTimes(startVal, endVal, freezeVal) {
             btn.disabled = false;
             btn.innerHTML = '<i class="bx bx-save"></i> Save Changes';
             if (json.success) {
-                window.location.href = '/admin/contests';
+                const sa = document.getElementById('save-alert');
+                sa.classList.remove('d-none');
+                setTimeout(function () { sa.classList.add('d-none'); }, 4000);
             } else {
                 const ea = document.getElementById('error-alert');
                 document.getElementById('error-msg').textContent =
