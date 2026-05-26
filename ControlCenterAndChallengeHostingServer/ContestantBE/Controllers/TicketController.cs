@@ -39,11 +39,11 @@ public class TicketController : BaseController
 
     [HttpGet("tickets-user")]
     [DuringCtfTimeOnly]
-    public async Task<IActionResult> GetTicketByUser()
+    public async Task<IActionResult> GetTicketByUser([FromRoute] int contestId)
     {
         var userId = UserContext.UserId;
         _userBehaviorLogger.Log("GET_TICKETS_BY_USER", userId, null, null);
-        var tickets = await _ticketService.GetTicketsByUser(userId);
+        var tickets = await _ticketService.GetTicketsByUser(userId, contestId);
         return Ok(new { tickets });
     }
 
