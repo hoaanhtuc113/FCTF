@@ -440,7 +440,8 @@ public class HintService : IHintService
                     Description = "Hint for " + target.Challenge.Name,
                     Value = -target.Cost.GetValueOrDefault(),
                     Category = "hint",
-                    Date = DateTime.UtcNow
+                    Date = DateTime.UtcNow,
+                    ContestId = contestId
                 };
                 _context.Awards.Add(award);
 
