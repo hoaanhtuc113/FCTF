@@ -82,16 +82,20 @@
 				{% endif %}
 			</div>
 		</div>
-		<button id="pause-toggle-btn"
-			onclick="togglePause()"
-			class="btn btn-sm {% if contest.state == 'paused' %}btn-success{% else %}btn-warning{% endif %}"
-			style="font-size:0.82rem; font-weight:600; padding:0.3rem 0.9rem; white-space:nowrap; margin-left:1rem;">
-			{% if contest.state == 'paused' %}
-			<i class="bx bx-play"></i> Resume CTF
-			{% else %}
-			<i class="bx bx-pause"></i> Pause CTF
-			{% endif %}
-		</button>
+		<form method="POST"
+			  action="{{ url_for('admin.contest_pause_toggle', contest_id=contest.id) }}"
+			  onsubmit="return confirm('{% if contest.state == "paused" %}Resume CTF?\n\nParticipants will be able to submit answers again.{% else %}Pause CTF?\n\nParticipants will not be able to submit answers until you resume.{% endif %}')">
+			<input type="hidden" name="nonce" value="{{ Session.nonce }}">
+			<button type="submit"
+				class="btn btn-sm {% if contest.state == 'paused' %}btn-success{% else %}btn-warning{% endif %}"
+				style="font-size:0.82rem; font-weight:600; padding:0.3rem 0.9rem; white-space:nowrap; margin-left:1rem;">
+				{% if contest.state == 'paused' %}
+				<i class="bx bx-play"></i> Resume CTF
+				{% else %}
+				<i class="bx bx-pause"></i> Pause CTF
+				{% endif %}
+			</button>
+		</form>
 	</div>
 	{% endif %}
 
@@ -544,59 +548,5 @@ document.getElementById("challenge-analytics-export").addEventListener("click", 
 
 })();
 
-// ── Pause / Resume toggle ────────────────────────────────────────────────
-window.togglePause = function() {
-    const btn = document.getElementById('pause-toggle-btn');
-    if (!btn) return;
-    const isPaused = btn.classList.contains('btn-success');
-    const newState = isPaused ? 'visible' : 'paused';
-
-    const confirmed = confirm(
-        isPaused
-            ? 'Resume CTF?\n\nParticipants will be able to submit answers again.'
-            : 'Pause CTF?\n\nParticipants will not be able to submit answers until you resume.'
-    );
-    if (!confirmed) return;
-
-    btn.disabled = true;
-    btn.innerHTML = '<i class="bx bx-loader-alt bx-spin"></i>';
-
-    fetch('/api/v1/contests/' + CONTEST_ID, {
-        method: 'PATCH',
-        credentials: 'same-origin',
-        headers: {
-            'Content-Type': 'application/json',
-            'CSRF-Token': init.csrfNonce
-        },
-        body: JSON.stringify({ state: newState })
-    })
-    .then(function(r) {
-        if (!r.ok) {
-            return r.text().then(function(t) {
-                throw new Error('HTTP ' + r.status + ': ' + t.substring(0, 200));
-            });
-        }
-        return r.json();
-    })
-    .then(function(data) {
-        if (data.success) {
-            window.location.reload();
-        } else {
-            alert('Failed: ' + JSON.stringify(data.errors || data));
-            btn.disabled = false;
-            btn.innerHTML = isPaused
-                ? '<i class="bx bx-play"></i> Resume CTF'
-                : '<i class="bx bx-pause"></i> Pause CTF';
-        }
-    })
-    .catch(function(err) {
-        console.error('[togglePause]', err);
-        alert('Error: ' + err.message);
-        btn.disabled = false;
-        btn.innerHTML = isPaused
-            ? '<i class="bx bx-play"></i> Resume CTF'
-            : '<i class="bx bx-pause"></i> Pause CTF';
-    });
-};
 </script>
 {% endblock %}

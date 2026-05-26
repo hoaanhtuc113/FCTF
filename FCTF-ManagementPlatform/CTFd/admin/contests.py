@@ -236,6 +236,18 @@ def contest_dashboard(contest_id):
     )
 
 
+@admin.route("/admin/contests/<int:contest_id>/pause-toggle", methods=["POST"])
+@admins_only
+def contest_pause_toggle(contest_id):
+    contest = Contests.query.filter_by(id=contest_id).first_or_404()
+    if contest.state == "paused":
+        contest.state = "visible"
+    elif contest.state == "visible":
+        contest.state = "paused"
+    db.session.commit()
+    return redirect(url_for("admin.contest_dashboard", contest_id=contest_id))
+
+
 @admin.route("/admin/contests/<int:contest_id>/settings")
 @admins_only
 def contest_settings(contest_id):
