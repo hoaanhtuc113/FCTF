@@ -36,7 +36,7 @@ public class TeamService : ITeamService
             if (team == null) return null;
 
             var teamUsers = team.Members.Select(m => m.User).ToList();
-            var usersScore = await _scoreHelper.GetUsersScore(teamUsers, true);
+            var usersScore = await _scoreHelper.GetUsersScore(teamUsers, true, contestId);
 
             var members = new List<TeamMemberDTO>();
             foreach (var u in teamUsers)
@@ -66,9 +66,9 @@ public class TeamService : ITeamService
             return new TeamScoreDTO
             {
                 Name = team.Name ?? string.Empty,
-                Place = await _scoreHelper.GetTeamPlace(team, true, bracketId),
+                Place = await _scoreHelper.GetTeamPlace(team, true, bracketId, contestId),
                 Members = members,
-                Score = await _scoreHelper.GetTeamScore(team, true),
+                Score = await _scoreHelper.GetTeamScore(team, true, contestId),
                 ChallengeTotalScore = challenges.Sum(c => c.Value ?? 0),
                 TotalTeams = totalTeams
             };
@@ -91,7 +91,7 @@ public class TeamService : ITeamService
 
             if (team == null) return [];
 
-            return [.. (await _scoreHelper.GetTeamSolves(team, true))
+            return [.. (await _scoreHelper.GetTeamSolves(team, true, contestId))
                 .Select(s => new SubmissionDto
                 {
                     Id = s.Id,
