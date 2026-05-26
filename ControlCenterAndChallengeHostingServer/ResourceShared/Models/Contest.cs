@@ -31,7 +31,6 @@ public partial class Contest
 
     public string ScoreVisibility { get; set; } = "public";
 
-    public string RegistrationVisibility { get; set; } = "private";
 
     public int? TeamSize { get; set; }
 

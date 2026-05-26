@@ -2,7 +2,8 @@
 	{%
 	with form = Forms.config.VisibilitySettingsForm(
 	score_visibility=score_visibility,
-	challenge_difficulty_visibility=challenge_difficulty_visibility
+	challenge_difficulty_visibility=challenge_difficulty_visibility,
+	registration_visibility=registration_visibility
 	)
 	%}
 	<form method="POST" autocomplete="off" class="w-100">
@@ -35,6 +36,14 @@
 			{{ form.challenge_difficulty_visibility(class="form-control custom-select") }}
 			<small class="form-text text-muted">
 				{{ form.challenge_difficulty_visibility.description }}
+			</small>
+		</div>
+
+		<div class="form-group">
+			{{ form.registration_visibility.label }}
+			{{ form.registration_visibility(class="form-control custom-select") }}
+			<small class="form-text text-muted">
+				{{ form.registration_visibility.description }}
 			</small>
 		</div>
 

@@ -418,7 +418,6 @@ public partial class AppDbContext : DbContext
             entity.Property(e => e.FreezeScoreboardAt).HasMaxLength(6).HasColumnName("freeze_scoreboard_at");
             entity.Property(e => e.ViewAfterCtf).HasColumnName("view_after_ctf");
             entity.Property(e => e.ScoreVisibility).HasMaxLength(32).HasDefaultValueSql("'public'").HasColumnName("score_visibility");
-            entity.Property(e => e.RegistrationVisibility).HasMaxLength(32).HasDefaultValueSql("'private'").HasColumnName("registration_visibility");
             entity.Property(e => e.TeamSize).HasColumnType("int(11)").HasColumnName("team_size");
             entity.Property(e => e.CaptainOnlyStartChallenge).HasColumnName("captain_only_start_challenge");
             entity.Property(e => e.CaptainOnlySubmitChallenge).HasColumnName("captain_only_submit_challenge");

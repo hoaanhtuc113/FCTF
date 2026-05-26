@@ -73,7 +73,9 @@ public class ConfigController : BaseController
         var icon = _configHelper.GetConfig<string?>("ctf_small_icon", null);
         var name = _configHelper.GetConfig<string>("ctf_name", "FCTF") ?? "FCTF";
         var bracketViewOther = _configHelper.GetConfig<bool>("bracket_view_other", false);
-        var contestantRegistrationEnabled = _configHelper.GetConfig<bool>("contestant_registration_enabled", false);
+        // registration_visibility = "public" → cho phép đăng ký, mọi giá trị khác → tắt
+        var registrationVisibility = _configHelper.GetConfig<string>("registration_visibility", "private");
+        var contestantRegistrationEnabled = string.Equals(registrationVisibility, "public", StringComparison.OrdinalIgnoreCase);
         return Ok(new
         {
             isSuccess = true,

@@ -210,15 +210,6 @@
                 </div>
                 <div class="col-md-3">
                     <div class="form-group">
-                        <label class="form-label-sm">Registration Visibility</label>
-                        <select name="registration_visibility" class="clean-form-control w-100">
-                            <option value="private" {% if contest.registration_visibility == 'private' %}selected{% endif %}>Private</option>
-                            <option value="public"  {% if contest.registration_visibility == 'public'  %}selected{% endif %}>Public</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="form-group">
                         <label class="form-label-sm">Challenge Difficulty</label>
                         <select name="challenge_difficulty_visibility" class="clean-form-control w-100">
                             <option value="disabled" {% if contest.challenge_difficulty_visibility != 'enabled' %}selected{% endif %}>Hidden</option>
@@ -401,7 +392,6 @@ function validateContestTimes(startVal, endVal, freezeVal) {
             view_after_ctf: form.view_after_ctf.checked,
 
             score_visibility: form.score_visibility.value,
-            registration_visibility: form.registration_visibility.value,
             team_size: form.team_size.value ? parseInt(form.team_size.value) : null,
             incorrect_submissions_per_min: form.incorrect_submissions_per_min.value
                 ? parseInt(form.incorrect_submissions_per_min.value) : null,

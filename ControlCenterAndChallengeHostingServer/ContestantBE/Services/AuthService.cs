@@ -210,7 +210,8 @@ public class AuthService : IAuthService
 
     private bool IsContestantRegistrationEnabled()
     {
-        return _configHelper.GetConfig<bool>("contestant_registration_enabled", false);
+        var registrationVisibility = _configHelper.GetConfig<string>("registration_visibility", "private");
+        return string.Equals(registrationVisibility, "public", StringComparison.OrdinalIgnoreCase);
     }
 
     private sealed class TurnstileVerifyResponse
