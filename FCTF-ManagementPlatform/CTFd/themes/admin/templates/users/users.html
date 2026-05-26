@@ -16,6 +16,73 @@
 .dropdown .btn-secondary:hover { background-color: var(--primary-orange); border-color: var(--primary-orange); }
 .dropdown-menu .btn-warning { background-color: var(--primary-orange); border-color: var(--primary-orange); }
 .dropdown-menu .btn-warning:hover { background-color: var(--primary-orange-dark); border-color: var(--primary-orange-dark); }
+.import-modal-overlay {
+	display: none;
+	position: fixed;
+	inset: 0;
+	background: rgba(0,0,0,0.55);
+	z-index: 1050;
+	align-items: center;
+	justify-content: center;
+}
+.import-modal-overlay.active { display: flex; }
+.import-modal-box {
+	background: #fff;
+	border-radius: 8px;
+	box-shadow: 0 8px 40px rgba(0,0,0,0.18);
+	padding: 2rem;
+	width: 100%;
+	max-width: 480px;
+	position: relative;
+}
+.import-modal-box h5 {
+	font-weight: 700;
+	margin-bottom: 1.2rem;
+	color: #2c3e50;
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+}
+.import-modal-close {
+	position: absolute;
+	top: 1rem;
+	right: 1rem;
+	background: none;
+	border: none;
+	font-size: 1.3rem;
+	cursor: pointer;
+	color: #888;
+	line-height: 1;
+}
+.import-modal-close:hover { color: #333; }
+.import-drop-zone {
+	border: 2px dashed #d0d5dd;
+	border-radius: 8px;
+	padding: 2rem 1rem;
+	text-align: center;
+	cursor: pointer;
+	transition: border-color 0.2s, background 0.2s;
+	background: #fafbfc;
+	position: relative;
+}
+.import-drop-zone.dragover {
+	border-color: var(--primary-orange, #ff6b35);
+	background: rgba(255,107,53,0.05);
+}
+.import-drop-zone input[type=file] {
+	position: absolute;
+	inset: 0;
+	opacity: 0;
+	cursor: pointer;
+	width: 100%;
+	height: 100%;
+}
+.import-file-name {
+	margin-top: 0.5rem;
+	font-size: 0.85rem;
+	color: #555;
+	min-height: 1.2rem;
+}
 </style>
 {% endblock %}
 
@@ -138,6 +205,9 @@
 			{% if not pending_mode and not is_jury() %}
 			<button type="button" class="clean-btn clean-btn-primary mr-2" data-toggle="modal" data-target="#user-create-modal">
 				<i class="fas fa-plus"></i> Create User
+			</button>
+			<button type="button" class="clean-btn mr-2" id="btn-import-users" style="background:#17a2b8;border-color:#17a2b8;color:#fff;">
+				<i class="fas fa-file-import"></i> Import Users
 			</button>
 			{% endif %}
 			{% if pending_mode and not is_jury() %}
@@ -359,6 +429,38 @@
 	<input type="hidden" id="is_jury" value="{{ 'true' if is_jury() else 'false' }}">
 </div>
 
+{% if not pending_mode and not is_jury() %}
+<div class="import-modal-overlay" id="import-users-modal">
+	<div class="import-modal-box">
+		<button class="import-modal-close" id="import-modal-close" title="Close">&times;</button>
+		<h5><i class="fas fa-file-import" style="color:#17a2b8;"></i> Import Users from CSV</h5>
+		<p style="font-size:0.88rem;color:#666;margin-bottom:1rem;">
+			Upload a CSV file with columns: <code>name</code>, <code>email</code>, <code>password</code>.<br>
+			Optional: <code>role</code> (user/admin), <code>verified</code>, <code>hidden</code>, <code>banned</code>.
+		</p>
+		<div class="import-drop-zone" id="import-drop-zone">
+			<input type="file" id="import-file-input" accept=".csv">
+			<i class="fas fa-cloud-upload-alt" style="font-size:2rem;color:#adb5bd;"></i>
+			<div style="margin-top:0.5rem;color:#666;font-size:0.9rem;">Drag &amp; drop CSV here, or click to browse</div>
+		</div>
+		<div class="import-file-name" id="import-file-name"></div>
+		<div id="import-progress" style="display:none;margin-top:0.75rem;">
+			<div class="progress" style="height:6px;border-radius:4px;">
+				<div class="progress-bar bg-info" id="import-progress-bar" style="width:0%;transition:width 0.3s;"></div>
+			</div>
+			<small id="import-progress-text" style="color:#555;"></small>
+		</div>
+		<div id="import-results" style="display:none;margin-top:0.75rem;max-height:140px;overflow-y:auto;"></div>
+		<div class="d-flex justify-content-end mt-3" style="gap:0.5rem;">
+			<button type="button" class="clean-btn btn-outline-secondary" id="import-cancel">Cancel</button>
+			<button type="button" class="clean-btn" id="import-submit" style="background:#17a2b8;border-color:#17a2b8;color:#fff;" disabled>
+				<i class="fas fa-upload"></i> Import
+			</button>
+		</div>
+	</div>
+</div>
+{% endif %}
+
 {% endblock %}
 
 {% block scripts %}
@@ -470,6 +572,156 @@ document.addEventListener('DOMContentLoaded', () => {
 	if (approveButton) {
 		approveButton.addEventListener('click', approveSelectedUsers);
 	}
+});
+
+function csrfHeaders() {
+	return {
+		'Content-Type': 'application/json',
+		'Accept': 'application/json',
+		'CSRF-Token': (typeof init !== 'undefined' ? init.csrfNonce : '')
+	};
+}
+
+function parseCSV(text) {
+	const lines = text.trim().split(/\r?\n/);
+	if (lines.length < 2) return [];
+	const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/^"|"$/g, ''));
+	return lines.slice(1).map(line => {
+		const vals = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/) || [];
+		const obj = {};
+		headers.forEach((h, i) => {
+			obj[h] = (vals[i] || '').replace(/^"|"$/g, '').replace(/""/g, '"').trim();
+		});
+		return obj;
+	}).filter(r => r.name || r.email);
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+	const importModal = document.getElementById('import-users-modal');
+	if (!importModal) return;
+
+	const importOpenBtn = document.getElementById('btn-import-users');
+	const importCloseBtn = document.getElementById('import-modal-close');
+	const importCancelBtn = document.getElementById('import-cancel');
+	const importSubmitBtn = document.getElementById('import-submit');
+	const importFileInput = document.getElementById('import-file-input');
+	const importDropZone = document.getElementById('import-drop-zone');
+	const importFileName = document.getElementById('import-file-name');
+	const importProgress = document.getElementById('import-progress');
+	const importProgressBar = document.getElementById('import-progress-bar');
+	const importProgressText = document.getElementById('import-progress-text');
+	const importResults = document.getElementById('import-results');
+	let importParsedUsers = [];
+
+	function openImportModal() {
+		importModal.classList.add('active');
+		importFileInput.value = '';
+		importFileName.textContent = '';
+		importSubmitBtn.disabled = true;
+		importProgress.style.display = 'none';
+		importResults.style.display = 'none';
+		importResults.innerHTML = '';
+		importSubmitBtn.innerHTML = '<i class="fas fa-upload"></i> Import';
+		importParsedUsers = [];
+	}
+
+	function closeImportModal() {
+		importModal.classList.remove('active');
+	}
+
+	function handleImportFile(file) {
+		importFileName.textContent = file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)';
+		const reader = new FileReader();
+		reader.onload = function(e) {
+			importParsedUsers = parseCSV(e.target.result);
+			if (importParsedUsers.length > 0) {
+				importSubmitBtn.disabled = false;
+				importFileName.textContent += ' - ' + importParsedUsers.length + ' users found';
+			} else {
+				importSubmitBtn.disabled = true;
+				importFileName.textContent += ' - No valid rows found. Check column headers.';
+			}
+		};
+		reader.readAsText(file);
+	}
+
+	importOpenBtn.addEventListener('click', openImportModal);
+	importCloseBtn.addEventListener('click', closeImportModal);
+	importCancelBtn.addEventListener('click', closeImportModal);
+	importModal.addEventListener('click', function(e) {
+		if (e.target === importModal) closeImportModal();
+	});
+
+	importDropZone.addEventListener('dragover', function(e) {
+		e.preventDefault();
+		importDropZone.classList.add('dragover');
+	});
+	importDropZone.addEventListener('dragleave', function() {
+		importDropZone.classList.remove('dragover');
+	});
+	importDropZone.addEventListener('drop', function(e) {
+		e.preventDefault();
+		importDropZone.classList.remove('dragover');
+		const file = e.dataTransfer.files[0];
+		if (file) handleImportFile(file);
+	});
+	importFileInput.addEventListener('change', function() {
+		if (this.files[0]) handleImportFile(this.files[0]);
+	});
+
+	importSubmitBtn.addEventListener('click', async function() {
+		if (!importParsedUsers.length) return;
+		importSubmitBtn.disabled = true;
+		importProgress.style.display = 'block';
+		importResults.style.display = 'block';
+		importResults.innerHTML = '';
+
+		let success = 0;
+		let failed = 0;
+		for (let i = 0; i < importParsedUsers.length; i++) {
+			const u = importParsedUsers[i];
+			const pct = Math.round(((i + 1) / importParsedUsers.length) * 100);
+			importProgressBar.style.width = pct + '%';
+			importProgressText.textContent = 'Processing ' + (i + 1) + ' / ' + importParsedUsers.length + '...';
+
+			const payload = {
+				name: u.name || '',
+				email: u.email || '',
+				password: u.password || '',
+				role: (u.role || 'user').toLowerCase(),
+				verified: (u.verified || 'true').toLowerCase() !== 'false',
+				hidden: (u.hidden || 'false').toLowerCase() === 'true',
+				banned: (u.banned || 'false').toLowerCase() === 'true',
+			};
+
+			try {
+				const resp = await fetch('/admin/users/import_users', {
+					method: 'POST',
+					headers: csrfHeaders(),
+					body: JSON.stringify(payload)
+				});
+				const data = await resp.json();
+				if (data.success) {
+					success++;
+					const label = data.data.created ? '(new)' : '(updated)';
+					importResults.innerHTML += '<div style="color:#28a745;font-size:0.82rem;">OK ' + (u.name || u.email) + ' ' + label + '</div>';
+				} else {
+					failed++;
+					const msg = (data.errors && Object.values(data.errors).flat().join(', ')) || 'error';
+					importResults.innerHTML += '<div style="color:#dc3545;font-size:0.82rem;">FAIL ' + (u.name || u.email) + ' - ' + msg + '</div>';
+				}
+			} catch (_) {
+				failed++;
+				importResults.innerHTML += '<div style="color:#dc3545;font-size:0.82rem;">FAIL ' + (u.name || u.email) + ' - network error</div>';
+			}
+			importResults.scrollTop = importResults.scrollHeight;
+		}
+
+		importProgressText.textContent = 'Done - ' + success + ' imported, ' + failed + ' failed.';
+		importSubmitBtn.disabled = false;
+		importSubmitBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Reload';
+		importSubmitBtn.addEventListener('click', function() { window.location.reload(); }, { once: true });
+	});
 });
 </script>
 {% endblock %}

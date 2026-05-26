@@ -6,8 +6,11 @@
 	</div>
 	<div class="form-group">
 		<b>{{ form.value.label }}</b>
-		{{ form.value(class="form-control", id="award-value-input") }}
+		{{ form.value(class="form-control", id="award-value-input", min="0") }}
 	</div>
+	{% if contest is defined and contest %}
+		<input type="hidden" name="contest_id" value="{{ contest.id }}">
+	{% endif %}
 	<div class="form-group">
 		<b>{{ form.category.label }}</b>
 		{{ form.category(class="form-control", id="award-category-input") }}

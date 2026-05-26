@@ -152,6 +152,13 @@ function awardUser(event) {
   const params = $("#user-award-form").serializeJSON(true);
   params["user_id"] = window.USER_ID;
 
+  // contest_id comes from the select dropdown (serializeJSON picks it up as string — cast to int)
+  if (params["contest_id"]) {
+    params["contest_id"] = parseInt(params["contest_id"], 10);
+  } else {
+    delete params["contest_id"]; // don't send empty string
+  }
+
   CTFd.fetch("/api/v1/awards", {
     method: "POST",
     credentials: "same-origin",
@@ -424,6 +431,28 @@ $(() => {
   });
 
   $(".award-user").click(function (_event) {
+    // contest_id is pre-filled by Jinja (hidden input or locked display).
+    // If a fallback dropdown is present and still empty, populate it via API.
+    const select = document.getElementById("award-contest-select");
+    if (select && select.tagName === "SELECT" && select.options.length <= 1) {
+      CTFd.fetch("/api/v1/contests", {
+        method: "GET",
+        credentials: "same-origin",
+        headers: { Accept: "application/json" },
+      })
+        .then((r) => r.json())
+        .then((resp) => {
+          if (resp.success && resp.data) {
+            resp.data.forEach(function (contest) {
+              const opt = document.createElement("option");
+              opt.value = contest.id;
+              opt.textContent = contest.name;
+              select.appendChild(opt);
+            });
+          }
+        })
+        .catch(() => {});
+    }
     $("#user-award-modal").modal("toggle");
   });
 

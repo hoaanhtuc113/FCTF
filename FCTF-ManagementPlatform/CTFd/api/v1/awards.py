@@ -102,6 +102,17 @@ class AwardList(Resource):
     def post(self):
         req = request.get_json()
 
+        # Reject negative award values
+        value = req.get("value")
+        if value is not None and int(value) < 0:
+            return (
+                {
+                    "success": False,
+                    "errors": {"value": ["Award value must be 0 or greater"]},
+                },
+                400,
+            )
+
         # Force a team_id if in team mode and unspecified
         if is_teams_mode():
             team_id = req.get("team_id")

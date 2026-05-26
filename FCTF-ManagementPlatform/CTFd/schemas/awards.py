@@ -16,6 +16,7 @@ class AwardSchema(ma.ModelSchema):
             "description",
             "value",
             "team_id",
+            "contest_id",
             "user",
             "team",
             "date",
