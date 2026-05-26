@@ -1,3 +1,4 @@
+// build trigger: per-contest captain/team settings
 using AspNetCoreRateLimit;
 using AspNetCoreRateLimit.Redis;
 using ContestantBE.RateLimiting;
