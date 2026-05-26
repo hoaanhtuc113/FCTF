@@ -219,6 +219,12 @@
                                class="clean-form-control w-100" placeholder="Unlimited">
                     </div>
                 </div>
+                <div class="col-md-3">
+                    <div class="form-group">
+                        <label class="form-label-sm">Concurrent Challenge Limit <span class="text-muted">(0 = unlimited)</span></label>
+                        <input type="number" class="clean-form-control w-100" name="limit_challenges" min="0" placeholder="0 (unlimited)">
+                    </div>
+                </div>
             </div>
             <div class="row">
                 <div class="col-md-3">
@@ -244,12 +250,6 @@
                         <input type="checkbox" class="custom-control-input" id="name-change" name="allow_name_change" checked>
                         <label class="custom-control-label" for="name-change">Allow name change</label>
                     </div>
-                </div>
-            </div>
-            <div class="row mt-2">
-                <div class="col-md-4">
-                    <label class="form-label">Concurrent challenge limit <span class="text-muted">(0 = unlimited)</span></label>
-                    <input type="number" class="clean-form-control w-100" name="limit_challenges" min="0" placeholder="0 (unlimited)">
                 </div>
             </div>
         </div>

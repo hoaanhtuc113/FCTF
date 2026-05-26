@@ -249,6 +249,14 @@
                                placeholder="Unlimited">
                     </div>
                 </div>
+                <div class="col-md-3">
+                    <div class="form-group">
+                        <label class="form-label-sm">Concurrent Challenge Limit <span class="text-muted">(0 = unlimited)</span></label>
+                        <input type="number" class="clean-form-control w-100" name="limit_challenges" min="0"
+                               value="{{ contest.limit_challenges if contest.limit_challenges is not none else '' }}"
+                               placeholder="0 (unlimited)">
+                    </div>
+                </div>
             </div>
             <div class="row">
                 <div class="col-md-3">
@@ -282,14 +290,6 @@
                                {% if contest.allow_name_change %}checked{% endif %}>
                         <label class="custom-control-label" for="name-change">Allow name change</label>
                     </div>
-                </div>
-            </div>
-            <div class="row mt-2">
-                <div class="col-md-4">
-                    <label class="form-label">Concurrent challenge limit <span class="text-muted">(0 = unlimited)</span></label>
-                    <input type="number" class="clean-form-control w-100" name="limit_challenges" min="0"
-                           value="{{ contest.limit_challenges if contest.limit_challenges is not none else '' }}"
-                           placeholder="0 (unlimited)">
                 </div>
             </div>
         </div>
