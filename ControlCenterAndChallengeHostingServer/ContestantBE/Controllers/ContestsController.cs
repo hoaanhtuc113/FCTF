@@ -51,7 +51,11 @@ public class ContestsController : BaseController
                     .Where(t => t.Members.Any(m => m.UserId == userId))
                     .Select(t => t.Name)
                     .FirstOrDefault(),
-                score_visibility = c.ScoreVisibility
+                score_visibility = c.ScoreVisibility,
+                team_disbanding = c.TeamDisbanding,
+                allow_name_change = c.AllowNameChange,
+                captain_only_start = c.CaptainOnlyStartChallenge,
+                captain_only_submit = c.CaptainOnlySubmitChallenge
             })
             .ToListAsync();
 
@@ -71,7 +75,11 @@ public class ContestsController : BaseController
             c.category,
             c.my_team_id,
             c.my_team_name,
-            c.score_visibility
+            c.score_visibility,
+            c.team_disbanding,
+            c.allow_name_change,
+            c.captain_only_start,
+            c.captain_only_submit
         }));
     }
 
@@ -109,7 +117,11 @@ public class ContestsController : BaseController
                     .FirstOrDefault(),
                 view_after_ctf = c.ViewAfterCtf,
                 freeze_scoreboard_at = c.FreezeScoreboardAt,
-                score_visibility = c.ScoreVisibility
+                score_visibility = c.ScoreVisibility,
+                team_disbanding = c.TeamDisbanding,
+                allow_name_change = c.AllowNameChange,
+                captain_only_start = c.CaptainOnlyStartChallenge,
+                captain_only_submit = c.CaptainOnlySubmitChallenge
             })
             .FirstOrDefaultAsync();
 
@@ -134,7 +146,11 @@ public class ContestsController : BaseController
             c.my_team_name,
             c.view_after_ctf,
             freeze_scoreboard_at = c.freeze_scoreboard_at?.ToString("yyyy-MM-ddTHH:mm:ssZ"),
-            c.score_visibility
+            c.score_visibility,
+            c.team_disbanding,
+            c.allow_name_change,
+            c.captain_only_start,
+            c.captain_only_submit
         });
     }
 

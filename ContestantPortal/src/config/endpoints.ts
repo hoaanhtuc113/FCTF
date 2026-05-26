@@ -38,6 +38,10 @@ export const API_ENDPOINTS = {
     DETAIL: (id: string) => `/ticket/tickets/${id}`,
     DELETE: (id: string) => `/ticket/tickets/${id}`,
   },
+  TEAM: {
+    RENAME: '/team/name',
+    DISBAND: '/team/disband',
+  },
   USER: {
     PROFILE: '/users/profile',
   },

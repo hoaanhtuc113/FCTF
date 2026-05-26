@@ -178,8 +178,9 @@ public class ChallengeService : IChallengeService
 
             if (file_url != null) files.Add(file_url);
         }
-        var captainOnlyStart = _configHelper.GetConfig<bool>("captain_only_start_challenge", true);
-        var captainOnlySubmit = _configHelper.GetConfig<bool>("captain_only_submit_challenge", true);
+        var contestForCaptain = await _dbContext.Contests.AsNoTracking().FirstOrDefaultAsync(c => c.Id == contestId);
+        var captainOnlyStart = contestForCaptain?.CaptainOnlyStartChallenge ?? true;
+        var captainOnlySubmit = contestForCaptain?.CaptainOnlySubmitChallenge ?? false;
         var difficultyVisible = _configHelper.GetConfig<string>("challenge_difficulty_visibility", "disabled") == "enabled";
 
         // attempt to resolve the name for next challenge if available

@@ -307,8 +307,9 @@ public class ChallengeController : BaseController
                 }
             });
         }
-        // Check captain_only_submit_challenge config
-        var captainOnlySubmit = _configHelper.GetConfig("captain_only_submit_challenge", false);
+        // Check captain_only_submit_challenge — per-contest setting
+        var submitContest = await _context.Contests.AsNoTracking().FirstOrDefaultAsync(c => c.Id == contestId);
+        var captainOnlySubmit = submitContest?.CaptainOnlySubmitChallenge ?? false;
         if (captainOnlySubmit && userTeam != null && userTeam.CaptainUserId != user?.Id)
         {
             return StatusCode(StatusCodes.Status403Forbidden, new
@@ -870,8 +871,9 @@ public class ChallengeController : BaseController
             return BadRequest(new { error = "Your team has already solved this challenge. You cannot start this challenge." });
         }
 
-        // Check captain_only_start_challenge config (stored as "1" or "0" in database)
-        var captainOnlyStart = _configHelper.GetConfig("captain_only_start_challenge", true);
+        // Check captain_only_start_challenge — per-contest setting
+        var startContest = await _context.Contests.AsNoTracking().FirstOrDefaultAsync(c => c.Id == contestId);
+        var captainOnlyStart = startContest?.CaptainOnlyStartChallenge ?? true;
         if (captainOnlyStart && user!.Id != userTeam.CaptainUserId)
         {
             return BadRequest(new { error = "Contact the organizers to select a team captain. Only the team captain has the permission to start the challenge." });

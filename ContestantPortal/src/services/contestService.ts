@@ -17,6 +17,10 @@ export interface Contest {
   view_after_ctf?: boolean;
   freeze_scoreboard_at?: string | null;
   score_visibility?: 'public' | 'private' | 'admins' | 'hidden';
+  team_disbanding?: boolean;
+  allow_name_change?: boolean;
+  captain_only_start?: boolean;
+  captain_only_submit?: boolean;
 }
 
 export type ContestAccessReason = 'active' | 'ended_view_allowed' | 'ended' | 'not_started' | 'not_accessible';
