@@ -69,7 +69,7 @@ public class TicketService : ITicketService
         }
     }
 
-    public async Task<List<TicketResponseDTO>> GetTicketsByUser(int user)
+    public async Task<List<TicketResponseDTO>> GetTicketsByUser(int user, int contestId)
     {
         try
         {
@@ -77,7 +77,7 @@ public class TicketService : ITicketService
                           join a in _context.Users on t.AuthorId equals a.Id
                           join r in _context.Users on t.ReplierId equals r.Id into replierJoin
                           from r in replierJoin.DefaultIfEmpty()
-                          where t.AuthorId == user
+                          where t.AuthorId == user && t.ContestId == contestId
                           select new TicketResponseDTO
                           {
                               Id = t.Id,
