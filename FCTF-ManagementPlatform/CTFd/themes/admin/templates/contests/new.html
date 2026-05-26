@@ -172,15 +172,6 @@
             <div class="row">
                 <div class="col-md-3">
                     <div class="form-group">
-                        <label class="form-label-sm">Challenge Visibility</label>
-                        <select name="challenge_visibility" class="clean-form-control w-100">
-                            <option value="private">Private</option>
-                            <option value="public">Public</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="form-group">
                         <label class="form-label-sm">Score Visibility</label>
                         <select name="score_visibility" class="clean-form-control w-100">
                             <option value="private">Private</option>
@@ -359,7 +350,7 @@ function validateContestTimes(startVal, endVal, freezeVal) {
             end_time: form.end_time.value || null,
             freeze_scoreboard_at: form.freeze_scoreboard_at.value || null,
             view_after_ctf: form.view_after_ctf.checked,
-            challenge_visibility: form.challenge_visibility.value,
+
             score_visibility: form.score_visibility.value,
             account_visibility: form.account_visibility.value,
             registration_visibility: form.registration_visibility.value,
