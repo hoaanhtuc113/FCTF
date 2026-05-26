@@ -7,7 +7,7 @@ namespace ContestantBE.Services;
 public interface IActionLogsServices
 {
     Task<List<ActionLogsDTO>> GetActionLogs();
-    Task<List<ActionLogsDTO>> GetActionLogsTeam(int teamId);
+    Task<List<ActionLogsDTO>> GetActionLogsTeam(int teamId, int contestId);
     Task<ActionLogsDTO> SaveActionLogs(ActionLogsReq req, int userId);
 }
 public class ActionLogsServices : IActionLogsServices
@@ -40,7 +40,7 @@ public class ActionLogsServices : IActionLogsServices
         return data;
     }
 
-    public async Task<List<ActionLogsDTO>> GetActionLogsTeam(int teamId)
+    public async Task<List<ActionLogsDTO>> GetActionLogsTeam(int teamId, int contestId)
     {
         var userIds = await _context.UserTeamMembers
             .AsNoTracking()
@@ -51,7 +51,7 @@ public class ActionLogsServices : IActionLogsServices
         var data = await _context.ActionLogs
             .AsNoTracking()
             .Include(al => al.User)
-            .Where(al => al.UserId != null && userIds.Contains(al.UserId))
+            .Where(al => al.UserId != null && userIds.Contains(al.UserId) && al.ContestId == contestId)
             .OrderByDescending(x => x.Date)
             .Select(al => new ActionLogsDTO
             {
