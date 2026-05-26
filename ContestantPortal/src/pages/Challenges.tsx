@@ -90,6 +90,53 @@ interface Hint {
   isUnlocked?: boolean;
 }
 
+const DIFFICULTY_LABEL: Record<number, string> = {
+  1: 'Easy',
+  2: 'Medium',
+  3: 'Hard',
+  4: 'Very Hard',
+  5: 'Insane',
+};
+
+// Returns the filled-star color based on difficulty level
+function getDifficultyStarColor(difficulty: number): string {
+  if (difficulty <= 1) return '#22c55e'; // green-500
+  if (difficulty === 2) return '#eab308'; // yellow-500
+  if (difficulty === 3) return '#f97316'; // orange-500
+  if (difficulty === 4) return '#ef4444'; // red-500
+  return '#a855f7';                       // purple-500 (Insane)
+}
+
+function DifficultyBadge({ difficulty, theme }: { difficulty: number | null | undefined; theme: string }) {
+  if (difficulty == null || difficulty < 1 || difficulty > 5) return null;
+  const total = 5;
+  const filledColor = getDifficultyStarColor(difficulty);
+  const emptyColor = theme === 'dark' ? '#4b5563' : '#d1d5db'; // gray-600 / gray-300
+  return (
+    <span className="inline-flex items-center gap-0.5" aria-label={`Difficulty: ${DIFFICULTY_LABEL[difficulty] ?? difficulty}/5`}>
+      {Array.from({ length: total }, (_, i) => (
+        <svg
+          key={i}
+          width="13"
+          height="13"
+          viewBox="0 0 24 24"
+          fill={i < difficulty ? filledColor : emptyColor}
+          xmlns="http://www.w3.org/2000/svg"
+          style={{ flexShrink: 0 }}
+        >
+          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+        </svg>
+      ))}
+      <span
+        className="ml-0.5 text-xs font-mono"
+        style={{ color: theme === 'dark' ? '#9ca3af' : '#6b7280' }}
+      >
+        {difficulty}/5
+      </span>
+    </span>
+  );
+}
+
 export function Challenges() {
   const { theme } = useTheme();
   const { contestId: contestIdParam } = useParams<{ contestId: string }>();
@@ -1128,6 +1175,8 @@ function ChallengeListItem({
                   }`}>
                   {challenge.value}pts
                 </span>
+
+                <DifficultyBadge difficulty={challenge.difficulty} theme={theme} />
 
                 {challenge.solves !== undefined && (
                   <span className={`px-2 py-0.5 rounded ${theme === 'dark'
@@ -3685,6 +3734,13 @@ function ChallengeDetailPanel({
                   {challenge.value} pts
                 </span>
               </Tooltip>
+              {challenge.difficulty != null && (
+                <Tooltip title={`Difficulty: ${DIFFICULTY_LABEL[challenge.difficulty] ?? challenge.difficulty}/5`} placement="top" arrow enterDelay={0} enterNextDelay={0}>
+                  <span className="cursor-help py-1">
+                    <DifficultyBadge difficulty={challenge.difficulty} theme={theme} />
+                  </span>
+                </Tooltip>
+              )}
               {challenge.shared_instance && (
                 <Tooltip title="This challenge uses a shared instance for all teams" placement="top" arrow enterDelay={0} enterNextDelay={0}>
                   <span className={`cursor-help px-2 py-1 rounded border ${theme === 'dark'
