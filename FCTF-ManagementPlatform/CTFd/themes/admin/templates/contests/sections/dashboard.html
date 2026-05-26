@@ -563,24 +563,39 @@ window.togglePause = function() {
 
     fetch('/api/v1/contests/' + CONTEST_ID, {
         method: 'PATCH',
+        credentials: 'same-origin',
         headers: {
             'Content-Type': 'application/json',
             'CSRF-Token': init.csrfNonce
         },
         body: JSON.stringify({ state: newState })
     })
-    .then(r => r.json())
-    .then(data => {
+    .then(function(r) {
+        if (!r.ok) {
+            return r.text().then(function(t) {
+                throw new Error('HTTP ' + r.status + ': ' + t.substring(0, 200));
+            });
+        }
+        return r.json();
+    })
+    .then(function(data) {
         if (data.success) {
             window.location.reload();
         } else {
-            alert('Failed to update contest state.');
+            alert('Failed: ' + JSON.stringify(data.errors || data));
             btn.disabled = false;
+            btn.innerHTML = isPaused
+                ? '<i class="bx bx-play"></i> Resume CTF'
+                : '<i class="bx bx-pause"></i> Pause CTF';
         }
     })
-    .catch(() => {
-        alert('Network error.');
+    .catch(function(err) {
+        console.error('[togglePause]', err);
+        alert('Error: ' + err.message);
         btn.disabled = false;
+        btn.innerHTML = isPaused
+            ? '<i class="bx bx-play"></i> Resume CTF'
+            : '<i class="bx bx-pause"></i> Pause CTF';
     });
 };
 </script>
