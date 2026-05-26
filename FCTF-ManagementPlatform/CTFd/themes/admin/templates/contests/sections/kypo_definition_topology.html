@@ -188,17 +188,20 @@ function icoMonitor(ctx, cx, cy, s) {
     ctx.fillStyle = '#718096'; ctx.fill();
 }
 
-var ICON_SIZE = 16;
-var ICON_SPACING = 30;
+var ICON_SIZE = 18;
 
 // Draw router/host box node
+// icons = [leftCornerIcon, centerIcon, rightCornerIcon]
+// leftCornerIcon (e.g. icoLinux) → small badge at top-left
+// centerIcon (e.g. icoRouter/icoMonitor) → larger, centered
+// rightCornerIcon (e.g. icoConsole) → small badge at top-right
 function drawBox(ctx, x, y, name, ip, icons, sel) {
     ctx.font = 'bold 12px sans-serif';
     var nameW = ctx.measureText(name).width;
     ctx.font = '11px monospace';
     var ipW = ip ? ctx.measureText(ip).width : 0;
-    var bw = Math.max(nameW, ipW, 110) + 44;
-    var bh = ip ? 106 : 90;
+    var bw = Math.max(nameW, ipW, 120) + 44;
+    var bh = ip ? 112 : 96;
     var bx = x - bw / 2, by = y - bh / 2;
     // Card shadow
     ctx.shadowColor = 'rgba(0,0,0,0.12)'; ctx.shadowBlur = 10; ctx.shadowOffsetY = 4;
@@ -206,21 +209,27 @@ function drawBox(ctx, x, y, name, ip, icons, sel) {
     ctx.fillStyle = '#ffffff'; ctx.fill();
     ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
     ctx.strokeStyle = sel ? '#ff6b35' : '#d4dde8'; ctx.lineWidth = 1.5; ctx.stroke();
-    // Icons row — positioned in top section, enough clearance for antennas
-    var iY = by + 36;
-    var startX = x - (icons.length - 1) * ICON_SPACING / 2;
-    icons.forEach(function(fn, i) { fn(ctx, startX + i * ICON_SPACING, iY, ICON_SIZE); });
+    // Corner icon sizes
+    var cornerS = 9;
+    var cornerPad = cornerS + 6;
+    // Left corner icon (Linux penguin) — small badge at top-left
+    if (icons[0]) icons[0](ctx, bx + cornerPad, by + cornerPad, cornerS);
+    // Right corner icon (Console/terminal) — small badge at top-right
+    if (icons[2]) icons[2](ctx, bx + bw - cornerPad, by + cornerPad, cornerS);
+    // Center icon (Router or Monitor) — larger, centered vertically in top section
+    var centerIconY = by + bh * 0.40;
+    if (icons[1]) icons[1](ctx, x, centerIconY, ICON_SIZE);
     // Divider line
     ctx.strokeStyle = '#edf2f7'; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(bx + 8, by + 62); ctx.lineTo(bx + bw - 8, by + 62); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(bx + 8, by + bh * 0.63); ctx.lineTo(bx + bw - 8, by + bh * 0.63); ctx.stroke();
     // Name label
     ctx.fillStyle = '#1a2535'; ctx.font = 'bold 12px sans-serif';
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(name, x, by + 75);
+    ctx.fillText(name, x, by + bh * 0.77);
     // IP label
     if (ip) {
         ctx.fillStyle = '#5a6a7a'; ctx.font = '11px monospace';
-        ctx.fillText(ip, x, by + 91);
+        ctx.fillText(ip, x, by + bh * 0.90);
     }
     return { width: bw, height: bh };
 }
@@ -267,7 +276,7 @@ function renderTopology(rawData) {
                     var ctx = _ref.ctx, x = _ref.x, y = _ref.y, state = _ref.state || {};
                     return {
                         drawNode: function() { drawBox(ctx, x, y, n, ipAddr, ico, state.selected); },
-                        nodeDimensions: { width: 180, height: ipAddr ? 110 : 94 }
+                        nodeDimensions: { width: 180, height: ipAddr ? 114 : 98 }
                     };
                 }
             });
