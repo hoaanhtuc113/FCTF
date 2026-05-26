@@ -1,8 +1,6 @@
 using ContestantBE.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using ResourceShared.Models;
 using ResourceShared.Utils;
 namespace ContestantBE.Controllers;
 
@@ -11,17 +9,14 @@ public class ConfigController : BaseController
 {
     private readonly CtfTimeHelper _ctfTimeHelper;
     private readonly ConfigHelper _configHelper;
-    private readonly AppDbContext _dbContext;
 
     public ConfigController(
         IUserContext userContext,
         CtfTimeHelper ctfTimeHelper,
-        ConfigHelper configHelper,
-        AppDbContext dbContext) : base(userContext)
+        ConfigHelper configHelper) : base(userContext)
     {
         _ctfTimeHelper = ctfTimeHelper;
         _configHelper = configHelper;
-        _dbContext = dbContext;
     }
 
     private long ToLong(object val)
@@ -90,109 +85,4 @@ public class ConfigController : BaseController
         });
     }
 
-    /// <summary>
-    /// Returns whether challenge content is currently accessible.
-    /// True when CTF is running, or when CTF has ended and view_after_ctf is enabled.
-    /// </summary>
-    [HttpGet("contest_access")]
-    public IActionResult GetContestAccess()
-    {
-        var canAccess = _ctfTimeHelper.CtfTime() ||
-                        (_ctfTimeHelper.CtfEnded() && _ctfTimeHelper.ViewAfterCtf());
-
-        string reason;
-        if (_ctfTimeHelper.CtfTime())
-            reason = "active";
-        else if (_ctfTimeHelper.CtfEnded() && _ctfTimeHelper.ViewAfterCtf())
-            reason = "ended_view_allowed";
-        else if (_ctfTimeHelper.CtfEnded())
-            reason = "ended";
-        else
-            reason = "not_started";
-
-        return Ok(new { isSuccess = true, canAccess, reason });
-    }
-
-    [HttpGet("contest_list")]
-    public async Task<IActionResult> GetContestList()
-    {
-        var userId = UserContext.UserId;
-
-        // A user can see a contest if:
-        //   1. The contest is not hidden (visible/paused/ended), OR
-        //   2. The contest IS hidden but the user is an explicit participant
-        //      (admin enrolled them before publishing the contest)
-        // In both cases the user must still be in a team that belongs to the contest.
-        var contests = await _dbContext.Contests
-            .Where(c =>
-                (c.State != "hidden" || c.Participants.Any(p => p.UserId == userId))
-                && c.Teams.Any(t => t.Members.Any(m => m.UserId == userId)))
-            .Select(c => new
-            {
-                id = c.Id,
-                name = c.Name,
-                slug = c.Slug,
-                description = c.Description,
-                state = c.State,
-                start_time = c.StartTime,
-                end_time = c.EndTime,
-                team_count = c.Teams.Count,
-                challenge_count = c.Challenges.Count(ch => ch.State == "visible"),
-                category = "CTF",
-                my_team_id = (int?)c.Teams
-                    .Where(t => t.Members.Any(m => m.UserId == userId))
-                    .Select(t => t.Id)
-                    .FirstOrDefault(),
-                my_team_name = c.Teams
-                    .Where(t => t.Members.Any(m => m.UserId == userId))
-                    .Select(t => t.Name)
-                    .FirstOrDefault()
-            })
-            .ToListAsync();
-
-        var now = DateTime.UtcNow;
-
-        var result = contests.Select(c =>
-        {
-            string status;
-            if (c.state == "paused" || c.state == "ended")
-            {
-                status = "ended";
-            }
-            else if (c.start_time == null || c.end_time == null)
-            {
-                status = "active";
-            }
-            else if (now < c.start_time)
-            {
-                status = "upcoming";
-            }
-            else if (now >= c.start_time && now <= c.end_time)
-            {
-                status = "active";
-            }
-            else
-            {
-                status = "ended";
-            }
-
-            return new
-            {
-                c.id,
-                c.name,
-                c.slug,
-                c.description,
-                status,
-                start_time = c.start_time?.ToString("yyyy-MM-ddTHH:mm:ssZ"),
-                end_time = c.end_time?.ToString("yyyy-MM-ddTHH:mm:ssZ"),
-                c.team_count,
-                c.challenge_count,
-                c.category,
-                c.my_team_id,
-                c.my_team_name
-            };
-        });
-
-        return Ok(result);
-    }
 }

@@ -14,6 +14,15 @@ export interface Contest {
   category: string;
   my_team_id?: number | null;
   my_team_name?: string | null;
+  view_after_ctf?: boolean;
+  freeze_scoreboard_at?: string | null;
+}
+
+export type ContestAccessReason = 'active' | 'ended_view_allowed' | 'ended' | 'not_started' | 'not_accessible';
+
+export interface ContestAccess {
+  canAccess: boolean;
+  reason: ContestAccessReason;
 }
 
 class ContestService {
@@ -22,15 +31,42 @@ class ContestService {
 
   async getContests(): Promise<Contest[]> {
     try {
-      const response = await fetchWithAuth(API_ENDPOINTS.CONFIG.CONTEST_LIST);
+      const response = await fetchWithAuth(API_ENDPOINTS.CONTESTS.LIST);
       if (response.ok) {
         return await response.json();
       }
     } catch (e) {
-      console.error('Failed to fetch contests from API', e);
+      console.error('Failed to fetch contests', e);
     }
-    
     return [];
+  }
+
+  async getContestById(contestId: number): Promise<Contest | null> {
+    try {
+      const response = await fetchWithAuth(API_ENDPOINTS.CONTESTS.DETAIL(contestId));
+      if (response.ok) {
+        return await response.json();
+      }
+    } catch (e) {
+      console.error(`Failed to fetch contest ${contestId}`, e);
+    }
+    return null;
+  }
+
+  async getContestAccess(contestId: number): Promise<ContestAccess> {
+    try {
+      const response = await fetchWithAuth(API_ENDPOINTS.CONTESTS.ACCESS(contestId));
+      if (response.ok) {
+        const data = await response.json();
+        return {
+          canAccess: data.canAccess === true,
+          reason: (data.reason as ContestAccessReason) ?? 'not_accessible',
+        };
+      }
+    } catch {
+      console.warn('Contest access check failed, falling back to active.');
+    }
+    return { canAccess: true, reason: 'active' };
   }
 
   getActiveContest(): Contest | null {
