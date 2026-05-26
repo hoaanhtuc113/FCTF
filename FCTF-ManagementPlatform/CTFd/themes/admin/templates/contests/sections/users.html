@@ -219,7 +219,7 @@
                         {% endif %}
                     </td>
                     <td class="text-center">
-                        {% if user.contest_team and user.contest_team.members|length > 1 %}
+                        {% if user.contest_team %}
                         <a href="{{ url_for('admin.teams_detail', team_id=user.contest_team.id) }}">
                             {{ user.contest_team.name | truncate(24) }}
                         </a>
@@ -405,11 +405,39 @@
                 <input type="text" class="clean-form-control w-100" id="ae-username" placeholder="e.g. player1 or player1@gmail.com" required autocomplete="off">
                 <div id="ae-username-suggestions" class="dropdown-menu w-100" style="display:none; position:absolute; z-index:1000; max-height:200px; overflow-y:auto; margin-top:2px;"></div>
             </div>
+
+            {% if contest.user_mode == "teams" %}
+            <!-- Team assignment UI for team-mode contests -->
+            <div class="form-group mt-2">
+                <label>Team Assignment</label>
+                <div style="display:flex; gap:1.2rem; margin-bottom:0.5rem; flex-wrap:wrap;">
+                    <label style="cursor:pointer; margin:0; font-weight:normal;">
+                        <input type="radio" name="ae-team-assign" value="none" id="ae-assign-none" checked> No team yet
+                    </label>
+                    <label style="cursor:pointer; margin:0; font-weight:normal;">
+                        <input type="radio" name="ae-team-assign" value="existing" id="ae-assign-existing"> Existing team
+                    </label>
+                    <label style="cursor:pointer; margin:0; font-weight:normal;">
+                        <input type="radio" name="ae-team-assign" value="new" id="ae-assign-new"> Create new team
+                    </label>
+                </div>
+                <div id="ae-existing-team-section" style="display:none; position:relative;">
+                    <input type="text" class="clean-form-control w-100" id="ae-team" placeholder="Search existing team…" autocomplete="off">
+                    <div id="ae-team-suggestions" class="dropdown-menu w-100" style="display:none; position:absolute; z-index:1000; max-height:200px; overflow-y:auto; margin-top:2px;"></div>
+                </div>
+                <div id="ae-new-team-section" style="display:none;">
+                    <input type="text" class="clean-form-control w-100" id="ae-new-team-name" placeholder="New team name" autocomplete="off">
+                </div>
+            </div>
+            {% else %}
+            <!-- Solo-team name for user-mode contests -->
             <div class="form-group mt-2" style="position:relative;">
                 <label for="ae-team">Team Name (Optional)</label>
                 <input type="text" class="clean-form-control w-100" id="ae-team" placeholder="Defaults to user name (solo team)" autocomplete="off">
                 <div id="ae-team-suggestions" class="dropdown-menu w-100" style="display:none; position:absolute; z-index:1000; max-height:200px; overflow-y:auto; margin-top:2px;"></div>
             </div>
+            {% endif %}
+
             <div class="form-group mt-2">
                 <label for="ae-role">Contest Role</label>
                 <select id="ae-role" class="clean-form-control w-100">
@@ -435,6 +463,7 @@
 
 {% block contest_scripts %}
 <script>
+var CONTEST_USER_MODE = '{{ contest.user_mode }}';
 (function() {
 // ── Helpers ────────────────────────────────────────────────────────────────
 function csrfHeaders() {
@@ -768,13 +797,38 @@ function openAeModal() {
     aeError.style.display = 'none';
     aeSuccess.style.display = 'none';
     aeSuggestions.style.display = 'none';
-    aeTeamSuggestions.style.display = 'none';
+    if (aeTeamSuggestions) aeTeamSuggestions.style.display = 'none';
+    // Reset team assignment sections for teams mode
+    if (CONTEST_USER_MODE === 'teams') {
+        const noneRadio = document.getElementById('ae-assign-none');
+        if (noneRadio) noneRadio.checked = true;
+        const existingSection = document.getElementById('ae-existing-team-section');
+        const newSection = document.getElementById('ae-new-team-section');
+        if (existingSection) existingSection.style.display = 'none';
+        if (newSection) newSection.style.display = 'none';
+        const newTeamInput = document.getElementById('ae-new-team-name');
+        if (newTeamInput) newTeamInput.value = '';
+    }
     aeUsernameInput.focus();
 }
-function closeAeModal() { 
-    aeModal.classList.remove('active'); 
-    aeSuggestions.style.display = 'none'; 
-    aeTeamSuggestions.style.display = 'none';
+function closeAeModal() {
+    aeModal.classList.remove('active');
+    aeSuggestions.style.display = 'none';
+    if (aeTeamSuggestions) aeTeamSuggestions.style.display = 'none';
+}
+
+// ── Team-mode radio toggle ────────────────────────────────────────────────
+if (CONTEST_USER_MODE === 'teams') {
+    const aeAssignRadios = document.querySelectorAll('input[name="ae-team-assign"]');
+    const aeExistingSection = document.getElementById('ae-existing-team-section');
+    const aeNewSection = document.getElementById('ae-new-team-section');
+    aeAssignRadios.forEach(function(radio) {
+        radio.addEventListener('change', function() {
+            if (aeExistingSection) aeExistingSection.style.display = this.value === 'existing' ? 'block' : 'none';
+            if (aeNewSection) aeNewSection.style.display = this.value === 'new' ? 'block' : 'none';
+            if (aeTeamSuggestions && this.value !== 'existing') aeTeamSuggestions.style.display = 'none';
+        });
+    });
 }
 
 if (aeOpenBtn)  aeOpenBtn.addEventListener('click', openAeModal);
@@ -829,7 +883,7 @@ aeUsernameInput.addEventListener('input', function() {
 
 // Team autocomplete logic
 let aeTeamSearchTimeout = null;
-aeTeamInput.addEventListener('input', function() {
+if (aeTeamInput) aeTeamInput.addEventListener('input', function() {
     clearTimeout(aeTeamSearchTimeout);
     const q = this.value.trim();
     if (q.length < 2) {
@@ -872,7 +926,7 @@ document.addEventListener('click', function(e) {
     if (e.target !== aeUsernameInput && !aeSuggestions.contains(e.target)) {
         aeSuggestions.style.display = 'none';
     }
-    if (e.target !== aeTeamInput && !aeTeamSuggestions.contains(e.target)) {
+    if (aeTeamInput && aeTeamSuggestions && e.target !== aeTeamInput && !aeTeamSuggestions.contains(e.target)) {
         aeTeamSuggestions.style.display = 'none';
     }
 });
@@ -885,9 +939,39 @@ if (aeForm) {
 
         const payload = {
             username: document.getElementById('ae-username').value.trim(),
-            team:     document.getElementById('ae-team').value.trim(),
             role:     document.getElementById('ae-role').value || 'contestant',
         };
+
+        // Build team payload depending on contest user mode
+        if (CONTEST_USER_MODE === 'teams') {
+            const assignMode = (document.querySelector('input[name="ae-team-assign"]:checked') || {}).value || 'none';
+            if (assignMode === 'existing') {
+                const teamVal = (aeTeamInput ? aeTeamInput.value.trim() : '');
+                if (!teamVal) {
+                    aeError.textContent = 'Please select an existing team or choose another option.';
+                    aeError.style.display = 'block';
+                    return;
+                }
+                payload.team = teamVal;
+                payload.create_team = false;
+            } else if (assignMode === 'new') {
+                const newTeamName = document.getElementById('ae-new-team-name');
+                const newName = newTeamName ? newTeamName.value.trim() : '';
+                if (!newName) {
+                    aeError.textContent = 'Please enter a name for the new team.';
+                    aeError.style.display = 'block';
+                    return;
+                }
+                payload.team = newName;
+                payload.create_team = true;
+            } else {
+                payload.team = '';
+                payload.create_team = false;
+            }
+        } else {
+            payload.team = aeTeamInput ? aeTeamInput.value.trim() : '';
+            payload.create_team = false;
+        }
 
         const submitBtn = document.getElementById('ae-submit');
         submitBtn.disabled = true;
@@ -902,7 +986,9 @@ if (aeForm) {
             submitBtn.disabled = false;
             if (data.success) {
                 const roleLabel = { contestant: 'Contestant', jury: 'Jury', challenge_writer: 'Challenge Writer' }[data.data.role] || data.data.role;
-                aeSuccess.textContent = 'User ' + data.data.name + ' added to contest as ' + roleLabel + '!';
+                let msg = 'User ' + data.data.name + ' added to contest as ' + roleLabel + '!';
+                if (data.data.team) { msg += ' (Team: ' + data.data.team + ')'; }
+                aeSuccess.textContent = msg;
                 aeSuccess.style.display = 'block';
                 setTimeout(() => window.location.reload(), 1000);
             } else {

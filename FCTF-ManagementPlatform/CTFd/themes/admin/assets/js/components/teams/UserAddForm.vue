@@ -125,7 +125,14 @@ export default {
         return;
       }
 
-      CTFd.fetch(`/api/v1/users?view=admin&field=name&q=${this.searchedName}`, {
+      let url;
+      if (this.$props.contest_id) {
+        url = `/admin/contests/${this.$props.contest_id}/available_members_search?q=${encodeURIComponent(this.searchedName)}`;
+      } else {
+        url = `/api/v1/users?view=admin&field=name&q=${encodeURIComponent(this.searchedName)}`;
+      }
+
+      CTFd.fetch(url, {
         method: "GET",
         credentials: "same-origin",
         headers: {
@@ -188,8 +195,14 @@ export default {
 
       this.selectedUsers.forEach((user) => {
         let body = { user_id: user.id };
+        let url;
+        if (this.$props.contest_id && this.$props.team_id) {
+          url = `/admin/contests/${this.$props.contest_id}/teams/${this.$props.team_id}/add_member`;
+        } else {
+          url = `/api/v1/teams/${this.$props.team_id}/members`;
+        }
         reqs.push(
-          CTFd.fetch(`/api/v1/teams/${this.$props.team_id}/members`, {
+          CTFd.fetch(url, {
             method: "POST",
             credentials: "same-origin",
             headers: {
