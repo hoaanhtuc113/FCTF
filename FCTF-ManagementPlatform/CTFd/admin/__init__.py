@@ -503,6 +503,34 @@ def config():
     )
 
 
+@admin.route("/admin/platform-settings", methods=["GET", "POST"])
+@admins_only
+def platform_settings():
+    if request.method == "POST":
+        allowed_keys = {"registration_visibility", "ctf_name"}
+        for key, values in request.form.lists():
+            if key == "nonce" or key not in allowed_keys:
+                continue
+            if not values:
+                continue
+            value = values[-1]
+            set_config(key=key, value=value)
+
+        clear_config()
+        flash("Settings updated successfully.", "success")
+        return redirect(url_for("admin.platform_settings"))
+
+    clear_config()
+    registration_visibility = get_config("registration_visibility") or "private"
+    ctf_name = get_config("ctf_name") or "FCTF"
+
+    return render_template(
+        "admin/platform_settings.html",
+        registration_visibility=registration_visibility,
+        ctf_name=ctf_name,
+    )
+
+
 @admin.route("/admin/reset", methods=["GET", "POST"])
 @admins_only
 def reset():

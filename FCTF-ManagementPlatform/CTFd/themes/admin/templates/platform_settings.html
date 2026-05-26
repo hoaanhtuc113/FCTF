@@ -1,0 +1,82 @@
+{% extends "admin/management_hub_base.html" %}
+
+{% block content %}
+<div class="jumbotron page-header">
+    <div class="container">
+        <h1><i class="bx bx-cog"></i> Platform Settings</h1>
+    </div>
+</div>
+
+<div class="container">
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    {% for category, message in messages %}
+    <div class="alert alert-{{ 'success' if category == 'success' else 'danger' }} alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="close" data-dismiss="alert">
+            <span>&times;</span>
+        </button>
+    </div>
+    {% endfor %}
+    {% endif %}
+    {% endwith %}
+
+    <form method="POST" autocomplete="off">
+        <input type="hidden" name="nonce" value="{{ Session.nonce }}">
+
+        <!-- ── Registration ──────────────────────────────────────────── -->
+        <div class="card mb-3">
+            <div class="card-body" style="padding: 1.25rem;">
+                <h5 class="card-title mb-3" style="font-size: 1rem; font-weight: 600; color: var(--text-dark); text-transform: uppercase; letter-spacing: 0.4px;">
+                    <i class="bx bx-user-plus" style="color: var(--primary-orange); margin-right: 6px;"></i>
+                    Registration
+                </h5>
+
+                <div class="form-group mb-3">
+                    <label for="registration_visibility" class="form-label" style="font-size: 0.85rem; font-weight: 600; color: var(--text-medium);">
+                        Registration Visibility
+                    </label>
+                    <select class="form-control custom-select" id="registration_visibility" name="registration_visibility" style="max-width: 320px;">
+                        <option value="public" {% if registration_visibility == 'public' %}selected{% endif %}>Public — Anyone can register</option>
+                        <option value="private" {% if registration_visibility != 'public' %}selected{% endif %}>Private — Registration disabled</option>
+                    </select>
+                    <small class="form-text text-muted mt-1">
+                        Controls whether new users can self-register on the contestant portal login page.
+                        Set to <strong>Public</strong> to allow registration; <strong>Private</strong> to hide the register form and require admin invite.
+                    </small>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Branding ──────────────────────────────────────────────── -->
+        <div class="card mb-3">
+            <div class="card-body" style="padding: 1.25rem;">
+                <h5 class="card-title mb-3" style="font-size: 1rem; font-weight: 600; color: var(--text-dark); text-transform: uppercase; letter-spacing: 0.4px;">
+                    <i class="bx bx-palette" style="color: var(--primary-orange); margin-right: 6px;"></i>
+                    Branding
+                </h5>
+
+                <div class="form-group mb-3">
+                    <label for="ctf_name" class="form-label" style="font-size: 0.85rem; font-weight: 600; color: var(--text-medium);">
+                        Platform Name
+                    </label>
+                    <input class="form-control" id="ctf_name" name="ctf_name" type="text"
+                           placeholder="FCTF" value="{{ ctf_name or '' }}"
+                           style="max-width: 320px;">
+                    <small class="form-text text-muted mt-1">
+                        Name displayed on the contestant portal and browser tab title.
+                    </small>
+                </div>
+            </div>
+        </div>
+
+        <div class="d-flex justify-content-end mt-2 mb-4">
+            <button type="submit" class="btn btn-primary" style="padding: 0.45rem 1.5rem; font-size: 0.9rem;">
+                <i class="bx bx-save" style="margin-right: 4px;"></i> Save Settings
+            </button>
+        </div>
+    </form>
+
+</div>
+{% endblock %}

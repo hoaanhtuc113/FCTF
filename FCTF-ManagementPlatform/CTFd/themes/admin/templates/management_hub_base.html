@@ -711,6 +711,12 @@
                         <i class="bx bx-shield-quarter"></i> Audit Log
                     </a>
                 </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if request.endpoint == 'admin.platform_settings' %}active{% endif %}"
+                       href="{{ url_for('admin.platform_settings') }}">
+                        <i class="bx bx-cog"></i> Settings
+                    </a>
+                </li>
 
             </ul>
         </div>
