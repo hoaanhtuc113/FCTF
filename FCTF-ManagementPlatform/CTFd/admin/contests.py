@@ -1274,44 +1274,38 @@ def contest_add_existing_user(contest_id):
     resolved_team_name = None
 
     if contest.user_mode == "users":
-        # --- user mode: 1 user = 1 solo team ---
+        # --- user mode ---
+        # Only contestants get a solo team; jury/challenge_writer are added as participants only.
 
-        # 2a. Check if user already has a team in this contest
-        existing_team = (
-            db.session.query(Teams)
-            .join(UserTeamMember, UserTeamMember.team_id == Teams.id)
-            .filter(
-                Teams.contest_id == contest_id,
-                UserTeamMember.user_id == user.id,
-            )
-            .first()
-        )
-        if existing_team:
+        # 2a. Check if user is already a participant in this contest
+        existing_cp = ContestParticipant.query.filter_by(
+            contest_id=contest_id, user_id=user.id
+        ).first()
+        if existing_cp:
             return {"success": False, "errors": {"username": ["User is already in this contest."]}}, 400
 
-        # 3a. Determine target team name
-        resolved_team_name = team_name if team_name else user.name
+        if role == "contestant":
+            # Auto-create a solo team named after the user
+            resolved_team_name = user.name
 
-        # 4a. Find or create the solo team
-        team = Teams.query.filter_by(
-            contest_id=contest_id,
-            name=resolved_team_name,
-        ).first()
-
-        if team is None:
-            if team_name:
-                return {"success": False, "errors": {"team": ["Team does not exist in this contest."]}}, 400
-            team = Teams(
-                name=resolved_team_name,
-                email=user.email,
-                password=hash_password("changeme"),
+            # 4a. Find or create the solo team
+            team = Teams.query.filter_by(
                 contest_id=contest_id,
-                captain_user_id=user.id,
-            )
-            db.session.add(team)
-            db.session.flush()
+                name=resolved_team_name,
+            ).first()
 
-        team.members.append(user)
+            if team is None:
+                team = Teams(
+                    name=resolved_team_name,
+                    email=user.email,
+                    password=hash_password("changeme"),
+                    contest_id=contest_id,
+                    captain_user_id=user.id,
+                )
+                db.session.add(team)
+                db.session.flush()
+
+            team.members.append(user)
 
     else:
         # --- team mode: register participant, optionally assign to a team ---

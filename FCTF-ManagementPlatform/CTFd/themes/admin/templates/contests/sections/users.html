@@ -407,7 +407,7 @@
             </div>
 
             {% if contest.user_mode == "teams" %}
-            <!-- Team assignment UI for team-mode contests -->
+            <!-- Team assignment UI — only shown in team-mode contests -->
             <div class="form-group mt-2">
                 <label>Team Assignment</label>
                 <div style="display:flex; gap:1.2rem; margin-bottom:0.5rem; flex-wrap:wrap;">
@@ -430,12 +430,11 @@
                 </div>
             </div>
             {% else %}
-            <!-- Solo-team name for user-mode contests -->
-            <div class="form-group mt-2" style="position:relative;">
-                <label for="ae-team">Team Name (Optional)</label>
-                <input type="text" class="clean-form-control w-100" id="ae-team" placeholder="Defaults to user name (solo team)" autocomplete="off">
-                <div id="ae-team-suggestions" class="dropdown-menu w-100" style="display:none; position:absolute; z-index:1000; max-height:200px; overflow-y:auto; margin-top:2px;"></div>
-            </div>
+            <!-- user mode: solo team is auto-created by backend for contestants; no UI needed -->
+            <small class="form-text text-muted" style="display:block; margin-bottom:0.5rem;">
+                <i class="bx bx-info-circle"></i>
+                This contest uses <strong>User mode</strong>. If the role is <em>Contestant</em>, a solo team will be created automatically using the user's name.
+            </small>
             {% endif %}
 
             <div class="form-group mt-2">
@@ -969,7 +968,8 @@ if (aeForm) {
                 payload.create_team = false;
             }
         } else {
-            payload.team = aeTeamInput ? aeTeamInput.value.trim() : '';
+            // user mode: backend auto-creates solo team for contestants; no team fields needed
+            payload.team = '';
             payload.create_team = false;
         }
 
