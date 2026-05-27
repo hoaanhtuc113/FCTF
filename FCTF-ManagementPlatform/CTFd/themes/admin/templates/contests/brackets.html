@@ -47,74 +47,17 @@
 <div class="container">
 
     <p class="text-muted mb-3" style="font-size:.85rem;">
-        Brackets segment contestants into groups for the scoreboard filter.
-        Assign <strong>user</strong> brackets to individual users, or <strong>team</strong> brackets to teams.
+        Brackets segment teams into groups for the scoreboard filter.
+        Each team can be assigned to one bracket.
     </p>
 
-    {% set user_brackets = brackets | selectattr('type', 'equalto', 'user') | list %}
-    {% set team_brackets = brackets | selectattr('type', 'equalto', 'team') | list %}
-
-    <!-- User Brackets -->
-    <div class="form-section mb-3">
-        <div class="form-section-title">
-            <i class="bx bx-user"></i> User Brackets
-            <button type="button" class="clean-btn clean-btn-primary ml-auto"
-                    style="font-size:.78rem;padding:.25rem .7rem;"
-                    onclick="BR.openModal('user')">
-                <i class="bx bx-plus"></i> Add
-            </button>
-        </div>
-        <div class="clean-table-wrapper">
-            <table class="clean-table table mb-0">
-                <thead>
-                    <tr>
-                        <th style="width:40px;">#</th>
-                        <th>Name</th>
-                        <th>Description</th>
-                        <th class="text-center" style="width:130px;">Users Assigned</th>
-                        <th class="text-center" style="width:100px;">Actions</th>
-                    </tr>
-                </thead>
-                <tbody id="br-user-body">
-                    {% if user_brackets %}
-                        {% for b in user_brackets %}
-                        <tr data-br-id="{{ b.id }}">
-                            <td class="text-muted">{{ loop.index }}</td>
-                            <td><strong>{{ b.name }}</strong></td>
-                            <td class="text-muted" style="font-size:.82rem;">{{ b.description or '—' }}</td>
-                            <td class="text-center">
-                                <span class="clean-badge clean-badge-secondary">{{ b.member_count }}</span>
-                            </td>
-                            <td class="text-center" style="white-space:nowrap;">
-                                <button class="clean-btn clean-action-btn-sm"
-                                        onclick="BR.openModal('user', {{ b.id }})">
-                                    <i class="bx bx-edit"></i>
-                                </button>
-                                <button class="clean-btn clean-btn-danger clean-action-btn-sm"
-                                        onclick="BR.del({{ b.id }})">
-                                    <i class="bx bx-trash"></i>
-                                </button>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    {% else %}
-                        <tr id="br-user-empty">
-                            <td colspan="5" class="text-center text-muted py-3">No user brackets yet.</td>
-                        </tr>
-                    {% endif %}
-                </tbody>
-            </table>
-        </div>
-    </div>
-
-    <!-- Team Brackets -->
     <div class="form-section">
         <div class="form-section-title">
-            <i class="bx bx-group"></i> Team Brackets
+            <i class="bx bx-group"></i> Brackets
             <button type="button" class="clean-btn clean-btn-primary ml-auto"
                     style="font-size:.78rem;padding:.25rem .7rem;"
-                    onclick="BR.openModal('team')">
-                <i class="bx bx-plus"></i> Add
+                    onclick="BR.openModal()">
+                <i class="bx bx-plus"></i> Add Bracket
             </button>
         </div>
         <div class="clean-table-wrapper">
@@ -124,13 +67,13 @@
                         <th style="width:40px;">#</th>
                         <th>Name</th>
                         <th>Description</th>
-                        <th class="text-center" style="width:130px;">Teams Assigned</th>
+                        <th class="text-center" style="width:140px;">Teams Assigned</th>
                         <th class="text-center" style="width:100px;">Actions</th>
                     </tr>
                 </thead>
-                <tbody id="br-team-body">
-                    {% if team_brackets %}
-                        {% for b in team_brackets %}
+                <tbody id="br-body">
+                    {% if brackets %}
+                        {% for b in brackets %}
                         <tr data-br-id="{{ b.id }}">
                             <td class="text-muted">{{ loop.index }}</td>
                             <td><strong>{{ b.name }}</strong></td>
@@ -140,7 +83,7 @@
                             </td>
                             <td class="text-center" style="white-space:nowrap;">
                                 <button class="clean-btn clean-action-btn-sm"
-                                        onclick="BR.openModal('team', {{ b.id }})">
+                                        onclick="BR.openModal({{ b.id }})">
                                     <i class="bx bx-edit"></i>
                                 </button>
                                 <button class="clean-btn clean-btn-danger clean-action-btn-sm"
@@ -151,8 +94,8 @@
                         </tr>
                         {% endfor %}
                     {% else %}
-                        <tr id="br-team-empty">
-                            <td colspan="5" class="text-center text-muted py-3">No team brackets yet.</td>
+                        <tr>
+                            <td colspan="5" class="text-center text-muted py-3">No brackets yet.</td>
                         </tr>
                     {% endif %}
                 </tbody>
@@ -171,8 +114,7 @@
                 <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
             </div>
             <div class="modal-body">
-                <input type="hidden" id="br-id"   value="">
-                <input type="hidden" id="br-type" value="">
+                <input type="hidden" id="br-id" value="">
                 <div class="form-group">
                     <label class="form-label-sm">Name <span class="text-danger">*</span></label>
                     <input type="text" id="br-name" class="clean-form-control w-100"
@@ -205,44 +147,11 @@
     var contestId = {{ contest.id }};
     var API       = '/api/v1/brackets';
 
-    function escHtml(s) {
-        return String(s)
-            .replace(/&/g, '&amp;').replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-    }
-
-    function renderRow(b, idx, count) {
-        return '<tr data-br-id="' + b.id + '">' +
-            '<td class="text-muted">' + idx + '</td>' +
-            '<td><strong>' + escHtml(b.name) + '</strong></td>' +
-            '<td class="text-muted" style="font-size:.82rem;">' + escHtml(b.description || '—') + '</td>' +
-            '<td class="text-center">' +
-                '<span class="clean-badge clean-badge-secondary">' + (count != null ? count : '—') + '</span>' +
-            '</td>' +
-            '<td class="text-center" style="white-space:nowrap;">' +
-                '<button class="clean-btn clean-action-btn-sm"' +
-                    ' onclick="BR.openModal(\'' + escHtml(b.type) + '\',' + b.id + ')">' +
-                    '<i class="bx bx-edit"></i>' +
-                '</button> ' +
-                '<button class="clean-btn clean-btn-danger clean-action-btn-sm"' +
-                    ' onclick="BR.del(' + b.id + ')">' +
-                    '<i class="bx bx-trash"></i>' +
-                '</button>' +
-            '</td></tr>';
-    }
-
-    function reload() {
-        /* Full page reload — simplest way to refresh counts from server */
-        window.location.reload();
-    }
-
     window.BR = {
-        openModal: function (type, bracketId) {
+        openModal: function (bracketId) {
             var isEdit = !!bracketId;
-            document.getElementById('brModalTitle').textContent =
-                (isEdit ? 'Edit' : 'Add') + ' ' + (type === 'user' ? 'User' : 'Team') + ' Bracket';
+            document.getElementById('brModalTitle').textContent = isEdit ? 'Edit Bracket' : 'Add Bracket';
             document.getElementById('br-id').value          = bracketId || '';
-            document.getElementById('br-type').value        = type;
             document.getElementById('br-name').value        = '';
             document.getElementById('br-description').value = '';
             document.getElementById('br-modal-error').classList.add('d-none');
@@ -255,9 +164,8 @@
                     .then(function (r) { return r.json(); })
                     .then(function (json) {
                         if (!json.success) return;
-                        var b = json.data;
-                        document.getElementById('br-name').value        = b.name || '';
-                        document.getElementById('br-description').value = b.description || '';
+                        document.getElementById('br-name').value        = json.data.name || '';
+                        document.getElementById('br-description').value = json.data.description || '';
                     });
             }
             $('#brModal').modal('show');
@@ -265,7 +173,6 @@
 
         save: function () {
             var bracketId = document.getElementById('br-id').value;
-            var type      = document.getElementById('br-type').value;
             var name      = document.getElementById('br-name').value.trim();
             var errEl     = document.getElementById('br-modal-error');
             var btn       = document.getElementById('br-save-btn');
@@ -279,19 +186,15 @@
             btn.disabled = true;
             btn.innerHTML = '<i class="bx bx-loader-alt bx-spin"></i> Saving…';
 
-            var isEdit = !!bracketId;
-            var url    = isEdit ? (API + '/' + bracketId) : API;
-            var body   = {
-                name:        name,
-                description: document.getElementById('br-description').value.trim() || null,
-                type:        type,
-                contest_id:  contestId,
-            };
-
-            fetch(url, {
-                method:  isEdit ? 'PATCH' : 'POST',
+            fetch(bracketId ? (API + '/' + bracketId) : API, {
+                method:  bracketId ? 'PATCH' : 'POST',
                 headers: { 'Content-Type': 'application/json', 'CSRF-Token': nonce },
-                body:    JSON.stringify(body),
+                body: JSON.stringify({
+                    name:        name,
+                    description: document.getElementById('br-description').value.trim() || null,
+                    type:        'team',
+                    contest_id:  contestId,
+                }),
             })
             .then(function (r) { return r.json(); })
             .then(function (json) {
@@ -299,7 +202,7 @@
                 btn.innerHTML = '<i class="bx bx-save"></i> Save';
                 if (json.success) {
                     $('#brModal').modal('hide');
-                    reload();
+                    window.location.reload();
                 } else {
                     var msgs = Object.values(json.errors || {}).flat().join(' ') || 'Save failed.';
                     errEl.textContent = msgs;
@@ -315,14 +218,14 @@
         },
 
         del: function (bracketId) {
-            if (!confirm('Delete this bracket? Contestants assigned to it will become unbracketed.')) return;
+            if (!confirm('Delete this bracket? Teams assigned to it will become unbracketed.')) return;
             fetch(API + '/' + bracketId, {
                 method:  'DELETE',
                 headers: { 'CSRF-Token': nonce, 'Content-Type': 'application/json' },
             })
             .then(function (r) { return r.json(); })
             .then(function (json) {
-                if (json.success) reload();
+                if (json.success) window.location.reload();
                 else alert('Delete failed: ' + (json.message || ''));
             })
             .catch(function () { alert('Request failed.'); });
