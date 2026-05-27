@@ -1308,7 +1308,6 @@ class ChallengeDeploy(Resource):
 
             if workflow_phase == "Succeeded":
                 challenge.deploy_status = "DEPLOY_SUCCESS"
-                challenge.state = "visible"
                 db.session.commit()
 
             elif workflow_phase in ("Failed", "Error"):
