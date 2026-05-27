@@ -528,7 +528,10 @@ def platform_settings():
 
     clear_config()
     registration_visibility = get_config("registration_visibility") or "private"
-    html_sanitization = get_config("html_sanitization") or "false"
+    # get_config auto-converts "true"/"false" strings to Python booleans,
+    # so normalize back to string for template comparison
+    _html_san_raw = get_config("html_sanitization")
+    html_sanitization = "true" if _html_san_raw is True else "false"
     # If forced via config.ini, the toggle is locked
     force_html_sanitization = get_app_config("HTML_SANITIZATION") is True
 
