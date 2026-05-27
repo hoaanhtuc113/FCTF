@@ -304,6 +304,131 @@
 
     </form>
 
+    <!-- ── Custom Fields ──────────────────────────────────────────────── -->
+    <div class="form-section" id="custom-fields-section">
+        <div class="form-section-title"><i class="bx bx-text"></i> Custom Fields</div>
+        <p class="text-muted" style="font-size:.82rem; margin-bottom:1rem;">
+            Extra fields collected during registration or displayed on user/team profiles for this contest.
+        </p>
+
+        <!-- User Fields -->
+        <div class="mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <strong style="font-size:.85rem;"><i class="bx bx-user"></i> User Fields</strong>
+                <button type="button" class="clean-btn clean-btn-primary" style="font-size:.78rem; padding:.25rem .7rem;"
+                        onclick="CF.openModal('user')">
+                    <i class="bx bx-plus"></i> Add User Field
+                </button>
+            </div>
+            <div class="clean-table-wrapper">
+                <table class="clean-table table mb-0" id="cf-user-table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Type</th>
+                            <th class="text-center">Required</th>
+                            <th class="text-center">Public</th>
+                            <th class="text-center">Editable</th>
+                            <th>Description</th>
+                            <th class="text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="cf-user-body">
+                        <tr class="cf-empty-row"><td colspan="7" class="text-center text-muted py-3">No user fields yet.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Team Fields -->
+        <div id="cf-team-block">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <strong style="font-size:.85rem;"><i class="bx bx-group"></i> Team Fields</strong>
+                <button type="button" class="clean-btn clean-btn-primary" style="font-size:.78rem; padding:.25rem .7rem;"
+                        onclick="CF.openModal('team')">
+                    <i class="bx bx-plus"></i> Add Team Field
+                </button>
+            </div>
+            <div class="clean-table-wrapper">
+                <table class="clean-table table mb-0" id="cf-team-table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Type</th>
+                            <th class="text-center">Required</th>
+                            <th class="text-center">Public</th>
+                            <th class="text-center">Editable</th>
+                            <th>Description</th>
+                            <th class="text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="cf-team-body">
+                        <tr class="cf-empty-row"><td colspan="7" class="text-center text-muted py-3">No team fields yet.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Field modal -->
+    <div class="modal fade" id="cfModal" tabindex="-1" role="dialog">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="cfModalTitle">Add Field</h5>
+                    <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="cf-field-id" value="">
+                    <input type="hidden" id="cf-field-for" value="">
+                    <div class="form-group">
+                        <label class="form-label-sm">Name <span class="text-danger">*</span></label>
+                        <input type="text" id="cf-name" class="clean-form-control w-100" placeholder="e.g. Student ID">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label-sm">Field Type</label>
+                        <select id="cf-field-type" class="clean-form-control w-100">
+                            <option value="text">Text</option>
+                            <option value="number">Number</option>
+                            <option value="boolean">Checkbox (Yes/No)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label-sm">Description</label>
+                        <input type="text" id="cf-description" class="clean-form-control w-100" placeholder="Optional hint for contestants">
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="custom-control custom-switch">
+                                <input type="checkbox" class="custom-control-input" id="cf-required">
+                                <label class="custom-control-label" for="cf-required">Required</label>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="custom-control custom-switch">
+                                <input type="checkbox" class="custom-control-input" id="cf-public" checked>
+                                <label class="custom-control-label" for="cf-public">Public</label>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="custom-control custom-switch">
+                                <input type="checkbox" class="custom-control-input" id="cf-editable" checked>
+                                <label class="custom-control-label" for="cf-editable">Editable</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="cf-modal-error" class="alert alert-danger mt-3 d-none" style="font-size:.82rem;"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="clean-btn" data-dismiss="modal">Cancel</button>
+                    <button type="button" class="clean-btn clean-btn-primary" id="cf-save-btn" onclick="CF.save()">
+                        <i class="bx bx-save"></i> Save
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Danger Zone -->
     <div class="danger-zone mb-4">
         <div class="danger-zone-title"><i class="bx bx-error-circle"></i> Danger Zone</div>
@@ -387,12 +512,16 @@ function validateContestTimes(startVal, endVal, freezeVal) {
     const teamSizeGroup  = document.getElementById('team-size-group');
     const teamSizeInput  = document.getElementById('team-size-input');
 
+    var cfTeamBlock = document.getElementById('cf-team-block');
+
     function applyUserModeUI(mode) {
         if (mode === 'users') {
             teamSizeGroup.style.display = 'none';
             teamSizeInput.value = '1';
+            if (cfTeamBlock) cfTeamBlock.style.display = 'none';
         } else {
             teamSizeGroup.style.display = '';
+            if (cfTeamBlock) cfTeamBlock.style.display = '';
         }
     }
 
@@ -502,6 +631,175 @@ function validateContestTimes(startVal, endVal, freezeVal) {
             alert('An error occurred.');
         });
     });
+})();
+
+// ── Custom Fields ─────────────────────────────────────────────────────────
+var CF = (function () {
+    'use strict';
+    var nonce   = init.csrfNonce;
+    var contestId = {{ contest.id }};
+    var API     = '/api/v1/contest_fields';
+
+    var FIELD_TYPE_LABELS = { text: 'Text', number: 'Number', boolean: 'Checkbox' };
+
+    function bool2icon(v) {
+        return v
+            ? '<i class="bx bx-check-circle text-success"></i>'
+            : '<i class="bx bx-x-circle text-muted"></i>';
+    }
+
+    function renderRow(f) {
+        return '<tr data-cf-id="' + f.id + '">' +
+            '<td>' + escHtml(f.name) + '</td>' +
+            '<td>' + (FIELD_TYPE_LABELS[f.field_type] || f.field_type) + '</td>' +
+            '<td class="text-center">' + bool2icon(f.required) + '</td>' +
+            '<td class="text-center">' + bool2icon(f.public)   + '</td>' +
+            '<td class="text-center">' + bool2icon(f.editable) + '</td>' +
+            '<td class="text-muted" style="font-size:.8rem;">' + escHtml(f.description || '—') + '</td>' +
+            '<td class="text-center" style="white-space:nowrap;">' +
+                '<button class="clean-btn" style="font-size:.75rem;padding:.15rem .45rem;" onclick="CF.openModal(\'' + f.field_for + '\',' + f.id + ')">' +
+                    '<i class="bx bx-edit"></i>' +
+                '</button> ' +
+                '<button class="clean-btn clean-btn-danger" style="font-size:.75rem;padding:.15rem .45rem;" onclick="CF.del(' + f.id + ',\'' + f.field_for + '\')">' +
+                    '<i class="bx bx-trash"></i>' +
+                '</button>' +
+            '</td></tr>';
+    }
+
+    function escHtml(s) {
+        return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function setBody(fieldFor, rows) {
+        var tbody = document.getElementById('cf-' + fieldFor + '-body');
+        if (!tbody) return;
+        if (!rows.length) {
+            tbody.innerHTML = '<tr class="cf-empty-row"><td colspan="7" class="text-center text-muted py-3">No ' + fieldFor + ' fields yet.</td></tr>';
+        } else {
+            tbody.innerHTML = rows.map(renderRow).join('');
+        }
+    }
+
+    function load() {
+        fetch(API + '?contest_id=' + contestId, { headers: { 'CSRF-Token': nonce } })
+            .then(function (r) { return r.json(); })
+            .then(function (json) {
+                if (!json.success) return;
+                var users = json.data.filter(function (f) { return f.field_for === 'user'; });
+                var teams = json.data.filter(function (f) { return f.field_for === 'team'; });
+                setBody('user', users);
+                setBody('team', teams);
+            })
+            .catch(function (e) { console.error('CF load error', e); });
+    }
+
+    function openModal(fieldFor, fieldId) {
+        var isEdit = !!fieldId;
+        document.getElementById('cfModalTitle').textContent = (isEdit ? 'Edit' : 'Add') + ' ' +
+            (fieldFor === 'user' ? 'User' : 'Team') + ' Field';
+        document.getElementById('cf-field-id').value   = fieldId || '';
+        document.getElementById('cf-field-for').value  = fieldFor;
+        document.getElementById('cf-name').value        = '';
+        document.getElementById('cf-field-type').value  = 'text';
+        document.getElementById('cf-description').value = '';
+        document.getElementById('cf-required').checked  = false;
+        document.getElementById('cf-public').checked    = true;
+        document.getElementById('cf-editable').checked  = true;
+        document.getElementById('cf-modal-error').classList.add('d-none');
+        document.getElementById('cf-save-btn').disabled = false;
+        document.getElementById('cf-save-btn').innerHTML = '<i class="bx bx-save"></i> Save';
+
+        if (isEdit) {
+            fetch(API + '?contest_id=' + contestId, { headers: { 'CSRF-Token': nonce } })
+                .then(function (r) { return r.json(); })
+                .then(function (json) {
+                    var f = (json.data || []).find(function (x) { return x.id === fieldId; });
+                    if (!f) return;
+                    document.getElementById('cf-name').value        = f.name || '';
+                    document.getElementById('cf-field-type').value  = f.field_type || 'text';
+                    document.getElementById('cf-description').value = f.description || '';
+                    document.getElementById('cf-required').checked  = !!f.required;
+                    document.getElementById('cf-public').checked    = !!f.public;
+                    document.getElementById('cf-editable').checked  = !!f.editable;
+                });
+        }
+        $('#cfModal').modal('show');
+    }
+
+    function save() {
+        var fieldId  = document.getElementById('cf-field-id').value;
+        var fieldFor = document.getElementById('cf-field-for').value;
+        var name     = document.getElementById('cf-name').value.trim();
+        var errEl    = document.getElementById('cf-modal-error');
+        var btn      = document.getElementById('cf-save-btn');
+
+        if (!name) {
+            errEl.textContent = 'Name is required.';
+            errEl.classList.remove('d-none');
+            return;
+        }
+        errEl.classList.add('d-none');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="bx bx-loader-alt bx-spin"></i> Saving…';
+
+        var body = {
+            contest_id:  contestId,
+            field_for:   fieldFor,
+            name:        name,
+            field_type:  document.getElementById('cf-field-type').value,
+            description: document.getElementById('cf-description').value.trim() || null,
+            required:    document.getElementById('cf-required').checked,
+            public:      document.getElementById('cf-public').checked,
+            editable:    document.getElementById('cf-editable').checked,
+        };
+
+        var url    = fieldId ? (API + '/' + fieldId) : API;
+        var method = fieldId ? 'PATCH' : 'POST';
+
+        fetch(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json', 'CSRF-Token': nonce },
+            body: JSON.stringify(body),
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (json) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bx bx-save"></i> Save';
+            if (json.success) {
+                $('#cfModal').modal('hide');
+                load();
+            } else {
+                var msgs = Object.values(json.errors || {}).flat().join(' ') || 'Save failed.';
+                errEl.textContent = msgs;
+                errEl.classList.remove('d-none');
+            }
+        })
+        .catch(function (e) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bx bx-save"></i> Save';
+            errEl.textContent = 'Request failed.';
+            errEl.classList.remove('d-none');
+        });
+    }
+
+    function del(fieldId, fieldFor) {
+        if (!confirm('Delete this field? Existing entries for this field will also be removed.')) return;
+        fetch(API + '/' + fieldId, {
+            method: 'DELETE',
+            headers: { 'CSRF-Token': nonce, 'Content-Type': 'application/json' },
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (json) {
+            if (json.success) load();
+            else alert('Delete failed.');
+        })
+        .catch(function () { alert('Request failed.'); });
+    }
+
+    // init
+    load();
+
+    return { openModal: openModal, save: save, del: del };
 })();
 </script>
 {% endblock %}
