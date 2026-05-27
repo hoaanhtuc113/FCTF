@@ -62,28 +62,25 @@ public class ChallengeController : BaseController
     }
 
     // Helper method: Increment and check KPM using Redis atomic INCR
-    private async Task<(bool exceeded, int current)> CheckAndIncrementKpmAsync(int userId, int limit)
+    // Key is scoped per user+contest so submissions in different contests don't interfere
+    private async Task<(bool exceeded, int current)> CheckAndIncrementKpmAsync(int userId, int contestId, int limit)
     {
         if (limit <= 0) return (false, 0);
 
-        var kpmKey = $"kpm_check_{userId}";
         var currentMinute = DateTimeOffset.UtcNow.ToUnixTimeSeconds() / 60;
-        var kpmWithMinuteKey = $"{kpmKey}_{currentMinute}";
+        var kpmKey = $"kpm:{contestId}:{userId}:{currentMinute}";
 
         // Use Redis INCR - atomic operation (thread-safe)
         var redis = await _redisHelper.GetDatabaseAsync();
-        var newCount = await redis.StringIncrementAsync(kpmWithMinuteKey);
+        var newCount = await redis.StringIncrementAsync(kpmKey);
 
-        // Always set TTL to ensure key expires at end of current minute + 1 minute buffer
-        // This prevents keys from persisting indefinitely if TTL fails on first increment
-        var ttl = await redis.KeyTimeToLiveAsync(kpmWithMinuteKey);
-        if (!ttl.HasValue || ttl.Value.TotalSeconds < 0)
+        // Set TTL on first increment (90 s = current minute + 30 s buffer)
+        if (newCount == 1)
         {
-            // Key has no TTL or already expired, set it for 90 seconds (current minute + 30s buffer)
-            await redis.KeyExpireAsync(kpmWithMinuteKey, TimeSpan.FromSeconds(90));
+            await redis.KeyExpireAsync(kpmKey, TimeSpan.FromSeconds(90));
         }
 
-        // Check if exceeded limit
+        // newCount is post-increment: allow exactly `limit` wrong subs per minute
         if (newCount > limit)
         {
             return (true, (int)newCount);
@@ -264,9 +261,11 @@ public class ChallengeController : BaseController
 
         _userBehaviorLogger.Log("ATTEMPT_CHALLENGE", user?.Id, teamId, new { challengeId = request.ChallengeId, flag = request.Submission });
 
+        // Load contest once — used for pause, captain-only, and rate-limit checks
+        var contest = await _context.Contests.AsNoTracking().FirstOrDefaultAsync(c => c.Id == contestId);
+
         // Per-contest pause check
-        var contestForPause = await _context.Contests.AsNoTracking().FirstOrDefaultAsync(c => c.Id == contestId);
-        if (contestForPause?.State == "paused")
+        if (contest?.State == "paused")
         {
             return StatusCode(StatusCodes.Status403Forbidden, new
             {
@@ -274,7 +273,7 @@ public class ChallengeController : BaseController
                 data = new
                 {
                     status = "paused",
-                    message = $"{contestForPause.Name} is paused"
+                    message = $"{contest.Name} is paused"
                 }
             });
         }
@@ -311,8 +310,7 @@ public class ChallengeController : BaseController
             });
         }
         // Check captain_only_submit_challenge — per-contest setting
-        var submitContest = await _context.Contests.AsNoTracking().FirstOrDefaultAsync(c => c.Id == contestId);
-        var captainOnlySubmit = submitContest?.CaptainOnlySubmitChallenge ?? false;
+        var captainOnlySubmit = contest?.CaptainOnlySubmitChallenge ?? false;
         if (captainOnlySubmit && userTeam != null && userTeam.CaptainUserId != user?.Id)
         {
             return StatusCode(StatusCodes.Status403Forbidden, new
@@ -620,10 +618,13 @@ public class ChallengeController : BaseController
         }
 
         // Handle incorrect attempt with rate limit + max attempts validation
-        var kpm_limit = _configHelper.GetConfig("incorrect_submissions_per_min", 10);
+        // Use per-contest limit if set; fall back to global config
+        var kpm_limit = (contest?.IncorrectSubmissionsPerMin is int contestKpm && contestKpm > 0)
+            ? contestKpm
+            : _configHelper.GetConfig("incorrect_submissions_per_min", 10);
 
         // Phase 1: Check KPM with Redis (lightweight, no DB query)
-        var (kpmExceeded, kpmCount) = await CheckAndIncrementKpmAsync(user.Id, kpm_limit);
+        var (kpmExceeded, kpmCount) = await CheckAndIncrementKpmAsync(user.Id, contestId, kpm_limit);
         if (kpmExceeded)
         {
             _userBehaviorLogger.Log("CHALLENGE_SUBMISSION_RATE_LIMITED", user.Id, teamId, new { challengeId = request.ChallengeId, kpmCount, kpm_limit }, LogLevel.Warning);
