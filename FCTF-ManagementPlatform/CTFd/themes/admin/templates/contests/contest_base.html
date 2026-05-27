@@ -228,6 +228,11 @@ Override the entire sidebar block with contest-scoped navigation
         <i class="bx bx-trophy"></i> Scoreboard
     </a>
 
+    <a href="{{ url_for('admin.contest_brackets', contest_id=contest.id) }}"
+        class="nav-link {% if request.endpoint == 'admin.contest_brackets' %}active{% endif %}">
+        <i class="bx bx-category"></i> Brackets
+    </a>
+
     <a href="{{ url_for('admin.contest_submissions', contest_id=contest.id) }}"
         class="nav-link sub-btn {% if request.endpoint in ['admin.contest_submissions', 'admin.contest_submissions_correct', 'admin.contest_submissions_incorrect'] %}active{% endif %}">
         <i class="bx bx-radio-circle-marked"></i> Submissions

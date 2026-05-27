@@ -397,6 +397,52 @@ def _contest_submissions_view(contest_id, submission_type):
     )
 
 
+@admin.route("/admin/contests/<int:contest_id>/brackets")
+@admins_only
+def contest_brackets(contest_id):
+    from CTFd.models import Brackets, Users, Teams
+    contest = Contests.query.filter_by(id=contest_id).first_or_404()
+    brackets = Brackets.query.filter_by(contest_id=contest_id).order_by(Brackets.id.asc()).all()
+
+    # Compute member counts per bracket
+    bracket_ids = [b.id for b in brackets]
+    user_counts = {}
+    team_counts = {}
+    if bracket_ids:
+        user_rows = (
+            db.session.query(Users.bracket_id, db.func.count(Users.id))
+            .filter(Users.bracket_id.in_(bracket_ids))
+            .group_by(Users.bracket_id)
+            .all()
+        )
+        team_rows = (
+            db.session.query(Teams.bracket_id, db.func.count(Teams.id))
+            .filter(Teams.bracket_id.in_(bracket_ids))
+            .group_by(Teams.bracket_id)
+            .all()
+        )
+        user_counts = {bid: cnt for bid, cnt in user_rows}
+        team_counts = {bid: cnt for bid, cnt in team_rows}
+
+    brackets_data = [
+        {
+            "id": b.id,
+            "name": b.name,
+            "description": b.description or "",
+            "type": b.type or "team",
+            "member_count": (user_counts if (b.type or "team") == "user" else team_counts).get(b.id, 0),
+        }
+        for b in brackets
+    ]
+
+    return render_template(
+        "admin/contests/brackets.html",
+        contest=contest,
+        brackets=brackets_data,
+        is_detail=True,
+    )
+
+
 @admin.route("/admin/contests/<int:contest_id>/scoreboard")
 @admins_only
 def contest_scoreboard(contest_id):

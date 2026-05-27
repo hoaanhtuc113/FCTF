@@ -19,6 +19,7 @@ class BracketList(Resource):
             "name": (str, None),
             "description": (str, None),
             "type": (str, None),
+            "contest_id": (int, None),
             "q": (str, None),
             "field": (
                 RawEnum(
@@ -72,6 +73,13 @@ class BracketList(Resource):
 
 @brackets_namespace.route("/<int:bracket_id>")
 class Bracket(Resource):
+    @admins_only
+    def get(self, bracket_id):
+        bracket = Brackets.query.filter_by(id=bracket_id).first_or_404()
+        schema = BracketSchema()
+        response = schema.dump(bracket)
+        return {"success": True, "data": response.data}
+
     @admins_only
     def patch(self, bracket_id):
         bracket = Brackets.query.filter_by(id=bracket_id).first_or_404()
