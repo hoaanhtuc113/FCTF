@@ -1381,6 +1381,7 @@ class Contests(db.Model):
 
     # Visibility settings
     score_visibility = db.Column(db.String(32), nullable=False, default="public")
+    registration_visibility = db.Column(db.String(32), nullable=False, default="public")
 
     # Team settings
     team_size = db.Column(db.Integer, nullable=True)

@@ -1,10 +1,10 @@
-"""Drop orphaned registration_visibility column from contests table
+"""Add server_default to registration_visibility on contests table
 
-The column was created in the initial contests migration but is not
-represented in the Contests SQLAlchemy model (platform-wide
-registration_visibility is stored in the config table instead).
-Because it has nullable=False with no server_default, any INSERT to
-contests fails with OperationalError 1364.
+The column exists (from the initial migration) as NOT NULL with no
+server_default, so any INSERT that omits the column is rejected by
+MySQL with OperationalError 1364.  Setting server_default='public'
+fixes inserts while keeping the column for per-contest registration
+control.
 
 Revision ID: f1a2b3c4d5e6
 Revises: e4c52818cd2a
@@ -13,7 +13,6 @@ Create Date: 2026-05-27
 """
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import mysql
 
 # revision identifiers, used by Alembic.
 revision = 'f1a2b3c4d5e6'
@@ -23,16 +22,20 @@ depends_on = None
 
 
 def upgrade():
-    op.drop_column('contests', 'registration_visibility')
+    op.alter_column(
+        'contests',
+        'registration_visibility',
+        existing_type=sa.String(length=32),
+        nullable=False,
+        server_default='public',
+    )
 
 
 def downgrade():
-    op.add_column(
+    op.alter_column(
         'contests',
-        sa.Column(
-            'registration_visibility',
-            mysql.VARCHAR(length=32),
-            nullable=False,
-            server_default='public',
-        )
+        'registration_visibility',
+        existing_type=sa.String(length=32),
+        nullable=False,
+        server_default=None,
     )

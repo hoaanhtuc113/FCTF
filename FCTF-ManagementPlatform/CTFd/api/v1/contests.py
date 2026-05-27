@@ -38,6 +38,7 @@ def _contest_to_dict(contest: Contests) -> dict:
         ),
         "view_after_ctf": contest.view_after_ctf,
         "score_visibility": contest.score_visibility,
+        "registration_visibility": contest.registration_visibility,
         "team_size": contest.team_size,
         "captain_only_start_challenge": contest.captain_only_start_challenge,
         "captain_only_submit_challenge": contest.captain_only_submit_challenge,
@@ -173,6 +174,7 @@ class ContestList(Resource):
             view_after_ctf=bool(data.get("view_after_ctf", False)),
 
             score_visibility=data.get("score_visibility") or "private",
+            registration_visibility=data.get("registration_visibility") or "public",
             team_size=data.get("team_size") or None,
             captain_only_start_challenge=bool(data.get("captain_only_start_challenge", True)),
             captain_only_submit_challenge=bool(data.get("captain_only_submit_challenge", False)),
@@ -212,7 +214,7 @@ class ContestDetail(Resource):
         str_fields = [
             "name", "description", "slug", "access_password",
             "user_mode", "state",
-            "score_visibility",
+            "score_visibility", "registration_visibility",
         ]
         bool_fields = [
             "view_after_ctf", "captain_only_start_challenge",
