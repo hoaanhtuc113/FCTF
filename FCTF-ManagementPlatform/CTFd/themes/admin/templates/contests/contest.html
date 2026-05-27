@@ -134,16 +134,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="col-md-3">
-                    <div class="form-group">
-                        <label class="form-label-sm">User Mode</label>
-                        <select name="user_mode" class="clean-form-control w-100">
-                            <option value="users" {% if contest.user_mode == 'users' %}selected{% endif %}>Users</option>
-                            <option value="teams" {% if contest.user_mode == 'teams' %}selected{% endif %}>Teams</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="col-md-3">
+                <div class="col-md-6">
                     <div class="form-group">
                         <label class="form-label-sm">State</label>
                         <select name="state" class="clean-form-control w-100">
@@ -236,8 +227,17 @@
             <div class="row">
                 <div class="col-md-3">
                     <div class="form-group">
+                        <label class="form-label-sm">User Mode</label>
+                        <select name="user_mode" class="clean-form-control w-100">
+                            <option value="teams" {% if contest.user_mode == 'teams' %}selected{% endif %}>Teams</option>
+                            <option value="users" {% if contest.user_mode == 'users' %}selected{% endif %}>Users</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-3" id="team-size-group">
+                    <div class="form-group">
                         <label class="form-label-sm">Max Team Size</label>
-                        <input type="number" name="team_size" min="1" class="clean-form-control w-100"
+                        <input type="number" id="team-size-input" name="team_size" min="1" class="clean-form-control w-100"
                                value="{{ contest.team_size or '' }}" placeholder="Unlimited">
                     </div>
                 </div>
@@ -382,6 +382,25 @@ function validateContestTimes(startVal, endVal, freezeVal) {
     const nonce = init.csrfNonce;
     const contestId = {{ contest.id }};
 
+    // User mode → toggle team size visibility
+    const userModeSelect = document.querySelector('select[name="user_mode"]');
+    const teamSizeGroup  = document.getElementById('team-size-group');
+    const teamSizeInput  = document.getElementById('team-size-input');
+
+    function applyUserModeUI(mode) {
+        if (mode === 'users') {
+            teamSizeGroup.style.display = 'none';
+            teamSizeInput.value = '1';
+        } else {
+            teamSizeGroup.style.display = '';
+        }
+    }
+
+    userModeSelect.addEventListener('change', function () {
+        applyUserModeUI(this.value);
+    });
+    applyUserModeUI(userModeSelect.value); // apply on load
+
     document.getElementById('contest-edit-form').addEventListener('submit', function (e) {
         e.preventDefault();
         const btn = document.getElementById('save-btn');
@@ -403,7 +422,7 @@ function validateContestTimes(startVal, endVal, freezeVal) {
 
             score_visibility: form.score_visibility.value,
             registration_visibility: form.registration_visibility.value,
-            team_size: form.team_size.value ? parseInt(form.team_size.value) : null,
+            team_size: form.user_mode.value === 'users' ? 1 : (form.team_size.value ? parseInt(form.team_size.value) : null),
             incorrect_submissions_per_min: form.incorrect_submissions_per_min.value
                 ? parseInt(form.incorrect_submissions_per_min.value) : null,
             captain_only_start_challenge: form.captain_only_start_challenge.checked,
