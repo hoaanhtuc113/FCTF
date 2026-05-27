@@ -1498,9 +1498,6 @@ class Fields(db.Model):
     required = db.Column(db.Boolean, default=False)
     public = db.Column(db.Boolean, default=False)
     editable = db.Column(db.Boolean, default=False)
-    contest_id = db.Column(
-        db.Integer, db.ForeignKey("contests.id", ondelete="SET NULL"), nullable=True
-    )
 
     __mapper_args__ = {"polymorphic_identity": "standard", "polymorphic_on": type}
 
@@ -1519,9 +1516,6 @@ class FieldEntries(db.Model):
     type = db.Column(db.String(80), default="standard")
     value = db.Column(db.JSON)
     field_id = db.Column(db.Integer, db.ForeignKey("fields.id", ondelete="CASCADE"))
-    contest_id = db.Column(
-        db.Integer, db.ForeignKey("contests.id", ondelete="SET NULL"), nullable=True
-    )
 
     field = db.relationship(
         "Fields", foreign_keys="FieldEntries.field_id", lazy="joined"

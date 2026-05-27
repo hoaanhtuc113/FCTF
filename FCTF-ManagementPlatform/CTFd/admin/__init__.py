@@ -503,6 +503,12 @@ def config():
     )
 
 
+@admin.route("/admin/custom-fields")
+@admins_only
+def custom_fields():
+    return render_template("admin/custom_fields.html")
+
+
 @admin.route("/admin/platform-settings", methods=["GET", "POST"])
 @admins_only
 def platform_settings():
