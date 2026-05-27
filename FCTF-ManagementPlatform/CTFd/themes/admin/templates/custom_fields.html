@@ -99,7 +99,6 @@
                     <label class="form-label-sm">Field Type</label>
                     <select id="cf-field-type" class="clean-form-control w-100">
                         <option value="text">Text</option>
-                        <option value="number">Number</option>
                         <option value="boolean">Checkbox (Yes/No)</option>
                     </select>
                 </div>
@@ -182,7 +181,7 @@ var CF = (function () {
     var nonce = init.csrfNonce;
     var API   = '/api/v1/contest_fields';
 
-    var FIELD_TYPE_LABELS = { text: 'Text', number: 'Number', boolean: 'Checkbox' };
+    var FIELD_TYPE_LABELS = { text: 'Text', boolean: 'Checkbox' };
 
     function bool2icon(v) {
         return v

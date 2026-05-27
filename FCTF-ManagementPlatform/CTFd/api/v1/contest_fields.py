@@ -19,7 +19,7 @@ contest_fields_namespace = Namespace(
     "contest_fields", description="Global custom fields"
 )
 
-VALID_FIELD_TYPES = {"text", "number", "boolean", "multiselect"}
+VALID_FIELD_TYPES = {"text", "boolean"}
 VALID_FOR = {"user", "team"}
 
 
