@@ -410,8 +410,8 @@
             </div>
 
             {% if contest.user_mode == "teams" %}
-            <!-- Team assignment UI — only shown in team-mode contests -->
-            <div class="form-group mt-2">
+            <!-- Team assignment UI — only shown in team-mode contests, only when role = contestant -->
+            <div class="form-group mt-2" id="ae-team-section">
                 <label>Team Assignment</label>
                 <div style="display:flex; gap:1.2rem; margin-bottom:0.5rem; flex-wrap:wrap;">
                     <label style="cursor:pointer; margin:0; font-weight:normal;">
@@ -904,6 +904,12 @@ function openAeModal() {
         if (newSection) newSection.style.display = 'none';
         const newTeamInput = document.getElementById('ae-new-team-name');
         if (newTeamInput) newTeamInput.value = '';
+        // Show/hide team section based on initial role value
+        const aeRoleSelectInit = document.getElementById('ae-role');
+        const aeTeamSectionInit = document.getElementById('ae-team-section');
+        if (aeRoleSelectInit && aeTeamSectionInit) {
+            aeTeamSectionInit.style.display = aeRoleSelectInit.value === 'contestant' ? '' : 'none';
+        }
     }
     aeUsernameInput.focus();
 }
@@ -913,8 +919,25 @@ function closeAeModal() {
     if (aeTeamSuggestions) aeTeamSuggestions.style.display = 'none';
 }
 
-// ── Team-mode radio toggle ────────────────────────────────────────────────
+// ── Team-mode: hide/show team section based on role ───────────────────────
 if (CONTEST_USER_MODE === 'teams') {
+    const aeRoleSelect  = document.getElementById('ae-role');
+    const aeTeamSection = document.getElementById('ae-team-section');
+    if (aeRoleSelect && aeTeamSection) {
+        aeRoleSelect.addEventListener('change', function() {
+            aeTeamSection.style.display = this.value === 'contestant' ? '' : 'none';
+            if (this.value !== 'contestant') {
+                const noneRadio = document.getElementById('ae-assign-none');
+                if (noneRadio) noneRadio.checked = true;
+                const existingSection = document.getElementById('ae-existing-team-section');
+                const newSection      = document.getElementById('ae-new-team-section');
+                if (existingSection) existingSection.style.display = 'none';
+                if (newSection)      newSection.style.display      = 'none';
+                if (aeTeamSuggestions) aeTeamSuggestions.style.display = 'none';
+            }
+        });
+    }
+
     const aeAssignRadios = document.querySelectorAll('input[name="ae-team-assign"]');
     const aeExistingSection = document.getElementById('ae-existing-team-section');
     const aeNewSection = document.getElementById('ae-new-team-section');
