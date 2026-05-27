@@ -73,6 +73,7 @@ class CommentList(Resource):
             "challenge_id": (int, None),
             "user_id": (int, None),
             "team_id": (int, None),
+            "contest_id": (int, None),
             "q": (str, None),
             "field": (RawEnum("CommentFields", {"content": "content"}), None),
         },

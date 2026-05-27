@@ -489,8 +489,10 @@ $(() => {
     const commentBox = Vue.extend(CommentBox);
     let vueContainer = document.createElement("div");
     commentBoxEl.appendChild(vueContainer);
+    // When viewing inside a contest context, scope comments to that contest
+    const commentExtraArgs = window.CONTEST_ID ? { contest_id: window.CONTEST_ID } : {};
     new commentBox({
-      propsData: { type: "user", id: window.USER_ID },
+      propsData: { type: "user", id: window.USER_ID, extraArgs: commentExtraArgs },
     }).$mount(vueContainer);
   }
 

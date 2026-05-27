@@ -1481,6 +1481,7 @@ class ChallengeComments(Comments):
 class UserComments(Comments):
     __mapper_args__ = {"polymorphic_identity": "user"}
     user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"))
+    contest_id = db.Column(db.Integer, db.ForeignKey("contests.id", ondelete="CASCADE"), nullable=True)
 
 
 class TeamComments(Comments):

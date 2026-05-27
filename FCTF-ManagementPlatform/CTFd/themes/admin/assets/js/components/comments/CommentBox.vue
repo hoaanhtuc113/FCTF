@@ -126,6 +126,9 @@ export default {
     // See this.getArgs()
     type: String,
     id: Number,
+    // Optional extra args merged into every API call (GET + POST).
+    // e.g. { contest_id: 3 } to scope user comments to a specific contest.
+    extraArgs: { type: Object, default: () => ({}) },
   },
   data: function () {
     return {
@@ -154,7 +157,7 @@ export default {
     getArgs: function () {
       let args = {};
       args[`${this.$props.type}_id`] = this.$props.id;
-      return args;
+      return { ...args, ...(this.$props.extraArgs || {}) };
     },
     loadComments: function () {
       let apiArgs = this.getArgs();
