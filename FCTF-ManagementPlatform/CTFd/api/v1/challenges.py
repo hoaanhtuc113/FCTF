@@ -1012,8 +1012,12 @@ class ChallengeAttempt(Resource):
 
         # Anti-bruteforce / submitting Flags too quickly
         kpm = current_user.get_wrong_submissions_per_minute(user.account_id)
-        kpm_limit = int(get_config("incorrect_submissions_per_min", default=10))
-        if kpm > kpm_limit:
+        # Read the limit from the contest settings; fall back to global config if not set
+        if contest and contest.incorrect_submissions_per_min:
+            kpm_limit = int(contest.incorrect_submissions_per_min)
+        else:
+            kpm_limit = int(get_config("incorrect_submissions_per_min", default=10))
+        if kpm >= kpm_limit:
             if ctftime():
                 chal_class.fail(
                     user=user, team=team, challenge=challenge, request=request
