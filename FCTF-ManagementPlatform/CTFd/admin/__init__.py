@@ -513,7 +513,7 @@ def custom_fields():
 @admins_only
 def platform_settings():
     if request.method == "POST":
-        allowed_keys = {"registration_visibility"}
+        allowed_keys = {"registration_visibility", "html_sanitization"}
         for key, values in request.form.lists():
             if key == "nonce" or key not in allowed_keys:
                 continue
@@ -528,10 +528,15 @@ def platform_settings():
 
     clear_config()
     registration_visibility = get_config("registration_visibility") or "private"
+    html_sanitization = get_config("html_sanitization") or "false"
+    # If forced via config.ini, the toggle is locked
+    force_html_sanitization = get_app_config("HTML_SANITIZATION") is True
 
     return render_template(
         "admin/platform_settings.html",
         registration_visibility=registration_visibility,
+        html_sanitization=html_sanitization,
+        force_html_sanitization=force_html_sanitization,
     )
 
 
