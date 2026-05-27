@@ -189,16 +189,6 @@
                         </select>
                     </div>
                 </div>
-                <div class="col-md-3">
-                    <div class="form-group">
-                        <label class="form-label-sm">Registration</label>
-                        <select name="registration_visibility" class="clean-form-control w-100">
-                            <option value="public" selected>Enabled</option>
-                            <option value="private">Disabled</option>
-                        </select>
-                        <div class="form-hint">Allow new contestants to self-register.</div>
-                    </div>
-                </div>
             </div>
         </div>
 
@@ -372,7 +362,6 @@ function validateContestTimes(startVal, endVal, freezeVal) {
             view_after_ctf: form.view_after_ctf.checked,
 
             score_visibility: form.score_visibility.value,
-            registration_visibility: form.registration_visibility.value,
             team_size: form.user_mode.value === 'users' ? 1 : (form.team_size.value ? parseInt(form.team_size.value) : null),
             incorrect_submissions_per_min: form.incorrect_submissions_per_min.value
                 ? parseInt(form.incorrect_submissions_per_min.value) : null,
