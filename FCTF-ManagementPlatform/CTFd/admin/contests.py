@@ -1350,6 +1350,30 @@ def contest_add_existing_user(contest_id):
                 if already:
                     return {"success": False, "errors": {"team": ["User is already in this team."]}}, 400
 
+                # Enforce team_size limit when joining an existing team
+                if contest.team_size:
+                    current_count = (
+                        db.session.query(db.func.count(UserTeamMember.id))
+                        .filter_by(team_id=team.id)
+                        .scalar()
+                    )
+                    if current_count >= contest.team_size:
+                        return (
+                            {
+                                "success": False,
+                                "errors": {
+                                    "team": [
+                                        "Team '{}' is full. Teams are limited to {} member{}.".format(
+                                            team_name,
+                                            contest.team_size,
+                                            "" if contest.team_size == 1 else "s",
+                                        )
+                                    ]
+                                },
+                            },
+                            400,
+                        )
+
             team.members.append(user)
             resolved_team_name = team_name
 
@@ -1770,7 +1794,7 @@ def contest_add_team_member(contest_id, team_id):
     from CTFd.models import Teams, UserTeamMember, Users
     from flask import jsonify
 
-    Contests.query.filter_by(id=contest_id).first_or_404()
+    contest = Contests.query.filter_by(id=contest_id).first_or_404()
     team = Teams.query.filter_by(id=team_id, contest_id=contest_id).first_or_404()
 
     data = request.get_json(force=True) or {}
@@ -1807,6 +1831,29 @@ def contest_add_team_member(contest_id, team_id):
             {"success": False, "errors": {"user_id": ["User is already in a team in this contest"]}},
             400,
         )
+
+    # Enforce team_size limit from contest settings
+    if contest.team_size:
+        current_count = (
+            db.session.query(db.func.count(UserTeamMember.id))
+            .filter_by(team_id=team.id)
+            .scalar()
+        )
+        if current_count >= contest.team_size:
+            return (
+                {
+                    "success": False,
+                    "errors": {
+                        "user_id": [
+                            "This team is full. Teams are limited to {} member{}.".format(
+                                contest.team_size,
+                                "" if contest.team_size == 1 else "s",
+                            )
+                        ]
+                    },
+                },
+                400,
+            )
 
     team.members.append(user)
 

@@ -17,7 +17,7 @@ from CTFd.cache import (
     clear_user_session,
 )
 from CTFd.constants import RawEnum
-from CTFd.models import Awards, Challenges, Submissions, Teams, Tokens, Unlocks, UserTeamMember, Users, db
+from CTFd.models import Awards, Challenges, Contests, Submissions, Teams, Tokens, Unlocks, UserTeamMember, Users, db
 from CTFd.schemas.awards import AwardSchema
 from CTFd.schemas.submissions import SubmissionSchema
 from CTFd.schemas.teams import TeamSchema
@@ -566,10 +566,7 @@ class TeamMembers(Resource):
                     user_id=user.id, team_id=team.id
                 ).first()
 
-            if already_in_contest is None:
-                team.members.append(user)
-                db.session.commit()
-            else:
+            if already_in_contest is not None:
                 return (
                     {
                         "success": False,
@@ -577,6 +574,38 @@ class TeamMembers(Resource):
                     },
                     400,
                 )
+
+            # Enforce team_size limit from contest settings
+            if team.contest_id:
+                contest = Contests.query.filter_by(id=team.contest_id).first()
+                team_size_limit = contest.team_size if contest else None
+            else:
+                team_size_limit = get_config("team_size", default=0) or None
+
+            if team_size_limit:
+                current_count = (
+                    db.session.query(db.func.count(UserTeamMember.id))
+                    .filter_by(team_id=team.id)
+                    .scalar()
+                )
+                if current_count >= team_size_limit:
+                    return (
+                        {
+                            "success": False,
+                            "errors": {
+                                "id": [
+                                    "This team is full. Teams are limited to {} member{}.".format(
+                                        team_size_limit,
+                                        "" if team_size_limit == 1 else "s",
+                                    )
+                                ]
+                            },
+                        },
+                        400,
+                    )
+
+            team.members.append(user)
+            db.session.commit()
         else:
             invite_code = team.get_invite_code()
             response = {"code": invite_code}
