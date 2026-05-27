@@ -9,7 +9,7 @@ from CTFd.cache import cache, clear_user_session
 from CTFd.constants.languages import Languages
 from CTFd.constants.teams import TeamAttrs
 from CTFd.constants.users import UserAttrs
-from CTFd.models import Fails, Teams, Tokens, Tracking, Users, db
+from CTFd.models import Challenges, Fails, Teams, Tokens, Tracking, Users, db
 from CTFd.utils import get_config
 from CTFd.utils.security.auth import logout_user
 from CTFd.utils.security.signing import hmac
@@ -237,17 +237,21 @@ def get_user_recent_ips(user_id):
     return {ip for (ip,) in addrs}
 
 
-def get_wrong_submissions_per_minute(account_id):
+def get_wrong_submissions_per_minute(account_id, contest_id=None):
     """
-    Get incorrect submissions per minute.
+    Get incorrect submissions per minute, optionally scoped to a specific contest.
 
-    :param account_id:
-    :return:
+    :param account_id: The account (user or team) ID to check.
+    :param contest_id: When provided, only count fails for challenges in this contest.
+    :return: Number of failed submissions in the last 60 seconds.
     """
     one_min_ago = datetime.datetime.utcnow() + datetime.timedelta(minutes=-1)
-    fails = (
-        db.session.query(Fails)
-        .filter(Fails.account_id == account_id, Fails.date >= one_min_ago)
-        .all()
+    query = db.session.query(Fails).filter(
+        Fails.account_id == account_id,
+        Fails.date >= one_min_ago,
     )
-    return len(fails)
+    if contest_id is not None:
+        query = query.join(
+            Challenges, Challenges.id == Fails.challenge_id
+        ).filter(Challenges.contest_id == contest_id)
+    return query.count()

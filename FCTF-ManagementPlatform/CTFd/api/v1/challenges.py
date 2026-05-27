@@ -1011,17 +1011,19 @@ class ChallengeAttempt(Resource):
         chal_class = get_chal_class(challenge.type)
 
         # Anti-bruteforce / submitting Flags too quickly
-        kpm = current_user.get_wrong_submissions_per_minute(user.account_id)
+        # Scope the fail count to this contest so cross-contest submissions don't interfere
+        kpm = current_user.get_wrong_submissions_per_minute(
+            user.account_id, contest_id=challenge.contest_id
+        )
         # Read the limit from the contest settings; fall back to global config if not set
         if contest and contest.incorrect_submissions_per_min:
             kpm_limit = int(contest.incorrect_submissions_per_min)
         else:
             kpm_limit = int(get_config("incorrect_submissions_per_min", default=10))
         if kpm >= kpm_limit:
-            if ctftime():
-                chal_class.fail(
-                    user=user, team=team, challenge=challenge, request=request
-                )
+            # Do NOT record a fail here — writing a Fail entry while rate-limited
+            # would inflate the kpm counter on every retry, making recovery impossible
+            # within the same minute window.
             log(
                 "submissions",
                 "[{date}] {name} submitted {submission} on {challenge_id} with kpm {kpm} [TOO FAST]",
