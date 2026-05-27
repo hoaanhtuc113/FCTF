@@ -68,7 +68,8 @@ public class ChallengeController : BaseController
         if (limit <= 0) return (false, 0);
 
         var currentMinute = DateTimeOffset.UtcNow.ToUnixTimeSeconds() / 60;
-        var kpmKey = $"kpm:{contestId}:{userId}:{currentMinute}";
+        // Keep kpm_check_ prefix to stay within existing Redis ACL key permissions
+        var kpmKey = $"kpm_check_{contestId}_{userId}_{currentMinute}";
 
         // Use Redis INCR - atomic operation (thread-safe)
         var redis = await _redisHelper.GetDatabaseAsync();
