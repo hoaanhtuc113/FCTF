@@ -165,6 +165,9 @@
             <button type="button" class="clean-btn btn-outline-info" id="btn-add-existing-user">
                 <i class="fas fa-user-check"></i> Add Existing User
             </button>
+            <button type="button" class="clean-btn clean-btn-primary" id="btn-create-user">
+                <i class="fas fa-user-plus"></i> Create New User
+            </button>
         </div>
         <div class="d-flex align-items-center" style="gap:0.5rem;">
             <button type="button" class="clean-btn"
@@ -452,6 +455,100 @@
                 <button type="button" class="clean-btn btn-outline-secondary" id="ae-cancel">Cancel</button>
                 <button type="submit" class="clean-btn clean-btn-primary" id="ae-submit">
                     <i class="fas fa-user-plus"></i> Add User
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ── Create New User modal ──────────────────────────────────────────────── -->
+<div class="import-modal-overlay" id="create-user-modal">
+    <div class="import-modal-box">
+        <button class="import-modal-close" id="create-user-modal-close" title="Close">&times;</button>
+        <h5><i class="fas fa-user-plus" style="color:var(--primary-orange);"></i> Create New User</h5>
+        <p style="font-size:0.88rem;color:#666;margin-bottom:1rem;">
+            Create a new platform account and add them to this contest in one step.
+        </p>
+        <form id="cu-form">
+            <!-- Username -->
+            <div class="form-group">
+                <label for="cu-name">Username <span class="text-danger">*</span></label>
+                <input type="text" class="clean-form-control w-100" id="cu-name"
+                       placeholder="e.g. player1" required autocomplete="off">
+            </div>
+
+            <!-- Email -->
+            <div class="form-group">
+                <label for="cu-email">Email <span class="text-danger">*</span></label>
+                <input type="email" class="clean-form-control w-100" id="cu-email"
+                       placeholder="e.g. player1@example.com" required autocomplete="off">
+            </div>
+
+            <!-- Password -->
+            <div class="form-group" style="position:relative;">
+                <label for="cu-password">Password <span class="text-danger">*</span></label>
+                <div style="display:flex;gap:0.4rem;align-items:center;">
+                    <input type="password" class="clean-form-control flex-grow-1" id="cu-password"
+                           placeholder="Set a password" required autocomplete="new-password">
+                    <button type="button" class="clean-btn btn-outline-secondary"
+                            style="padding:0.3rem 0.6rem;white-space:nowrap;"
+                            onclick="document.getElementById('cu-password').type=document.getElementById('cu-password').type==='password'?'text':'password'">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Role -->
+            <div class="form-group">
+                <label for="cu-role">Contest Role</label>
+                <select id="cu-role" class="clean-form-control w-100">
+                    <option value="contestant">Contestant</option>
+                    <option value="jury">Jury</option>
+                    <option value="challenge_writer">Challenge Writer</option>
+                </select>
+                <small class="form-text text-muted">Contest-level role for this user.</small>
+            </div>
+
+            {% if contest.user_mode == "teams" %}
+            <!-- Team Assignment — only shown in team-mode contests -->
+            <div class="form-group mt-2" id="cu-team-section">
+                <label>Team Assignment</label>
+                <div style="display:flex;gap:1.2rem;margin-bottom:0.5rem;flex-wrap:wrap;">
+                    <label style="cursor:pointer;margin:0;font-weight:normal;">
+                        <input type="radio" name="cu-team-assign" value="none" id="cu-assign-none" checked> No team yet
+                    </label>
+                    <label style="cursor:pointer;margin:0;font-weight:normal;">
+                        <input type="radio" name="cu-team-assign" value="existing" id="cu-assign-existing"> Existing team
+                    </label>
+                    <label style="cursor:pointer;margin:0;font-weight:normal;">
+                        <input type="radio" name="cu-team-assign" value="new" id="cu-assign-new"> Create new team
+                    </label>
+                </div>
+                <div id="cu-existing-team-section" style="display:none;position:relative;">
+                    <input type="text" class="clean-form-control w-100" id="cu-team"
+                           placeholder="Search existing team…" autocomplete="off">
+                    <div id="cu-team-suggestions" class="dropdown-menu w-100"
+                         style="display:none;position:absolute;z-index:1000;max-height:200px;overflow-y:auto;margin-top:2px;"></div>
+                </div>
+                <div id="cu-new-team-section" style="display:none;">
+                    <input type="text" class="clean-form-control w-100" id="cu-new-team-name"
+                           placeholder="New team name" autocomplete="off">
+                </div>
+            </div>
+            {% else %}
+            <!-- user mode: solo team auto-created for contestants -->
+            <small class="form-text text-muted" style="display:block;margin-bottom:0.5rem;">
+                <i class="bx bx-info-circle"></i>
+                <strong>User mode</strong> — if role is <em>Contestant</em>, a solo team will be created automatically using the username.
+            </small>
+            {% endif %}
+
+            <div id="cu-error"   class="alert alert-danger  mt-2" style="display:none;"></div>
+            <div id="cu-success" class="alert alert-success mt-2" style="display:none;"></div>
+            <div class="d-flex justify-content-end mt-3" style="gap:0.5rem;">
+                <button type="button" class="clean-btn btn-outline-secondary" id="cu-cancel">Cancel</button>
+                <button type="submit" class="clean-btn clean-btn-primary" id="cu-submit">
+                    <i class="fas fa-user-plus"></i> Create &amp; Add
                 </button>
             </div>
         </form>
@@ -1000,6 +1097,206 @@ if (aeForm) {
             submitBtn.disabled = false;
             aeError.textContent = 'Network error. Please try again.';
             aeError.style.display = 'block';
+        });
+    });
+}
+
+// ── Create New User modal ─────────────────────────────────────────────────
+const cuModal     = document.getElementById('create-user-modal');
+const cuOpenBtn   = document.getElementById('btn-create-user');
+const cuCloseBtn  = document.getElementById('create-user-modal-close');
+const cuCancelBtn = document.getElementById('cu-cancel');
+const cuForm      = document.getElementById('cu-form');
+const cuError     = document.getElementById('cu-error');
+const cuSuccess   = document.getElementById('cu-success');
+const cuTeamInput       = document.getElementById('cu-team');
+const cuTeamSuggestions = document.getElementById('cu-team-suggestions');
+
+function openCuModal() {
+    cuModal.classList.add('active');
+    cuForm.reset();
+    cuError.style.display   = 'none';
+    cuSuccess.style.display = 'none';
+    if (CONTEST_USER_MODE === 'teams') {
+        const noneRadio = document.getElementById('cu-assign-none');
+        if (noneRadio) noneRadio.checked = true;
+        const existingSection = document.getElementById('cu-existing-team-section');
+        const newSection      = document.getElementById('cu-new-team-section');
+        if (existingSection) existingSection.style.display = 'none';
+        if (newSection)      newSection.style.display      = 'none';
+        const newTeamInput = document.getElementById('cu-new-team-name');
+        if (newTeamInput) newTeamInput.value = '';
+        if (cuTeamSuggestions) cuTeamSuggestions.style.display = 'none';
+        // Hide team section when non-contestant role is selected
+        const cuRoleSelect = document.getElementById('cu-role');
+        if (cuRoleSelect) {
+            const teamSection = document.getElementById('cu-team-section');
+            if (teamSection) teamSection.style.display = cuRoleSelect.value === 'contestant' ? '' : 'none';
+        }
+    }
+    document.getElementById('cu-name').focus();
+}
+function closeCuModal() {
+    cuModal.classList.remove('active');
+    if (cuTeamSuggestions) cuTeamSuggestions.style.display = 'none';
+}
+
+if (cuOpenBtn)   cuOpenBtn.addEventListener('click', openCuModal);
+if (cuCloseBtn)  cuCloseBtn.addEventListener('click', closeCuModal);
+if (cuCancelBtn) cuCancelBtn.addEventListener('click', closeCuModal);
+cuModal.addEventListener('click', function(e) { if (e.target === cuModal) closeCuModal(); });
+
+// ── Hide team assignment when role is not contestant ──────────────────────
+if (CONTEST_USER_MODE === 'teams') {
+    const cuRoleSelect  = document.getElementById('cu-role');
+    const cuTeamSection = document.getElementById('cu-team-section');
+    if (cuRoleSelect && cuTeamSection) {
+        cuRoleSelect.addEventListener('change', function() {
+            cuTeamSection.style.display = this.value === 'contestant' ? '' : 'none';
+            if (this.value !== 'contestant') {
+                const noneRadio = document.getElementById('cu-assign-none');
+                if (noneRadio) noneRadio.checked = true;
+                const existingSection = document.getElementById('cu-existing-team-section');
+                const newSection      = document.getElementById('cu-new-team-section');
+                if (existingSection) existingSection.style.display = 'none';
+                if (newSection)      newSection.style.display      = 'none';
+            }
+        });
+    }
+
+    // ── Radio toggle for cu team sections ─────────────────────────────────
+    const cuAssignRadios    = document.querySelectorAll('input[name="cu-team-assign"]');
+    const cuExistingSection = document.getElementById('cu-existing-team-section');
+    const cuNewSection      = document.getElementById('cu-new-team-section');
+    cuAssignRadios.forEach(function(r) {
+        r.addEventListener('change', function() {
+            if (cuExistingSection) cuExistingSection.style.display = this.value === 'existing' ? '' : 'none';
+            if (cuNewSection)      cuNewSection.style.display      = this.value === 'new'      ? '' : 'none';
+            if (this.value !== 'existing' && cuTeamInput) cuTeamInput.value = '';
+            if (this.value !== 'new') {
+                const el = document.getElementById('cu-new-team-name');
+                if (el) el.value = '';
+            }
+        });
+    });
+
+    // ── Existing-team autocomplete for cu ────────────────────────────────
+    if (cuTeamInput) {
+        let cuTeamDebounce = null;
+        cuTeamInput.addEventListener('input', function() {
+            clearTimeout(cuTeamDebounce);
+            const q = this.value.trim();
+            if (!q) { if (cuTeamSuggestions) cuTeamSuggestions.style.display = 'none'; return; }
+            cuTeamDebounce = setTimeout(function() {
+                fetch('/admin/contests/{{ contest.id }}/teams_search?q=' + encodeURIComponent(q), { headers: csrfHeaders() })
+                    .then(r => r.json())
+                    .then(function(data) {
+                        if (!cuTeamSuggestions) return;
+                        cuTeamSuggestions.innerHTML = '';
+                        if (!data.data || !data.data.length) { cuTeamSuggestions.style.display = 'none'; return; }
+                        data.data.forEach(function(t) {
+                            const item = document.createElement('a');
+                            item.className = 'dropdown-item';
+                            item.href = '#';
+                            item.textContent = t.name + (t.member_count !== undefined ? ' (' + t.member_count + ' members)' : '');
+                            item.addEventListener('mousedown', function(e) {
+                                e.preventDefault();
+                                cuTeamInput.value = t.name;
+                                cuTeamSuggestions.style.display = 'none';
+                            });
+                            cuTeamSuggestions.appendChild(item);
+                        });
+                        cuTeamSuggestions.style.display = 'block';
+                    });
+            }, 300);
+        });
+    }
+}
+
+document.addEventListener('click', function(e) {
+    if (cuTeamInput && cuTeamSuggestions &&
+        e.target !== cuTeamInput && !cuTeamSuggestions.contains(e.target)) {
+        cuTeamSuggestions.style.display = 'none';
+    }
+});
+
+// ── Form submit ───────────────────────────────────────────────────────────
+if (cuForm) {
+    cuForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        cuError.style.display   = 'none';
+        cuSuccess.style.display = 'none';
+
+        const payload = {
+            name:     document.getElementById('cu-name').value.trim(),
+            email:    document.getElementById('cu-email').value.trim(),
+            password: document.getElementById('cu-password').value,
+            role:     document.getElementById('cu-role').value || 'contestant',
+        };
+
+        if (!payload.name)     { cuError.textContent = 'Username is required.';  cuError.style.display = 'block'; return; }
+        if (!payload.email)    { cuError.textContent = 'Email is required.';     cuError.style.display = 'block'; return; }
+        if (!payload.password) { cuError.textContent = 'Password is required.';  cuError.style.display = 'block'; return; }
+
+        if (CONTEST_USER_MODE === 'teams' && payload.role === 'contestant') {
+            const assignMode = (document.querySelector('input[name="cu-team-assign"]:checked') || {}).value || 'none';
+            if (assignMode === 'existing') {
+                const teamVal = (cuTeamInput ? cuTeamInput.value.trim() : '');
+                if (!teamVal) {
+                    cuError.textContent = 'Please select an existing team or choose another option.';
+                    cuError.style.display = 'block';
+                    return;
+                }
+                payload.team = teamVal;
+                payload.create_team = false;
+            } else if (assignMode === 'new') {
+                const newName = (document.getElementById('cu-new-team-name') || {}).value?.trim() || '';
+                if (!newName) {
+                    cuError.textContent = 'Please enter a name for the new team.';
+                    cuError.style.display = 'block';
+                    return;
+                }
+                payload.team = newName;
+                payload.create_team = true;
+            } else {
+                payload.team = '';
+                payload.create_team = false;
+            }
+        } else {
+            payload.team = '';
+            payload.create_team = false;
+        }
+
+        const submitBtn = document.getElementById('cu-submit');
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating…';
+
+        fetch('/admin/contests/{{ contest.id }}/create_user', {
+            method: 'POST',
+            headers: csrfHeaders(),
+            body: JSON.stringify(payload)
+        })
+        .then(res => res.json())
+        .then(function(data) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fas fa-user-plus"></i> Create &amp; Add';
+            if (data.success) {
+                const roleLabel = { contestant: 'Contestant', jury: 'Jury', challenge_writer: 'Challenge Writer' }[data.data.role] || data.data.role;
+                let msg = 'User ' + data.data.name + ' created and added as ' + roleLabel + '!';
+                if (data.data.team) { msg += ' (Team: ' + data.data.team + ')'; }
+                cuSuccess.textContent = msg;
+                cuSuccess.style.display = 'block';
+                setTimeout(() => window.location.reload(), 1200);
+            } else {
+                cuError.textContent = (data.errors && Object.values(data.errors).flat().join(', ')) || 'An error occurred.';
+                cuError.style.display = 'block';
+            }
+        })
+        .catch(function() {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fas fa-user-plus"></i> Create &amp; Add';
+            cuError.textContent = 'Network error. Please try again.';
+            cuError.style.display = 'block';
         });
     });
 }

@@ -1395,6 +1395,152 @@ def contest_add_existing_user(contest_id):
     }, 200
 
 
+@admin.route("/admin/contests/<int:contest_id>/create_user", methods=["POST"])
+@admins_only
+def contest_create_user(contest_id):
+    """
+    Create a brand-new platform user and immediately add them to this contest.
+
+    Inserts:
+      1. users          — new platform account
+      2. contest_participants — contest membership with chosen role
+      3. user_team_members / teams (optional) — only for contestants:
+           user_mode:  auto-creates a solo team named after the user
+           team_mode:  assigns to an existing team OR creates a new one
+    """
+    from CTFd.models import Teams, UserTeamMember, Users
+    from CTFd.utils.crypto import hash_password
+    from sqlalchemy import or_
+
+    contest = Contests.query.filter_by(id=contest_id).first_or_404()
+    req = request.get_json(force=True) or {}
+
+    name     = (req.get("name") or "").strip()
+    email    = (req.get("email") or "").strip()
+    password = (req.get("password") or "").strip()
+    role     = (req.get("role") or "contestant").strip()
+    team_name   = (req.get("team") or "").strip()
+    create_team = bool(req.get("create_team", False))
+
+    if role not in ("contestant", "jury", "challenge_writer"):
+        role = "contestant"
+
+    # ── Validate required fields ──────────────────────────────────────────────
+    errors = {}
+    if not name:
+        errors["name"] = ["Username is required."]
+    if not email:
+        errors["email"] = ["Email is required."]
+    if not password:
+        errors["password"] = ["Password is required."]
+    if errors:
+        return {"success": False, "errors": errors}, 400
+
+    # ── Check uniqueness ──────────────────────────────────────────────────────
+    if Users.query.filter_by(name=name).first():
+        return {"success": False, "errors": {"name": ["Username already taken."]}}, 400
+    if Users.query.filter_by(email=email).first():
+        return {"success": False, "errors": {"email": ["Email already registered."]}}, 400
+
+    # ── 1. Create the platform user ───────────────────────────────────────────
+    user = Users(
+        name=name,
+        email=email,
+        password=password,   # auto-hashed by @validates
+        type="user",
+        verified=True,       # admin-created accounts are pre-verified
+    )
+    db.session.add(user)
+    db.session.flush()       # get user.id before further inserts
+
+    resolved_team_name = None
+
+    # ── 2. Contest-mode-specific team logic ───────────────────────────────────
+    if contest.user_mode == "users":
+        if role == "contestant":
+            # Auto-create solo team named after the user
+            resolved_team_name = user.name
+            team = Teams.query.filter_by(
+                contest_id=contest_id, name=resolved_team_name
+            ).first()
+            if team is None:
+                team = Teams(
+                    name=resolved_team_name,
+                    email=user.email,
+                    password=hash_password("changeme"),
+                    contest_id=contest_id,
+                    captain_user_id=user.id,
+                )
+                db.session.add(team)
+                db.session.flush()
+            team.members.append(user)
+    else:
+        # team mode — optional team assignment for contestants
+        if team_name and role == "contestant":
+            if create_team:
+                if Teams.query.filter_by(contest_id=contest_id, name=team_name).first():
+                    db.session.rollback()
+                    return {"success": False, "errors": {"team": ["A team with this name already exists."]}}, 400
+                team = Teams(
+                    name=team_name,
+                    email=user.email,
+                    password=hash_password("changeme"),
+                    contest_id=contest_id,
+                    captain_user_id=user.id,
+                )
+                db.session.add(team)
+                db.session.flush()
+            else:
+                team = Teams.query.filter_by(contest_id=contest_id, name=team_name).first()
+                if not team:
+                    db.session.rollback()
+                    return {"success": False, "errors": {"team": ["Team not found in this contest."]}}, 404
+
+                # Enforce team_size limit
+                if contest.team_size:
+                    current_count = (
+                        db.session.query(db.func.count(UserTeamMember.id))
+                        .filter_by(team_id=team.id)
+                        .scalar()
+                    )
+                    if current_count >= contest.team_size:
+                        db.session.rollback()
+                        return (
+                            {
+                                "success": False,
+                                "errors": {
+                                    "team": [
+                                        "Team '{}' is full. Teams are limited to {} member{}.".format(
+                                            team_name,
+                                            contest.team_size,
+                                            "" if contest.team_size == 1 else "s",
+                                        )
+                                    ]
+                                },
+                            },
+                            400,
+                        )
+            team.members.append(user)
+            resolved_team_name = team_name
+
+    # ── 3. Insert ContestParticipant ──────────────────────────────────────────
+    cp = ContestParticipant(contest_id=contest_id, user_id=user.id, role=role)
+    db.session.add(cp)
+
+    db.session.commit()
+
+    return {
+        "success": True,
+        "data": {
+            "id":   user.id,
+            "name": user.name,
+            "email": user.email,
+            "team": resolved_team_name,
+            "role": role,
+        }
+    }, 201
+
+
 @admin.route("/admin/contests/<int:contest_id>/teams_search", methods=["GET"])
 @admins_only
 def contest_teams_search(contest_id):
