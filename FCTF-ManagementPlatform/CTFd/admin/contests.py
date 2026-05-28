@@ -43,8 +43,10 @@ def enforce_jury_cw_contest_scope():
     if user_attrs is None:
         abort(403)
 
-    participant = ContestParticipant.query.filter_by(
-        user_id=user_attrs.id, contest_id=contest_id
+    participant = ContestParticipant.query.filter(
+        ContestParticipant.user_id == user_attrs.id,
+        ContestParticipant.contest_id == contest_id,
+        ContestParticipant.role.in_(["jury", "challenge_writer"]),
     ).first()
     if not participant:
         abort(403)
@@ -194,13 +196,16 @@ def contests_listing():
 
     filters = []
 
-    # Jury / challenge_writer: only see contests they are assigned to
+    # Non-admin: only show contests where they have jury/challenge_writer role
     if not is_admin():
         user_attrs = get_current_user_attrs()
         if user_attrs:
             allowed_ids = (
                 db.session.query(ContestParticipant.contest_id)
-                .filter_by(user_id=user_attrs.id)
+                .filter(
+                    ContestParticipant.user_id == user_attrs.id,
+                    ContestParticipant.role.in_(["jury", "challenge_writer"]),
+                )
                 .scalar_subquery()
             )
             filters.append(Contests.id.in_(allowed_ids))

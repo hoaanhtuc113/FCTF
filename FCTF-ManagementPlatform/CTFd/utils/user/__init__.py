@@ -136,23 +136,35 @@ def is_admin():
 
 
 def is_challenge_writer():
-    if authed():
-        user = get_current_user_attrs()
-
-        if user and user.type:
-            return user.type == "challenge_writer"
-        else:
-            return False
+    """True if the user is a challenge_writer — either platform-level (legacy
+    user.type) or has at least one challenge_writer role in ContestParticipant."""
+    if not authed():
+        return False
+    user = get_current_user_attrs()
+    if not user:
+        return False
+    if user.type == "challenge_writer":
+        return True
+    from CTFd.models import ContestParticipant
+    return db.session.query(ContestParticipant).filter_by(
+        user_id=user.id, role="challenge_writer"
+    ).first() is not None
 
 
 def is_jury():
-    if authed():
-        user = get_current_user_attrs()
-        
-        if user and user.type:
-            return user.type == "jury"
-        else:
-            return False
+    """True if the user is jury — either platform-level (legacy user.type) or
+    has at least one jury role in ContestParticipant."""
+    if not authed():
+        return False
+    user = get_current_user_attrs()
+    if not user:
+        return False
+    if user.type == "jury":
+        return True
+    from CTFd.models import ContestParticipant
+    return db.session.query(ContestParticipant).filter_by(
+        user_id=user.id, role="jury"
+    ).first() is not None
 
 def is_banned():
     auth_header = request.headers.get('Authorization', None)
@@ -164,12 +176,7 @@ def is_banned():
     return False
 
 def is_admin_or_challenge_writer_or_jury():
-    if authed():
-        user = get_current_user_attrs()
-        if user and user.type:
-            return user.type in ["admin", "challenge_writer", "jury"]
-        else:
-            return False
+    return is_admin() or is_challenge_writer() or is_jury()
 
 
 def is_verified():

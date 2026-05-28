@@ -229,6 +229,7 @@ def login():
                 if is_admin():
                     return redirect(url_for("admin.users_listing"))
                 if is_jury() or is_challenge_writer():
+                    # user has jury/challenge_writer role in at least one contest
                     return redirect(url_for("admin.contests_listing"))
                 return redirect(url_for("views.contests_list"))
 
