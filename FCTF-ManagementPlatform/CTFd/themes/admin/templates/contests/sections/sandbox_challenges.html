@@ -62,10 +62,12 @@
     <!-- Action Buttons -->
     <div class="d-flex justify-content-between align-items-center action-buttons mt-2">
         <div>
+            {% if not is_jury() %}
             <a href="{{ url_for('admin.contest_sandbox_challenge_new', contest_id=contest.id) }}"
                class="clean-btn clean-btn-primary">
                 <i class="fas fa-plus"></i> Create Sandbox Challenge
             </a>
+            {% endif %}
         </div>
         <div>
             <button type="button" class="clean-btn clean-btn-danger ml-2"

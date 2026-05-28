@@ -160,6 +160,27 @@
     }
 </style>
 {% block contest_stylesheets %}{% endblock %}
+{% if is_jury() %}
+<style>
+/* Jury read-only: hide all data-mutation buttons */
+#challenges-delete-button, #sb-delete-btn,
+#btn-create-user, #btn-add-existing-user,
+#users-edit-button, #users-delete-button,
+.edit-user, .award-user, .addresses-user,
+#solves-delete-button, #correct-fail-button,
+#fails-delete-button, #awards-delete-button, #missing-solve-button,
+#teams-edit-button, #teams-delete-button,
+#submission-delete-button,
+#scoreboard-edit-button,
+#br-save-btn,
+#bulkStopBtnTop,
+button[onclick="stopAllContest()"],
+#save-btn, #delete-contest-btn, #confirm-delete-btn,
+.delete-challenge, .btn-delete-single {
+    display: none !important;
+}
+</style>
+{% endif %}
 {% endblock %}
 
 
@@ -281,10 +302,12 @@ Override the entire sidebar block with contest-scoped navigation
         <i class="bx bx-server"></i> Monitoring
     </a>
 
+    {% if not is_jury() %}
     <a href="{{ url_for('admin.contest_settings', contest_id=contest.id) }}"
         class="nav-link {% if request.endpoint == 'admin.contest_settings' %}active{% endif %}">
         <i class="bx bx-cog"></i> Settings
     </a>
+    {% endif %}
 
     {# ── Logout at bottom ── #}
     <div class="mt-auto w-100" style="border-top: 1px solid rgba(0,0,0,0.07); padding-top: 8px; margin-top: 12px;">

@@ -64,7 +64,7 @@
 
 <div class="container">
 
-	{% if contest.state in ('visible', 'paused') %}
+	{% if contest.state in ('visible', 'paused') and not is_jury() %}
 	<div class="d-flex align-items-center justify-content-between px-3 py-2 mb-3"
 		 style="background:#fff; border:1px solid var(--border-light); border-radius:6px; box-shadow:var(--shadow-sm);">
 		<div>
