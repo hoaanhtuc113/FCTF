@@ -456,7 +456,7 @@ def contest_brackets(contest_id):
     contest = Contests.query.filter_by(id=contest_id).first_or_404()
     brackets = (
         Brackets.query
-        .filter_by(contest_id=contest_id, type="team")
+        .filter_by(contest_id=contest_id, type="teams")
         .order_by(Brackets.id.asc())
         .all()
     )
@@ -478,7 +478,7 @@ def contest_brackets(contest_id):
             "id": b.id,
             "name": b.name,
             "description": b.description or "",
-            "type": "team",
+            "type": "teams",
             "member_count": team_counts.get(b.id, 0),
         }
         for b in brackets

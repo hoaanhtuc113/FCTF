@@ -20,8 +20,11 @@ def build_team_bracket_field(form_cls, value=None):
         return []
 
 
-def attach_team_bracket_field(form_cls):
-    brackets = Brackets.query.filter_by(type="teams").all()
+def attach_team_bracket_field(form_cls, contest_id=None):
+    query = Brackets.query.filter_by(type="teams")
+    if contest_id is not None:
+        query = query.filter_by(contest_id=contest_id)
+    brackets = query.all()
     if brackets:
         choices = [("", "")] + [
             (bracket.id, f"{bracket.name} - {bracket.description}")
@@ -239,6 +242,8 @@ class TeamBaseForm(BaseForm):
 
 
 def TeamCreateForm(*args, **kwargs):
+    contest_id = kwargs.pop("contest_id", None)
+
     class _TeamCreateForm(TeamBaseForm):
         pass
 
@@ -249,7 +254,7 @@ def TeamCreateForm(*args, **kwargs):
             ) + build_team_bracket_field(self)
 
     attach_custom_team_fields(_TeamCreateForm)
-    attach_team_bracket_field(_TeamCreateForm)
+    attach_team_bracket_field(_TeamCreateForm, contest_id=contest_id)
 
     return _TeamCreateForm(*args, **kwargs)
 
@@ -276,8 +281,10 @@ def TeamEditForm(*args, **kwargs):
             if obj:
                 self.obj = obj
 
+    obj = kwargs.get("obj")
+    contest_id = obj.contest_id if obj else None
     attach_custom_team_fields(_TeamEditForm)
-    attach_team_bracket_field(_TeamEditForm)
+    attach_team_bracket_field(_TeamEditForm, contest_id=contest_id)
 
     return _TeamEditForm(*args, **kwargs)
 

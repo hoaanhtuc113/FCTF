@@ -1,4 +1,4 @@
-{% with form = Forms.teams.TeamCreateForm() %}
+{% with form = Forms.teams.TeamCreateForm(contest_id=contest.id if contest is defined and contest else None) %}
 {% from "admin/macros/forms.html" import render_extra_fields %}
 <form id="team-info-create-form" method="POST">
 	<div class="form-group">

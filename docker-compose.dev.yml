@@ -20,7 +20,7 @@ services:
     volumes:
       - mariadb_data:/bitnami/mariadb
     healthcheck:
-      test: ["CMD", "healthcheck.sh", "--su-mysql", "--connect"]
+      test: ["CMD", "mariadb", "-u", "fctf_user", "-pfctf_password", "-e", "SELECT 1;", "ctfd"]
       interval: 10s
       timeout: 5s
       retries: 5
