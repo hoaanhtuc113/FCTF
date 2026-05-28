@@ -181,6 +181,26 @@ button[onclick="stopAllContest()"],
 }
 </style>
 {% endif %}
+{% if is_challenge_writer() %}
+<style>
+/* Challenge writer: hide everything except challenge CRUD */
+#btn-create-user, #btn-add-existing-user,
+#users-edit-button, #users-delete-button,
+.edit-user, .award-user, .addresses-user,
+#solves-delete-button, #correct-fail-button,
+#fails-delete-button, #awards-delete-button, #missing-solve-button,
+#teams-edit-button, #teams-delete-button,
+#submission-delete-button,
+#scoreboard-edit-button,
+#br-save-btn,
+#bulkStopBtnTop,
+button[onclick="stopAllContest()"],
+#save-btn, #delete-contest-btn, #confirm-delete-btn,
+.btn-delete-single {
+    display: none !important;
+}
+</style>
+{% endif %}
 {% endblock %}
 
 
@@ -219,6 +239,7 @@ Override the entire sidebar block with contest-scoped navigation
         <i class="bx bx-book"></i> Challenges
     </a>
 
+    {% if not is_challenge_writer() %}
     <a href="{{ url_for('admin.contest_users', contest_id=contest.id) }}"
         class="nav-link {% if request.endpoint in ['admin.contest_users', 'admin.contest_user_detail'] %}active{% endif %}">
         <i class="bx bx-user"></i> Users
@@ -301,8 +322,9 @@ Override the entire sidebar block with contest-scoped navigation
         class="nav-link {% if request.endpoint == 'admin.contest_monitoring' %}active{% endif %}">
         <i class="bx bx-server"></i> Monitoring
     </a>
+    {% endif %}
 
-    {% if not is_jury() %}
+    {% if not is_jury() and not is_challenge_writer() %}
     <a href="{{ url_for('admin.contest_settings', contest_id=contest.id) }}"
         class="nav-link {% if request.endpoint == 'admin.contest_settings' %}active{% endif %}">
         <i class="bx bx-cog"></i> Settings

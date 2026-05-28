@@ -11,7 +11,7 @@
     .sort-link:hover { color: var(--primary-orange); }
     .sort-link .sort-icon { font-size: 0.7rem; margin-left: 2px; }
 </style>
-{% if is_jury() %}
+{% if is_jury() or is_challenge_writer() %}
 <style>
 #contests-delete-btn, .btn-delete-single { display: none !important; }
 </style>
@@ -107,7 +107,7 @@
     <!-- Action buttons -->
     <div class="d-flex justify-content-between align-items-center action-buttons mt-2">
         <div>
-            {% if not is_jury() %}
+            {% if not is_jury() and not is_challenge_writer() %}
             <a href="{{ url_for('admin.contests_new') }}" class="clean-btn clean-btn-primary">
                 <i class="bx bx-plus"></i> Create Contest
             </a>
