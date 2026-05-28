@@ -13,7 +13,41 @@ from CTFd.admin import admin
 from CTFd.models import ChallengeStartTracking, ChallengeVersion, Challenges, ContestParticipant, Contests, DeployedChallenge, Flags, Solves, Teams, Users, db
 from CTFd.plugins.challenges import CHALLENGE_CLASSES, get_chal_class
 from CTFd.utils.dates import ctftime
-from CTFd.utils.decorators import admins_only
+from CTFd.utils.decorators import admin_or_challenge_writer_only_or_jury as admins_only
+
+
+# ─── Jury / Challenge-Writer per-contest scope enforcement ───────────────────
+
+@admin.before_request
+def enforce_jury_cw_contest_scope():
+    """
+    Jury and challenge_writer users may only access contests they are assigned
+    to via ContestParticipant.  Admin bypasses all checks.
+    """
+    from CTFd.utils.user import authed, is_admin, is_jury, is_challenge_writer, get_current_user_attrs
+
+    if not authed():
+        return
+    if is_admin():
+        return
+
+    if not (is_jury() or is_challenge_writer()):
+        return
+
+    m = re.match(r'^/admin/contests/(\d+)(?:/|$)', request.path)
+    if not m:
+        return
+
+    contest_id = int(m.group(1))
+    user_attrs = get_current_user_attrs()
+    if user_attrs is None:
+        abort(403)
+
+    participant = ContestParticipant.query.filter_by(
+        user_id=user_attrs.id, contest_id=contest_id
+    ).first()
+    if not participant:
+        abort(403)
 
 
 # ─── Contest access-password enforcement ─────────────────────────────────────
@@ -148,6 +182,8 @@ def _ci_apply_filters(query, team_filter, challenge_filter, start_date, end_date
 @admin.route("/admin/contests")
 @admins_only
 def contests_listing():
+    from CTFd.utils.user import is_admin, get_current_user_attrs
+
     q = request.args.get("q", "").strip()
     field = request.args.get("field", "name")
     state_filter = request.args.get("state", "")
@@ -157,6 +193,17 @@ def contests_listing():
     page = abs(request.args.get("page", 1, type=int))
 
     filters = []
+
+    # Jury / challenge_writer: only see contests they are assigned to
+    if not is_admin():
+        user_attrs = get_current_user_attrs()
+        if user_attrs:
+            allowed_ids = (
+                db.session.query(ContestParticipant.contest_id)
+                .filter_by(user_id=user_attrs.id)
+                .scalar_subquery()
+            )
+            filters.append(Contests.id.in_(allowed_ids))
 
     if q:
         allowed_fields = {"name", "slug", "description"}

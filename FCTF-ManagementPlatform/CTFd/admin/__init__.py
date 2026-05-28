@@ -86,8 +86,10 @@ from CTFd.utils.user import is_admin,is_challenge_writer,is_jury
 
 @admin.route("/admin", methods=["GET"])
 def view():
-    if is_challenge_writer() or is_admin() or is_jury():
+    if is_admin():
         return redirect(url_for("admin.users_listing"))
+    if is_jury() or is_challenge_writer():
+        return redirect(url_for("admin.contests_listing"))
     return redirect(url_for("auth.login"))
 
 

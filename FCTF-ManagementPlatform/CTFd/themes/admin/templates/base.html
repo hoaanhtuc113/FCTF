@@ -687,6 +687,7 @@
         <div class="d-flex flex-column w-100">
             <ul class="list-unstyled components">
 
+                {% if is_admin() %}
                 <li class="nav-item">
                     <a class="nav-link" href="{{ url_for('admin.statistics') }}">
                         <i class="bx bx-bar-chart-alt-2"></i> Dashboard
@@ -697,13 +698,15 @@
                         <i class="bx bx-book"></i> Challenges
                     </a>
                 </li>
+                {% endif %}
+
                 <li class="nav-item">
                     <a class="nav-link" href="{{ url_for('admin.contests_listing') }}">
                         <i class="bx bx-trophy"></i> Contests
                     </a>
                 </li>
-                {% if is_admin() or is_jury() %}
 
+                {% if is_admin() %}
                 <li class="nav-item">
                     <a class="nav-link" href="{{ url_for('admin.users_listing') }}">
                         <i class="bx bx-user"></i> Users
@@ -746,11 +749,6 @@
                         <i class="bx bx-trophy"></i> Scoreboard
                     </a>
                 </li>
-
-
-                {% endif %}
-
-                {% if is_admin() or is_jury() %}
                 <li class="nav-item">
                     <a class="sub-btn nav-link"><i class="bx bx-down-arrow-circle"></i>Submissions<i
                             class='bx bx-chevron-right dropdown'></i> </a>
@@ -767,10 +765,6 @@
                         <i class="bx bx-line-chart"></i> Dynamic Reward Query
                     </a>
                 </li>
-                {% endif %}
-                {% if is_admin() %}
-
-
                 <li class="nav-item">
                     <a class="nav-link" href="{{ url_for('admin.config') }}">
                         <i class="bx bx-cog"></i> Config
