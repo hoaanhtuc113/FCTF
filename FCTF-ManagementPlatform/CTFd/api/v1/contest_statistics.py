@@ -21,7 +21,7 @@ from CTFd.models import (
     Users,
     db,
 )
-from CTFd.utils.decorators import admins_only
+from CTFd.utils.decorators import admin_or_challenge_writer_only_or_jury as admins_only
 
 contest_statistics_namespace = Namespace(
     "contest_statistics",
