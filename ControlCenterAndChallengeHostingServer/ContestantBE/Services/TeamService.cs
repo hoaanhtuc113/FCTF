@@ -12,15 +12,18 @@ public class TeamService : ITeamService
 {
     private readonly AppDbContext _context;
     private readonly ScoreHelper _scoreHelper;
+    private readonly ConfigHelper _configHelper;
     private readonly AppLogger _logger;
 
     public TeamService(
         AppDbContext context,
         ScoreHelper scoreHelper,
+        ConfigHelper configHelper,
         AppLogger logger)
     {
         _context = context;
         _scoreHelper = scoreHelper;
+        _configHelper = configHelper;
         _logger = logger;
     }
 
@@ -34,6 +37,8 @@ public class TeamService : ITeamService
                 .FirstOrDefaultAsync(t => t.Users.Any(u => u.Id == userId));
             var bracketId = team?.BracketId;
             if (team == null) return null;
+
+            var hiddenCategories = _configHelper.HiddenCategories();
 
             var usersScore = await _scoreHelper.GetUsersScore(team.Users, true);
 
@@ -52,8 +57,12 @@ public class TeamService : ITeamService
             var challenges = await _context.Challenges
                 .AsNoTracking()
                 .Where(c => c.State == "visible")
-                .Select(c => new { c.Value })
+                .Select(c => new { c.Value, c.Category })
                 .ToListAsync();
+
+            challenges = challenges
+                .Where(challenge => !hiddenCategories.Contains((challenge.Category ?? string.Empty).Trim()))
+                .ToList();
 
             var totalTeamsQuery = _context.Teams
                 .AsNoTracking()
@@ -90,7 +99,10 @@ public class TeamService : ITeamService
 
             if (team == null) return [];
 
+            var hiddenCategories = _configHelper.HiddenCategories();
+
             return [.. (await _scoreHelper.GetTeamSolves(team, true))
+                .Where(s => !hiddenCategories.Contains((s?.Challenge?.Category ?? string.Empty).Trim()))
                 .Select(s => new SubmissionDto
                 {
                     Id = s.Id,
