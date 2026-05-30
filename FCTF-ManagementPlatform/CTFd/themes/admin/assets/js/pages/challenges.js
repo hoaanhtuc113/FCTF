@@ -80,6 +80,39 @@ function bulkEditChallenges(_event) {
   });
 }
 
+function saveHiddenCategories() {
+  const hiddenCategories = $(".hidden-category-toggle:checked")
+    .map(function () {
+      return $(this).val();
+    })
+    .get()
+    .filter((category) => category && category.trim().length > 0)
+    .map((category) => category.trim());
+
+  CTFd.api
+    .patch_config({ configKey: "hidden_categories" }, { value: hiddenCategories.join("\n") })
+    .then((response) => {
+      if (response.success) {
+        $("#hidden-categories-modal").modal("hide");
+        window.location.reload();
+        return;
+      }
+
+      ezAlert({
+        title: "Error!",
+        body: "Unable to update hidden categories.",
+        button: "Okay",
+      });
+    })
+    .catch((error) => {
+      ezAlert({
+        title: "Connection Error",
+        body: error?.message || "Unable to update hidden categories.",
+        button: "Okay",
+      });
+    });
+}
+
 function previewChallenge(challengeId, triggerEl = null) {
   const previewButton = triggerEl || document.getElementById(`preview-button-${challengeId}`);
 
@@ -362,6 +395,7 @@ function CheckingStatus(challengeId, intervalId) {
 $(() => {
   $("#challenges-delete-button").click(deleteSelectedChallenges);
   $("#challenges-edit-button").click(bulkEditChallenges);
+  $("#hidden-categories-save-button").click(saveHiddenCategories);
 
   // Mount tag picker if present (use same Vue.extend pattern as challenge page for compatibility)
   const pickerEl = document.getElementById("tags-picker");
@@ -422,3 +456,4 @@ window.startSharedChallenge = startSharedChallenge;
 window.CheckingStatus = CheckingStatus;
 window.toggleActionMenu = toggleActionMenu;
 window.closeAllActionMenus = closeAllActionMenus;
+window.saveHiddenCategories = saveHiddenCategories;

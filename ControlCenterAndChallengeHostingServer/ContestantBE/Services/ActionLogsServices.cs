@@ -13,14 +13,18 @@ public interface IActionLogsServices
 public class ActionLogsServices : IActionLogsServices
 {
     private readonly AppDbContext _context;
+    private readonly ResourceShared.Utils.ConfigHelper _configHelper;
 
-    public ActionLogsServices(AppDbContext context)
+    public ActionLogsServices(AppDbContext context, ResourceShared.Utils.ConfigHelper configHelper)
     {
         _context = context;
+        _configHelper = configHelper;
     }
 
     public async Task<List<ActionLogsDTO>> GetActionLogs()
     {
+        var hiddenCategories = _configHelper.HiddenCategories();
+
         var data = await _context.ActionLogs
             .AsNoTracking()
             .Include(al => al.User)
@@ -37,10 +41,16 @@ public class ActionLogsServices : IActionLogsServices
             })
             .ToListAsync();
 
+        data = data
+            .Where(al => !hiddenCategories.Contains((al.TopicName ?? string.Empty).Trim()))
+            .ToList();
+
         return data;
     }
     public async Task<List<ActionLogsDTO>> GetActionLogsTeam(int teamId)
     {
+        var hiddenCategories = _configHelper.HiddenCategories();
+
         var data = await _context.ActionLogs
             .AsNoTracking()
             .Include(al => al.User)
@@ -57,6 +67,10 @@ public class ActionLogsServices : IActionLogsServices
                 UserName = al.User != null ? al.User.Name : ""
             })
             .ToListAsync();
+
+        data = data
+            .Where(al => !hiddenCategories.Contains((al.TopicName ?? string.Empty).Trim()))
+            .ToList();
 
         return data;
     }

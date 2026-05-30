@@ -9,6 +9,26 @@ from CTFd.utils import get_config
 from CTFd.utils.user import authed, is_admin
 
 
+def hidden_categories():
+    raw_value = get_config("hidden_categories", "")
+    if raw_value is None:
+        return []
+
+    categories = []
+    for category in str(raw_value).splitlines():
+        category = category.strip()
+        if category and category not in categories:
+            categories.append(category)
+    return categories
+
+
+def is_hidden_category(category):
+    if not category:
+        return False
+
+    return category.strip() in hidden_categories()
+
+
 def challenges_visible():
     v = get_config(ConfigTypes.CHALLENGE_VISIBILITY)
     if v == ChallengeVisibilityTypes.PUBLIC:

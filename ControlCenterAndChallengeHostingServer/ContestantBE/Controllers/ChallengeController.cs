@@ -340,7 +340,7 @@ public class ChallengeController : BaseController
             }
         }
 
-        if (challenge.State == "hidden") return NotFound();
+        if (challenge.State == "hidden" || _configHelper.IsHiddenCategory(challenge.Category)) return NotFound();
         if (challenge.State == "locked") return Forbid();
 
         // Check prerequisites from Requirements JSON
@@ -761,7 +761,7 @@ public class ChallengeController : BaseController
 
         if (challenge == null) return NotFound(new { error = "Challenge not found" });
         if (!challenge.RequireDeploy) return BadRequest(new { error = "This challenge does not require deploy" });
-        if (challenge.State == ChallengeState.HIDDEN || challenge.SharedInstant == true) return BadRequest(new { error = "This challenge is not available for deployment" });
+        if (challenge.State == ChallengeState.HIDDEN || _configHelper.IsHiddenCategory(challenge.Category) || challenge.SharedInstant == true) return BadRequest(new { error = "This challenge is not available for deployment" });
 
         // Check prerequisites from Requirements JSON
         if (!string.IsNullOrEmpty(challenge.Requirements))
