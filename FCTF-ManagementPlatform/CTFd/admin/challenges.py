@@ -34,6 +34,7 @@ from CTFd.utils.uploads import upload_file
 from CTFd.constants.envvars import DEPLOYMENT_SERVICE_API, PRIVATE_KEY
 from CTFd.plugins import bypass_csrf_protection
 from CTFd.constants import status_challenge
+from CTFd.utils.config.visibility import hidden_categories as get_hidden_categories
 
 
 
@@ -114,6 +115,8 @@ def challenges_listing():
 
     categories = [c[0] for c in raw_categories if c and c[0]]
     types = [t[0] for t in raw_types if t and t[0]]
+    hidden_categories = get_hidden_categories()
+    all_categories = sorted(set(categories) | set(hidden_categories), key=lambda value: value.lower())
     # Add creator names to challenges
     for c in challenges.items:
         user = Users.query.filter_by(id=c.user_id).first()
@@ -140,6 +143,8 @@ def challenges_listing():
         categories=categories,
         types=types,
         tag_terms=tag_terms,
+        hidden_categories=hidden_categories,
+        all_categories=all_categories,
     )
 
 
