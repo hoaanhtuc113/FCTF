@@ -50,6 +50,17 @@ public class ChallengeService : IChallengeService
         _multiServiceConnector = multiServiceConnector;
     }
 
+    private bool IsHiddenCategory(string? category, HashSet<string>? hiddenCategories = null)
+    {
+        if (string.IsNullOrWhiteSpace(category))
+        {
+            return false;
+        }
+
+        hiddenCategories ??= _configHelper.HiddenCategories();
+        return hiddenCategories.Contains(category.Trim());
+    }
+
     private ChallengeRequirementsDTO? TryParseRequirements(string? requirementsJson, int challengeId, int? teamId)
     {
         if (string.IsNullOrWhiteSpace(requirementsJson))
@@ -111,7 +122,7 @@ public class ChallengeService : IChallengeService
                 Message = "Challenge not found"
             };
         }
-        if (challenge.State == "hidden")
+        if (challenge.State == "hidden" || IsHiddenCategory(challenge.Category))
         {
             return new BaseResponseDTO<ChallengeByIdDTO>
             {
@@ -180,11 +191,15 @@ public class ChallengeService : IChallengeService
         string? nextName = null;
         if (challenge.NextId.HasValue)
         {
-            nextName = await _dbContext.Challenges
+            var nextChallenge = await _dbContext.Challenges
                 .AsNoTracking()
                 .Where(c => c.Id == challenge.NextId.Value)
-                .Select(c => c.Name)
                 .FirstOrDefaultAsync();
+
+            if (nextChallenge != null && !IsHiddenCategory(nextChallenge.Category))
+            {
+                nextName = nextChallenge.Name;
+            }
         }
 
         var challenge_data = new ChallengeDataDto
@@ -275,6 +290,12 @@ public class ChallengeService : IChallengeService
 
     public async Task<List<ChallengeByCategoryDTO>> GetChallengeByCategories(string category_name, int? team_id)
     {
+        var hiddenCategories = _configHelper.HiddenCategories();
+        if (IsHiddenCategory(category_name, hiddenCategories))
+        {
+            return [];
+        }
+
         var challenges = await _dbContext.Challenges
             .AsNoTracking()
             .Where(c => c.Category == category_name &&
@@ -366,6 +387,8 @@ public class ChallengeService : IChallengeService
 
     public async Task<List<TopicDTO>> GetTopic(User user)
     {
+        var hiddenCategories = _configHelper.HiddenCategories();
+
         var challengeStats = await _dbContext.Challenges
             .AsNoTracking()
             .Where(c => c.State != Enums.ChallengeState.HIDDEN)
@@ -376,6 +399,10 @@ public class ChallengeService : IChallengeService
                 Total = g.Count()
             })
             .ToListAsync();
+
+        challengeStats = challengeStats
+            .Where(stat => !hiddenCategories.Contains(stat.Category))
+            .ToList();
 
 
         var solvedStats = await _dbContext.Solves
@@ -389,6 +416,10 @@ public class ChallengeService : IChallengeService
                 Solved = g.Select(x => x.ChallengeId).Distinct().Count()
             })
             .ToListAsync();
+
+        solvedStats = solvedStats
+            .Where(stat => !hiddenCategories.Contains(stat.Category))
+            .ToList();
 
         var solvedDict = solvedStats.ToDictionary(x => x.Category, x => x.Solved);
 
@@ -604,6 +635,8 @@ public class ChallengeService : IChallengeService
 
     public async Task<List<ChallengeInstanceDTO>> GetAllInstances(int teamId)
     {
+        var hiddenCategories = _configHelper.HiddenCategories();
+
         var deployments = await _redisHelper
             .GetCacheByPatternAsync<ChallengeDeploymentCacheDTO>($"deploy_challenge_*_{teamId}");
 
@@ -625,6 +658,10 @@ public class ChallengeService : IChallengeService
                 c.Category
             })
             .ToListAsync();
+
+        challenges = challenges
+            .Where(challenge => !IsHiddenCategory(challenge.Category, hiddenCategories))
+            .ToList();
 
         var challengeDict = challenges.ToDictionary(c => c.Id);
 
@@ -653,6 +690,21 @@ public class ChallengeService : IChallengeService
     {
         try
         {
+            var challenge = await _dbContext.Challenges
+                .AsNoTracking()
+                .FirstOrDefaultAsync(c => c.Id == challengeId);
+
+            if (challenge == null || challenge.State == Enums.ChallengeState.HIDDEN || IsHiddenCategory(challenge.Category))
+            {
+                return new ChallengeDeployResponeDTO
+                {
+                    success = false,
+                    message = "Challenge not found.",
+                    status = (int)HttpStatusCode.NotFound,
+                    pod_status = Enums.DeploymentStatusEnum.Failed
+                };
+            }
+
             var deploymentKey = ChallengeHelper.GetCacheKey(challengeId, teamId);
 
             var deploymentCache = await _redisHelper.GetFromCacheAsync<ChallengeDeploymentCacheDTO>(deploymentKey);
@@ -665,21 +717,6 @@ public class ChallengeService : IChallengeService
                     message = "No deployment info found.",
                     status = (int)HttpStatusCode.OK,
                     pod_status = Enums.DeploymentStatusEnum.NOT_FOUND,
-                };
-            }
-
-            var challenge = await _dbContext.Challenges
-                .AsNoTracking()
-                .FirstOrDefaultAsync(c => c.Id == challengeId);
-
-            if (challenge == null)
-            {
-                return new ChallengeDeployResponeDTO
-                {
-                    success = false,
-                    message = "Challenge not found.",
-                    status = (int)HttpStatusCode.NotFound,
-                    pod_status = Enums.DeploymentStatusEnum.Failed
                 };
             }
 
