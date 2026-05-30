@@ -35,8 +35,8 @@ on:
   workflow_dispatch:
 
 env:
-  REGISTRY: <HARBOR_DOMAIN>            # TODO: thay bằng domain Harbor GCP sau khi setup
-  IMAGE_BASE: <HARBOR_DOMAIN>/fctf     # TODO: thay bằng domain Harbor GCP sau khi setup
+  REGISTRY: registry2.fctf.nvtai24.site
+  IMAGE_BASE: registry2.fctf.nvtai24.site/fctf
 
 # ---------------------------------------------------------------------------
 # 1. Detect which services changed
