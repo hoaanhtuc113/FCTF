@@ -6,6 +6,7 @@ Create Date: 2019-05-03 19:26:57.746887
 
 """
 from alembic import op
+import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = "b295b033364d"
@@ -14,12 +15,25 @@ branch_labels = None
 depends_on = None
 
 
+def _drop_fk_if_exists(constraint_name, table_name):
+    """Drop a foreign key constraint only if it exists (MySQL)."""
+    bind = op.get_bind()
+    result = bind.execute(sa.text(
+        "SELECT CONSTRAINT_NAME FROM information_schema.TABLE_CONSTRAINTS "
+        "WHERE TABLE_SCHEMA = DATABASE() "
+        "AND TABLE_NAME = :table AND CONSTRAINT_NAME = :name "
+        "AND CONSTRAINT_TYPE = 'FOREIGN KEY'"
+    ), {"table": table_name, "name": constraint_name})
+    if result.fetchone():
+        op.drop_constraint(constraint_name, table_name, type_="foreignkey")
+
+
 def upgrade():
     bind = op.get_bind()
     url = str(bind.engine.url)
     if url.startswith("mysql"):
-        op.drop_constraint("awards_ibfk_1", "awards", type_="foreignkey")
-        op.drop_constraint("awards_ibfk_2", "awards", type_="foreignkey")
+        _drop_fk_if_exists("awards_ibfk_1", "awards")
+        _drop_fk_if_exists("awards_ibfk_2", "awards")
         op.create_foreign_key(
             "awards_ibfk_1", "awards", "teams", ["team_id"], ["id"], ondelete="CASCADE"
         )
@@ -27,7 +41,7 @@ def upgrade():
             "awards_ibfk_2", "awards", "users", ["user_id"], ["id"], ondelete="CASCADE"
         )
 
-        op.drop_constraint("files_ibfk_1", "files", type_="foreignkey")
+        _drop_fk_if_exists("files_ibfk_1", "files")
         op.create_foreign_key(
             "files_ibfk_1",
             "files",
@@ -37,7 +51,7 @@ def upgrade():
             ondelete="CASCADE",
         )
 
-        op.drop_constraint("flags_ibfk_1", "flags", type_="foreignkey")
+        _drop_fk_if_exists("flags_ibfk_1", "flags")
         op.create_foreign_key(
             "flags_ibfk_1",
             "flags",
@@ -47,7 +61,7 @@ def upgrade():
             ondelete="CASCADE",
         )
 
-        op.drop_constraint("hints_ibfk_1", "hints", type_="foreignkey")
+        _drop_fk_if_exists("hints_ibfk_1", "hints")
         op.create_foreign_key(
             "hints_ibfk_1",
             "hints",
@@ -57,7 +71,7 @@ def upgrade():
             ondelete="CASCADE",
         )
 
-        op.drop_constraint("tags_ibfk_1", "tags", type_="foreignkey")
+        _drop_fk_if_exists("tags_ibfk_1", "tags")
         op.create_foreign_key(
             "tags_ibfk_1",
             "tags",
@@ -67,7 +81,7 @@ def upgrade():
             ondelete="CASCADE",
         )
 
-        op.drop_constraint("team_captain_id", "teams", type_="foreignkey")
+        _drop_fk_if_exists("team_captain_id", "teams")
         op.create_foreign_key(
             "team_captain_id",
             "teams",
@@ -77,7 +91,7 @@ def upgrade():
             ondelete="SET NULL",
         )
 
-        op.drop_constraint("tracking_ibfk_1", "tracking", type_="foreignkey")
+        _drop_fk_if_exists("tracking_ibfk_1", "tracking")
         op.create_foreign_key(
             "tracking_ibfk_1",
             "tracking",
@@ -87,8 +101,8 @@ def upgrade():
             ondelete="CASCADE",
         )
 
-        op.drop_constraint("unlocks_ibfk_1", "unlocks", type_="foreignkey")
-        op.drop_constraint("unlocks_ibfk_2", "unlocks", type_="foreignkey")
+        _drop_fk_if_exists("unlocks_ibfk_1", "unlocks")
+        _drop_fk_if_exists("unlocks_ibfk_2", "unlocks")
         op.create_foreign_key(
             "unlocks_ibfk_1",
             "unlocks",
