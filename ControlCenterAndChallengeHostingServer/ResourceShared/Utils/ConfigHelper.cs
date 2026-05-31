@@ -73,7 +73,7 @@ namespace ResourceShared.Utils
                 return [];
             }
 
-            var categories = new HashSet<string>();
+            var categories = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var category in rawValue.ToString()!.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries))
             {
                 var normalized = category.Trim();
