@@ -63,7 +63,10 @@ public class HintController : BaseController
 
         _userBehaviorLogger.Log("GET_HINTS_BY_CHALLENGE", userId, UserContext.TeamId, new { challenge_id = id });
         var data = await _hintService.GetHintsByChallengeId(id, userId);
-        if (data == null) return NotFound(new { message = "Hint not found" });
+        if (data == null)
+        {
+            return Ok(new { success = true, hints = new HintListDTO { Size = 0, Hints = [] } });
+        }
         return Ok(new { success = true, hints = data });
     }
 
