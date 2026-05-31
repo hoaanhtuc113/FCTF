@@ -427,7 +427,7 @@ public class ChallengeService : IChallengeService
             .ToListAsync();
 
         challengeStats = challengeStats
-            .Where(stat => !hiddenCategories.Contains(stat.Category))
+            .Where(stat => !IsHiddenCategory(stat.Category, hiddenCategories))
             .ToList();
 
 
@@ -444,7 +444,7 @@ public class ChallengeService : IChallengeService
             .ToListAsync();
 
         solvedStats = solvedStats
-            .Where(stat => !hiddenCategories.Contains(stat.Category))
+            .Where(stat => !IsHiddenCategory(stat.Category, hiddenCategories))
             .ToList();
 
         var solvedDict = solvedStats.ToDictionary(x => x.Category, x => x.Solved);
