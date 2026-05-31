@@ -17,7 +17,7 @@ from CTFd.cache import (
     clear_user_session,
 )
 from CTFd.constants import RawEnum
-from CTFd.models import Awards, Challenges, Submissions, Teams, Tokens, Unlocks, Users, db
+from CTFd.models import Awards, Challenges, KypoTeamAccount, Submissions, Teams, Tokens, Unlocks, Users, db
 from CTFd.schemas.awards import AwardSchema
 from CTFd.schemas.submissions import SubmissionSchema
 from CTFd.schemas.teams import TeamSchema
@@ -31,6 +31,10 @@ from CTFd.utils.decorators.visibility import (
 )
 from CTFd.utils.helpers.models import build_model_filters
 from CTFd.utils.logging.audit_logger import log_audit
+from CTFd.utils.keycloak_service import create_kypo_user, delete_kypo_user
+import logging as _logging
+
+_kc_logger = _logging.getLogger(__name__)
 from CTFd.utils.user import get_current_team, get_current_user_type, is_admin
 
 teams_namespace = Namespace("teams", description="Endpoint to retrieve Teams")
@@ -166,6 +170,23 @@ class TeamList(Resource):
 
         db.session.add(response.data)
         db.session.commit()
+
+        # ── Tạo Keycloak account cho team trên KYPO ──────────────────────
+        team = response.data
+        try:
+            kypo_info = create_kypo_user(team.id, team.name)
+            kypo_account = KypoTeamAccount(
+                team_id=team.id,
+                kypo_user_id=kypo_info["kypo_user_id"],
+                kypo_username=kypo_info["kypo_username"],
+                kypo_password=kypo_info["kypo_password"],  # TODO: mã hóa AES khi có key
+            )
+            db.session.add(kypo_account)
+            db.session.commit()
+        except Exception as e:
+            _kc_logger.error(f"Failed to create Keycloak account for team {team.id}: {e}")
+            # Không rollback team — chỉ log lỗi, admin có thể tạo lại sau
+        # ─────────────────────────────────────────────────────────────────
 
         log_audit(
             action="team_create",
@@ -330,6 +351,16 @@ class TeamPublic(Resource):
         for member in team.members:
             member.team_id = None
             clear_user_session(user_id=member.id)
+
+        # ── Xóa Keycloak account của team trên KYPO ──────────────────────
+        try:
+            kypo_account = KypoTeamAccount.query.filter_by(team_id=team.id).first()
+            if kypo_account:
+                delete_kypo_user(kypo_account.kypo_user_id)
+                db.session.delete(kypo_account)
+        except Exception as e:
+            _kc_logger.error(f"Failed to delete Keycloak account for team {team.id}: {e}")
+        # ─────────────────────────────────────────────────────────────────
 
         db.session.delete(team)
         db.session.commit()
