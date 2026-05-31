@@ -478,6 +478,7 @@
 			<div class="col-md-6">
 				<nav class="clean-nav-tabs nav nav-tabs nav-fill" id="challenge-properties" role="tablist">
 					<a class="nav-item nav-link small active" data-toggle="tab" href="#files" role="tab">Challenge files</a>
+					{% if challenge.type != 'sandbox' %}
 					<a class="nav-item nav-link small" data-toggle="tab" href="#flags" role="tab">Flags</a>
 					<a class="nav-item nav-link small" data-toggle="tab" href="#topics" role="tab">Topics</a>
 					<a class="nav-item nav-link small" data-toggle="tab" href="#tags" role="tab">Tags</a>
@@ -486,7 +487,7 @@
 					<a class="nav-item nav-link small" data-toggle="tab" href="#deploy" role="tab">Deploy</a>
 					<a class="nav-item nav-link small" data-toggle="tab" href="#versions" role="tab">Versions</a>
 					<a class="nav-item nav-link small" data-toggle="tab" href="#next" role="tab">Next</a>
-
+					{% endif %}
 				</nav>
 
 				<div class="clean-tab-content tab-content" id="nav-tabContent">
@@ -506,6 +507,7 @@
 							</div>
 						</div>
 					</div>
+					{% if challenge.type != 'sandbox' %}
 					<div class="tab-pane fade" id="flags" role="tabpanel">
 						<div class="row">
 							<div class="col-md-12">
@@ -614,6 +616,7 @@
 							</div>
 						</div>
 					</div>
+					{% endif %}
 				</div>
 
 			</div>
