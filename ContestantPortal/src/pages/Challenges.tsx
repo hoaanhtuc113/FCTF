@@ -3917,7 +3917,7 @@ function ChallengeDetailPanel({
             )}
 
             {/* Submit Form */}
-            {!challenge.solve_by_myteam && (
+            {!challenge.solve_by_myteam && challenge.type !== 'sandbox' && (
               <div className="space-y-2">
                 <div className={`text-xs font-mono font-bold ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
                   [SUBMIT FLAG]
@@ -3995,6 +3995,42 @@ function ChallengeDetailPanel({
                     )}
                   </>
                 )}
+              </div>
+            )}
+
+            {/* Sandbox Challenge - Start Button */}
+            {challenge.type === 'sandbox' && !challenge.solve_by_myteam && (
+              <div className="space-y-2">
+                <button
+                  onClick={() => window.open('https://vuontre.iahn.hanoi.vn/', '_blank')}
+                  style={{
+                    fontFamily: 'monospace',
+                    fontSize: '13px',
+                    fontWeight: 'bold',
+                    width: '100%',
+                    padding: '10px 16px',
+                    border: '1px solid #4ade80',
+                    backgroundColor: '#4ade80',
+                    color: '#000',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = '#22c55e';
+                    e.currentTarget.style.borderColor = '#22c55e';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = '#4ade80';
+                    e.currentTarget.style.borderColor = '#4ade80';
+                  }}
+                >
+                  <span>[+] Start Challenge</span>
+                </button>
               </div>
             )}
 
