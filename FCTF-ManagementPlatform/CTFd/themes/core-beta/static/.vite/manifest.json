@@ -1,6 +1,6 @@
 {
-  "_clipboard-OSpbBP6C.js": {
-    "file": "assets/clipboard-OSpbBP6C.js",
+  "_clipboard-De0ny23r.js": {
+    "file": "assets/clipboard-De0ny23r.js",
     "name": "clipboard",
     "imports": [
       "assets/js/index.js"
@@ -10,149 +10,167 @@
     "file": "assets/echarts-gaIEh_Fx.js",
     "name": "echarts"
   },
-  "_scoreboard-CAiRLMp8.js": {
-    "file": "assets/scoreboard-CAiRLMp8.js",
+  "_module.esm-Hb0Ah8IX.js": {
+    "file": "assets/module.esm-Hb0Ah8IX.js",
+    "name": "module.esm"
+  },
+  "_scoreboard-CSYTPGes.js": {
+    "file": "assets/scoreboard-CSYTPGes.js",
     "name": "scoreboard",
     "imports": [
       "_echarts-gaIEh_Fx.js",
       "assets/js/index.js"
     ]
   },
-  "_userscore-lvekJ4vE.js": {
-    "file": "assets/userscore-lvekJ4vE.js",
+  "_userscore-ff0GcyQ0.js": {
+    "file": "assets/userscore-ff0GcyQ0.js",
     "name": "userscore",
     "imports": [
       "assets/js/index.js",
-      "_scoreboard-CAiRLMp8.js"
+      "_scoreboard-CSYTPGes.js"
     ]
   },
   "assets/js/challenges.js": {
-    "file": "assets/challenges-CKtrLrnR.js",
+    "file": "assets/challenges-B5_lV3So.js",
     "name": "challenges",
     "src": "assets/js/challenges.js",
     "isEntry": true,
     "imports": [
+      "_module.esm-Hb0Ah8IX.js",
       "assets/js/index.js"
     ]
   },
   "assets/js/index.js": {
-    "file": "assets/index-Cd1JN55S.js",
+    "file": "assets/index-DIesA7ky.js",
     "name": "index",
     "src": "assets/js/index.js",
-    "isEntry": true
+    "isEntry": true,
+    "imports": [
+      "_module.esm-Hb0Ah8IX.js"
+    ]
   },
   "assets/js/notifications.js": {
-    "file": "assets/notifications-CGJWvqI8.js",
+    "file": "assets/notifications-CkFy9Xtn.js",
     "name": "notifications",
     "src": "assets/js/notifications.js",
     "isEntry": true,
     "imports": [
-      "assets/js/index.js"
+      "_module.esm-Hb0Ah8IX.js"
     ]
   },
   "assets/js/page.js": {
-    "file": "assets/page-BUh_Cj42.js",
+    "file": "assets/page-Bx9ZbAqK.js",
     "name": "page",
     "src": "assets/js/page.js",
     "isEntry": true,
     "imports": [
+      "_module.esm-Hb0Ah8IX.js",
       "assets/js/index.js"
     ]
   },
   "assets/js/scoreboard.js": {
-    "file": "assets/scoreboard-CjErJqLW.js",
+    "file": "assets/scoreboard-DrJnlQZg.js",
     "name": "scoreboard",
     "src": "assets/js/scoreboard.js",
     "isEntry": true,
     "imports": [
+      "_module.esm-Hb0Ah8IX.js",
       "assets/js/index.js",
-      "_scoreboard-CAiRLMp8.js",
+      "_scoreboard-CSYTPGes.js",
       "_echarts-gaIEh_Fx.js"
     ]
   },
   "assets/js/settings.js": {
-    "file": "assets/settings-i6YYr_Ue.js",
+    "file": "assets/settings-DVROcRmj.js",
     "name": "settings",
     "src": "assets/js/settings.js",
     "isEntry": true,
     "imports": [
+      "_module.esm-Hb0Ah8IX.js",
       "assets/js/index.js",
-      "_clipboard-OSpbBP6C.js"
+      "_clipboard-De0ny23r.js"
     ]
   },
   "assets/js/setup.js": {
-    "file": "assets/setup-CKBCfFjZ.js",
+    "file": "assets/setup-nBeqtDfR.js",
     "name": "setup",
     "src": "assets/js/setup.js",
     "isEntry": true,
     "imports": [
+      "_module.esm-Hb0Ah8IX.js",
       "assets/js/index.js"
     ]
   },
   "assets/js/teams/list.js": {
-    "file": "assets/teams_list-BUh_Cj42.js",
+    "file": "assets/teams_list-Bx9ZbAqK.js",
     "name": "teams_list",
     "src": "assets/js/teams/list.js",
     "isEntry": true,
     "imports": [
+      "_module.esm-Hb0Ah8IX.js",
       "assets/js/index.js"
     ]
   },
   "assets/js/teams/private.js": {
-    "file": "assets/teams_private-CdROXmrf.js",
+    "file": "assets/teams_private-Dv0k-7qA.js",
     "name": "teams_private",
     "src": "assets/js/teams/private.js",
     "isEntry": true,
     "imports": [
+      "_module.esm-Hb0Ah8IX.js",
       "assets/js/index.js",
-      "_clipboard-OSpbBP6C.js",
-      "_userscore-lvekJ4vE.js",
-      "_scoreboard-CAiRLMp8.js",
+      "_clipboard-De0ny23r.js",
+      "_userscore-ff0GcyQ0.js",
+      "_scoreboard-CSYTPGes.js",
       "_echarts-gaIEh_Fx.js"
     ]
   },
   "assets/js/teams/public.js": {
-    "file": "assets/teams_public-QL44eOSh.js",
+    "file": "assets/teams_public-CoJHw3xJ.js",
     "name": "teams_public",
     "src": "assets/js/teams/public.js",
     "isEntry": true,
     "imports": [
       "assets/js/index.js",
-      "_userscore-lvekJ4vE.js",
-      "_scoreboard-CAiRLMp8.js",
+      "_module.esm-Hb0Ah8IX.js",
+      "_userscore-ff0GcyQ0.js",
+      "_scoreboard-CSYTPGes.js",
       "_echarts-gaIEh_Fx.js"
     ]
   },
   "assets/js/users/list.js": {
-    "file": "assets/users_list-BUh_Cj42.js",
+    "file": "assets/users_list-Bx9ZbAqK.js",
     "name": "users_list",
     "src": "assets/js/users/list.js",
     "isEntry": true,
     "imports": [
+      "_module.esm-Hb0Ah8IX.js",
       "assets/js/index.js"
     ]
   },
   "assets/js/users/private.js": {
-    "file": "assets/users_private-BgAMO32p.js",
+    "file": "assets/users_private-Du7dIg9Q.js",
     "name": "users_private",
     "src": "assets/js/users/private.js",
     "isEntry": true,
     "imports": [
+      "_module.esm-Hb0Ah8IX.js",
       "assets/js/index.js",
-      "_userscore-lvekJ4vE.js",
-      "_scoreboard-CAiRLMp8.js",
+      "_userscore-ff0GcyQ0.js",
+      "_scoreboard-CSYTPGes.js",
       "_echarts-gaIEh_Fx.js"
     ]
   },
   "assets/js/users/public.js": {
-    "file": "assets/users_public-DRX4IF2U.js",
+    "file": "assets/users_public-gy9uSSUA.js",
     "name": "users_public",
     "src": "assets/js/users/public.js",
     "isEntry": true,
     "imports": [
       "assets/js/index.js",
-      "_userscore-lvekJ4vE.js",
-      "_scoreboard-CAiRLMp8.js",
+      "_module.esm-Hb0Ah8IX.js",
+      "_userscore-ff0GcyQ0.js",
+      "_scoreboard-CSYTPGes.js",
       "_echarts-gaIEh_Fx.js"
     ]
   },

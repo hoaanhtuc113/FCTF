@@ -48,3 +48,9 @@ UPLOAD_PROVIDER = os.environ.get("UPLOAD_PROVIDER", "filesystem")
 # Docker Registry Configuration
 IMAGE_REPO = os.environ.get("IMAGE_REPO", "my-docker-repo")
 DOCKER_USERNAME = os.environ.get("DOCKER_USERNAME", "username")
+
+# KYPO Cyber Range Integration
+KYPO_BASE_URL = os.environ.get("KYPO_BASE_URL", "https://vuontre.iahn.hanoi.vn")
+KYPO_USERNAME = os.environ.get("KYPO_USERNAME", "crczp-admin")
+KYPO_PASSWORD = os.environ.get("KYPO_PASSWORD", "CAUehoz449aGNy")
+KYPO_CLIENT_ID = os.environ.get("KYPO_CLIENT_ID", "CRCZP-Client")

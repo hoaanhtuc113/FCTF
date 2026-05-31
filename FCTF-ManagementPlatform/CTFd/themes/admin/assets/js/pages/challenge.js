@@ -330,6 +330,11 @@ function loadChalTemplate(challenge) {
               
             }
           }
+          // Sandbox challenges skip the Options modal and redirect directly.
+          if (params.type === "sandbox") {
+            window.location = CTFd.config.urlRoot + "/admin/challenges/" + challenge_id;
+            return;
+          }
           // Open modal after creation and any uploads attempted
           $("#challenge-create-options").modal();
         } catch (err) {
