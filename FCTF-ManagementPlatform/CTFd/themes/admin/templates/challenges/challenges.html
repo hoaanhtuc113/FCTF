@@ -54,6 +54,12 @@
     background: #dee2e6;
     margin: 4px 0;
 }
+
+.hidden-category-list {
+    max-height: 55vh;
+    overflow-y: auto;
+    padding-right: 0.25rem;
+}
 </style>
 {% endblock %}
 
@@ -190,6 +196,9 @@
                 </a>
             </div>
             <div class="btn-group" role="group">
+                <button type="button" class="clean-btn clean-btn-secondary" data-toggle="modal" data-target="#hidden-categories-modal">
+                    <i class="fas fa-eye-slash"></i> Categories
+                </button>
                 <button type="button" class="clean-btn" data-toggle="tooltip"
                     title="Edit Challenges" id="challenges-edit-button">
                     <i class="btn-fa fas fa-pencil-alt"></i> Edit
@@ -374,6 +383,49 @@
                 {% endif %}
             </div>
             {% endif %}
+</div>
+
+<div class="modal fade" id="hidden-categories-modal" tabindex="-1" role="dialog" aria-labelledby="hidden-categories-modal-label" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="hidden-categories-modal-label"><i class="fas fa-eye-slash mr-1"></i> Hidden Categories</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted mb-3">
+                    Categories selected here will be hidden from contestant-facing challenge views
+                </p>
+
+                <div class="hidden-category-list">
+                    {% if all_categories %}
+                        {% for category in all_categories %}
+                        <div class="custom-control custom-switch mb-2">
+                            <input
+                                type="checkbox"
+                                class="custom-control-input hidden-category-toggle"
+                                id="hidden-category-{{ loop.index }}"
+                                value="{{ category }}"
+                                {% if category in hidden_categories %}checked{% endif %}
+                            >
+                            <label class="custom-control-label" for="hidden-category-{{ loop.index }}">
+                                {{ category }}
+                            </label>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="alert alert-light border mb-0">No categories are available yet.</div>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="clean-btn btn-outline-secondary" data-dismiss="modal">Cancel</button>
+                <button type="button" class="clean-btn clean-btn-primary" id="hidden-categories-save-button">Save</button>
+            </div>
+        </div>
+    </div>
 </div>
 
 {% endblock %}

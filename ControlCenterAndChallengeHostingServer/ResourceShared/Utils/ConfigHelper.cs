@@ -1,5 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using ResourceShared.Models;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace ResourceShared.Utils
 {
@@ -62,6 +64,38 @@ namespace ResourceShared.Utils
 
             return result;
         }
+
+        public HashSet<string> HiddenCategories()
+        {
+            var rawValue = GetConfig("hidden_categories");
+            if (rawValue == null || rawValue is KeyNotFoundException)
+            {
+                return [];
+            }
+
+            var categories = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var category in rawValue.ToString()!.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries))
+            {
+                var normalized = category.Trim();
+                if (!string.IsNullOrWhiteSpace(normalized))
+                {
+                    categories.Add(normalized);
+                }
+            }
+
+            return categories;
+        }
+
+        public bool IsHiddenCategory(string? category)
+        {
+            if (string.IsNullOrWhiteSpace(category))
+            {
+                return false;
+            }
+
+            return HiddenCategories().Contains(category.Trim());
+        }
+
         private long ToLong(object val, int defaultValue = 3)
         {
             if (val == null) return defaultValue;
