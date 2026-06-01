@@ -96,19 +96,10 @@
 
                     <!-- Dynamic flag -->
                     <div class="form-group d-none" id="dynamic-flag-section">
-                        <div class="row">
-                            <div class="col-md-8">
-                                <label>
-                                    Flag Prefix:<br>
-                                    <small class="form-text text-muted">Prefix for the generated flag. Leave blank to use default <code>CTF{</code></small>
-                                </label>
-                                <input type="text" class="form-control" id="dynamic-prefix-input" placeholder="FCTF{">
-                            </div>
-                        </div>
-                        <small class="form-text text-muted mt-2">
-                            A unique flag is auto-generated per team when they start the challenge.
+                        <div class="alert" style="background:#f0f7ff;border:1px solid #b8d9f8;color:#1a5c8a;border-radius:6px;padding:.75rem 1rem;margin-bottom:0;">
+                            A unique flag <code>FCTF{&lt;random&gt;}</code> is auto-generated per team when they start the challenge.
                             The pod receives it as the <code>FLAG</code> environment variable.
-                        </small>
+                        </div>
                     </div>
 
                     <input type="hidden" name="flag_type" value="static" id="flag-type-hidden">
@@ -602,20 +593,12 @@
             $('#static-flag-section').addClass('d-none');
             $('#dynamic-flag-section').removeClass('d-none');
             $('#flag-type-hidden').val('dynamic');
-            // Sync prefix into the flag name field so the form submits it
-            $('#flag-input').val($('#dynamic-prefix-input').val());
+            $('#flag-input').val('FCTF{');
         } else {
             $('#static-flag-section').removeClass('d-none');
             $('#dynamic-flag-section').addClass('d-none');
             $('#flag-type-hidden').val('static');
             $('#flag-input').val('');
-        }
-    });
-
-    // Keep flag input in sync when admin types the prefix
-    $(document).on('input', '#dynamic-prefix-input', function() {
-        if ($('#flag-type-hidden').val() === 'dynamic') {
-            $('#flag-input').val($(this).val());
         }
     });
 
