@@ -158,6 +158,8 @@ class FlagTypes(Resource):
         else:
             response = {}
             for class_id in FLAG_CLASSES:
+                if class_id == "dynamic":
+                    continue
                 flag_class = FLAG_CLASSES.get(class_id)
                 response[class_id] = {
                     "name": flag_class.name,

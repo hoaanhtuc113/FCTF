@@ -31,7 +31,7 @@
             >
               <option>--</option>
               <option
-                v-for="type in Object.keys(types).filter(t => t !== 'dynamic')"
+                v-for="type in Object.keys(types)"
                 :value="type"
                 :key="type"
               >
