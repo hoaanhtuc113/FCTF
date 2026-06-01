@@ -2007,14 +2007,10 @@ function ChallengeDetailPanel({
       const data = await response.json();
 
       // Case KYPO: sandbox challenge — store credentials in state, update button
+      // Case KYPO: sandbox challenge — open bridge URL directly
       if (response.status === 200 && data.success === true && data.challenge_type === 'kypo') {
         setIsStarting(false);
-        setKypoInfo({
-          username: data.kypo_username || '',
-          password: data.kypo_password || '',
-          access_token: data.kypo_access_token || '',
-          portalUrl: data.challenge_url || 'https://vuontre.iahn.hanoi.vn/home',
-        });
+        window.open(data.challenge_url, '_blank', 'noopener,noreferrer');
         return;
       }
 
@@ -4085,111 +4081,43 @@ function ChallengeDetailPanel({
             {/* Sandbox Challenge Buttons */}
             {challenge.type === 'sandbox' && !challenge.solve_by_myteam && (
               <div className="space-y-2">
-                {kypoInfo ? (
-                  <>
-                    {/* Show Credentials button */}
-                    <button
-                      onClick={handleShowKypoCredentials}
-                      style={{
-                        fontFamily: 'monospace',
-                        fontSize: '13px',
-                        fontWeight: 'bold',
-                        width: '100%',
-                        padding: '10px 16px',
-                        border: '1px solid #3b82f6',
-                        backgroundColor: '#3b82f6',
-                        color: '#fff',
-                        borderRadius: '4px',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '8px',
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = '#2563eb';
-                        e.currentTarget.style.borderColor = '#2563eb';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = '#3b82f6';
-                        e.currentTarget.style.borderColor = '#3b82f6';
-                      }}
-                    >
-                      <span>[i] Xem thông tin truy cập</span>
-                    </button>
-
-                    {/* Stop / Reset button */}
-                    <button
-                      onClick={handleStopKypo}
-                      style={{
-                        fontFamily: 'monospace',
-                        fontSize: '13px',
-                        fontWeight: 'bold',
-                        width: '100%',
-                        padding: '10px 16px',
-                        border: '1px solid #ef4444',
-                        backgroundColor: '#ef4444',
-                        color: '#fff',
-                        borderRadius: '4px',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '8px',
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = '#dc2626';
-                        e.currentTarget.style.borderColor = '#dc2626';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = '#ef4444';
-                        e.currentTarget.style.borderColor = '#ef4444';
-                      }}
-                    >
-                      <span>[-] Stop Challenge</span>
-                    </button>
-                  </>
-                ) : (
-                  <button
-                    onClick={handleStartChallenge}
-                    disabled={isStarting}
-                    style={{
-                      fontFamily: 'monospace',
-                      fontSize: '13px',
-                      fontWeight: 'bold',
-                      width: '100%',
-                      padding: '10px 16px',
-                      border: '1px solid #4ade80',
-                      backgroundColor: '#4ade80',
-                      color: '#000',
-                      borderRadius: '4px',
-                      cursor: isStarting ? 'not-allowed' : 'pointer',
-                      opacity: isStarting ? 0.5 : 1,
-                      transition: 'all 0.2s',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '8px',
-                    }}
-                    onMouseEnter={(e) => {
-                      if (!isStarting) {
-                        e.currentTarget.style.backgroundColor = '#22c55e';
-                        e.currentTarget.style.borderColor = '#22c55e';
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (!isStarting) {
-                        e.currentTarget.style.backgroundColor = '#4ade80';
-                        e.currentTarget.style.borderColor = '#4ade80';
-                      }
-                    }}
-                  >
-                    {isStarting && <CircularProgress size={14} sx={{ color: '#000' }} />}
-                    <span>{isStarting ? 'Connecting...' : '[+] Start Challenge'}</span>
-                  </button>
-                )}
+                <button
+                  onClick={handleStartChallenge}
+                  disabled={isStarting}
+                  style={{
+                    fontFamily: 'monospace',
+                    fontSize: '13px',
+                    fontWeight: 'bold',
+                    width: '100%',
+                    padding: '10px 16px',
+                    border: '1px solid #4ade80',
+                    backgroundColor: '#4ade80',
+                    color: '#000',
+                    borderRadius: '4px',
+                    cursor: isStarting ? 'not-allowed' : 'pointer',
+                    opacity: isStarting ? 0.5 : 1,
+                    transition: 'all 0.2s',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isStarting) {
+                      e.currentTarget.style.backgroundColor = '#22c55e';
+                      e.currentTarget.style.borderColor = '#22c55e';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isStarting) {
+                      e.currentTarget.style.backgroundColor = '#4ade80';
+                      e.currentTarget.style.borderColor = '#4ade80';
+                    }
+                  }}
+                >
+                  {isStarting && <CircularProgress size={14} sx={{ color: '#000' }} />}
+                  <span>{isStarting ? '[~] Đang kết nối...' : '[>] Vào làm bài'}</span>
+                </button>
               </div>
             )}
 
