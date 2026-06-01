@@ -32,6 +32,11 @@ public class HintService : IHintService
         _logger = logger;
     }
 
+    private bool IsHiddenCategory(string? category)
+    {
+        return _configHelper.IsHiddenCategory(category);
+    }
+
     private List<int> GetPrerequisites(string? requirementsJson)
     {
         var result = new List<int>();
@@ -137,7 +142,7 @@ public class HintService : IHintService
                 .FirstOrDefaultAsync(h => h.Id == id);
 
             if (hint == null) return null;
-            if (!hint.Challenge.State.Equals("visible"))
+            if (!hint.Challenge.State.Equals("visible") || IsHiddenCategory(hint.Challenge.Category))
             {
                 return null;
             }
@@ -219,7 +224,7 @@ public class HintService : IHintService
         {
             var challenge = await _context.Challenges.FirstOrDefaultAsync(c => c.Id == challengeId);
             if (challenge == null) return null;
-            if (!challenge.State.Equals("visible"))
+            if (!challenge.State.Equals("visible") || IsHiddenCategory(challenge.Category))
             {
                 return null;
             }
@@ -297,7 +302,7 @@ public class HintService : IHintService
 
             if (target == null) return null;
             if (target.Challenge == null) return null;
-            if (!target.Challenge.State.Equals("visible"))
+            if (!target.Challenge.State.Equals("visible") || IsHiddenCategory(target.Challenge.Category))
             {
                 return null;
             }

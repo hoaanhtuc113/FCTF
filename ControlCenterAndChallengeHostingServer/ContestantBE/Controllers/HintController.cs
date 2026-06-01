@@ -9,6 +9,7 @@ using ResourceShared.DTOs.ActionLogs;
 using ResourceShared.DTOs.Hint;
 using ResourceShared.Logger;
 using ResourceShared.Models;
+using ResourceShared.Utils;
 using static ResourceShared.Enums;
 
 namespace ContestantBE.Controllers;
@@ -18,6 +19,7 @@ public class HintController : BaseController
 {
     private readonly IHintService _hintService;
     private readonly AppDbContext _context;
+    private readonly ConfigHelper _configHelper;
     private readonly AppLogger _userBehaviorLogger;
     private readonly IActionLogsServices _actionLogsServices;
 
@@ -25,11 +27,13 @@ public class HintController : BaseController
         IUserContext userContext,
         IHintService hintService,
         AppDbContext context,
+        ConfigHelper configHelper,
         AppLogger userBehaviorLogger,
         IActionLogsServices actionLogsServices) : base(userContext)
     {
         _hintService = hintService;
         _context = context;
+        _configHelper = configHelper;
         _userBehaviorLogger = userBehaviorLogger;
         _actionLogsServices = actionLogsServices;
     }
@@ -59,6 +63,10 @@ public class HintController : BaseController
 
         _userBehaviorLogger.Log("GET_HINTS_BY_CHALLENGE", userId, UserContext.TeamId, new { challenge_id = id });
         var data = await _hintService.GetHintsByChallengeId(id, userId);
+        if (data == null)
+        {
+            return Ok(new { success = true, hints = new HintListDTO { Size = 0, Hints = [] } });
+        }
         return Ok(new { success = true, hints = data });
     }
 
@@ -85,7 +93,7 @@ public class HintController : BaseController
 
             _userBehaviorLogger.Log("UNLOCK_HINT", userId, teamId, new { hint_id = req.Target, challenge_id = target.Challenge.Id });
 
-            if (target.Challenge.State == ChallengeState.HIDDEN)
+            if (target.Challenge.State == ChallengeState.HIDDEN || _configHelper.IsHiddenCategory(target.Challenge.Category))
             {
                 return BadRequest(new { success = false, error = "Challenge is hidden" });
             }
