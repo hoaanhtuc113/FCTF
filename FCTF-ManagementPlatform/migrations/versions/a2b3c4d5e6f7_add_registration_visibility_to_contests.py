@@ -11,6 +11,7 @@ Create Date: 2026-05-27
 """
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy import inspect
 
 # revision identifiers, used by Alembic.
 revision = 'a2b3c4d5e6f7'
@@ -20,15 +21,19 @@ depends_on = None
 
 
 def upgrade():
-    op.add_column(
-        'contests',
-        sa.Column(
-            'registration_visibility',
-            sa.String(length=32),
-            nullable=False,
-            server_default='public',
+    bind = op.get_bind()
+    inspector = inspect(bind)
+    existing_columns = [col['name'] for col in inspector.get_columns('contests')]
+    if 'registration_visibility' not in existing_columns:
+        op.add_column(
+            'contests',
+            sa.Column(
+                'registration_visibility',
+                sa.String(length=32),
+                nullable=False,
+                server_default='public',
+            )
         )
-    )
 
 
 def downgrade():
