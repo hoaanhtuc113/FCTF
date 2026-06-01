@@ -4,21 +4,21 @@ Quản lý Keycloak accounts cho FCTF teams.
 Dùng master admin token để tạo/xóa user trong realm CRCZP.
 """
 import logging
-import os
 import secrets
 import string
 import time
 
 import requests
 
-logger = logging.getLogger(__name__)
+from CTFd.constants.envvars import (
+    KYPO_KEYCLOAK_URL   as KEYCLOAK_BASE_URL,
+    KYPO_REALM          as KEYCLOAK_REALM,
+    KYPO_ADMIN_USERNAME as KEYCLOAK_ADMIN_USER,
+    KYPO_ADMIN_PASSWORD as KEYCLOAK_ADMIN_PASS,
+    KYPO_VERIFY_SSL     as KEYCLOAK_VERIFY_SSL,
+)
 
-# ── Config (đọc từ env, fallback về giá trị dev) ──────────────────────────
-KEYCLOAK_BASE_URL  = os.environ.get("KYPO_KEYCLOAK_URL",    "https://vuontre.iahn.hanoi.vn/keycloak")
-KEYCLOAK_REALM     = os.environ.get("KYPO_REALM",           "CRCZP")
-KEYCLOAK_ADMIN_USER= os.environ.get("KYPO_ADMIN_USERNAME",  "admin")
-KEYCLOAK_ADMIN_PASS= os.environ.get("KYPO_ADMIN_PASSWORD",  "f3RvfeblN9Wq6Mgmkg0e")
-KEYCLOAK_VERIFY_SSL= os.environ.get("KYPO_VERIFY_SSL", "false").lower() != "false"
+logger = logging.getLogger(__name__)
 
 # Cache token để tránh lấy lại liên tục
 _token_cache: dict = {"token": None, "expires_at": 0}

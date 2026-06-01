@@ -760,6 +760,40 @@ public class ChallengeController : BaseController
             .FirstOrDefaultAsync(c => c.Id == challengeStartReq.challengeId);
 
         if (challenge == null) return NotFound(new { error = "Challenge not found" });
+
+        // Check if this is a KYPO/sandbox challenge — detected by type OR by explicit kypo_challenge_configs entry
+        bool isSandbox = string.Equals(challenge.Type, "sandbox", StringComparison.OrdinalIgnoreCase);
+        var kypoConfig = await _context.KypoChallengeConfigs
+            .AsNoTracking()
+            .FirstOrDefaultAsync(k => k.ChallengeId == challenge.Id);
+
+        if (isSandbox || kypoConfig != null)
+        {
+            if (challenge.State == ChallengeState.HIDDEN)
+                return BadRequest(new { error = "This challenge is not available." });
+
+            await Console.Out.WriteLineAsync($"[KYPO] User {userId} : Team {user.TeamId} : Challenge {challenge.Name} → redirect to KYPO");
+
+            var kypoAccount = await _context.KypoTeamAccounts
+                .AsNoTracking()
+                .FirstOrDefaultAsync(k => k.TeamId == user.TeamId.Value);
+
+            var baseUrl = !string.IsNullOrEmpty(kypoConfig?.KypoBaseUrl)
+                ? kypoConfig!.KypoBaseUrl!.TrimEnd('/')
+                : "https://vuontre.iahn.hanoi.vn";
+
+            return Ok(new ChallengeDeployResponeDTO
+            {
+                status = (int)HttpStatusCode.OK,
+                success = true,
+                challenge_type = "kypo",
+                challenge_url = $"{baseUrl}/run",
+                kypo_username = kypoAccount?.KypoUsername,
+                kypo_password = kypoAccount?.KypoPassword,
+                kypo_access_token = kypoConfig?.KypoAccessToken,
+            });
+        }
+
         if (!challenge.RequireDeploy) return BadRequest(new { error = "This challenge does not require deploy" });
         if (challenge.State == ChallengeState.HIDDEN || challenge.SharedInstant == true) return BadRequest(new { error = "This challenge is not available for deployment" });
 

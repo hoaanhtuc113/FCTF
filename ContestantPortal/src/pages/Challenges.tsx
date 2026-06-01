@@ -1318,6 +1318,14 @@ function ChallengeDetailPanel({
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
   const [isChallengeStarted, setIsChallengeStarted] = useState(false);
   const [url, setUrl] = useState<string | null>(null);
+  const [kypoInfo, setKypoInfo] = useState<{ username: string; password: string; access_token: string; portalUrl: string } | null>(() => {
+    try {
+      const saved = localStorage.getItem(`kypo_${challenge.id}`);
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
   const [isSubmittingFlag, setIsSubmittingFlag] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
   const [isStopping, setIsStopping] = useState(false);
@@ -1412,6 +1420,16 @@ function ChallengeDetailPanel({
   // Load cooldown and deployment state from localStorage when challenge changes
   useEffect(() => {
     setPodStatus(challenge.pod_status ?? null);
+
+    // Restore KYPO info when switching between challenges
+    try {
+      const saved = localStorage.getItem(`kypo_${challenge.id}`);
+      setKypoInfo(saved ? JSON.parse(saved) : null);
+    } catch {
+      localStorage.removeItem(`kypo_${challenge.id}`);
+      setKypoInfo(null);
+    }
+
     const loadCooldown = () => {
       const cooldownKey = `cooldown_${challenge.id}`;
       const savedCooldown = localStorage.getItem(cooldownKey);
@@ -1466,6 +1484,16 @@ function ChallengeDetailPanel({
       }
     };
   }, [challenge.id]);
+
+  // Persist KYPO info to localStorage whenever it changes
+  useEffect(() => {
+    const kypoKey = `kypo_${challenge.id}`;
+    if (kypoInfo) {
+      localStorage.setItem(kypoKey, JSON.stringify(kypoInfo));
+    } else {
+      localStorage.removeItem(kypoKey);
+    }
+  }, [kypoInfo, challenge.id]);
 
   // Cooldown countdown effect
   useEffect(() => {
@@ -1978,6 +2006,18 @@ function ChallengeDetailPanel({
       });
       const data = await response.json();
 
+      // Case KYPO: sandbox challenge — store credentials in state, update button
+      if (response.status === 200 && data.success === true && data.challenge_type === 'kypo') {
+        setIsStarting(false);
+        setKypoInfo({
+          username: data.kypo_username || '',
+          password: data.kypo_password || '',
+          access_token: data.kypo_access_token || '',
+          portalUrl: data.challenge_url || 'https://vuontre.iahn.hanoi.vn/home',
+        });
+        return;
+      }
+
       // Case 1: URL is ready immediately
       if (response.status === 200 && data.success === true && data.challenge_url != null) {
         const safeChallengeUrl = escapeHtml(String(data.challenge_url).trim());
@@ -2136,6 +2176,50 @@ function ChallengeDetailPanel({
         },
       });
     }
+  };
+
+  const handleShowKypoCredentials = () => {
+    if (!kypoInfo) return;
+    Swal.fire({
+      title: 'KYPO Sandbox',
+      html: `
+        <div class="font-mono text-left text-sm space-y-3">
+          <div class="${theme === 'dark' ? 'bg-gray-800 border-gray-600' : 'bg-gray-50 border-gray-300'} rounded border p-3 space-y-2">
+            <div>
+              <span class="${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'} text-xs">Username:</span>
+              <div class="${theme === 'dark' ? 'text-yellow-300' : 'text-yellow-700'} font-bold select-all">${kypoInfo.username || '(chưa cấu hình)'}</div>
+            </div>
+            <div>
+              <span class="${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'} text-xs">Password:</span>
+              <div class="${theme === 'dark' ? 'text-yellow-300' : 'text-yellow-700'} font-bold select-all">${kypoInfo.password || '(chưa cấu hình)'}</div>
+            </div>
+            ${kypoInfo.access_token ? `<div>
+              <span class="${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'} text-xs">Access Token:</span>
+              <div class="${theme === 'dark' ? 'text-orange-300' : 'text-orange-700'} text-xs break-all select-all">${kypoInfo.access_token}</div>
+            </div>` : ''}
+          </div>
+          <div class="${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'} text-xs">Nhấn "Vào làm bài" để mở KYPO trong tab mới.</div>
+        </div>
+      `,
+      confirmButtonText: 'Vào làm bài',
+      showCancelButton: true,
+      cancelButtonText: 'Đóng',
+      background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+      color: theme === 'dark' ? '#e5e7eb' : '#111827',
+      customClass: {
+        popup: 'rounded-lg border border-green-500/30',
+        confirmButton: 'bg-green-600 hover:bg-green-700 text-white font-mono px-4 py-2 rounded mr-2',
+        cancelButton: 'bg-gray-600 hover:bg-gray-700 text-white font-mono px-4 py-2 rounded',
+      },
+    }).then((result) => {
+      if (result.isConfirmed) {
+        window.open(kypoInfo.portalUrl, '_blank', 'noopener,noreferrer');
+      }
+    });
+  };
+
+  const handleStopKypo = () => {
+    setKypoInfo(null);
   };
 
   // Health check loop function - runs silently in background
@@ -3998,39 +4082,114 @@ function ChallengeDetailPanel({
               </div>
             )}
 
-            {/* Sandbox Challenge - Start Button */}
+            {/* Sandbox Challenge Buttons */}
             {challenge.type === 'sandbox' && !challenge.solve_by_myteam && (
               <div className="space-y-2">
-                <button
-                  onClick={() => window.open('https://vuontre.iahn.hanoi.vn/', '_blank')}
-                  style={{
-                    fontFamily: 'monospace',
-                    fontSize: '13px',
-                    fontWeight: 'bold',
-                    width: '100%',
-                    padding: '10px 16px',
-                    border: '1px solid #4ade80',
-                    backgroundColor: '#4ade80',
-                    color: '#000',
-                    borderRadius: '4px',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '8px',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = '#22c55e';
-                    e.currentTarget.style.borderColor = '#22c55e';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = '#4ade80';
-                    e.currentTarget.style.borderColor = '#4ade80';
-                  }}
-                >
-                  <span>[+] Start Challenge</span>
-                </button>
+                {kypoInfo ? (
+                  <>
+                    {/* Show Credentials button */}
+                    <button
+                      onClick={handleShowKypoCredentials}
+                      style={{
+                        fontFamily: 'monospace',
+                        fontSize: '13px',
+                        fontWeight: 'bold',
+                        width: '100%',
+                        padding: '10px 16px',
+                        border: '1px solid #3b82f6',
+                        backgroundColor: '#3b82f6',
+                        color: '#fff',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '8px',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = '#2563eb';
+                        e.currentTarget.style.borderColor = '#2563eb';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = '#3b82f6';
+                        e.currentTarget.style.borderColor = '#3b82f6';
+                      }}
+                    >
+                      <span>[i] Xem thông tin truy cập</span>
+                    </button>
+
+                    {/* Stop / Reset button */}
+                    <button
+                      onClick={handleStopKypo}
+                      style={{
+                        fontFamily: 'monospace',
+                        fontSize: '13px',
+                        fontWeight: 'bold',
+                        width: '100%',
+                        padding: '10px 16px',
+                        border: '1px solid #ef4444',
+                        backgroundColor: '#ef4444',
+                        color: '#fff',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '8px',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = '#dc2626';
+                        e.currentTarget.style.borderColor = '#dc2626';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = '#ef4444';
+                        e.currentTarget.style.borderColor = '#ef4444';
+                      }}
+                    >
+                      <span>[-] Stop Challenge</span>
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={handleStartChallenge}
+                    disabled={isStarting}
+                    style={{
+                      fontFamily: 'monospace',
+                      fontSize: '13px',
+                      fontWeight: 'bold',
+                      width: '100%',
+                      padding: '10px 16px',
+                      border: '1px solid #4ade80',
+                      backgroundColor: '#4ade80',
+                      color: '#000',
+                      borderRadius: '4px',
+                      cursor: isStarting ? 'not-allowed' : 'pointer',
+                      opacity: isStarting ? 0.5 : 1,
+                      transition: 'all 0.2s',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px',
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isStarting) {
+                        e.currentTarget.style.backgroundColor = '#22c55e';
+                        e.currentTarget.style.borderColor = '#22c55e';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isStarting) {
+                        e.currentTarget.style.backgroundColor = '#4ade80';
+                        e.currentTarget.style.borderColor = '#4ade80';
+                      }
+                    }}
+                  >
+                    {isStarting && <CircularProgress size={14} sx={{ color: '#000' }} />}
+                    <span>{isStarting ? 'Connecting...' : '[+] Start Challenge'}</span>
+                  </button>
+                )}
               </div>
             )}
 
