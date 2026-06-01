@@ -197,6 +197,7 @@
 		transform: translateY(-2px);
 		box-shadow: 0 4px 8px rgba(255, 107, 53, 0.3);
 	}
+
 </style>
 {% endblock %}
 
@@ -338,6 +339,75 @@
 	</select>
 </template>
 
+<div id="team-kypo-modal" class="modal fade">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h2 class="modal-action text-center w-100">KYPO Account</h2>
+				<button type="button" class="close" data-dismiss="modal" aria-label="Close">
+					<span aria-hidden="true">&times;</span>
+				</button>
+			</div>
+			<div class="modal-body">
+				{% if kypo_account %}
+				<div class="form-group">
+					<label class="font-weight-bold">KYPO User ID</label>
+					<div class="input-group">
+						<input type="text" class="form-control" value="{{ kypo_account.kypo_user_id }}" readonly>
+						<div class="input-group-append">
+							<button class="btn btn-outline-secondary" type="button"
+								onclick="copyToClipboard('{{ kypo_account.kypo_user_id }}', this)">
+								<i class="fas fa-clipboard"></i>
+							</button>
+						</div>
+					</div>
+				</div>
+				<div class="form-group">
+					<label class="font-weight-bold">Username</label>
+					<div class="input-group">
+						<input type="text" class="form-control" value="{{ kypo_account.kypo_username }}" readonly>
+						<div class="input-group-append">
+							<button class="btn btn-outline-secondary" type="button"
+								onclick="copyToClipboard('{{ kypo_account.kypo_username }}', this)">
+								<i class="fas fa-clipboard"></i>
+							</button>
+						</div>
+					</div>
+				</div>
+				<div class="form-group">
+					<label class="font-weight-bold">Password</label>
+					<div class="input-group">
+						<input type="password" class="form-control" id="kypo-modal-password"
+							value="{{ kypo_account.kypo_password }}" readonly>
+						<div class="input-group-append">
+							<button class="btn btn-outline-secondary" type="button"
+								onclick="toggleKypoPassword()">
+								<i class="fas fa-eye" id="kypo-eye-icon"></i>
+							</button>
+							<button class="btn btn-outline-secondary" type="button"
+								onclick="copyToClipboard('{{ kypo_account.kypo_password }}', this)">
+								<i class="fas fa-clipboard"></i>
+							</button>
+						</div>
+					</div>
+				</div>
+				<div class="form-group">
+					<label class="font-weight-bold">Created At</label>
+					<input type="text" class="form-control"
+						value="{{ kypo_account.created_at.strftime('%Y-%m-%d %H:%M:%S') if kypo_account.created_at else '' }}"
+						readonly>
+				</div>
+				{% else %}
+				<div class="text-center text-muted py-4">
+					<i class="fas fa-exclamation-circle fa-3x mb-3 d-block"></i>
+					<p>No KYPO account found for this team.</p>
+				</div>
+				{% endif %}
+			</div>
+		</div>
+	</div>
+</div>
+
 <div id="team-addresses-modal" class="modal fade">
 	<div class="modal-dialog modal-lg">
 		<div class="modal-content">
@@ -451,6 +521,10 @@
 				<i class="btn-fa fas fa-network-wired fa-2x px-2" data-toggle="tooltip" data-placement="top"
 					title="IP Addresses"></i>
 			</a>
+			<a class="kypo-account-team text-dark" data-toggle="modal" data-target="#team-kypo-modal">
+				<i class="btn-fa fas fa-key fa-2x px-2" data-toggle="tooltip" data-placement="top"
+					title="KYPO Account"></i>
+			</a>
 			{% if team.website %}
 			<a href="{{ team.website }}" target="_blank" class="text-dark" rel="noopener">
 				<i class="btn-fa fas fa-external-link-alt fa-2x px-2" data-toggle="tooltip" data-placement="top"
@@ -524,6 +598,9 @@
 
 		<a class="nav-item nav-link" id="nav-missing-tab" data-toggle="tab" href="#nav-missing" role="tab"
 			aria-controls="nav-missing" aria-selected="false">Missing</a>
+
+		<a class="nav-item nav-link" id="nav-kypo-tab" data-toggle="tab" href="#nav-kypo" role="tab"
+			aria-controls="nav-kypo" aria-selected="false">KYPO Account</a>
 	</nav>
 
 	<div class="tab-content min-vh-50 pb-5" id="nav-tabContent">
@@ -780,6 +857,59 @@
 				</div>
 			</div>
 		</div>
+		<div class="tab-pane fade" id="nav-kypo" role="tabpanel" aria-labelledby="nav-kypo-tab">
+			<h3 class="text-center pt-5 d-block">KYPO Account</h3>
+			<div class="row justify-content-center pt-3">
+				<div class="col-md-6">
+					{% if kypo_account %}
+					<div class="card">
+						<div class="card-header">
+							<h5><i class="fas fa-key mr-2"></i>KYPO Credentials</h5>
+						</div>
+						<div class="card-body">
+							<div class="form-group">
+								<label class="font-weight-bold">KYPO User ID</label>
+								<input type="text" class="form-control" value="{{ kypo_account.kypo_user_id }}" readonly>
+							</div>
+							<div class="form-group">
+								<label class="font-weight-bold">Username</label>
+								<input type="text" class="form-control" value="{{ kypo_account.kypo_username }}" readonly>
+							</div>
+							<div class="form-group">
+								<label class="font-weight-bold">Password</label>
+								<div class="input-group">
+									<input type="password" class="form-control" id="kypo-password-field"
+										value="{{ kypo_account.kypo_password }}" readonly>
+									<div class="input-group-append">
+										<button class="btn btn-outline-secondary" type="button"
+											onclick="toggleKypoPassword(this)">
+											<i class="fas fa-eye"></i>
+										</button>
+										<button class="btn btn-outline-secondary" type="button"
+											onclick="copyKypoPassword('{{ kypo_account.kypo_password }}')"
+											data-toggle="tooltip" title="Copy password">
+											<i class="fas fa-clipboard"></i>
+										</button>
+									</div>
+								</div>
+							</div>
+							<div class="form-group">
+								<label class="font-weight-bold">Created At</label>
+								<input type="text" class="form-control"
+									value="{{ kypo_account.created_at.strftime('%Y-%m-%d %H:%M:%S') if kypo_account.created_at else '' }}"
+									readonly>
+							</div>
+						</div>
+					</div>
+					{% else %}
+					<div class="text-center text-muted py-5">
+						<i class="fas fa-exclamation-circle fa-3x mb-3"></i>
+						<p>No KYPO account found for this team.</p>
+					</div>
+					{% endif %}
+				</div>
+			</div>
+		</div>
 	</div>
 
 	<div class="row min-vh-25 pt-5">
@@ -805,6 +935,26 @@
 		'name': team.name,
 		'account_id': team.id,
 	} | tojson }};
+
+	function toggleKypoPassword() {
+		var field = document.getElementById('kypo-modal-password');
+		var icon = document.getElementById('kypo-eye-icon');
+		if (field.type === 'password') {
+			field.type = 'text';
+			icon.classList.replace('fa-eye', 'fa-eye-slash');
+		} else {
+			field.type = 'password';
+			icon.classList.replace('fa-eye-slash', 'fa-eye');
+		}
+	}
+
+	function copyToClipboard(text, btn) {
+		navigator.clipboard.writeText(text).then(function() {
+			var icon = btn.querySelector('i');
+			icon.classList.replace('fa-clipboard', 'fa-check');
+			setTimeout(function() { icon.classList.replace('fa-check', 'fa-clipboard'); }, 1500);
+		});
+	}
 </script>
 {% endblock %}
 
