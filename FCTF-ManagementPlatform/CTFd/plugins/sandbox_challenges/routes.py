@@ -10,6 +10,11 @@ from CTFd.constants.envvars import (
     KYPO_USERNAME,
 )
 from CTFd.utils.decorators import admin_or_challenge_writer_only_or_jury
+from CTFd.utils.kypo_poller import (
+    get_all_cached_progress,
+    get_cached_progress,
+    run_poll_cycle_now,
+)
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -288,3 +293,40 @@ def get_kypo_challenge_config(challenge_id):
             "kypo_base_url": config.kypo_base_url if config else None,
         },
     })
+
+
+@sandbox_kypo_api.route("/kypo/challenge/<int:challenge_id>/progress", methods=["GET"])
+@admin_or_challenge_writer_only_or_jury
+def get_challenge_progress(challenge_id):
+    """
+    Return cached KYPO progress for all teams on a challenge.
+
+    Query params:
+        team_id  – (optional) filter to a single team
+    """
+    team_id = request.args.get("team_id", type=int)
+
+    if team_id is not None:
+        data = get_cached_progress(challenge_id, team_id)
+        return jsonify({
+            "success": True,
+            "data": [data] if data else [],
+        })
+
+    return jsonify({
+        "success": True,
+        "data": get_all_cached_progress(challenge_id),
+    })
+
+
+@sandbox_kypo_api.route("/kypo/sync", methods=["POST"])
+@admin_or_challenge_writer_only_or_jury
+def trigger_kypo_sync():
+    """Manually trigger a KYPO progress sweep (runs synchronously in request)."""
+    from flask import current_app
+    try:
+        run_poll_cycle_now(current_app._get_current_object())
+        return jsonify({"success": True, "message": "KYPO sync completed."})
+    except Exception as exc:
+        log.error("[KYPO] Manual sync failed: %s", exc, exc_info=True)
+        return jsonify({"success": False, "error": str(exc)}), 500
