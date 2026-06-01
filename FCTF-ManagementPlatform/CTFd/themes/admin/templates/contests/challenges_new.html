@@ -55,13 +55,31 @@
             <div class="modal-body">
                 <form method="POST" enctype="multipart/form-data">
                     <div class="form-group">
+                        <label>Flag Type</label>
+                        <div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="flag_type_ui" id="flag-type-static" value="static" checked>
+                                <label class="form-check-label" for="flag-type-static">Static</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="flag_type_ui" id="flag-type-dynamic" value="dynamic">
+                                <label class="form-check-label" for="flag-type-dynamic">
+                                    Dynamic
+                                    <small class="text-muted">(per-team, requires deploy)</small>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Static flag -->
+                    <div class="form-group" id="static-flag-section">
                         <div class="row">
                             <div class="col-md-8">
                                 <label>
                                     Flag:<br>
                                     <small class="form-text text-muted">Static flag for your challenge</small>
                                 </label>
-                                <input type="text" class="form-control" name="flag">
+                                <input type="text" class="form-control" name="flag" id="flag-input">
                             </div>
                             <div class="col-md-4">
                                 <label>
@@ -74,8 +92,26 @@
                                 </select>
                             </div>
                         </div>
-                        <input type="hidden" name="flag_type" value="static">
                     </div>
+
+                    <!-- Dynamic flag -->
+                    <div class="form-group d-none" id="dynamic-flag-section">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <label>
+                                    Flag Prefix:<br>
+                                    <small class="form-text text-muted">Prefix for the generated flag. Leave blank to use default <code>CTF{</code></small>
+                                </label>
+                                <input type="text" class="form-control" id="dynamic-prefix-input" placeholder="CTF{">
+                            </div>
+                        </div>
+                        <small class="form-text text-muted mt-2">
+                            A unique flag is auto-generated per team when they start the challenge.
+                            The pod receives it as the <code>FLAG</code> environment variable.
+                        </small>
+                    </div>
+
+                    <input type="hidden" name="flag_type" value="static" id="flag-type-hidden">
 
                     <div class="form-group">
                         <label>
@@ -558,6 +594,30 @@
         });
         sbGuardObserver.observe(entryDiv, { childList: true });
     })();
+
+    // ── Flag type toggle ──────────────────────────────────────────────────────
+    $(document).on('change', 'input[name="flag_type_ui"]', function() {
+        var type = $(this).val();
+        if (type === 'dynamic') {
+            $('#static-flag-section').addClass('d-none');
+            $('#dynamic-flag-section').removeClass('d-none');
+            $('#flag-type-hidden').val('dynamic');
+            // Sync prefix into the flag name field so the form submits it
+            $('#flag-input').val($('#dynamic-prefix-input').val());
+        } else {
+            $('#static-flag-section').removeClass('d-none');
+            $('#dynamic-flag-section').addClass('d-none');
+            $('#flag-type-hidden').val('static');
+            $('#flag-input').val('');
+        }
+    });
+
+    // Keep flag input in sync when admin types the prefix
+    $(document).on('input', '#dynamic-prefix-input', function() {
+        if ($('#flag-type-hidden').val() === 'dynamic') {
+            $('#flag-input').val($(this).val());
+        }
+    });
 
     $(document).on('change', '#setup_docker', function() {
         const isChecked = $(this).is(':checked');

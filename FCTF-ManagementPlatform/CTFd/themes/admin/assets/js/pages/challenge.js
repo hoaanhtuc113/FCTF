@@ -423,7 +423,7 @@ function handleChallengeOptions(event) {
   Promise.all([
     // Save flag
     new Promise(function (resolve, _reject) {
-      if (flag_params.content.length == 0) {
+      if (flag_params.content.length == 0 && flag_params.type !== "dynamic") {
         resolve();
         return;
       }
