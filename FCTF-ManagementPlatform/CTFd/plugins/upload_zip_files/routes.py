@@ -18,6 +18,7 @@ from CTFd.utils.connector.multiservice_connector import (
     delete_cached_files,
     redeploy,
     handle_challenge_upload,
+    stop_active_instances,
 )
 
 file_app = Blueprint("upload_zip_files", __name__)
@@ -60,6 +61,15 @@ from CTFd.constants.envvars import (
 redis_client = redis.StrictRedis(**get_redis_client_kwargs())
 
 def upload_file(challenge_id, file_path, exposed_port=None):
+    from flask import session as flask_session
+    admin_user_id = flask_session.get("id")
+
+    # Stop all live K8s instances BEFORE wiping Redis keys.
+    # If we delete Redis first, the deployment service loses context
+    # (namespace, team mapping) needed to clean up pods.
+    stop_active_instances(challenge_id, admin_user_id)
+
+    # Safety sweep: remove any keys the deployment service may not have deleted.
     delete_cached_files(challenge_id)
 
     if not os.path.exists(file_path):

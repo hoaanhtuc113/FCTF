@@ -3,6 +3,7 @@ import hashlib
 import io
 import json
 import os
+import re
 import shutil
 import tempfile
 import threading
@@ -266,6 +267,52 @@ def delete_cached_files(challenge_id):
         redis_client.delete(key)
         deleted_count += 1
     print(f"Deleted {deleted_count} cache entries for challenge_id: {challenge_id}")
+
+
+def stop_active_instances(challenge_id, admin_user_id):
+    """
+    Stop all running K8s instances for a challenge before image update.
+    Must be called BEFORE delete_cached_files() so Redis still has the
+    team/user info needed to build the stop payload.
+
+    Order contract:
+        1. scan Redis -> get team_id + user_id for each live instance
+        2. call force_stop() per instance -> deployment service deletes pod + Redis key
+        3. caller then calls delete_cached_files() as a safety sweep
+    """
+    pattern = f"deploy_challenge_{challenge_id}_*"
+    keys = list(redis_client.scan_iter(pattern))
+    print(f"[stop_active_instances] challenge={challenge_id}: {len(keys)} active instance(s) found")
+
+    stopped, failed = 0, 0
+    for key in keys:
+        key_str = key if isinstance(key, str) else key.decode("utf-8")
+        match = re.match(r"deploy_challenge_(\d+)_(-?\d+)", key_str)
+        if not match:
+            continue
+
+        team_id = int(match.group(2))
+
+        # Prefer the owner's user_id stored in the Redis value; fall back to admin
+        user_id = admin_user_id
+        value_raw = redis_client.get(key)
+        if value_raw:
+            try:
+                stored = json.loads(value_raw)
+                user_id = stored.get("user_id", admin_user_id)
+            except (json.JSONDecodeError, TypeError):
+                pass
+
+        try:
+            print(f"[stop_active_instances] Stopping: challenge={challenge_id}, team={team_id}, user={user_id}")
+            force_stop(user_id=user_id, challenge_id=challenge_id, team_id=team_id)
+            stopped += 1
+        except Exception as exc:
+            print(f"[stop_active_instances] Failed to stop team={team_id}: {exc}")
+            failed += 1
+
+    print(f"[stop_active_instances] Done — stopped={stopped}, failed={failed}")
+    return {"stopped": stopped, "failed": failed}
 
 
 def handle_zip_file_upload(challenge, file_path, challenge_id):
