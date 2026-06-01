@@ -19,5 +19,13 @@ namespace ResourceShared.DTOs.Challenge
         
         [JsonConverter(typeof(JsonStringEnumConverter))]
         public Enums.DeploymentStatusEnum? pod_status { get; set; }
+
+        public string? challenge_type { get; set; }
+
+        public string? kypo_username { get; set; }
+
+        public string? kypo_password { get; set; }
+
+        public string? kypo_access_token { get; set; }
     }
 }
