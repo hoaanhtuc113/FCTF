@@ -435,13 +435,45 @@ public class ChallengeService : IChallengeService
         var teamId = deploymentTeamId ?? userTeamId;
         try
         {
+            // Generate dynamic flag per team (idempotent: reuse if already created)
+            string? flagValue = null;
+            var dynamicFlags = await _dbContext.Flags
+                .Where(f => f.ChallengeId == challenge.Id && f.Type == "dynamic")
+                .ToListAsync();
+
+            if (dynamicFlags.Count > 0)
+            {
+                var dynFlag = dynamicFlags[0];
+                var existing = await _dbContext.DynamicFlagInstances
+                    .FirstOrDefaultAsync(d => d.FlagId == dynFlag.Id && d.TeamId == teamId);
+
+                if (existing != null)
+                {
+                    flagValue = existing.Value;
+                }
+                else
+                {
+                    var prefix = string.IsNullOrEmpty(dynFlag.Content) ? "CTF{" : dynFlag.Content;
+                    flagValue = $"{prefix}{Guid.NewGuid():N}}}";
+                    _dbContext.DynamicFlagInstances.Add(new ResourceShared.Models.DynamicFlagInstance
+                    {
+                        FlagId = dynFlag.Id,
+                        ChallengeId = challenge.Id,
+                        TeamId = teamId,
+                        Value = flagValue,
+                    });
+                    await _dbContext.SaveChangesAsync();
+                }
+            }
+
             var unixTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             var parammeters = new ChallengeStartStopReqDTO
             {
                 challengeId = challenge.Id,
                 teamId = teamId,
                 userId = user.Id,
-                unixTime = unixTime.ToString()
+                unixTime = unixTime.ToString(),
+                flagValue = flagValue,
             };
             var data = new Dictionary<string, string>
             {

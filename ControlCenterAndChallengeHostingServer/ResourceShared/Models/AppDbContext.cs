@@ -34,6 +34,7 @@ public partial class AppDbContext : DbContext
     public virtual DbSet<FieldEntry> FieldEntries { get; set; }
     public virtual DbSet<File> Files { get; set; }
     public virtual DbSet<Flag> Flags { get; set; }
+    public virtual DbSet<DynamicFlagInstance> DynamicFlagInstances { get; set; }
     public virtual DbSet<Hint> Hints { get; set; }
     public virtual DbSet<MultipleChoiceChallenge> MultipleChoiceChallenges { get; set; }
     public virtual DbSet<SandboxChallenge> SandboxChallenges { get; set; }
@@ -938,6 +939,44 @@ public partial class AppDbContext : DbContext
                 .HasForeignKey(d => d.TeamId)
                 .OnDelete(DeleteBehavior.Cascade)
                 .HasConstraintName("user_team_members_ibfk_2");
+        });
+
+        modelBuilder.Entity<DynamicFlagInstance>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+            entity.ToTable("dynamic_flag_instances");
+
+            entity.HasIndex(e => new { e.FlagId, e.TeamId }, "uq_dfi_team").IsUnique();
+            entity.HasIndex(e => new { e.FlagId, e.UserId }, "uq_dfi_user").IsUnique();
+            entity.HasIndex(e => new { e.ChallengeId, e.TeamId }, "idx_dfi_challenge_team");
+
+            entity.Property(e => e.Id).HasColumnType("int(11)").HasColumnName("id");
+            entity.Property(e => e.FlagId).HasColumnType("int(11)").HasColumnName("flag_id");
+            entity.Property(e => e.ChallengeId).HasColumnType("int(11)").HasColumnName("challenge_id");
+            entity.Property(e => e.TeamId).HasColumnType("int(11)").HasColumnName("team_id");
+            entity.Property(e => e.UserId).HasColumnType("int(11)").HasColumnName("user_id");
+            entity.Property(e => e.Value).HasColumnType("text").HasColumnName("value");
+            entity.Property(e => e.CreatedAt).HasColumnType("datetime(6)").HasColumnName("created_at");
+
+            entity.HasOne(d => d.Flag).WithMany()
+                .HasForeignKey(d => d.FlagId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("fk_dfi_flag");
+
+            entity.HasOne(d => d.Challenge).WithMany()
+                .HasForeignKey(d => d.ChallengeId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("fk_dfi_challenge");
+
+            entity.HasOne(d => d.Team).WithMany()
+                .HasForeignKey(d => d.TeamId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("fk_dfi_team");
+
+            entity.HasOne(d => d.User).WithMany()
+                .HasForeignKey(d => d.UserId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("fk_dfi_user");
         });
 
         OnModelCreatingPartial(modelBuilder);

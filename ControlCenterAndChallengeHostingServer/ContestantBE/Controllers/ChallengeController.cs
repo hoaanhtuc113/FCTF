@@ -448,7 +448,7 @@ public class ChallengeController : BaseController
         }
 
         // Attempt the challenge (outside lock - CPU intensive, parallel execution OK)
-        AttemptDTO attempt = await ChallengeHelper.Attempt(_context, challenge, request);
+        AttemptDTO attempt = await ChallengeHelper.Attempt(_context, challenge, request, teamId);
         var deploymentKey = ChallengeHelper.GetCacheKey(challenge.Id, teamId!.Value);
 
         // Handle correct attempt - CRITICAL SECTION with minimal lock

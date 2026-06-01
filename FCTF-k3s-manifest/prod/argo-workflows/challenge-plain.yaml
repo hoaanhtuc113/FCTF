@@ -167,6 +167,9 @@ spec:
               port: ${CONTAINER_PORT}
             periodSeconds: 3
             failureThreshold: 3
+          env:
+            - name: FLAG
+              value: "${CHALLENGE_FLAG}"
           resources:
             requests:
               memory: "${MEMORY_REQUEST}"

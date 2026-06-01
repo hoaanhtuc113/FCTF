@@ -229,13 +229,35 @@ class BaseChallenge(object):
         data = request.form or request.get_json()
         submission = data["submission"].strip()
         flags = Flags.query.filter_by(challenge_id=challenge.id).all()
-        for flag in flags:
+
+        team_id = None
+        flags_list = list(flags)
+        if any(f.type == "dynamic" for f in flags_list):
+            team_id = cls._get_team_id(request)
+
+        for flag in flags_list:
             try:
-                if get_flag_class(flag.type).compare(flag, submission):
-                    return True, "Correct"
+                if flag.type == "dynamic":
+                    from CTFd.plugins.flags import CTFdDynamicFlag
+                    if CTFdDynamicFlag.compare(flag, submission, team_id=team_id):
+                        return True, "Correct"
+                else:
+                    if get_flag_class(flag.type).compare(flag, submission):
+                        return True, "Correct"
             except FlagException as e:
                 return False, str(e)
         return False, "Incorrect"
+
+    @staticmethod
+    def _get_team_id(request):
+        from CTFd.models import Tokens, Users
+        auth = request.headers.get("Authorization", "")
+        if auth.startswith("Bearer "):
+            token = Tokens.query.filter_by(value=auth.split("Bearer ")[1]).first()
+            if token:
+                user = Users.query.filter_by(id=token.user_id).first()
+                return user.team_id if user else None
+        return None
 
     @classmethod
     def solve(cls, user, team, challenge, request):
