@@ -1396,6 +1396,9 @@ class Contests(db.Model):
     challenge_difficulty_visibility = db.Column(db.String(32), nullable=False, default="disabled")
     limit_challenges = db.Column(db.Integer, nullable=True)  # null = unlimited
 
+    # Cleanup tracking — set when the scheduler auto-stops all instances after end_time
+    cleanup_triggered_at = db.Column(db.DateTime, nullable=True)
+
     created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow, nullable=False)
     updated_at = db.Column(
         db.DateTime,
