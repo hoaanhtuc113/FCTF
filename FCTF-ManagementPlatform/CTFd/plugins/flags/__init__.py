@@ -72,8 +72,8 @@ class CTFdRegexFlag(BaseFlag):
 class CTFdDynamicFlag(BaseFlag):
     name = "dynamic"
     templates = {
-        "create": "/plugins/flags/assets/static/create.html",
-        "update": "/plugins/flags/assets/static/edit.html",
+        "create": "/plugins/flags/assets/dynamic/create.html",
+        "update": "/plugins/flags/assets/dynamic/edit.html",
     }
 
     @staticmethod

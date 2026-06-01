@@ -453,7 +453,7 @@ public class ChallengeService : IChallengeService
                 }
                 else
                 {
-                    var prefix = string.IsNullOrEmpty(dynFlag.Content) ? "CTF{" : dynFlag.Content;
+                    var prefix = string.IsNullOrEmpty(dynFlag.Content) ? "FCTF{" : dynFlag.Content;
                     flagValue = $"{prefix}{Guid.NewGuid():N}}}";
                     _dbContext.DynamicFlagInstances.Add(new ResourceShared.Models.DynamicFlagInstance
                     {
