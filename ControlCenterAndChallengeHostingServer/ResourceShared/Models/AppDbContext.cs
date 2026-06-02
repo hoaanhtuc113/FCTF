@@ -77,6 +77,10 @@ public partial class AppDbContext : DbContext
 
     public virtual DbSet<User> Users { get; set; }
 
+    public virtual DbSet<KypoChallengeConfig> KypoChallengeConfigs { get; set; }
+
+    public virtual DbSet<KypoTeamAccount> KypoTeamAccounts { get; set; }
+
     //protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     //{
     //    var builder = new ConfigurationBuilder()
@@ -1299,6 +1303,47 @@ public partial class AppDbContext : DbContext
                 .HasForeignKey(d => d.TeamId)
                 .OnDelete(DeleteBehavior.SetNull)
                 .HasConstraintName("fk_users_team_id");
+        });
+
+        modelBuilder.Entity<KypoChallengeConfig>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+            entity.ToTable("kypo_challenge_configs");
+
+            entity.HasIndex(e => e.ChallengeId).IsUnique();
+
+            entity.Property(e => e.Id).HasColumnType("int(11)").HasColumnName("id");
+            entity.Property(e => e.ChallengeId).HasColumnType("int(11)").HasColumnName("challenge_id");
+            entity.Property(e => e.KypoInstanceId).HasColumnType("int(11)").HasColumnName("kypo_instance_id");
+            entity.Property(e => e.KypoAccessToken).HasMaxLength(64).HasColumnName("kypo_access_token");
+            entity.Property(e => e.KypoInstanceType).HasMaxLength(32).HasDefaultValueSql("'linear'").HasColumnName("kypo_instance_type");
+            entity.Property(e => e.KypoBaseUrl).HasMaxLength(255).HasColumnName("kypo_base_url");
+            entity.Property(e => e.CreatedAt).HasColumnType("datetime").HasColumnName("created_at");
+
+            entity.HasOne(d => d.Challenge).WithOne()
+                .HasForeignKey<KypoChallengeConfig>(d => d.ChallengeId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("kypo_challenge_configs_ibfk_1");
+        });
+
+        modelBuilder.Entity<KypoTeamAccount>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+            entity.ToTable("kypo_team_accounts");
+
+            entity.HasIndex(e => e.TeamId).IsUnique();
+
+            entity.Property(e => e.Id).HasColumnType("int(11)").HasColumnName("id");
+            entity.Property(e => e.TeamId).HasColumnType("int(11)").HasColumnName("team_id");
+            entity.Property(e => e.KypoUserId).HasMaxLength(64).HasColumnName("kypo_user_id");
+            entity.Property(e => e.KypoUsername).HasMaxLength(128).HasColumnName("kypo_username");
+            entity.Property(e => e.KypoPassword).HasMaxLength(255).HasColumnName("kypo_password");
+            entity.Property(e => e.CreatedAt).HasColumnType("datetime").HasColumnName("created_at");
+
+            entity.HasOne(d => d.Team).WithOne()
+                .HasForeignKey<KypoTeamAccount>(d => d.TeamId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("kypo_team_accounts_ibfk_1");
         });
 
         OnModelCreatingPartial(modelBuilder);

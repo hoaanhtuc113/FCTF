@@ -1,0 +1,140 @@
+{% extends "admin/challenges/create.html" %}
+
+{% block header %}
+<div class="alert alert-info d-flex align-items-center" role="alert">
+    <i class="fas fa-shield-alt mr-2"></i>
+    <div>
+        <strong>Sandbox Challenge</strong> &mdash; Attack-Defense challenge powered by the KYPO Cyber Range platform.
+        Select a KYPO training instance — score will be fetched automatically.
+    </div>
+</div>
+{% endblock %}
+
+{% block message %}
+<div class="form-group">
+    <label>
+        Files
+        <small class="form-text text-muted">Attach supporting files for contestants</small>
+    </label>
+    <input class="form-control-file" type="file" name="file" id="file-upload" />
+    <input type="hidden" name="file_upload" value="description" />
+</div>
+<div class="form-group">
+    <label>
+        Description:<br>
+        <small class="form-text text-muted">Description for your challenge.</small>
+    </label>
+    <textarea id="new-desc-editor" class="form-control markdown" name="description" rows="10"></textarea>
+</div>
+{% endblock %}
+
+{% block time_limit %}
+<div class="form-group">
+    <label>
+        Time Limit (minutes):<br>
+        <small class="form-text text-muted">
+            Duration for this sandbox session. Use -1 for unlimited.
+        </small>
+    </label>
+    <input type="number" class="form-control" name="time_limit" min="-1" value="60"
+           placeholder="Enter value" required>
+</div>
+{% endblock %}
+
+{% block cooldown %}
+<input type="hidden" name="cooldown" value="0">
+{% endblock %}
+
+{% block state %}
+<input type="hidden" name="state" value="visible">
+{% endblock %}
+
+{% block value %}
+<div class="form-group">
+    <label>
+        Score / Points:<br>
+        <small class="form-text text-muted">
+            Reward points fetched automatically from the KYPO training definition.
+            Select an instance below to populate this field.
+        </small>
+    </label>
+    <div class="input-group">
+        <input type="number" class="form-control" name="value" id="kypo-score-input"
+               min="0" value="0" placeholder="Select a KYPO instance…"
+               readonly style="background-color:#e9ecef;" required>
+        <div class="input-group-append">
+            <span class="input-group-text d-none" id="kypo-score-badge">
+                <i class="fas fa-check-circle text-success mr-1"></i>
+                <small class="text-muted">from KYPO</small>
+            </span>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block type %}
+<input type="hidden" name="type" value="sandbox" id="chaltype">
+{% endblock %}
+
+{% block submit %}
+<hr class="my-3">
+
+<div class="form-group">
+    <label>
+        KYPO Instance:<br>
+        <small class="form-text text-muted">
+            Select the KYPO training instance to link to this challenge. Score will be auto-fetched.
+        </small>
+    </label>
+
+    <div id="kypo-instance-loading" class="py-2">
+        <div class="spinner-border spinner-border-sm text-primary" role="status" aria-hidden="true"></div>
+        <span class="ml-2 text-muted small">Connecting to KYPO and loading instances&hellip;</span>
+    </div>
+
+    <select class="form-control custom-select" name="kypo_instance_select"
+            id="kypo-instance-select" style="display:none;" required>
+        <option value="">— Select a KYPO instance —</option>
+    </select>
+
+    <div id="kypo-instance-error" class="alert alert-warning mt-2 d-none" role="alert">
+        <i class="fas fa-exclamation-triangle mr-1"></i>
+        Could not load instances from KYPO. Check server connectivity and credentials.
+    </div>
+</div>
+
+{# Inline feedback while fetching score from KYPO #}
+<div id="kypo-details-loading" class="d-none py-1">
+    <div class="spinner-border spinner-border-sm text-secondary" role="status" aria-hidden="true"></div>
+    <span class="ml-2 text-muted small">Fetching score from KYPO training definition&hellip;</span>
+</div>
+<div id="kypo-details-error" class="alert alert-warning d-none mt-1" role="alert">
+    <i class="fas fa-exclamation-triangle mr-1"></i>
+    Could not retrieve score for this instance — please enter it manually in the Score field above.
+</div>
+
+{# Hidden KYPO metadata fields populated by create.js #}
+<input type="hidden" name="kypo_instance_id" id="kypo-instance-id">
+<input type="hidden" name="kypo_access_token" id="kypo-access-token">
+<input type="hidden" name="kypo_instance_type" id="kypo-instance-type">
+<input type="hidden" name="kypo_base_url" id="kypo-base-url" value="https://vuontre.iahn.hanoi.vn">
+
+<div class="form-group mt-3">
+    <button class="btn btn-primary float-right create-challenge-submit" type="submit">
+        Create
+    </button>
+</div>
+{% endblock %}
+
+{% block footer %}
+{{ super() }}
+<script>
+(function () {
+    /* Hide the max_attempts visible input injected by the base template */
+    document.querySelectorAll('.chal-attempts').forEach(function (el) {
+        var wrapper = el.closest('.form-group');
+        if (wrapper) wrapper.style.display = 'none';
+    });
+})();
+</script>
+{% endblock %}

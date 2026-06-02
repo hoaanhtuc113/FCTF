@@ -12,8 +12,12 @@ class _AssetsWrapper:
         if theme is None:
             theme = ctf_theme()
         file_path = os.path.join(
-            current_app.root_path, "themes", theme, "static", "manifest.json"
+            current_app.root_path, "themes", theme, "static", ".vite", "manifest.json"
         )
+        if not os.path.exists(file_path):
+            file_path = os.path.join(
+                current_app.root_path, "themes", theme, "static", "manifest.json"
+            )
 
         try:
             manifest = get_asset_json(path=file_path)
