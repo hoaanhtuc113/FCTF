@@ -760,6 +760,71 @@ public class ChallengeController : BaseController
             .FirstOrDefaultAsync(c => c.Id == challengeStartReq.challengeId);
 
         if (challenge == null) return NotFound(new { error = "Challenge not found" });
+
+        // Check if this is a KYPO/sandbox challenge — detected by type OR by explicit kypo_challenge_configs entry
+        bool isSandbox = string.Equals(challenge.Type, "sandbox", StringComparison.OrdinalIgnoreCase);
+        var kypoConfig = await _context.KypoChallengeConfigs
+            .AsNoTracking()
+            .FirstOrDefaultAsync(k => k.ChallengeId == challenge.Id);
+
+        if (isSandbox || kypoConfig != null)
+{
+    if (challenge.State == ChallengeState.HIDDEN)
+        return BadRequest(new { error = "This challenge is not available." });
+
+    await Console.Out.WriteLineAsync($"[KYPO] User {userId} : Team {user.TeamId} : Challenge {challenge.Name} → redirect to KYPO");
+
+    var kypoAccount = await _context.KypoTeamAccounts
+        .AsNoTracking()
+        .FirstOrDefaultAsync(k => k.TeamId == user.TeamId.Value);
+
+    var baseUrl = !string.IsNullOrEmpty(kypoConfig?.KypoBaseUrl)
+        ? kypoConfig!.KypoBaseUrl!.TrimEnd('/')
+        : "https://vuontre.iahn.hanoi.vn";
+
+    string bridgeUrl;
+
+    if (kypoAccount?.KypoUsername != null && kypoAccount?.KypoPassword != null)
+    {
+        var tokenResult = await GetKeycloakTokenAsync(kypoAccount.KypoUsername, kypoAccount.KypoPassword);
+        if (tokenResult != null)
+        {
+            var (accessToken, refreshToken, idToken, sessionState, expiresIn) = tokenResult.Value;
+
+            // Tạo training run cho team (idempotent — trả run cũ nếu đã có)
+            var kypoAccessToken = kypoConfig?.KypoAccessToken;
+            await GetOrCreateTrainingRunAsync(accessToken, kypoAccessToken, baseUrl);
+
+            var redirectTo = !string.IsNullOrEmpty(kypoAccessToken)
+                ? $"/run/linear/{kypoAccessToken}/access"
+                : "/run";
+
+            bridgeUrl = $"{baseUrl}/bridge.html#access_token={Uri.EscapeDataString(accessToken)}" +
+                        $"&refresh_token={Uri.EscapeDataString(refreshToken)}" +
+                        $"&id_token={Uri.EscapeDataString(idToken)}" +
+                        $"&session_state={Uri.EscapeDataString(sessionState)}" +
+                        $"&expires_in={expiresIn}" +
+                        $"&redirect_to={Uri.EscapeDataString(redirectTo)}";
+        }
+        else
+        {
+            bridgeUrl = $"{baseUrl}/run";
+        }
+    }
+    else
+    {
+        bridgeUrl = $"{baseUrl}/run";
+    }
+
+    return Ok(new ChallengeDeployResponeDTO
+    {
+        status = (int)HttpStatusCode.OK,
+        success = true,
+        challenge_type = "kypo",
+        challenge_url = bridgeUrl,
+    });
+}
+
         if (!challenge.RequireDeploy) return BadRequest(new { error = "This challenge does not require deploy" });
         if (challenge.State == ChallengeState.HIDDEN || challenge.SharedInstant == true) return BadRequest(new { error = "This challenge is not available for deployment" });
 
@@ -1080,4 +1145,64 @@ public class ChallengeController : BaseController
             _ => StatusCode((int)response.status, response)
         };
     }
+
+    private async Task<(string AccessToken, string RefreshToken, string IdToken, string SessionState, int ExpiresIn)?> GetKeycloakTokenAsync(string username, string password)
+{
+    var handler = new HttpClientHandler
+    {
+        ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+    };
+    using var client = new HttpClient(handler);
+
+    var keycloakTokenUrl = "https://vuontre.iahn.hanoi.vn/keycloak/realms/CRCZP/protocol/openid-connect/token";
+
+    var body = new FormUrlEncodedContent(new Dictionary<string, string>
+    {
+        { "grant_type", "password" },
+        { "client_id", "CRCZP-Client" },
+        { "username", username },
+        { "password", password },
+        { "scope", "openid email profile offline_access" },
+    });
+
+    var response = await client.PostAsync(keycloakTokenUrl, body);
+    if (!response.IsSuccessStatusCode) return null;
+
+    var json = await response.Content.ReadAsStringAsync();
+    using var doc = System.Text.Json.JsonDocument.Parse(json);
+    var root = doc.RootElement;
+
+    return (
+        root.GetProperty("access_token").GetString()!,
+        root.TryGetProperty("refresh_token", out var rt) ? rt.GetString()! : "",
+        root.TryGetProperty("id_token", out var it) ? it.GetString()! : "",
+        root.TryGetProperty("session_state", out var ss) ? ss.GetString()! : "",
+        root.TryGetProperty("expires_in", out var exp) ? exp.GetInt32() : 300
+    );
+}
+
+private async Task GetOrCreateTrainingRunAsync(string teamKeycloakToken, string? kypoAccessToken, string baseUrl)
+{
+    if (string.IsNullOrEmpty(kypoAccessToken)) return;
+
+    try
+    {
+        var handler = new HttpClientHandler
+        {
+            ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+        };
+        using var client = new HttpClient(handler);
+        client.DefaultRequestHeaders.Authorization =
+            new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", teamKeycloakToken);
+
+        var url = $"{baseUrl}/training/api/v1/training-runs?accessToken={kypoAccessToken}";
+        var response = await client.PostAsync(url, null);
+        var json = await response.Content.ReadAsStringAsync();
+        await Console.Out.WriteLineAsync($"[KYPO] TrainingRun created/resumed: {json[..Math.Min(200, json.Length)]}");
+    }
+    catch (Exception ex)
+    {
+        await Console.Error.WriteLineAsync($"[KYPO] GetOrCreateTrainingRun failed: {ex.Message}");
+    }
+}
 }

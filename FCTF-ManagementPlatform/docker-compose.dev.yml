@@ -1,0 +1,157 @@
+# Local development infrastructure — starts MariaDB, Redis, RabbitMQ.
+# Usage:  docker compose -f docker-compose.dev.yml up -d
+#         docker compose -f docker-compose.dev.yml down
+#
+# ManagementPlatform (CTFd) connection strings for config.ini:
+#   DATABASE_URL = mysql+pymysql://fctf_user:fctf_password@localhost:3306/ctfd
+#   REDIS_URL    = redis://localhost:6379
+#
+# RabbitMQ Management UI: http://localhost:15672  (rabbit-admin / Fctf2025@admin)
+
+name: fctf-dev
+
+# --------------------------------------------------------------------------- #
+#  Inline configs — no extra files needed                                      #
+# --------------------------------------------------------------------------- #
+configs:
+  rabbitmq_conf:
+    content: |
+      management.load_definitions = /etc/rabbitmq/definitions.json
+  rabbitmq_definitions:
+    content: |
+      {
+        "vhosts": [
+          { "name": "/" },
+          { "name": "fctf_deploy" }
+        ],
+        "users": [
+          {
+            "name": "rabbit-admin",
+            "password": "Fctf2025@admin",
+            "tags": ["administrator"]
+          }
+        ],
+        "permissions": [
+          {
+            "user": "rabbit-admin",
+            "vhost": "/",
+            "configure": ".*",
+            "write": ".*",
+            "read": ".*"
+          },
+          {
+            "user": "rabbit-admin",
+            "vhost": "fctf_deploy",
+            "configure": ".*",
+            "write": ".*",
+            "read": ".*"
+          }
+        ],
+        "exchanges": [
+          {
+            "name": "deployment_exchange",
+            "vhost": "fctf_deploy",
+            "type": "direct",
+            "durable": true,
+            "auto_delete": false,
+            "internal": false,
+            "arguments": {}
+          }
+        ],
+        "queues": [
+          {
+            "name": "deployment_queue",
+            "vhost": "fctf_deploy",
+            "durable": true,
+            "auto_delete": false,
+            "arguments": {
+              "x-max-length": 300,
+              "x-overflow": "reject-publish"
+            }
+          }
+        ],
+        "bindings": [
+          {
+            "source": "deployment_exchange",
+            "vhost": "fctf_deploy",
+            "destination": "deployment_queue",
+            "destination_type": "queue",
+            "routing_key": "deploy",
+            "arguments": {}
+          }
+        ]
+      }
+
+# --------------------------------------------------------------------------- #
+#  Services                                                                    #
+# --------------------------------------------------------------------------- #
+services:
+
+  # ── MariaDB ──────────────────────────────────────────────────────────────── #
+  mariadb:
+    image: mariadb:11.4
+    container_name: fctf-mariadb
+    environment:
+      MARIADB_ROOT_PASSWORD: root_password
+      MARIADB_DATABASE: ctfd
+      MARIADB_USER: fctf_user
+      MARIADB_PASSWORD: fctf_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - mariadb_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+  # ── Redis ─────────────────────────────────────────────────────────────────── #
+  redis:
+    image: redis:7-alpine
+    container_name: fctf-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
+  # ── RabbitMQ ─────────────────────────────────────────────────────────────── #
+  rabbitmq:
+    image: rabbitmq:4.1-management-alpine
+    container_name: fctf-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: rabbit-admin
+      RABBITMQ_DEFAULT_PASS: "Fctf2025@admin"
+    configs:
+      - source: rabbitmq_conf
+        target: /etc/rabbitmq/conf.d/10-definitions.conf
+      - source: rabbitmq_definitions
+        target: /etc/rabbitmq/definitions.json
+    ports:
+      - "5672:5672"    # AMQP
+      - "15672:15672"  # Management UI
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+# --------------------------------------------------------------------------- #
+#  Named volumes (data persists across restarts)                               #
+# --------------------------------------------------------------------------- #
+volumes:
+  mariadb_data:
+  redis_data:
+  rabbitmq_data:

@@ -81,3 +81,12 @@ node_modules/
 
 # Flask Profiler files
 flask_profiler.sql
+
+# Local config với credentials — không commit
+CTFd/config.ini
+
+# Script entrypoint (chỉ dùng local, thay đổi line ending)
+docker-entrypoint.sh
+
+# Yarn lockfile admin theme
+CTFd/themes/admin/yarn.lock

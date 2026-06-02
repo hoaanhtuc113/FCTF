@@ -331,6 +331,9 @@ def create_app(config="CTFd.config.Config"):
         init_plugins(app)
         init_cli(app)
 
+        from CTFd.utils.kypo_poller import start_poller
+        start_poller(app)
+
         @app.before_request
         def _restrict_swagger_to_admins():
             swagger_ui_endpoint = app.config.get("SWAGGER_UI_ENDPOINT")

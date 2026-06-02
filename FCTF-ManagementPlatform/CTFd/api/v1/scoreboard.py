@@ -128,7 +128,7 @@ class ScoreboardDetail(Resource):
                     "account_id": solve.account_id,
                     "team_id": solve.team_id,
                     "user_id": solve.user_id,
-                    "value": solve.challenge.value,
+                    "value": solve.value if solve.value is not None else solve.challenge.value,
                     "date": isoformat(solve.date),
                 }
             )
@@ -195,12 +195,12 @@ class FastestSubmissions(Resource):
         for solve in solves:
             solves_mapper[solve.account_id].append(
                 {
-                    "challenge_id":solve.challenge_id,
-                    "account_id":solve.account_id,
-                    "team_id":solve.team_id,
-                    "user_id":solve.user_id,
-                    "value":solve.challenge.value,
-                    "date":isoformat(solve.date)
+                    "challenge_id": solve.challenge_id,
+                    "account_id": solve.account_id,
+                    "team_id": solve.team_id,
+                    "user_id": solve.user_id,
+                    "value": solve.value if solve.value is not None else solve.challenge.value,
+                    "date": isoformat(solve.date),
                 }
             )
         for award in awards:

@@ -4,7 +4,7 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy.sql import not_
 
 from CTFd.admin import admin
-from CTFd.models import Brackets, Challenges, Teams, Tracking, Users, db
+from CTFd.models import Brackets, Challenges, KypoTeamAccount, Teams, Tracking, Users, db
 from CTFd.utils.decorators import admin_or_jury, admins_only
 
 
@@ -100,6 +100,8 @@ def teams_detail(team_id):
         .all()
     )
 
+    kypo_account = KypoTeamAccount.query.filter_by(team_id=team_id).first()
+
     is_detail = True
 
     return render_template(
@@ -113,5 +115,6 @@ def teams_detail(team_id):
         missing=missing,
         awards=awards,
         addrs=addrs,
+        kypo_account=kypo_account,
         is_detail=is_detail,
     )
