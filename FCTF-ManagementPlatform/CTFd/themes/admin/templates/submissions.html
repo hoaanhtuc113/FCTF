@@ -178,10 +178,14 @@
 						{{ sub.id }}
 					</td>
 					{% if mode == UserModeTypes.TEAMS %}
-					<td class="text-center cell-truncate" title="{{ sub.user.name }}">
+					<td class="text-center cell-truncate" title="{{ sub.user.name if sub.user else '' }}">
+						{% if sub.user_id %}
 						<a href="{{ url_for('admin.users_detail', user_id=sub.user_id) }}">
-							{{ sub.user.name | truncate(28) }}
+							{{ sub.user.name | truncate(28) if sub.user else 'Unknown' }}
 						</a>
+						{% else %}
+							{{ sub.user.name | truncate(28) if sub.user else 'Unknown' }}
+						{% endif %}
 					</td>
 					{% endif %}
 					<td class="text-center cell-truncate" id="{{ sub.account_id }}" title="{{ sub.account.name }}">

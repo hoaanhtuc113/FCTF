@@ -111,6 +111,18 @@ def _redis_key(challenge_id: int, team_id: int) -> str:
     return f"{_REDIS_KEY_PREFIX}_{challenge_id}_{team_id}"
 
 
+def _is_challenge_running(rc, challenge_id: int, team_id: int) -> bool:
+    """
+    Kiểm tra challenge có đang chạy không bằng cách check key
+    deploy_challenge_{challenge_id}_{team_id} trong Redis.
+    Key này do deployment service quản lý:
+      - Tạo khi challenge start
+      - Xóa khi challenge stop (dù stop từ admin hay contestant)
+    """
+    deploy_key = f"deploy_challenge_{challenge_id}_{team_id}"
+    return bool(rc.exists(deploy_key))
+
+
 def _cache(rc, challenge_id: int, team_id: int, payload: dict):
     rc.setex(_redis_key(challenge_id, team_id), _REDIS_TTL, json.dumps(payload))
 
@@ -196,7 +208,10 @@ def _insert_solve(challenge_id: int, team_id: int, score: int):
         return
 
     team = Teams.query.get(team_id)
-    user_id = getattr(team, "captain_id", None) if team else None
+    if team:
+        user_id = team.captain_id or (team.members[0].id if team.members else None)
+    else:
+        user_id = None
 
     solve = Solves(
         challenge_id=challenge_id,
@@ -255,6 +270,14 @@ def _sync_instance(cfg, token: str, rc, username_to_team: dict, now_iso: str):
         team_id = username_to_team.get(kypo_username)
         if team_id is None:
             continue  # username không map được → bỏ qua
+
+        # Skip nếu challenge không còn running (team đã stop)
+        if not _is_challenge_running(rc, cfg.challenge_id, team_id):
+            log.debug(
+                "[KYPO Poller] challenge=%s team=%s không còn running, skip.",
+                cfg.challenge_id, team_id,
+            )
+            continue
 
         status, score = _calc_status_and_score(levels)
 
