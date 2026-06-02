@@ -95,7 +95,12 @@ def stop_challenge_by_admin():
 
 
     try:
-        return force_stop(user_id=user_id, challenge_id=challenge_id,team_id=team_id)
+        resp = force_stop(user_id=user_id, challenge_id=challenge_id, team_id=team_id)
+        ok = resp.get("isSuccess") or resp.get("success") if isinstance(resp, dict) else False
+        if ok and str(team_id) != '-1':
+            from CTFd.utils.kypo_poller import mark_stopped
+            mark_stopped(int(challenge_id), int(team_id))
+        return resp
 
     except requests.exceptions.RequestException as e:
         print(f"Error during stop challenge: {e}")
@@ -181,6 +186,9 @@ def stop_challenge_bulk_by_admin():
 
             if ok:
                 stopped += 1
+                if team_id != -1:
+                    from CTFd.utils.kypo_poller import mark_stopped
+                    mark_stopped(challenge_id, team_id)
             else:
                 failed += 1
 

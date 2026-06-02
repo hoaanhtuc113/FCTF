@@ -383,6 +383,9 @@ def challenge_start():
 
         res_data = response.json()
         if res_data.get("success"):
+            if team_id != -1:
+                from CTFd.utils.kypo_poller import unmark_stopped
+                unmark_stopped(challenge_id, team_id)
             return jsonify({
                 "success": True,
                 "message": res_data.get("message", "Challenge started"),

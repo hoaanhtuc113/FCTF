@@ -107,8 +107,36 @@ def _calc_status_and_score(levels: list) -> tuple[str, int]:
 
 # ── Redis helpers ──────────────────────────────────────────────────────────────
 
+_STOPPED_KEY_PREFIX = "kypo_stopped"
+
 def _redis_key(challenge_id: int, team_id: int) -> str:
     return f"{_REDIS_KEY_PREFIX}_{challenge_id}_{team_id}"
+
+def _stopped_key(challenge_id: int, team_id: int) -> str:
+    return f"{_STOPPED_KEY_PREFIX}_{challenge_id}_{team_id}"
+
+
+def mark_stopped(challenge_id: int, team_id: int):
+    """Đánh dấu team đã stop challenge → poller sẽ bỏ qua cặp này."""
+    try:
+        rc = _redis_lib.StrictRedis(**get_redis_client_kwargs())
+        rc.setex(_stopped_key(challenge_id, team_id), _REDIS_TTL, "1")
+        log.info("[KYPO Poller] Marked stopped: challenge=%s team=%s", challenge_id, team_id)
+    except Exception as exc:
+        log.warning("[KYPO Poller] mark_stopped error: %s", exc)
+
+
+def unmark_stopped(challenge_id: int, team_id: int):
+    """Xóa trạng thái stopped (khi team start lại)."""
+    try:
+        rc = _redis_lib.StrictRedis(**get_redis_client_kwargs())
+        rc.delete(_stopped_key(challenge_id, team_id))
+    except Exception as exc:
+        log.warning("[KYPO Poller] unmark_stopped error: %s", exc)
+
+
+def _is_stopped(rc, challenge_id: int, team_id: int) -> bool:
+    return bool(rc.exists(_stopped_key(challenge_id, team_id)))
 
 
 def _cache(rc, challenge_id: int, team_id: int, payload: dict):
@@ -196,7 +224,10 @@ def _insert_solve(challenge_id: int, team_id: int, score: int):
         return
 
     team = Teams.query.get(team_id)
-    user_id = getattr(team, "captain_id", None) if team else None
+    if team:
+        user_id = team.captain_id or (team.members[0].id if team.members else None)
+    else:
+        user_id = None
 
     solve = Solves(
         challenge_id=challenge_id,
@@ -255,6 +286,14 @@ def _sync_instance(cfg, token: str, rc, username_to_team: dict, now_iso: str):
         team_id = username_to_team.get(kypo_username)
         if team_id is None:
             continue  # username không map được → bỏ qua
+
+        # Skip nếu team đã stop challenge
+        if _is_stopped(rc, cfg.challenge_id, team_id):
+            log.debug(
+                "[KYPO Poller] challenge=%s team=%s đã stopped, skip.",
+                cfg.challenge_id, team_id,
+            )
+            continue
 
         status, score = _calc_status_and_score(levels)
 
