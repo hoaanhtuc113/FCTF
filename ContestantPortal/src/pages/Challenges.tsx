@@ -2277,35 +2277,7 @@ function ChallengeDetailPanel({
     }
   };
 
-  const handleShowKypoCredentials = () => {
-    if (!kypoInfo) return;
-    Swal.fire({
-      title: 'KYPO Sandbox',
-      html: `
-        <div class="font-mono text-left text-sm space-y-3">
-          <div class="${theme === 'dark' ? 'bg-gray-800 border-gray-600' : 'bg-gray-50 border-gray-300'} rounded border p-3">
-            <div class="${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'} text-xs mb-1">Instance Access Token:</div>
-            <div class="${theme === 'dark' ? 'text-orange-300' : 'text-orange-700'} text-xs break-all select-all">${kypoInfo.access_token || '(not configured)'}</div>
-          </div>
-          <div class="${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'} text-xs">Click "Enter Challenge" to open KYPO in a new tab.</div>
-        </div>
-      `,
-      confirmButtonText: 'Enter Challenge',
-      showCancelButton: true,
-      cancelButtonText: 'Close',
-      background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
-      color: theme === 'dark' ? '#e5e7eb' : '#111827',
-      customClass: {
-        popup: 'rounded-lg border border-green-500/30',
-        confirmButton: 'bg-green-600 hover:bg-green-700 text-white font-mono px-4 py-2 rounded mr-2',
-        cancelButton: 'bg-gray-600 hover:bg-gray-700 text-white font-mono px-4 py-2 rounded',
-      },
-    }).then((result) => {
-      if (result.isConfirmed) {
-        window.open(kypoInfo.portalUrl, '_blank', 'noopener,noreferrer');
-      }
-    });
-  };
+
 
   const handleStopKypo = async () => {
     if (isStopping) return;
@@ -2339,7 +2311,7 @@ function ChallengeDetailPanel({
       await fetchWithAuth(API_ENDPOINTS.CHALLENGES.STOP, {
         method: 'POST',
         body: JSON.stringify({ challengeId: challenge.id })
-      }).catch(() => {});
+      }).catch(() => { });
     } finally {
       setIsChallengeStarted(false);
       setUrl(null);
