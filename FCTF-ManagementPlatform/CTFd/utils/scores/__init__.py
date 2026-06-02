@@ -35,7 +35,7 @@ def get_standings(count=None, bracket_id=None, admin=False, fields=None):
             db.func.max(Solves.date).label("date"),
         )
         .join(Challenges)
-        .filter(Challenges.value != 0)
+        .filter(db.or_(Challenges.value != 0, Solves.value != None))
         .group_by(Solves.account_id)
     )
 
@@ -162,7 +162,7 @@ def get_team_standings(count=None, bracket_id=None, admin=False, fields=None):
             db.func.max(Solves.date).label("date"),
         )
         .join(Challenges)
-        .filter(Challenges.value != 0)
+        .filter(db.or_(Challenges.value != 0, Solves.value != None))
         .group_by(Solves.team_id)
     )
 
@@ -260,7 +260,7 @@ def get_user_standings(count=None, bracket_id=None, admin=False, fields=None):
             db.func.max(Solves.date).label("date"),
         )
         .join(Challenges)
-        .filter(Challenges.value != 0)
+        .filter(db.or_(Challenges.value != 0, Solves.value != None))
         .group_by(Solves.user_id)
     )
 
