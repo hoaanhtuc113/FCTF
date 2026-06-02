@@ -1007,16 +1007,17 @@ public class ChallengeController : BaseController
             {
                 try
                 {
+                    bool isSandboxChallenge = string.Equals(challenge.Type, "sandbox", StringComparison.OrdinalIgnoreCase);
                     await _actionLogsServices.SaveActionLogs(new ActionLogsReq
                     {
-                        ActionType = 2, // START_CHALLENGE
+                        ActionType = isSandboxChallenge ? 6 : 2, // 6=START_SANDBOX, 2=START_CHALLENGE
                         ActionDetail = $"Khởi động thử thách {challenge.Name}",
                         ChallengeId = challenge.Id,
                     }, user.Id);
                 }
                 catch (Exception ex)
                 {
-                    await Console.Error.WriteLineAsync($"[ActionLog] Failed to save START_CHALLENGE log for challenge {challenge.Id}: {ex.Message}");
+                    await Console.Error.WriteLineAsync($"[ActionLog] Failed to save START log for challenge {challenge.Id}: {ex.Message}");
                 }
             }
             return response.status switch
@@ -1071,6 +1072,24 @@ public class ChallengeController : BaseController
             await Console.Out.WriteLineAsync($"[Requesst Stop Challenge] User {userId} : Team {user.TeamId} : Challenge {challenge.Name}");
 
             var response = await _challengeServices.ForceStopChallenge(challenge.Id, user);
+
+            if (response.status == (int)HttpStatusCode.OK)
+            {
+                try
+                {
+                    await _actionLogsServices.SaveActionLogs(new ActionLogsReq
+                    {
+                        ActionType = 7, // STOP_SANDBOX
+                        ActionDetail = $"Dừng thử thách sandbox {challenge.Name}",
+                        ChallengeId = challenge.Id,
+                    }, user.Id);
+                }
+                catch (Exception ex)
+                {
+                    await Console.Error.WriteLineAsync($"[ActionLog] Failed to save STOP_SANDBOX log: {ex.Message}");
+                }
+            }
+
             return response.status switch
             {
                 (int)HttpStatusCode.OK => Ok(response),
