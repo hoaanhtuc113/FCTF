@@ -88,12 +88,36 @@ def get_team_score(team_id):
     return None
 
 
-def get_current_team():
-    if authed():
-        user = get_current_user()
-        return user.team
-    else:
+def get_team_id_for_contest(user, contest_id):
+    """Return the team_id for a user in a specific contest."""
+    from CTFd.models import UserTeamMember, Teams
+    if not user or not contest_id:
         return None
+    utm = (
+        UserTeamMember.query
+        .join(Teams, Teams.id == UserTeamMember.team_id)
+        .filter(UserTeamMember.user_id == user.id, Teams.contest_id == contest_id)
+        .first()
+    )
+    return utm.team_id if utm else None
+
+
+def get_team_for_contest(user, contest_id):
+    """Return the Teams object for a user in a specific contest."""
+    from CTFd.models import UserTeamMember, Teams
+    if not user or not contest_id:
+        return None
+    utm = (
+        UserTeamMember.query
+        .join(Teams, Teams.id == UserTeamMember.team_id)
+        .filter(UserTeamMember.user_id == user.id, Teams.contest_id == contest_id)
+        .first()
+    )
+    return utm.team if utm else None
+
+
+def get_current_team():
+    return None
 
 
 def get_current_team_attrs():

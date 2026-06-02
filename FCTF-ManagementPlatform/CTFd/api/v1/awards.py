@@ -117,20 +117,17 @@ class AwardList(Resource):
         if is_teams_mode():
             team_id = req.get("team_id")
             if team_id is None:
-                user = Users.query.filter_by(id=req["user_id"]).first_or_404()
-                if user.team_id is None:
-                    return (
-                        {
-                            "success": False,
-                            "errors": {
-                                "team_id": [
-                                    "User doesn't have a team to associate award with"
-                                ]
-                            },
+                return (
+                    {
+                        "success": False,
+                        "errors": {
+                            "team_id": [
+                                "team_id is required in team mode"
+                            ]
                         },
-                        400,
-                    )
-                req["team_id"] = user.team_id
+                    },
+                    400,
+                )
 
         schema = AwardSchema()
 

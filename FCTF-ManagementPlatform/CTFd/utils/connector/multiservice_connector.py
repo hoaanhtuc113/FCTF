@@ -76,10 +76,13 @@ def get_workflow_name(challenge_id):
 def get_team_id_and_cache_key(user, challenge_id):
     if user.type != "user":
         team_id = -1
-        cache_key = generate_cache_key(challenge_id, team_id)
     else:
-        team_id = user.team_id
-        cache_key = generate_cache_key(challenge_id, team_id)
+        from CTFd.models import Challenges
+        from CTFd.utils.user import get_team_id_for_contest
+        challenge = Challenges.query.filter_by(id=challenge_id).first()
+        contest_id = challenge.contest_id if challenge else None
+        team_id = get_team_id_for_contest(user, contest_id)
+    cache_key = generate_cache_key(challenge_id, team_id)
     return team_id, cache_key
 
 def prepare_start_challenge_payload(challenge, user_id, team_id):

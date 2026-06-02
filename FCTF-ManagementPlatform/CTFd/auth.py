@@ -363,7 +363,8 @@ def oauth_redirect():
                     )
                     return redirect(url_for("auth.login"))
 
-            if get_config("user_mode") == TEAMS_MODE and user.team_id is None:
+            from CTFd.models import UserTeamMember
+            if get_config("user_mode") == TEAMS_MODE and not UserTeamMember.query.filter_by(user_id=user.id).first():
                 team_id = api_data["team"]["id"]
                 team_name = api_data["team"]["name"]
 

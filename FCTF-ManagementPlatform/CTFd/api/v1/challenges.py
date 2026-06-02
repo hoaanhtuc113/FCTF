@@ -880,13 +880,15 @@ class ChallengeAttempt(Resource):
         if user is None:
             return {"success": False, "error": "User not found"}, 404
 
-        team_id = user.team_id
         if not challenge_id:
             return {"success": False, "error": "ChallengeId is required"}, 400
 
         challenge = Challenges.query.filter_by(id=challenge_id).first()
         if not challenge:
             return {"success": False, "error": "Challenge not found"}, 400
+
+        from CTFd.utils.user import get_team_id_for_contest
+        team_id = get_team_id_for_contest(user, challenge.contest_id)
 
         # cache_name = f"challenge:{challenge_id}:team_id:{team_id}"
 

@@ -110,12 +110,19 @@ class UnlockList(Resource):
             user = get_current_user()
 
         Model = get_class_by_tablename(req["type"])
-        req["team_id"]= user.team_id
-        req["user_id"]= user.id
+        req["user_id"] = user.id
         if not Model:
             return jsonify({'message': 'Model class not found'}, 404)
-        else: 
-            target = Model.query.filter_by(id=req["target"]).first_or_404()
+        target = Model.query.filter_by(id=req["target"]).first_or_404()
+
+        # Resolve contest_id from the unlock target to find the user's team
+        from CTFd.utils.user import get_team_id_for_contest
+        _contest_id = None
+        if hasattr(target, 'challenge_id'):
+            from CTFd.models import Challenges as _Challenges
+            _ch = _Challenges.query.filter_by(id=target.challenge_id).first()
+            _contest_id = _ch.contest_id if _ch else None
+        req["team_id"] = get_team_id_for_contest(user, _contest_id)
 
         # We should use the team's score if in teams mode
         # user.account gives the appropriate account based on team mode
@@ -158,7 +165,7 @@ class UnlockList(Resource):
         award_schema = AwardSchema()
         award = {
             "user_id": user.id,
-            "team_id": user.team_id,
+            "team_id": get_team_id_for_contest(user, _contest_id),
             "name": target.name,
             "description": target.description,
             "value": (-target.cost),

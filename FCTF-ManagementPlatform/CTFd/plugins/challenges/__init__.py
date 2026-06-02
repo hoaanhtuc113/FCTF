@@ -233,7 +233,7 @@ class BaseChallenge(object):
         team_id = None
         flags_list = list(flags)
         if any(f.type == "dynamic" for f in flags_list):
-            team_id = cls._get_team_id()
+            team_id = cls._get_team_id(challenge.contest_id)
 
         for flag in flags_list:
             try:
@@ -249,10 +249,10 @@ class BaseChallenge(object):
         return False, "Incorrect"
 
     @staticmethod
-    def _get_team_id():
-        from CTFd.utils.user import get_current_user
+    def _get_team_id(contest_id):
+        from CTFd.utils.user import get_current_user, get_team_id_for_contest
         user = get_current_user()
-        return user.team_id if user else None
+        return get_team_id_for_contest(user, contest_id) if user else None
 
     @classmethod
     def solve(cls, user, team, challenge, request):

@@ -669,15 +669,14 @@ class UserConstant(Resource):
         if (user.banned or user.hidden) and is_admin() is False:
             abort(404)
 
-        team = user.team
-
-        if not team:
-            return {"success": False, "errors": {"team": "Team not found"}}, 404
+        from CTFd.utils.user import get_team_for_contest
+        contest_id = request.args.get("contest_id", type=int)
+        team = get_team_for_contest(user, contest_id) if contest_id else None
 
         response = {
             "username": user.name,
             "email": user.email,
-            "team": team.name,
+            "team": team.name if team else None,
         }
 
         return {"success": True, "data": response}
