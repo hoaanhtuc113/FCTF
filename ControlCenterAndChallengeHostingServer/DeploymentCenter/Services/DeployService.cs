@@ -323,11 +323,17 @@ public class DeployService : IDeployService
             await _redisHelper.RemoveCacheByPattern("deploy_challenge_*");
             await _redisHelper.RemoveCacheByPattern("active_deploys_team_*");
 
-            var message = $"Stopped {successCount} challenge namespace(s) successfully.";
             if (failCount > 0)
             {
-                message += $" {failCount} failed. Errors: {string.Join("; ", errors)}";
+                var warningMsg = $"[StopAll] PARTIAL FAILURE: {failCount}/{successCount + failCount} namespace(s) could not be deleted after retries. " +
+                                 $"Errors: {string.Join("; ", errors)}. " +
+                                 $"Some challenge instances may still be running — please retry or delete manually.";
+                await Console.Error.WriteLineAsync(warningMsg);
             }
+
+            var message = failCount == 0
+                ? $"All {successCount} challenge namespace(s) stopped successfully."
+                : $"Stopped {successCount} namespace(s), {failCount} failed after retries. Check logs for details.";
 
             return new BaseResponseDTO
             {
