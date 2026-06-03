@@ -240,9 +240,13 @@ public class ChallengeService : IChallengeService
             if (cached_value.challenge_id == challenge.Id)
             {
                 var time_finished = cached_value.time_finished;
-                var time_remaining = time_finished - DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-                if (time_remaining < 0) time_remaining = 0;
-
+                // Trả về null khi không có giới hạn thời gian (time_finished = 0) để phân biệt với trường hợp hết giờ (= 0)
+                long? time_remaining = null;
+                if (time_finished > 0)
+                {
+                    long remaining = time_finished - DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+                    time_remaining = remaining < 0 ? 0 : remaining;
+                }
 
                 return new BaseResponseDTO<ChallengeByIdDTO>
                 {

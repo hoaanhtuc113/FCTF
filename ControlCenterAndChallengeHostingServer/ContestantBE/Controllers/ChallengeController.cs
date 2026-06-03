@@ -816,6 +816,48 @@ public class ChallengeController : BaseController
         bridgeUrl = $"{baseUrl}/run";
     }
 
+    // Kiểm tra nếu session đã tồn tại trong Redis
+    var sandboxCacheKey = ChallengeHelper.GetCacheKey(challenge.Id, user.TeamId.Value);
+    if (await _redisHelper.KeyExistsAsync(sandboxCacheKey))
+    {
+        var existingCache = await _redisHelper.GetFromCacheAsync<ChallengeDeploymentCacheDTO>(sandboxCacheKey);
+        if (existingCache != null)
+        {
+            long nowSec = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            long remainSec = existingCache.time_finished > 0 ? Math.Max(0, existingCache.time_finished - nowSec) : 0;
+            return Ok(new ChallengeDeployResponeDTO
+            {
+                status = (int)HttpStatusCode.OK,
+                success = true,
+                challenge_type = "kypo",
+                challenge_url = existingCache.challenge_url,
+                time_limit = (int)(remainSec / 60),
+            });
+        }
+    }
+
+    // Tính thời gian kết thúc từ time_limit (đơn vị: phút)
+    long timeFinished = 0;
+    TimeSpan? cacheTtl = null;
+    if (challenge.TimeLimit.HasValue && challenge.TimeLimit.Value > 0)
+    {
+        long timeLimitSeconds = challenge.TimeLimit.Value * 60L;
+        timeFinished = DateTimeOffset.UtcNow.ToUnixTimeSeconds() + timeLimitSeconds;
+        cacheTtl = TimeSpan.FromSeconds(timeLimitSeconds + 120); // buffer 2 phút
+    }
+
+    var sandboxCacheDto = new ChallengeDeploymentCacheDTO
+    {
+        challenge_id = challenge.Id,
+        team_id = user.TeamId.Value,
+        user_id = user.Id,
+        challenge_url = bridgeUrl,
+        time_finished = timeFinished,
+        status = DeploymentStatus.RUNING,
+        ready = true,
+    };
+    await _redisHelper.SetCacheAsync(sandboxCacheKey, sandboxCacheDto, cacheTtl);
+
     return Ok(new ChallengeDeployResponeDTO
     {
         status = (int)HttpStatusCode.OK,
@@ -1066,6 +1108,19 @@ public class ChallengeController : BaseController
 
         if (!await _redisHelper.KeyExistsAsync(cache_key))
             return BadRequest(new { error = "Challenge not started or already stopped, no active cache found." });
+
+        // Sandbox challenge: chỉ cần xóa Redis key, không gọi external deployment API
+        bool isSandboxChallenge = string.Equals(challenge.Type, "sandbox", StringComparison.OrdinalIgnoreCase);
+        if (isSandboxChallenge)
+        {
+            await _redisHelper.RemoveCacheAsync(cache_key);
+            return Ok(new ChallengeDeployResponeDTO
+            {
+                status = (int)HttpStatusCode.OK,
+                success = true,
+                message = "Sandbox session ended."
+            });
+        }
 
         try
         {
