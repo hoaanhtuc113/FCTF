@@ -219,7 +219,16 @@ public class ChallengesInformerService
         var uid = pod.Metadata.Uid ?? "";
 
         // Get cache
-        var (teamId, challengeId) = ChallengeHelper.ParseDeploymentAppName(ns);
+        int teamId, challengeId;
+        try
+        {
+            (teamId, challengeId) = ChallengeHelper.ParseDeploymentAppName(ns);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, data: new { ns, eventType, errorType = "ParseDeploymentAppNameError" });
+            return;
+        }
         var key = ChallengeHelper.GetCacheKey(challengeId, teamId);
         var cache = await _redisHelper.GetFromCacheAsync<ChallengeDeploymentCacheDTO>(key);
         // pod deleted
@@ -371,6 +380,16 @@ public class ChallengesInformerService
 
                 // Fix DB
                 tracking.StoppedAt = DateTime.UtcNow;
+
+                // Fix Redis — clean up stale cache and ZSET entry that the missed Deleted event never removed
+                if (tracking.TeamId.HasValue)
+                {
+                    var cacheKey = ChallengeHelper.GetCacheKey(tracking.ChallengeId, tracking.TeamId.Value);
+                    await _redisHelper.AtomicRemoveDeploymentZSet(
+                        tracking.TeamId.Value.ToString(),
+                        cacheKey,
+                        tracking.ChallengeId.ToString());
+                }
             }
 
             await dbContext.SaveChangesAsync();
