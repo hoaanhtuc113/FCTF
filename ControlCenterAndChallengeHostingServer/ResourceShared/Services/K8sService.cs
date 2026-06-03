@@ -106,32 +106,51 @@ public class K8sService : IK8sService
 
             _logger.LogDebug("Found namespaces to delete", new { count = namespaces.Items.Count, labelSelector });
 
+            const int maxRetries = 3;
+
             // Delete each namespace
             foreach (var ns in namespaces.Items)
             {
                 var namespaceName = ns.Metadata.Name;
-                try
-                {
-                    await _kubernetes.CoreV1.DeleteNamespaceAsync(namespaceName,
-                        gracePeriodSeconds: 0,
-                        propagationPolicy: "Background");
+                bool succeeded = false;
 
-                    successCount++;
-                    _logger.LogDebug("Successfully deleted namespace", new { namespaceName });
-                }
-                catch (k8s.Autorest.HttpOperationException ex)
+                for (int attempt = 1; attempt <= maxRetries && !succeeded; attempt++)
                 {
-                    failCount++;
-                    var error = $"Failed to delete namespace '{namespaceName}': {ex.Response.Content}";
-                    errors.Add(error);
-                    _logger.LogError(ex, data: new { namespaceName, responseContent = ex.Response.Content, errorType = "DeleteNamespaceHttpError" });
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, data: new { namespaceName, errorType = "DeleteNamespaceException" });
-                    failCount++;
-                    var error = $"Error deleting namespace '{namespaceName}': {ex.Message}";
-                    errors.Add(error);
+                    try
+                    {
+                        await _kubernetes.CoreV1.DeleteNamespaceAsync(namespaceName,
+                            gracePeriodSeconds: 0,
+                            propagationPolicy: "Background");
+
+                        successCount++;
+                        succeeded = true;
+                        _logger.LogDebug("Successfully deleted namespace", new { namespaceName, attempt });
+                    }
+                    catch (k8s.Autorest.HttpOperationException ex)
+                        when (ex.Response?.StatusCode == System.Net.HttpStatusCode.NotFound)
+                    {
+                        // Already deleted — count as success
+                        successCount++;
+                        succeeded = true;
+                        _logger.LogDebug("Namespace already gone (404), counted as success", new { namespaceName });
+                    }
+                    catch (Exception ex)
+                    {
+                        if (attempt < maxRetries)
+                        {
+                            _logger.LogDebug(
+                                $"Delete namespace attempt {attempt}/{maxRetries} failed, retrying in {attempt}s...",
+                                new { namespaceName, error = ex.Message });
+                            await Task.Delay(1000 * attempt);
+                        }
+                        else
+                        {
+                            failCount++;
+                            var error = $"Namespace '{namespaceName}' failed after {maxRetries} attempts: {ex.Message}";
+                            errors.Add(error);
+                            _logger.LogError(ex, data: new { namespaceName, maxRetries, errorType = "DeleteNamespaceRetryExhausted" });
+                        }
+                    }
                 }
             }
 
