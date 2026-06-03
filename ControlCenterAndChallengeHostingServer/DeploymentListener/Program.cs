@@ -22,6 +22,7 @@ var host = Host.CreateDefaultBuilder(args)
         services.AddResourceShared();
         services.AddSingleton<ChallengesInformerService>();
         services.AddHostedService<Worker>();
+        services.AddHostedService<ContestEndCleanupService>();
     })
     .Build();
 
