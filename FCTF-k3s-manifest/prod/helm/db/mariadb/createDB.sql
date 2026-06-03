@@ -557,6 +557,44 @@ CREATE TABLE IF NOT EXISTS `tags`  (
 -- ----------------------------
 
 -- ----------------------------
+-- Table structure for contests
+-- ----------------------------
+CREATE TABLE IF NOT EXISTS `contests`  (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `description` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `slug` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `access_password` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `owner_id` int(11) NULL DEFAULT NULL,
+  `user_mode` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'teams',
+  `state` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'hidden',
+  `start_time` datetime NULL DEFAULT NULL,
+  `end_time` datetime NULL DEFAULT NULL,
+  `freeze_scoreboard_at` datetime NULL DEFAULT NULL,
+  `view_after_ctf` tinyint(1) NOT NULL DEFAULT 0,
+  `score_visibility` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'public',
+  `team_size` int(11) NULL DEFAULT NULL,
+  `captain_only_start_challenge` tinyint(1) NOT NULL DEFAULT 1,
+  `captain_only_submit_challenge` tinyint(1) NOT NULL DEFAULT 0,
+  `team_disbanding` tinyint(1) NOT NULL DEFAULT 1,
+  `allow_name_change` tinyint(1) NOT NULL DEFAULT 1,
+  `incorrect_submissions_per_min` int(11) NULL DEFAULT NULL,
+  `challenge_difficulty_visibility` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'disabled',
+  `limit_challenges` int(11) NULL DEFAULT NULL,
+  `cleanup_triggered_at` datetime NULL DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE INDEX `slug`(`slug`) USING BTREE,
+  INDEX `fk_contests_owner_id`(`owner_id`) USING BTREE,
+  CONSTRAINT `fk_contests_owner_id` FOREIGN KEY (`owner_id`) REFERENCES `users` (`id`) ON DELETE SET NULL ON UPDATE RESTRICT
+) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Records of contests
+-- ----------------------------
+
+-- ----------------------------
 -- Table structure for teams
 -- ----------------------------
 CREATE TABLE IF NOT EXISTS `teams`  (
@@ -566,6 +604,7 @@ CREATE TABLE IF NOT EXISTS `teams`  (
   `email` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL,
   `password` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL,
   `secret` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL,
+  `contest_id` int(11) NULL DEFAULT NULL,
   `website` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL,
   `affiliation` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL,
   `country` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL,
@@ -575,12 +614,14 @@ CREATE TABLE IF NOT EXISTS `teams`  (
   `captain_id` int(11) NULL DEFAULT NULL,
   `bracket_id` int(11) NULL DEFAULT NULL,
   PRIMARY KEY (`id`) USING BTREE,
-  UNIQUE INDEX `email`(`email`) USING BTREE,
+  UNIQUE INDEX `uq_teams_contest_email`(`contest_id`, `email`) USING BTREE,
   UNIQUE INDEX `id`(`id`, `oauth_id`) USING BTREE,
   UNIQUE INDEX `oauth_id`(`oauth_id`) USING BTREE,
   INDEX `team_captain_id`(`captain_id`) USING BTREE,
   INDEX `fk_teams_bracket_id`(`bracket_id`) USING BTREE,
+  INDEX `fk_teams_contest_id`(`contest_id`) USING BTREE,
   CONSTRAINT `fk_teams_bracket_id` FOREIGN KEY (`bracket_id`) REFERENCES `brackets` (`id`) ON DELETE SET NULL ON UPDATE RESTRICT,
+  CONSTRAINT `fk_teams_contest_id` FOREIGN KEY (`contest_id`) REFERENCES `contests` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT,
   CONSTRAINT `team_captain_id` FOREIGN KEY (`captain_id`) REFERENCES `users` (`id`) ON DELETE SET NULL ON UPDATE RESTRICT
 ) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci ROW_FORMAT = Dynamic;
 
@@ -719,6 +760,72 @@ CREATE TABLE IF NOT EXISTS `users`  (
 
 -- ----------------------------
 -- Records of users
+-- ----------------------------
+
+-- ----------------------------
+-- Table structure for contest_participants
+-- ----------------------------
+CREATE TABLE IF NOT EXISTS `contest_participants`  (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `contest_id` int(11) NOT NULL,
+  `user_id` int(11) NOT NULL,
+  `role` enum('contestant','jury','challenge_writer') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'contestant',
+  `joined_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE INDEX `uq_contest_participant`(`contest_id`, `user_id`) USING BTREE,
+  INDEX `fk_contest_participants_user_id`(`user_id`) USING BTREE,
+  CONSTRAINT `fk_contest_participants_contest_id` FOREIGN KEY (`contest_id`) REFERENCES `contests` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT,
+  CONSTRAINT `fk_contest_participants_user_id` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT
+) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Records of contest_participants
+-- ----------------------------
+
+-- ----------------------------
+-- Table structure for user_team_members
+-- ----------------------------
+CREATE TABLE IF NOT EXISTS `user_team_members`  (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `user_id` int(11) NOT NULL,
+  `team_id` int(11) NOT NULL,
+  `joined_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE INDEX `uq_user_team_members`(`user_id`, `team_id`) USING BTREE,
+  INDEX `fk_user_team_members_team_id`(`team_id`) USING BTREE,
+  CONSTRAINT `fk_user_team_members_user_id` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT,
+  CONSTRAINT `fk_user_team_members_team_id` FOREIGN KEY (`team_id`) REFERENCES `teams` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT
+) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Records of user_team_members
+-- ----------------------------
+
+-- ----------------------------
+-- Table structure for dynamic_flag_instances
+-- ----------------------------
+CREATE TABLE IF NOT EXISTS `dynamic_flag_instances`  (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `flag_id` int(11) NOT NULL,
+  `challenge_id` int(11) NOT NULL,
+  `team_id` int(11) NULL DEFAULT NULL,
+  `user_id` int(11) NULL DEFAULT NULL,
+  `value` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` datetime NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE INDEX `uq_dfi_team`(`flag_id`, `team_id`) USING BTREE,
+  UNIQUE INDEX `uq_dfi_user`(`flag_id`, `user_id`) USING BTREE,
+  INDEX `fk_dfi_challenge_id`(`challenge_id`) USING BTREE,
+  INDEX `fk_dfi_team_id`(`team_id`) USING BTREE,
+  INDEX `fk_dfi_user_id`(`user_id`) USING BTREE,
+  CONSTRAINT `fk_dfi_flag_id` FOREIGN KEY (`flag_id`) REFERENCES `flags` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT,
+  CONSTRAINT `fk_dfi_challenge_id` FOREIGN KEY (`challenge_id`) REFERENCES `challenges` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT,
+  CONSTRAINT `fk_dfi_team_id` FOREIGN KEY (`team_id`) REFERENCES `teams` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT,
+  CONSTRAINT `fk_dfi_user_id` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT
+) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Records of dynamic_flag_instances
 -- ----------------------------
 
 SET FOREIGN_KEY_CHECKS = 1;
