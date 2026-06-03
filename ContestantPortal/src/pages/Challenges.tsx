@@ -1625,6 +1625,7 @@ function ChallengeDetailPanel({
             setKypoInfo(null);
             challengeTimerService.stopTimer(challenge.id);
             localStorage.removeItem(`timer_endtime_${challenge.id}`);
+            localStorage.removeItem(`kypo_${challenge.id}`);
             endTimeRef.current = null;
 
             Swal.fire({
@@ -1632,7 +1633,7 @@ function ChallengeDetailPanel({
                 <div class="font-mono text-left text-sm">
                   <div class="text-orange-400 mb-2">[⏱] Time's Up!</div>
                   <div class="text-gray-400 mb-2">> Challenge: ${challenge.name}</div>
-                  <div class="text-gray-400">> Session has ended.</div>
+                  <div class="text-gray-400">> Stopping session automatically...</div>
                 </div>
               `,
               icon: 'info',
@@ -1645,6 +1646,9 @@ function ChallengeDetailPanel({
               timer: 3000,
               timerProgressBar: true,
             });
+
+            // Gọi API để xóa session trên backend (fire and forget)
+            autoStopChallengeOnTimeout();
           }
           return;
         }
@@ -1775,20 +1779,38 @@ function ChallengeDetailPanel({
             challenge.require_deploy || false
           );
         } else if (data.is_started && challenge.type === 'sandbox') {
-          // Restore sandbox/KYPO timer from localStorage after page refresh
-          const savedEndTime = localStorage.getItem(`timer_endtime_${challenge.id}`);
-          if (savedEndTime) {
-            const endTime = parseInt(savedEndTime, 10);
-            const remaining = Math.max(0, Math.floor((endTime - Date.now()) / 1000));
-            if (remaining > 0) {
-              setTimeRemaining(remaining);
-              challengeTimerService.startTimer(challenge.id, challenge.name, remaining, false);
+          // Sandbox/KYPO: time_remaining === 0 means timer expired (only when challenge has a time limit)
+          if (challenge.time_limit && challenge.time_limit > 0 && data.time_remaining === 0) {
+            setIsChallengeStarted(false);
+            setUrl(null);
+            setTimeRemaining(null);
+            setKypoInfo(null);
+            localStorage.removeItem(`timer_endtime_${challenge.id}`);
+            localStorage.removeItem(`kypo_${challenge.id}`);
+            autoStopChallengeOnTimeout();
+            return;
+          }
+          // Ưu tiên dùng time_remaining từ backend nếu có (không null)
+          if (data.time_remaining != null && data.time_remaining > 0) {
+            const adjustedTimeRemaining = Math.max(0, data.time_remaining - rttMs / 2000);
+            setTimeRemaining(adjustedTimeRemaining);
+            challengeTimerService.startTimer(challenge.id, challenge.name, adjustedTimeRemaining, false);
+          } else {
+            // Fallback: khôi phục từ localStorage (trường hợp không có time limit)
+            const savedEndTime = localStorage.getItem(`timer_endtime_${challenge.id}`);
+            if (savedEndTime) {
+              const endTime = parseInt(savedEndTime, 10);
+              const remaining = Math.max(0, Math.floor((endTime - Date.now()) / 1000));
+              if (remaining > 0) {
+                setTimeRemaining(remaining);
+                challengeTimerService.startTimer(challenge.id, challenge.name, remaining, false);
+              } else {
+                localStorage.removeItem(`timer_endtime_${challenge.id}`);
+                setTimeRemaining(null);
+              }
             } else {
-              localStorage.removeItem(`timer_endtime_${challenge.id}`);
               setTimeRemaining(null);
             }
-          } else {
-            setTimeRemaining(null);
           }
         } else {
           setTimeRemaining(null); // Show --:-- when no URL
