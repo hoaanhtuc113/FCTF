@@ -271,6 +271,13 @@ public class K8sService : IK8sService
                 int minutes = challenge.TimeLimit ?? 30;
                 var now = DateTimeOffset.UtcNow;
                 finalUnixFinished = now.AddMinutes(minutes).ToUnixTimeSeconds();
+
+                // Cap instance lifetime at contest end time so pods don't outlive the contest
+                var configHelper = new ConfigHelper(dbContext);
+                var ctfEnd = configHelper.GetConfig<long>("end", 0);
+                if (ctfEnd > 0 && ctfEnd < finalUnixFinished)
+                    finalUnixFinished = ctfEnd;
+
                 //if admin preview challenge skip tracking
                 if(teamId != -1 && teamId != -2)
                 {
