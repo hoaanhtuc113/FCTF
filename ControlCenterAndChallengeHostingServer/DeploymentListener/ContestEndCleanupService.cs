@@ -64,9 +64,19 @@ public class ContestEndCleanupService : BackgroundService
         await _redisHelper.RemoveCacheByPattern("deploy_challenge_*");
         await _redisHelper.RemoveCacheByPattern("active_deploys_team_*");
 
-        _lastCleanedCtfEnd = ctfEnd;
-
-        _logger.LogDebug($"[ContestEndCleanup] Done. Stopped {successCount} namespace(s), {failCount} failed." +
-            (errors.Count > 0 ? $" Errors: {string.Join("; ", errors)}" : ""));
+        if (failCount == 0)
+        {
+            _lastCleanedCtfEnd = ctfEnd;
+            _logger.LogDebug($"[ContestEndCleanup] All {successCount} namespace(s) stopped successfully.");
+        }
+        else
+        {
+            // Do NOT mark as cleaned — next 30s cycle will retry the remaining namespaces.
+            // DeleteAllChallengeNamespaces already handles 404 as success, so retrying is safe.
+            var warningMsg = $"[ContestEndCleanup] WARNING: {failCount}/{successCount + failCount} namespace(s) failed to delete. " +
+                             $"Will retry in 30s. Errors: {string.Join("; ", errors)}";
+            await Console.Error.WriteLineAsync(warningMsg);
+            _logger.LogDebug(warningMsg, new { successCount, failCount, errors }, Microsoft.Extensions.Logging.LogLevel.Warning);
+        }
     }
 }
