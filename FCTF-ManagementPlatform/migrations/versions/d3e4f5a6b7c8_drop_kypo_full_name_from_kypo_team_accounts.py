@@ -17,6 +17,8 @@ depends_on = None
 
 def upgrade():
     conn = op.get_bind()
+
+    # Xóa cột kypo_full_name
     result = conn.execute(sa.text(
         "SELECT COUNT(*) FROM information_schema.COLUMNS "
         "WHERE TABLE_SCHEMA = DATABASE() "
@@ -25,9 +27,29 @@ def upgrade():
     if result.scalar() > 0:
         op.drop_column('kypo_team_accounts', 'kypo_full_name')
 
+    # Thêm index cho kypo_username để tăng tốc polling lookup
+    result = conn.execute(sa.text(
+        "SELECT COUNT(*) FROM information_schema.STATISTICS "
+        "WHERE TABLE_SCHEMA = DATABASE() "
+        "AND TABLE_NAME = 'kypo_team_accounts' AND INDEX_NAME = 'idx_kypo_username'"
+    ))
+    if result.scalar() == 0:
+        op.create_index('idx_kypo_username', 'kypo_team_accounts', ['kypo_username'])
+
 
 def downgrade():
     conn = op.get_bind()
+
+    # Xóa index
+    result = conn.execute(sa.text(
+        "SELECT COUNT(*) FROM information_schema.STATISTICS "
+        "WHERE TABLE_SCHEMA = DATABASE() "
+        "AND TABLE_NAME = 'kypo_team_accounts' AND INDEX_NAME = 'idx_kypo_username'"
+    ))
+    if result.scalar() > 0:
+        op.drop_index('idx_kypo_username', 'kypo_team_accounts')
+
+    # Khôi phục cột kypo_full_name
     result = conn.execute(sa.text(
         "SELECT COUNT(*) FROM information_schema.COLUMNS "
         "WHERE TABLE_SCHEMA = DATABASE() "

@@ -10,16 +10,16 @@ public static class KypoPollingConfig
     public static string ClientId              { get; private set; } = "CRCZP-Client";
     public static string KeycloakAdminUsername { get; private set; } = "admin";
     public static string KeycloakAdminPassword { get; private set; } = "";
-    public static int    PollIntervalSeconds   { get; private set; } = 10;
+    public static int    PollIntervalSeconds   { get; private set; } = 5;
 
     public static void Init()
     {
         AdminUsername         = Environment.GetEnvironmentVariable("KYPO_ADMIN_USERNAME")          ?? "crczp-admin";
-        AdminPassword         = Environment.GetEnvironmentVariable("KYPO_ADMIN_PASSWORD")          ?? "";
+        AdminPassword         = Environment.GetEnvironmentVariable("KYPO_ADMIN_PASSWORD")          ?? "CAUehoz449aGNy";
         ClientId              = Environment.GetEnvironmentVariable("KYPO_CLIENT_ID")               ?? "CRCZP-Client";
         KeycloakAdminUsername = Environment.GetEnvironmentVariable("KYPO_KEYCLOAK_ADMIN_USERNAME") ?? "admin";
-        KeycloakAdminPassword = Environment.GetEnvironmentVariable("KYPO_KEYCLOAK_ADMIN_PASSWORD") ?? "";
+        KeycloakAdminPassword = Environment.GetEnvironmentVariable("KYPO_KEYCLOAK_ADMIN_PASSWORD") ?? "f3RvfeblN9Wq6Mgmkg0e";
         PollIntervalSeconds   = int.TryParse(
-            Environment.GetEnvironmentVariable("KYPO_POLL_INTERVAL_SECONDS"), out var v) ? v : 10;
+            Environment.GetEnvironmentVariable("KYPO_POLL_INTERVAL_SECONDS"), out var v) ? v : 5;
     }
 }
