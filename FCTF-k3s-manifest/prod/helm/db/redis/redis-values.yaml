@@ -172,68 +172,13 @@ auth:
   acl:
     ## @param auth.acl.enabled Enables the support of the Redis ACL system
     ##
-    enabled: true
+    enabled: false
     ## @param auth.acl.sentinel Enables the support of the Redis ACL system for Sentinel Nodes
     ##
     sentinel: false
     ## @param auth.acl.users A list of the configured users in the Redis ACL system
     ##
-    ## Example:
-    ## users:
-    ##   - username: "my-user"
-    ##     password: "mypassword"
-    ##     enabled: "on"
-    ##     commands: "+@all"
-    ##     keys: "~*"
-    ##     channels: "&*"
-    users:
-      # CTFd/Admin MVC: needs cache + deploy flow + optional pubsub.
-      - username: "svc_admin_mvc"
-        password: "AdmMvcRedis2026A"
-        enabled: "on"
-        commands: "+ping +echo +select +get +set +setex +del +unlink +exists +expire +ttl +pttl +persist +incr +decr +scan +keys +hget +hset +hmget +mget +hmset +hdel +publish +subscribe +psubscribe +unsubscribe +punsubscribe"
-        keys: "~*"
-        channels: "&*"
-
-      # Challenge Gateway: only limiter keyspace + Lua execution.
-      - username: "svc_gateway"
-        password: "GwRedis2026A"
-        enabled: "on"
-        commands: "+ping +echo +select +get +set +time +exists +expire +del +incr +decr +hget +hset +hmget +hmset +eval +evalsha"
-        keys: "~fctf:gateway:*"
-        channels: "&*"
-
-      # Contestant backend service + Lua execution.
-      - username: "svc_contestant_be"
-        password: "CbeRedis2026A"
-        enabled: "on"
-        commands: "+ping +echo +select +get +set +setex +del +exists +expire +ttl +pttl +incr +decr +scan +hmget +mget +keys +zadd +zrem +zremrangebyscore +zscore +zcard +eval +evalsha +incrbyfloat"
-        keys: "~submission_cooldown_* ~attempt_count_* ~deploy_challenge_* ~active_deploys_team_* ~auth:user:* ~challenge:* ~hint:* ~kpm_check_* ~fctf:contestant:*"
-        channels: "&*"
-
-      # Deployment center service + Lua execution.
-      - username: "svc_deployment_center"
-        password: "DpcRedis2026A"
-        enabled: "on"
-        commands: "+ping +echo +select +get +set +setex +del +exists +expire +ttl +incr +decr +scan +keys +zadd +zrem +zremrangebyscore +zscore +zcard +eval +evalsha"
-        keys: "~deploy_challenge_* ~active_deploys_team_*"
-        channels: "&*"
-
-      # Deployment consumer service + Lua execution.
-      - username: "svc_deployment_consumer"
-        password: "DpsCRedis2026A"
-        enabled: "on"
-        commands: "+ping +echo +select +get +set +setex +del +exists +expire +ttl +incr +decr +scan +keys +zadd +zrem +zremrangebyscore +zscore +zcard +eval +evalsha"
-        keys: "~deploy_challenge_* ~active_deploys_team_*"
-        channels: "&*"
-
-      # Deployment listener service + Lua execution.
-      - username: "svc_deployment_listener"
-        password: "DpsLRedis2026A"
-        enabled: "on"
-        commands: "+ping +echo +select +get +set +setex +del +exists +expire +ttl +incr +decr +scan +keys +zadd +zrem +zremrangebyscore +zscore +zcard +eval +evalsha"
-        keys: "~deploy_challenge_* ~active_deploys_team_*"
-        channels: "&*"
+    users: []
     ## @param auth.acl.userSecret Name of the Secret, containing user credentials for ACL users. Keys must match usernames.
     userSecret: ""
 ## @param commonConfiguration [string] Common configuration to be added into the ConfigMap
@@ -248,6 +193,8 @@ commonConfiguration: |-
   maxclients 10000
   # Close idle client connections after N seconds.
   timeout 300
+  # Load ACL file (mounted via extraVolumes, no subPath to avoid k3s bind-mount bug with dot keys)
+  aclfile /opt/bitnami/redis/acl-file/usersacl
 ## @param existingConfigmap The name of an existing ConfigMap with your custom configuration for Redis(R) nodes
 ##
 existingConfigmap: ""
@@ -540,10 +487,16 @@ master:
   lifecycleHooks: {}
   ## @param master.extraVolumes Optionally specify extra list of additional volumes for the Redis(R) master pod(s)
   ##
-  extraVolumes: []
+  extraVolumes:
+    - name: redis-acl-file
+      secret:
+        secretName: redis-acl-file
   ## @param master.extraVolumeMounts Optionally specify extra list of additional volumeMounts for the Redis(R) master container(s)
   ##
-  extraVolumeMounts: []
+  extraVolumeMounts:
+    - name: redis-acl-file
+      mountPath: /opt/bitnami/redis/acl-file
+      readOnly: true
   ## @param master.sidecars Add additional sidecar containers to the Redis(R) master pod(s)
   ## e.g:
   ## sidecars:
