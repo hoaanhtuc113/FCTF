@@ -17,8 +17,22 @@ depends_on = None
 
 
 def upgrade():
-    op.add_column('solves', sa.Column('value', sa.Integer(), nullable=True))
+    conn = op.get_bind()
+    result = conn.execute(sa.text(
+        "SELECT COUNT(*) FROM information_schema.COLUMNS "
+        "WHERE TABLE_SCHEMA = DATABASE() "
+        "AND TABLE_NAME = 'solves' AND COLUMN_NAME = 'value'"
+    ))
+    if result.scalar() == 0:
+        op.add_column('solves', sa.Column('value', sa.Integer(), nullable=True))
 
 
 def downgrade():
-    op.drop_column('solves', 'value')
+    conn = op.get_bind()
+    result = conn.execute(sa.text(
+        "SELECT COUNT(*) FROM information_schema.COLUMNS "
+        "WHERE TABLE_SCHEMA = DATABASE() "
+        "AND TABLE_NAME = 'solves' AND COLUMN_NAME = 'value'"
+    ))
+    if result.scalar() > 0:
+        op.drop_column('solves', 'value')

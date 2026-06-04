@@ -32,6 +32,15 @@ builder.Services.AddControllers(options =>
     options.Filters.Add<GlobalExceptionFilter>();
 });
 builder.Services.AddHttpClient();
+
+// HttpClient cho KYPO — bỏ qua SSL certificate (KYPO dùng self-signed)
+builder.Services.AddHttpClient("kypo", client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(15);
+}).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+{
+    ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+});
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
@@ -77,6 +86,9 @@ builder.Services.AddOptions();
 // Init env config for ContestantBE
 new ContestantBEConfigHelper().InitConfig();
 
+// Init KYPO polling config
+KypoPollingConfig.Init();
+
 builder.Services.AddStackExchangeRedisCache(options =>
 {
     var redisOptions = ConfigurationOptions.Parse(ContestantBEConfigHelper.REDIS_CONNECTION_STRING);
@@ -104,6 +116,11 @@ builder.Services.AddScoped<IChallengeService, ChallengeService>();
 builder.Services.AddScoped<IFileService, FileService>();
 builder.Services.AddScoped<IActionLogsServices, ActionLogsServices>();
 builder.Services.AddScoped<IUserContext, UserContext>();
+
+// KYPO Polling
+builder.Services.AddSingleton<KypoApiClient>();
+builder.Services.AddScoped<KypoSyncService>();
+builder.Services.AddHostedService<KypoPollingService>();
 // DI services from ResourceShared
 builder.Services.AddResourceShared();
 

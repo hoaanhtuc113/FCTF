@@ -318,21 +318,9 @@ def _sync_instance(cfg, token: str, rc, username_to_team: dict, safe_first_name_
     """
     from CTFd.models import db
 
-    # De-duplicate team IDs (mỗi team có 2 key trong username_to_team)
-    all_team_ids = list({v for v in username_to_team.values()})
-
-    # ── Skip nếu tất cả teams đã solve ────────────────────────────────────────
-    unsolved = _count_unsolved_teams(cfg.challenge_id, all_team_ids)
-    if unsolved == 0:
-        log.debug(
-            "[KYPO Poller] challenge=%s — tất cả %d teams đã solve, skip.",
-            cfg.challenge_id, len(all_team_ids),
-        )
-        return
-
-    log.info(
-        "[KYPO Poller] challenge=%s instance=%s — %d team(s) chưa solve, polling...",
-        cfg.challenge_id, cfg.kypo_instance_id, unsolved,
+    log.debug(
+        "[KYPO Poller] challenge=%s instance=%s — polling...",
+        cfg.challenge_id, cfg.kypo_instance_id,
     )
 
     # ── Gọi KYPO ──────────────────────────────────────────────────────────────
@@ -422,9 +410,19 @@ def _run_poll_cycle(app):
     from CTFd.models import KypoChallengeConfig, KypoTeamAccount
 
     with app.app_context():
-        # Reset session để tránh stale data từ cycle trước
+        # Reset session + dispose pool để force fresh connection, tránh
+        # MySQL REPEATABLE READ giữ snapshot cũ không thấy team mới tạo.
         from CTFd.models import db
+        try:
+            db.session.close()
+        except Exception:
+            pass
         db.session.remove()
+        try:
+            # Expire tất cả objects trong identity map
+            db.session.expire_all()
+        except Exception:
+            pass
 
         configs = KypoChallengeConfig.query.all()
         if not configs:
@@ -512,29 +510,53 @@ def run_poll_cycle_now(app):
 # ── Thread loop ────────────────────────────────────────────────────────────────
 
 def _loop(app):
+    # Dùng time.sleep thật từ stdlib gốc, tránh gevent patch
+    try:
+        from gevent.monkey import get_original
+        _sleep = get_original("time", "sleep")
+    except Exception:
+        import time as _t
+        _sleep = _t.sleep
+
     log.info("[KYPO Poller] Started. Interval=%ds", POLL_INTERVAL)
     while not _stop_event.is_set():
         try:
             _run_poll_cycle(app)
         except Exception as exc:
             log.error("[KYPO Poller] Loop error: %s", exc, exc_info=True)
-        _stop_event.wait(POLL_INTERVAL)
+        _sleep(POLL_INTERVAL)
     log.info("[KYPO Poller] Stopped.")
 
 
 def start_poller(app):
-    """Khởi động daemon thread. Gọi 1 lần duy nhất khi app start."""
+    """Khởi động daemon thread. Gọi 1 lần duy nhất khi app start.
+
+    Dùng OS thread thật (bypass gevent monkey-patch) để poller chạy
+    độc lập, không phụ thuộc vào gevent hub của Flask server.
+    """
     global _thread
     if _thread and _thread.is_alive():
         return
     _stop_event.clear()
-    _thread = threading.Thread(
+
+    # Lấy threading.Thread gốc trước khi gevent patch, tránh greenlet
+    try:
+        from gevent.monkey import get_original
+        RealThread = get_original("threading", "Thread")
+    except Exception:
+        RealThread = threading.Thread
+
+    _thread = RealThread(
         target=_loop,
         args=(app,),
         name="kypo-poller",
         daemon=True,
     )
     _thread.start()
+    import logging
+    logging.getLogger(__name__).info(
+        "[KYPO Poller] Thread started (type=%s)", type(_thread).__name__
+    )
 
 
 def stop_poller():

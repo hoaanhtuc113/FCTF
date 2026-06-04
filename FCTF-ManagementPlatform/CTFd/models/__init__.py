@@ -1391,6 +1391,7 @@ class KypoTeamAccount(db.Model):
     kypo_user_id = db.Column(db.String(64), nullable=False)
     kypo_username = db.Column(db.String(128), nullable=False)
     kypo_password = db.Column(db.String(255), nullable=False)
+    kypo_full_name = db.Column(db.String(255), nullable=True)
     created_at   = db.Column(db.DateTime, default=datetime.datetime.utcnow)
 
     team = db.relationship("Teams", foreign_keys=[team_id], lazy="select")
