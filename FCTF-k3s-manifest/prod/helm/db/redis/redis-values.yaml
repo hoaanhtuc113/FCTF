@@ -235,7 +235,7 @@ auth:
         keys: "~deploy_challenge_* ~active_deploys_team_*"
         channels: "&*"
     ## @param auth.acl.userSecret Name of the Secret, containing user credentials for ACL users. Keys must match usernames.
-    userSecret: "redis-acl-users-secret"
+    userSecret: ""
 ## @param commonConfiguration [string] Common configuration to be added into the ConfigMap
 ## ref: https://redis.io/topics/config
 ##
