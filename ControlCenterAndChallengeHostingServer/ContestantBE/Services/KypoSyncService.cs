@@ -33,8 +33,9 @@ public class KypoSyncService
             .ToListAsync();
         if (configs.Count == 0) return 0;
 
-        var now   = DateTime.UtcNow;
-        var total = 0;
+        var now       = DateTime.UtcNow;
+        var total     = 0;
+        var syncTasks = new List<(KypoChallengeConfig Config, Task<int> Task)>();
 
         foreach (var config in configs)
         {
@@ -89,9 +90,15 @@ public class KypoSyncService
                 continue;
             }
 
+            syncTasks.Add((config, SyncInstanceAsync(config)));
+        }
+
+        // Chạy tất cả instance song song
+        foreach (var (config, task) in syncTasks)
+        {
             try
             {
-                var n = await SyncInstanceAsync(config);
+                var n = await task;
                 if (n > 0)
                     _logger.LogInformation("[KYPO POLL] Instance {InstanceId}: +{Count} solve(s)", config.KypoInstanceId, n);
                 total += n;
