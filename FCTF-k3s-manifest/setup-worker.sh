@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Configure needrestart and dpkg to never prompt interactively for the entire script
+export DEBIAN_FRONTEND=noninteractive
+export NEEDRESTART_MODE=a
+sudo mkdir -p /etc/needrestart/conf.d
+echo "\$nrconf{restart} = 'a';" | sudo tee /etc/needrestart/conf.d/autorestart.conf >/dev/null
+
 TIMEZONE="Asia/Ho_Chi_Minh"
 MAX_PODS="400"
 # inputable
