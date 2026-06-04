@@ -328,12 +328,16 @@ public class ScoreHelper
         int? count, int? bracketId, bool admin, DateTime? freezeUtc)
     {
         // Materialize solve scores per team (explicit JOIN, no navigation inside GroupBy)
+        // Điểm ưu tiên: solves.value (KYPO trả về) nếu có,
+        // fallback về challenges.value (FCTF thường)
         var solveQuery =
             from solve in _context.Solves
             join challenge in _context.Challenges on solve.ChallengeId equals challenge.Id
             join submission in _context.Submissions on solve.Id equals submission.Id
-            where solve.TeamId != null && (challenge.Value ?? 0) != 0
-            select new { solve.TeamId, ChallengeValue = challenge.Value ?? 0, solve.Id, submission.Date };
+            where solve.TeamId != null
+            let effectiveValue = solve.Value != null ? solve.Value : challenge.Value
+            where (effectiveValue ?? 0) != 0
+            select new { solve.TeamId, ChallengeValue = effectiveValue ?? 0, solve.Id, submission.Date };
 
         if (!admin && freezeUtc.HasValue)
             solveQuery = solveQuery.Where(x => x.Date < freezeUtc.Value);
@@ -435,12 +439,16 @@ public class ScoreHelper
     private async Task<List<StandingDto>> GetUserStandings(
         int? count, int? bracketId, bool admin, DateTime? freezeUtc)
     {
+        // Điểm ưu tiên: solves.value (KYPO trả về) nếu có,
+        // fallback về challenges.value (FCTF thường)
         var solveQuery =
             from solve in _context.Solves
             join challenge in _context.Challenges on solve.ChallengeId equals challenge.Id
             join submission in _context.Submissions on solve.Id equals submission.Id
-            where solve.UserId != null && (challenge.Value ?? 0) != 0
-            select new { solve.UserId, ChallengeValue = challenge.Value ?? 0, solve.Id, submission.Date };
+            where solve.UserId != null
+            let effectiveValue = solve.Value != null ? solve.Value : challenge.Value
+            where (effectiveValue ?? 0) != 0
+            select new { solve.UserId, ChallengeValue = effectiveValue ?? 0, solve.Id, submission.Date };
 
         if (!admin && freezeUtc.HasValue)
             solveQuery = solveQuery.Where(x => x.Date < freezeUtc.Value);
