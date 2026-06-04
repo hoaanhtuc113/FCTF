@@ -321,9 +321,9 @@ if [[ "${CALICO_NETWORK_MODE}" != "l2" && "${CALICO_NETWORK_MODE}" != "vxlan" ]]
 fi
 
 echo "==> Updating system and installing dependencies"
-sudo apt update
-sudo apt upgrade -y
-sudo apt install -y curl wget git nano vim net-tools nfs-common
+sudo DEBIAN_FRONTEND=noninteractive apt update
+sudo DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt upgrade -y
+sudo DEBIAN_FRONTEND=noninteractive apt install -y curl wget git nano vim net-tools nfs-common
 
 echo "==> Setting timezone: ${TIMEZONE}"
 sudo timedatectl set-timezone "${TIMEZONE}"

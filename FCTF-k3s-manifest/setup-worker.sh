@@ -115,9 +115,9 @@ elif [[ -z "${MASTER_URL}" || -z "${NODE_TOKEN}" ]]; then
 fi
 
 echo "==> Updating system and installing dependencies"
-sudo apt update
-sudo apt upgrade -y
-sudo apt install -y curl wget git nano vim net-tools nfs-common acl
+sudo DEBIAN_FRONTEND=noninteractive apt update
+sudo DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt upgrade -y
+sudo DEBIAN_FRONTEND=noninteractive apt install -y curl wget git nano vim net-tools nfs-common acl
 
 echo "==> Setting timezone: ${TIMEZONE}"
 sudo timedatectl set-timezone "${TIMEZONE}"
@@ -145,8 +145,8 @@ sudo systemctl is-active --quiet k3s-agent
 if [[ "${INSTALL_GVISOR}" == "true" ]]; then
   echo "==> Installing gVisor (runsc) in production mode"
 
-  sudo apt-get update && \
-  sudo apt-get install -y \
+  sudo DEBIAN_FRONTEND=noninteractive apt-get update && \
+  sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
       apt-transport-https \
       ca-certificates \
       curl \
@@ -155,7 +155,7 @@ if [[ "${INSTALL_GVISOR}" == "true" ]]; then
   curl -fsSL https://gvisor.dev/archive.key | sudo gpg --dearmor -o /usr/share/keyrings/gvisor-archive-keyring.gpg
   echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/gvisor-archive-keyring.gpg] https://storage.googleapis.com/gvisor/releases release main" | sudo tee /etc/apt/sources.list.d/gvisor.list > /dev/null
 
-  sudo apt-get update && sudo apt-get install -y runsc  
+  sudo DEBIAN_FRONTEND=noninteractive apt-get update && sudo DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get install -y runsc
 
   echo "==> Configuring containerd runtime for runsc (preserve k3s base template)"
   sudo mkdir -p /var/lib/rancher/k3s/agent/etc/containerd
