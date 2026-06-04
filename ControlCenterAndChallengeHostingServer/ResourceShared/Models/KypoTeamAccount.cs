@@ -9,7 +9,6 @@ public partial class KypoTeamAccount
     public string KypoUserId { get; set; } = null!;
     public string KypoUsername { get; set; } = null!;
     public string KypoPassword { get; set; } = null!;
-    public string? KypoFullName { get; set; }
     public DateTime CreatedAt { get; set; }
 
     public virtual Team Team { get; set; } = null!;

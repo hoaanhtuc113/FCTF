@@ -1341,7 +1341,6 @@ public partial class AppDbContext : DbContext
             entity.Property(e => e.KypoUserId).HasMaxLength(64).HasColumnName("kypo_user_id");
             entity.Property(e => e.KypoUsername).HasMaxLength(128).HasColumnName("kypo_username");
             entity.Property(e => e.KypoPassword).HasMaxLength(255).HasColumnName("kypo_password");
-            entity.Property(e => e.KypoFullName).HasMaxLength(255).HasColumnName("kypo_full_name");
             entity.Property(e => e.CreatedAt).HasColumnType("datetime").HasColumnName("created_at");
 
             entity.HasOne(d => d.Team).WithOne()

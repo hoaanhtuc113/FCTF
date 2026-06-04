@@ -12,6 +12,9 @@ public class KypoSyncService
     private readonly KypoApiClient _kypoClient;
     private readonly ILogger<KypoSyncService> _logger;
 
+    // Cache: training_run_id → team_id (tránh gọi API lặp lại)
+    private readonly Dictionary<int, int> _runTeamCache = new();
+
     public KypoSyncService(AppDbContext db, KypoApiClient kypoClient, ILogger<KypoSyncService> logger)
     {
         _db         = db;
@@ -135,23 +138,18 @@ public class KypoSyncService
         {
             if (!entry.IsFinished) continue;
 
-            // Map KYPO display name → team
-            // Ưu tiên kypo_full_name (display name chính xác), fallback kypo_username
-            var account = await _db.KypoTeamAccounts
-                .FirstOrDefaultAsync(a =>
-                    (a.KypoFullName != null && a.KypoFullName == entry.Name)
-                    || a.KypoUsername == entry.Name);
+            // Map training_run_id → team_id qua Participant API + Keycloak
+            var teamId = await GetTeamIdByTrainingRunAsync(
+                baseUrl, config.KypoInstanceType, entry.RunId);
 
-            if (account == null)
+            if (teamId == null)
             {
-                _logger.LogDebug("[KYPO SYNC] Không tìm thấy team cho name='{Name}'", entry.Name);
+                _logger.LogDebug("[KYPO SYNC] Không tìm thấy team cho training_run_id={RunId}", entry.RunId);
                 continue;
             }
 
-            var teamId = account.TeamId;
-
             // Lấy captain của team làm user_id cho solve
-            var userId = await GetTeamCaptainAsync(teamId);
+            var userId = await GetTeamCaptainAsync(teamId.Value);
             if (userId == null)
             {
                 _logger.LogWarning("[KYPO SYNC] Team {TeamId} không có captain, bỏ qua", teamId);
@@ -160,7 +158,7 @@ public class KypoSyncService
 
             // Kiểm tra đã solve chưa
             var alreadySolved = await _db.Solves
-                .AnyAsync(s => s.ChallengeId == config.ChallengeId && s.TeamId == teamId);
+                .AnyAsync(s => s.ChallengeId == config.ChallengeId && s.TeamId == teamId.Value);
 
             if (alreadySolved) continue;
 
@@ -170,7 +168,7 @@ public class KypoSyncService
                 : await GetChallengeFallbackScore(config.ChallengeId);
 
             // Ghi vào DB
-            await InsertSolveAsync(config.ChallengeId, userId.Value, teamId, score);
+            await InsertSolveAsync(config.ChallengeId, userId.Value, teamId.Value, score);
 
             _logger.LogInformation(
                 "[KYPO SYNC] ✅ SOLVED challenge={ChallengeId} team={TeamId} user={UserId} score={Score}",
@@ -185,6 +183,52 @@ public class KypoSyncService
     // ─────────────────────────────────────────────────────────
     // Helpers
     // ─────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Map training_run_id → team_id qua:
+    /// 1. Cache (nếu đã biết)
+    /// 2. Participant API → sub (email)
+    /// 3. Keycloak Users API → kypo_username
+    /// 4. kypo_team_accounts → team_id
+    /// </summary>
+    private async Task<int?> GetTeamIdByTrainingRunAsync(
+        string baseUrl, string instanceType, int trainingRunId)
+    {
+        // Kiểm tra cache trước
+        if (_runTeamCache.TryGetValue(trainingRunId, out var cachedTeamId))
+            return cachedTeamId;
+
+        // Bước 1: training_run_id → sub (email)
+        var sub = await _kypoClient.GetParticipantSubAsync(baseUrl, instanceType, trainingRunId);
+        if (string.IsNullOrEmpty(sub))
+        {
+            _logger.LogDebug("[KYPO SYNC] Không lấy được sub từ training_run_id={RunId}", trainingRunId);
+            return null;
+        }
+
+        // Bước 2: sub → kypo_username
+        var username = await _kypoClient.GetKeycloakUsernameBySubAsync(baseUrl, sub);
+        if (string.IsNullOrEmpty(username))
+        {
+            _logger.LogDebug("[KYPO SYNC] Không lấy được username từ sub={Sub}", sub);
+            return null;
+        }
+
+        // Bước 3: kypo_username → team_id
+        var account = await _db.KypoTeamAccounts
+            .FirstOrDefaultAsync(a => a.KypoUsername == username);
+
+        if (account == null)
+        {
+            _logger.LogDebug("[KYPO SYNC] Không tìm thấy team cho kypo_username='{Username}'", username);
+            return null;
+        }
+
+        // Lưu cache
+        _runTeamCache[trainingRunId] = account.TeamId;
+        _logger.LogDebug("[KYPO SYNC] Cache: training_run_id={RunId} → team_id={TeamId}", trainingRunId, account.TeamId);
+        return account.TeamId;
+    }
 
     private async Task<int?> GetTeamCaptainAsync(int teamId)
     {

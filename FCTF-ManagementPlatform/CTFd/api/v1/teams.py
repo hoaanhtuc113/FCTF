@@ -180,7 +180,6 @@ class TeamList(Resource):
                 kypo_user_id=kypo_info["kypo_user_id"],
                 kypo_username=kypo_info["kypo_username"],
                 kypo_password=kypo_info["kypo_password"],  # TODO: mã hóa AES khi có key
-                kypo_full_name=kypo_info.get("kypo_full_name") or f"{team.name} FCTF Team",
             )
             db.session.add(kypo_account)
             db.session.commit()
