@@ -125,6 +125,104 @@ public class KypoApiClient
     }
 
     // ──────────────────────────────────────────────────────────
+    // Keycloak Admin Token (master realm) — dùng để query users
+    // ──────────────────────────────────────────────────────────
+    private string? _cachedKcAdminToken;
+    private DateTime _kcAdminTokenExpiry = DateTime.MinValue;
+
+    private async Task<string> GetKeycloakAdminTokenAsync(string baseUrl)
+    {
+        if (_cachedKcAdminToken != null && DateTime.UtcNow < _kcAdminTokenExpiry)
+            return _cachedKcAdminToken;
+
+        var url = $"{baseUrl.TrimEnd('/')}/keycloak/realms/master/protocol/openid-connect/token";
+        var form = new Dictionary<string, string>
+        {
+            ["grant_type"] = "password",
+            ["client_id"]  = "admin-cli",
+            ["username"]   = KypoPollingConfig.KeycloakAdminUsername,
+            ["password"]   = KypoPollingConfig.KeycloakAdminPassword,
+        };
+
+        var client = _httpClientFactory.CreateClient("kypo");
+        var resp   = await client.PostAsync(url, new FormUrlEncodedContent(form));
+        resp.EnsureSuccessStatusCode();
+
+        var json  = await resp.Content.ReadAsStringAsync();
+        var doc   = JsonDocument.Parse(json);
+        var token = doc.RootElement.GetProperty("access_token").GetString()
+            ?? throw new Exception("Không lấy được Keycloak admin token");
+
+        _cachedKcAdminToken = token;
+        _kcAdminTokenExpiry = DateTime.UtcNow.AddMinutes(4);
+        return token;
+    }
+
+    // ──────────────────────────────────────────────────────────
+    // Participant API — lấy sub (email) từ training_run_id
+    // ──────────────────────────────────────────────────────────
+    public async Task<string?> GetParticipantSubAsync(
+        string baseUrl, string instanceType, int trainingRunId)
+    {
+        var token   = await GetAdminTokenAsync(baseUrl);
+        var service = instanceType == "adaptive" ? "adaptive-training" : "training";
+        var url     = $"{baseUrl.TrimEnd('/')}/{service}/api/v1/training-runs/{trainingRunId}/participant";
+
+        var client = _httpClientFactory.CreateClient("kypo");
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        try
+        {
+            var resp = await client.GetAsync(url);
+            resp.EnsureSuccessStatusCode();
+
+            var json = await resp.Content.ReadAsStringAsync();
+            var doc  = JsonDocument.Parse(json);
+
+            return doc.RootElement.TryGetProperty("sub", out var sub)
+                ? sub.GetString()
+                : null;
+        }
+        catch (Exception e)
+        {
+            _logger.LogWarning("[KYPO] Không lấy được participant run={Id}: {Msg}", trainingRunId, e.Message);
+            return null;
+        }
+    }
+
+    // ──────────────────────────────────────────────────────────
+    // Keycloak Users API — lấy username từ sub (email)
+    // ──────────────────────────────────────────────────────────
+    public async Task<string?> GetKeycloakUsernameBySubAsync(string baseUrl, string sub)
+    {
+        var token = await GetKeycloakAdminTokenAsync(baseUrl);
+        var url   = $"{baseUrl.TrimEnd('/')}/keycloak/admin/realms/CRCZP/users?email={Uri.EscapeDataString(sub)}";
+
+        var client = _httpClientFactory.CreateClient("kypo");
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        try
+        {
+            var resp = await client.GetAsync(url);
+            resp.EnsureSuccessStatusCode();
+
+            var json  = await resp.Content.ReadAsStringAsync();
+            var users = JsonDocument.Parse(json).RootElement;
+
+            if (users.GetArrayLength() == 0) return null;
+
+            return users[0].TryGetProperty("username", out var uname)
+                ? uname.GetString()
+                : null;
+        }
+        catch (Exception e)
+        {
+            _logger.LogWarning("[KYPO] Không lấy được username từ sub={Sub}: {Msg}", sub, e.Message);
+            return null;
+        }
+    }
+
+    // ──────────────────────────────────────────────────────────
     // Instance API — lấy end_time của training instance
     // Cache kết quả vì end_time không thay đổi
     // ──────────────────────────────────────────────────────────
