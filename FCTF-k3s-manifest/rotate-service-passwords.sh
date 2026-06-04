@@ -725,6 +725,27 @@ scale_harbor_deployments_down() {
   done
 }
 
+patch_redis_acl_file_secret() {
+  local ns="$1"
+
+  if ! kubectl -n "${ns}" get secret redis-acl-file >/dev/null 2>&1; then
+    debug_log "redis-acl-file secret not found in ${ns}; skipping ACL file patch"
+    return 0
+  fi
+
+  local new_usersacl
+  new_usersacl="user default on >${REDIS_ROOT_PASSWORD_NEW} ~* &* +@all
+user svc_admin_mvc on >${ADMIN_REDIS_PASSWORD} ~* &* +ping +echo +select +get +set +setex +del +unlink +exists +expire +ttl +pttl +persist +incr +decr +scan +keys +hget +hset +hmget +mget +hmset +hdel +publish +subscribe +psubscribe +unsubscribe +punsubscribe
+user svc_gateway on >${GATEWAY_REDIS_PASSWORD} ~fctf:gateway:* &* +ping +echo +select +get +set +time +exists +expire +del +incr +decr +hget +hset +hmget +hmset +eval +evalsha
+user svc_contestant_be on >${CONTESTANT_BE_REDIS_PASSWORD} ~submission_cooldown_* ~attempt_count_* ~deploy_challenge_* ~active_deploys_team_* ~auth:user:* ~challenge:* ~hint:* ~kpm_check_* ~fctf:contestant:* &* +ping +echo +select +get +set +setex +del +exists +expire +ttl +pttl +incr +decr +scan +hmget +mget +keys +zadd +zrem +zremrangebyscore +zscore +zcard +eval +evalsha +incrbyfloat
+user svc_deployment_center on >${DEPLOYMENT_CENTER_REDIS_PASSWORD} ~deploy_challenge_* ~active_deploys_team_* &* +ping +echo +select +get +set +setex +del +exists +expire +ttl +incr +decr +scan +keys +zadd +zrem +zremrangebyscore +zscore +zcard +eval +evalsha
+user svc_deployment_consumer on >${DEPLOYMENT_CONSUMER_REDIS_PASSWORD} ~deploy_challenge_* ~active_deploys_team_* &* +ping +echo +select +get +set +setex +del +exists +expire +ttl +incr +decr +scan +keys +zadd +zrem +zremrangebyscore +zscore +zcard +eval +evalsha
+user svc_deployment_listener on >${DEPLOYMENT_LISTENER_REDIS_PASSWORD} ~deploy_challenge_* ~active_deploys_team_* &* +ping +echo +select +get +set +setex +del +exists +expire +ttl +incr +decr +scan +keys +zadd +zrem +zremrangebyscore +zscore +zcard +eval +evalsha"
+
+  patch_secret_string_key "${ns}" "redis-acl-file" "usersacl" "${new_usersacl}"
+  echo "    patched ${ns}/redis-acl-file:usersacl"
+}
+
 redis_password_for_user() {
   local username="$1"
   case "${username}" in
@@ -1217,6 +1238,7 @@ restart_redis_workload() {
   patch_secret_string_key "${ns}" "redis-acl-users-secret" "svc_deployment_center" "${DEPLOYMENT_CENTER_REDIS_PASSWORD}"
   patch_secret_string_key "${ns}" "redis-acl-users-secret" "svc_deployment_listener" "${DEPLOYMENT_LISTENER_REDIS_PASSWORD}"
   patch_secret_string_key "${ns}" "redis-acl-users-secret" "svc_deployment_consumer" "${DEPLOYMENT_CONSUMER_REDIS_PASSWORD}"
+  patch_redis_acl_file_secret "${ns}"
 
   if kubectl -n "${ns}" get secret redis >/dev/null 2>&1; then
     patch_secret_string_key "${ns}" "redis" "redis-password" "${REDIS_ROOT_PASSWORD_NEW}"
@@ -1486,6 +1508,7 @@ if [[ "${NEED_REDIS_ROTATION}" == "true" ]]; then
     patch_secret_string_key "${DB_NAMESPACE}" "redis-acl-users-secret" "svc_deployment_center" "${DEPLOYMENT_CENTER_REDIS_PASSWORD}"
     patch_secret_string_key "${DB_NAMESPACE}" "redis-acl-users-secret" "svc_deployment_listener" "${DEPLOYMENT_LISTENER_REDIS_PASSWORD}"
     patch_secret_string_key "${DB_NAMESPACE}" "redis-acl-users-secret" "svc_deployment_consumer" "${DEPLOYMENT_CONSUMER_REDIS_PASSWORD}"
+    patch_redis_acl_file_secret "${DB_NAMESPACE}"
     if kubectl -n "${DB_NAMESPACE}" get secret redis >/dev/null 2>&1; then
       patch_secret_string_key "${DB_NAMESPACE}" "redis" "redis-password" "${REDIS_ROOT_PASSWORD_NEW}"
     fi
