@@ -195,8 +195,8 @@ public class KypoSyncService
     /// Map training_run_id → team_id qua:
     /// 1. Cache (nếu đã biết)
     /// 2. Participant API → sub (email)
-    /// 3. Keycloak Users API → kypo_username
-    /// 4. kypo_team_accounts → team_id
+    /// 3. Keycloak Users API → kypo_user_id (UUID)
+    /// 4. kypo_team_accounts → team_id (match bằng UUID, bất biến)
     /// </summary>
     private async Task<int?> GetTeamIdByTrainingRunAsync(
         string baseUrl, string instanceType, int trainingRunId)
@@ -213,21 +213,21 @@ public class KypoSyncService
             return null;
         }
 
-        // Bước 2: sub → kypo_username
-        var username = await _kypoClient.GetKeycloakUsernameBySubAsync(baseUrl, sub);
-        if (string.IsNullOrEmpty(username))
+        // Bước 2: sub → Keycloak UUID (kypo_user_id)
+        var keycloakUserId = await _kypoClient.GetKeycloakUserIdBySubAsync(baseUrl, sub);
+        if (string.IsNullOrEmpty(keycloakUserId))
         {
-            _logger.LogDebug("[KYPO SYNC] Không lấy được username từ sub={Sub}", sub);
+            _logger.LogDebug("[KYPO SYNC] Không lấy được Keycloak UUID từ sub={Sub}", sub);
             return null;
         }
 
-        // Bước 3: kypo_username → team_id
+        // Bước 3: kypo_user_id (UUID) → team_id — UUID bất biến, chính xác 100%
         var account = await _db.KypoTeamAccounts
-            .FirstOrDefaultAsync(a => a.KypoUsername == username);
+            .FirstOrDefaultAsync(a => a.KypoUserId == keycloakUserId);
 
         if (account == null)
         {
-            _logger.LogDebug("[KYPO SYNC] Không tìm thấy team cho kypo_username='{Username}'", username);
+            _logger.LogDebug("[KYPO SYNC] Không tìm thấy team cho kypo_user_id='{UserId}'", keycloakUserId);
             return null;
         }
 
