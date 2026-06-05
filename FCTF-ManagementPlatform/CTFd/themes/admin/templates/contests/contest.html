@@ -2,73 +2,103 @@
 
 {% block contest_stylesheets %}
 <style>
-    .form-section {
-        background: #fff;
-        border: 1px solid var(--border-light);
-        border-radius: 6px;
-        padding: 1.25rem 1.5rem;
-        margin-bottom: 1rem;
-        box-shadow: var(--shadow-sm);
-    }
-    .form-section-title {
-        font-size: 0.82rem;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        color: var(--primary-orange);
-        margin-bottom: 1rem;
-        padding-bottom: 0.4rem;
-        border-bottom: 2px solid #ffe8df;
-        display: flex;
-        align-items: center;
-        gap: 0.4rem;
-    }
-    .form-label-sm {
-        font-size: 0.78rem;
-        font-weight: 600;
-        color: var(--text-medium);
-        text-transform: uppercase;
-        letter-spacing: 0.3px;
-        margin-bottom: 0.2rem;
-    }
-    .form-hint { font-size: 0.75rem; color: var(--text-light); margin-top: 0.15rem; }
-    .danger-zone {
-        border: 1px solid #f8d7da;
-        border-radius: 6px;
-        padding: 1rem 1.5rem;
-        background: #fff5f5;
-        margin-bottom: 1rem;
-    }
-    .danger-zone-title {
-        font-size: 0.82rem;
-        font-weight: 700;
-        text-transform: uppercase;
-        color: #dc3545;
-        margin-bottom: 0.75rem;
-        display: flex;
-        align-items: center;
-        gap: 0.4rem;
-    }
-    .password-toggle-btn {
-        position: absolute;
-        right: 0.5rem;
-        top: 50%;
-        transform: translateY(-50%);
-        background: none;
-        border: none;
-        cursor: pointer;
-        padding: 0.25rem;
-        color: var(--text-light, #888);
-        font-size: 1.15rem;
-        line-height: 1;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: color 0.2s;
-    }
-    .password-toggle-btn:hover {
-        color: var(--primary-orange, #e67e22);
-    }
+.settings-wrap {
+    display: flex;
+    border: 1px solid var(--border-light);
+    border-radius: 8px;
+    overflow: hidden;
+    background: #fff;
+    box-shadow: var(--shadow-sm);
+    margin-bottom: 2rem;
+}
+.settings-nav {
+    width: 210px;
+    min-width: 210px;
+    background: #fafafa;
+    border-right: 1px solid var(--border-light);
+    padding: 0.75rem 0;
+}
+.settings-nav-group-label {
+    font-size: 0.67rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.7px;
+    color: var(--text-light);
+    padding: 0.6rem 1rem 0.2rem;
+}
+.settings-nav-item {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.42rem 1rem;
+    font-size: 0.83rem;
+    color: var(--text-medium);
+    cursor: pointer;
+    border: none;
+    background: none;
+    width: 100%;
+    text-align: left;
+    text-decoration: none;
+    border-left: 3px solid transparent;
+    transition: background 0.12s, color 0.12s;
+}
+.settings-nav-item:hover { background: #f0f0f0; color: var(--text-dark); text-decoration: none; }
+.settings-nav-item.active { background: #fff5f0; color: var(--primary-orange); border-left-color: var(--primary-orange); font-weight: 600; }
+.settings-nav-item.danger-item { color: #dc3545; }
+.settings-nav-item.danger-item:hover,
+.settings-nav-item.danger-item.active { background: #fff5f5; color: #dc3545; border-left-color: #dc3545; }
+.settings-content { flex: 1; padding: 1.75rem 2rem; min-width: 0; }
+.settings-panel { display: none; }
+.settings-panel.active { display: block; }
+
+.panel-title { font-size: 1rem; font-weight: 700; color: var(--text-dark); margin-bottom: 0.2rem; }
+.panel-desc  { font-size: 0.8rem; color: var(--text-light); margin-bottom: 1.25rem; }
+.panel-divider { border: none; border-top: 1px solid var(--border-light); margin: 1.25rem 0; }
+.panel-footer  { display: flex; justify-content: flex-end; padding-top: 1rem; border-top: 1px solid var(--border-light); margin-top: 1.5rem; }
+
+.form-label-sm { font-size: 0.75rem; font-weight: 600; color: var(--text-medium); text-transform: uppercase; letter-spacing: 0.3px; margin-bottom: 0.2rem; display: block; }
+.form-hint { font-size: 0.74rem; color: var(--text-light); margin-top: 0.18rem; }
+
+.password-toggle-btn {
+    position: absolute; right: 0.5rem; top: 50%; transform: translateY(-50%);
+    background: none; border: none; cursor: pointer; padding: 0.25rem;
+    color: var(--text-light); font-size: 1.1rem; line-height: 1;
+    display: flex; align-items: center; transition: color 0.15s;
+}
+.password-toggle-btn:hover { color: var(--primary-orange); }
+
+/* Time picker */
+.time-tabs { display: flex; border-bottom: 1px solid var(--border-light); margin-bottom: 1.25rem; }
+.time-tab {
+    padding: 0.38rem 1rem; font-size: 0.82rem; font-weight: 600;
+    color: var(--text-medium); cursor: pointer; border: none; background: none;
+    border-bottom: 2px solid transparent; margin-bottom: -1px; transition: color 0.12s;
+}
+.time-tab:hover { color: var(--primary-orange); }
+.time-tab.active { color: var(--primary-orange); border-bottom-color: var(--primary-orange); }
+
+.time-fields { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: flex-end; margin-bottom: 1rem; }
+.time-field-grp { display: flex; flex-direction: column; }
+.time-field-grp label { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; color: var(--text-light); margin-bottom: 0.18rem; }
+.time-field-grp input { width: 68px; text-align: center; }
+.time-field-grp.f-year input { width: 86px; }
+
+.time-preview {
+    background: #f8f9fa; border: 1px solid var(--border-light);
+    border-radius: 4px; padding: 0.4rem 0.7rem; font-size: 0.79rem;
+    color: var(--text-medium); margin-bottom: 0.4rem;
+}
+.time-preview label { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; color: var(--text-light); display: block; margin-bottom: 0.05rem; }
+
+.time-utc-row { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.6rem; }
+.time-utc-row label { font-size: 0.74rem; font-weight: 600; text-transform: uppercase; color: var(--text-medium); white-space: nowrap; }
+
+.danger-zone {
+    border: 1px solid #f5c6cb; border-radius: 6px; padding: 1rem 1.25rem;
+    background: #fff5f5; display: flex; justify-content: space-between; align-items: center; gap: 1rem;
+}
+.danger-zone-desc strong { font-size: 0.88rem; color: #721c24; }
+.danger-zone-desc p { font-size: 0.79rem; color: #721c24; margin: 0.2rem 0 0; }
 </style>
 {% endblock %}
 
@@ -85,235 +115,385 @@
 </div>
 
 <div class="container">
-
     <div id="save-alert" class="alert alert-success d-none" role="alert">
-        <i class="bx bx-check-circle"></i> Contest saved successfully.
+        <i class="bx bx-check-circle"></i> <span id="save-msg">Saved successfully.</span>
     </div>
     <div id="error-alert" class="alert alert-danger d-none" role="alert">
         <i class="bx bx-error-circle"></i> <span id="error-msg">An error occurred.</span>
     </div>
 
-    <form id="contest-edit-form" autocomplete="off">
+    <div class="settings-wrap">
+        <!-- Sidebar -->
+        <nav class="settings-nav">
+            <a class="settings-nav-item active" data-panel="general" href="#general">
+                <i class="bx bx-info-circle"></i> General
+            </a>
+            <div class="settings-nav-group-label">Access</div>
+            <a class="settings-nav-item" data-panel="access" href="#access">
+                <i class="bx bx-lock"></i> State &amp; Access
+            </a>
+            <a class="settings-nav-item" data-panel="schedule" href="#schedule">
+                <i class="bx bx-calendar"></i> Schedule
+            </a>
+            <a class="settings-nav-item" data-panel="visibility" href="#visibility">
+                <i class="bx bx-show"></i> Visibility
+            </a>
+            <div class="settings-nav-group-label">Participants</div>
+            <a class="settings-nav-item" data-panel="team" href="#team">
+                <i class="bx bx-group"></i> Team Settings
+            </a>
+            <a class="settings-nav-item" data-panel="brackets" href="#brackets">
+                <i class="bx bx-category"></i> Brackets
+            </a>
+            <div class="settings-nav-group-label">Danger Zone</div>
+            <a class="settings-nav-item danger-item" data-panel="danger" href="#danger">
+                <i class="bx bx-trash"></i> Delete Contest
+            </a>
+        </nav>
 
-        <!-- Basic Info -->
-        <div class="form-section">
-            <div class="form-section-title"><i class="bx bx-info-circle"></i> Basic Information</div>
-            <div class="row">
-                <div class="col-md-6">
-                    <div class="form-group">
-                        <label class="form-label-sm">Contest Name <span class="text-danger">*</span></label>
-                        <input type="text" name="name" class="clean-form-control w-100"
-                               value="{{ contest.name }}" required>
-                    </div>
+        <!-- Content -->
+        <div class="settings-content">
+
+            <!-- General -->
+            <div id="panel-general" class="settings-panel active">
+                <div class="panel-title">General</div>
+                <div class="panel-desc">Basic contest information.</div>
+                <div class="form-group">
+                    <label class="form-label-sm">Contest Name <span class="text-danger">*</span></label>
+                    <input type="text" id="g-name" class="clean-form-control w-100" value="{{ contest.name }}">
                 </div>
-                <div class="col-md-6">
-                    <div class="form-group">
-                        <label class="form-label-sm">Slug</label>
-                        <input type="text" name="slug" class="clean-form-control w-100"
-                               value="{{ contest.slug }}" autocomplete="off">
-                        <div class="form-hint">Unique URL identifier for this contest.</div>
-                    </div>
+                <div class="form-group">
+                    <label class="form-label-sm">Slug</label>
+                    <input type="text" id="g-slug" class="clean-form-control w-100" value="{{ contest.slug }}" autocomplete="off">
+                    <div class="form-hint">Unique URL identifier for this contest.</div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label-sm">Description</label>
+                    <textarea id="g-desc" class="clean-form-control w-100" rows="4">{{ contest.description or '' }}</textarea>
+                </div>
+                <div class="panel-footer">
+                    <button type="button" class="clean-btn clean-btn-primary" onclick="saveSection('general', this)">
+                        <i class="bx bx-save"></i> Update
+                    </button>
                 </div>
             </div>
-            <div class="form-group">
-                <label class="form-label-sm">Description</label>
-                <textarea name="description" class="clean-form-control w-100" rows="3">{{ contest.description or '' }}</textarea>
-            </div>
-            <div class="row">
-                <div class="col-md-6">
-                    <div class="form-group">
-                        <label class="form-label-sm">Access Password</label>
-                        <div style="position:relative;">
-                            <input type="password" name="access_password" id="access-password-input" class="clean-form-control w-100"
-                                   value="{{ contest.access_password or '' }}"
-                                   placeholder="Leave blank for open access"
-                                   style="padding-right:2.5rem;" autocomplete="new-password">
-                            <button type="button" class="password-toggle-btn" onclick="togglePassword('access-password-input', this)" title="Show/Hide password">
-                                <i class="bx bx-hide"></i>
-                            </button>
+
+            <!-- Access & State -->
+            <div id="panel-access" class="settings-panel">
+                <div class="panel-title">State &amp; Access</div>
+                <div class="panel-desc">Control who can see and join this contest.</div>
+                <div class="row">
+                    <div class="col-md-5">
+                        <div class="form-group">
+                            <label class="form-label-sm">State</label>
+                            <select id="a-state" class="clean-form-control w-100">
+                                <option value="hidden"  {% if contest.state == 'hidden'  %}selected{% endif %}>Hidden</option>
+                                <option value="visible" {% if contest.state == 'visible' %}selected{% endif %}>Visible</option>
+                                <option value="paused"  {% if contest.state == 'paused'  %}selected{% endif %}>Paused</option>
+                                <option value="ended"   {% if contest.state == 'ended'   %}selected{% endif %}>Ended</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-7">
+                        <div class="form-group">
+                            <label class="form-label-sm">Access Password</label>
+                            <div style="position:relative;">
+                                <input type="password" id="a-password" class="clean-form-control w-100"
+                                       value="{{ contest.access_password or '' }}"
+                                       placeholder="Leave blank for open access"
+                                       style="padding-right:2.5rem;" autocomplete="new-password">
+                                <button type="button" class="password-toggle-btn" onclick="togglePassword('a-password', this)">
+                                    <i class="bx bx-hide"></i>
+                                </button>
+                            </div>
+                            <div class="form-hint">Leave blank to allow anyone to join.</div>
                         </div>
                     </div>
                 </div>
-                <div class="col-md-6">
-                    <div class="form-group">
-                        <label class="form-label-sm">State</label>
-                        <select name="state" class="clean-form-control w-100">
-                            <option value="hidden"  {% if contest.state == 'hidden'  %}selected{% endif %}>Hidden</option>
-                            <option value="visible" {% if contest.state == 'visible' %}selected{% endif %}>Visible</option>
-                            <option value="paused"  {% if contest.state == 'paused'  %}selected{% endif %}>Paused</option>
-                            <option value="ended"   {% if contest.state == 'ended'   %}selected{% endif %}>Ended</option>
-                        </select>
-                    </div>
+                <div class="panel-footer">
+                    <button type="button" class="clean-btn clean-btn-primary" onclick="saveSection('access', this)">
+                        <i class="bx bx-save"></i> Update
+                    </button>
                 </div>
             </div>
-        </div>
 
-        <!-- Schedule -->
-        <div class="form-section">
-            <div class="form-section-title"><i class="bx bx-calendar"></i> Schedule</div>
-            <div class="row">
-                <div class="col-md-4">
-                    <div class="form-group">
-                        <label class="form-label-sm">Start Time</label>
-                        <input type="datetime-local" name="start_time" class="clean-form-control w-100"
-                               value="{{ contest.start_time.strftime('%Y-%m-%dT%H:%M') if contest.start_time else '' }}">
+            <!-- Schedule -->
+            <div id="panel-schedule" class="settings-panel">
+                <div class="panel-title">Schedule</div>
+                <div class="panel-desc">Set the contest start, end, and scoreboard freeze times. All times are entered in the selected timezone and stored as UTC.</div>
+
+                <div class="form-group mb-3">
+                    <label class="form-label-sm">Timezone</label>
+                    <select id="sched-tz" class="clean-form-control" style="max-width:380px;"></select>
+                </div>
+
+                <div class="time-tabs">
+                    <button class="time-tab active" data-target="start">Start Time</button>
+                    <button class="time-tab" data-target="end">End Time</button>
+                    <button class="time-tab" data-target="freeze">Freeze Scoreboard</button>
+                </div>
+
+                {% for tname, tdesc in [
+                    ('start',  'The time when the competition begins. Challenges unlock and submissions open.'),
+                    ('end',    'The time when the competition ends. Submissions will be locked.'),
+                    ('freeze', 'Scoreboard freezes at this time. Submissions still accepted but scores hidden.')
+                ] %}
+                <div id="time-panel-{{ tname }}" class="time-panel" {% if not loop.first %}style="display:none"{% endif %}>
+                    <p style="font-size:0.78rem;color:var(--text-light);margin-bottom:0.85rem;">{{ tdesc }}</p>
+                    <p style="font-size:0.73rem;color:var(--text-light);margin-bottom:0.75rem;">* All time fields required</p>
+                    <div class="time-fields">
+                        <div class="time-field-grp"><label>Month</label>
+                            <input type="number" class="clean-form-control" id="{{ tname }}-month" min="1" max="12" placeholder="MM">
+                        </div>
+                        <div class="time-field-grp"><label>Day</label>
+                            <input type="number" class="clean-form-control" id="{{ tname }}-day" min="1" max="31" placeholder="DD">
+                        </div>
+                        <div class="time-field-grp f-year"><label>Year</label>
+                            <input type="number" class="clean-form-control" id="{{ tname }}-year" min="2020" max="2100" placeholder="YYYY">
+                        </div>
+                        <div class="time-field-grp"><label>Hour</label>
+                            <input type="number" class="clean-form-control" id="{{ tname }}-hour" min="0" max="23" placeholder="HH">
+                        </div>
+                        <div class="time-field-grp"><label>Minute</label>
+                            <input type="number" class="clean-form-control" id="{{ tname }}-minute" min="0" max="59" placeholder="MM">
+                        </div>
+                        <div style="align-self:flex-end;padding-bottom:1px;">
+                            <button type="button" class="clean-btn" onclick="clearTime('{{ tname }}')" style="font-size:0.74rem;padding:0.28rem 0.6rem;">
+                                <i class="bx bx-x"></i> Clear
+                            </button>
+                        </div>
+                    </div>
+                    <div class="time-preview"><label>Local Time</label><span id="{{ tname }}-local-preview">—</span></div>
+                    <div class="time-preview"><label>Timezone Time</label><span id="{{ tname }}-tz-preview">—</span></div>
+                    <div class="time-utc-row">
+                        <label>UTC Timestamp</label>
+                        <input type="number" class="clean-form-control" id="{{ tname }}-utc-ts" style="width:175px;" placeholder="—" readonly>
                     </div>
                 </div>
-                <div class="col-md-4">
-                    <div class="form-group">
-                        <label class="form-label-sm">End Time</label>
-                        <input type="datetime-local" name="end_time" class="clean-form-control w-100"
-                               value="{{ contest.end_time.strftime('%Y-%m-%dT%H:%M') if contest.end_time else '' }}">
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="form-group">
-                        <label class="form-label-sm">Freeze Scoreboard At</label>
-                        <input type="datetime-local" name="freeze_scoreboard_at" class="clean-form-control w-100"
-                               value="{{ contest.freeze_scoreboard_at.strftime('%Y-%m-%dT%H:%M') if contest.freeze_scoreboard_at else '' }}">
-                    </div>
-                </div>
-            </div>
-            <div class="form-group">
+                {% endfor %}
+
+                <hr class="panel-divider">
                 <div class="custom-control custom-switch">
                     <input type="checkbox" class="custom-control-input" id="view-after-ctf"
-                           name="view_after_ctf" {% if contest.view_after_ctf %}checked{% endif %}>
-                    <label class="custom-control-label" for="view-after-ctf">
-                        Allow viewing after CTF ends
-                    </label>
+                           {% if contest.view_after_ctf %}checked{% endif %}>
+                    <label class="custom-control-label" for="view-after-ctf">Allow viewing after CTF ends</label>
+                </div>
+                <div class="panel-footer">
+                    <button type="button" class="clean-btn clean-btn-primary" onclick="saveSection('schedule', this)">
+                        <i class="bx bx-save"></i> Update
+                    </button>
                 </div>
             </div>
-        </div>
 
-        <!-- Visibility -->
-        <div class="form-section">
-            <div class="form-section-title"><i class="bx bx-show"></i> Visibility Settings</div>
-            <div class="row">
-                <div class="col-md-3">
-                    <div class="form-group">
-                        <label class="form-label-sm">Score Visibility</label>
-                        <select name="score_visibility" class="clean-form-control w-100">
-                            <option value="private" {% if contest.score_visibility == 'private' %}selected{% endif %}>Private</option>
-                            <option value="public"  {% if contest.score_visibility == 'public'  %}selected{% endif %}>Public</option>
-                            <option value="admins"  {% if contest.score_visibility == 'admins'  %}selected{% endif %}>Admins Only</option>
-                        </select>
+            <!-- Visibility -->
+            <div id="panel-visibility" class="settings-panel">
+                <div class="panel-title">Visibility</div>
+                <div class="panel-desc">Control what information is visible to participants.</div>
+                <div class="row">
+                    <div class="col-md-5">
+                        <div class="form-group">
+                            <label class="form-label-sm">Score Visibility</label>
+                            <select id="v-score" class="clean-form-control w-100">
+                                <option value="private" {% if contest.score_visibility == 'private' %}selected{% endif %}>Private</option>
+                                <option value="public"  {% if contest.score_visibility == 'public'  %}selected{% endif %}>Public</option>
+                                <option value="admins"  {% if contest.score_visibility == 'admins'  %}selected{% endif %}>Admins Only</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-5">
+                        <div class="form-group">
+                            <label class="form-label-sm">Challenge Difficulty</label>
+                            <select id="v-difficulty" class="clean-form-control w-100">
+                                <option value="disabled" {% if contest.challenge_difficulty_visibility != 'enabled' %}selected{% endif %}>Hidden</option>
+                                <option value="enabled"  {% if contest.challenge_difficulty_visibility == 'enabled'  %}selected{% endif %}>Visible</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
-                <div class="col-md-3">
-                    <div class="form-group">
-                        <label class="form-label-sm">Challenge Difficulty</label>
-                        <select name="challenge_difficulty_visibility" class="clean-form-control w-100">
-                            <option value="disabled" {% if contest.challenge_difficulty_visibility != 'enabled' %}selected{% endif %}>Hidden</option>
-                            <option value="enabled"  {% if contest.challenge_difficulty_visibility == 'enabled' %}selected{% endif %}>Visible</option>
-                        </select>
-                    </div>
+                <div class="panel-footer">
+                    <button type="button" class="clean-btn clean-btn-primary" onclick="saveSection('visibility', this)">
+                        <i class="bx bx-save"></i> Update
+                    </button>
                 </div>
             </div>
-        </div>
 
-        <!-- Team Settings -->
-        <div class="form-section">
-            <div class="form-section-title"><i class="bx bx-group"></i> Team Settings</div>
-            <div class="row">
-                <div class="col-md-3">
-                    <div class="form-group">
-                        <label class="form-label-sm">User Mode</label>
-                        <select name="user_mode" class="clean-form-control w-100">
-                            <option value="teams" {% if contest.user_mode == 'teams' %}selected{% endif %}>Teams</option>
-                            <option value="users" {% if contest.user_mode == 'users' %}selected{% endif %}>Users</option>
-                        </select>
+            <!-- Team Settings -->
+            <div id="panel-team" class="settings-panel">
+                <div class="panel-title">Team Settings</div>
+                <div class="panel-desc">Configure how teams and participants work in this contest.</div>
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label class="form-label-sm">User Mode</label>
+                            <select id="t-mode" class="clean-form-control w-100">
+                                <option value="teams" {% if contest.user_mode == 'teams' %}selected{% endif %}>Teams</option>
+                                <option value="users" {% if contest.user_mode == 'users' %}selected{% endif %}>Users</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-3" id="team-size-group">
+                        <div class="form-group">
+                            <label class="form-label-sm">Max Team Size</label>
+                            <input type="number" id="t-size" min="1" class="clean-form-control w-100"
+                                   value="{{ contest.team_size or '' }}" placeholder="Unlimited">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label class="form-label-sm">Wrong Submissions / Min</label>
+                            <input type="number" id="t-wrong" min="1" class="clean-form-control w-100"
+                                   value="{{ contest.incorrect_submissions_per_min or '' }}" placeholder="Unlimited">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label class="form-label-sm">Concurrent Challenge Limit</label>
+                            <input type="number" id="t-limit" min="0" class="clean-form-control w-100"
+                                   value="{{ contest.limit_challenges if contest.limit_challenges is not none else '' }}"
+                                   placeholder="0 (unlimited)">
+                        </div>
                     </div>
                 </div>
-                <div class="col-md-3" id="team-size-group">
-                    <div class="form-group">
-                        <label class="form-label-sm">Max Team Size</label>
-                        <input type="number" id="team-size-input" name="team_size" min="1" class="clean-form-control w-100"
-                               value="{{ contest.team_size or '' }}" placeholder="Unlimited">
+                <hr class="panel-divider">
+                <div class="row">
+                    <div class="col-md-6 col-lg-3">
+                        <div class="custom-control custom-switch mb-3">
+                            <input type="checkbox" class="custom-control-input" id="t-captain-start"
+                                   {% if contest.captain_only_start_challenge %}checked{% endif %}>
+                            <label class="custom-control-label" for="t-captain-start">Captain only start challenge</label>
+                        </div>
+                    </div>
+                    <div class="col-md-6 col-lg-3">
+                        <div class="custom-control custom-switch mb-3">
+                            <input type="checkbox" class="custom-control-input" id="t-captain-submit"
+                                   {% if contest.captain_only_submit_challenge %}checked{% endif %}>
+                            <label class="custom-control-label" for="t-captain-submit">Captain only submit flag</label>
+                        </div>
+                    </div>
+                    <div class="col-md-6 col-lg-3">
+                        <div class="custom-control custom-switch mb-3">
+                            <input type="checkbox" class="custom-control-input" id="t-disband"
+                                   {% if contest.team_disbanding %}checked{% endif %}>
+                            <label class="custom-control-label" for="t-disband">Allow team disbanding</label>
+                        </div>
+                    </div>
+                    <div class="col-md-6 col-lg-3">
+                        <div class="custom-control custom-switch mb-3">
+                            <input type="checkbox" class="custom-control-input" id="t-name-change"
+                                   {% if contest.allow_name_change %}checked{% endif %}>
+                            <label class="custom-control-label" for="t-name-change">Allow name change</label>
+                        </div>
                     </div>
                 </div>
-                <div class="col-md-3">
-                    <div class="form-group">
-                        <label class="form-label-sm">Wrong Submissions / Min</label>
-                        <input type="number" name="incorrect_submissions_per_min" min="1"
-                               class="clean-form-control w-100"
-                               value="{{ contest.incorrect_submissions_per_min or '' }}"
-                               placeholder="Unlimited">
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="form-group">
-                        <label class="form-label-sm">Concurrent Challenge Limit <span class="text-muted">(0 = unlimited)</span></label>
-                        <input type="number" class="clean-form-control w-100" name="limit_challenges" min="0"
-                               value="{{ contest.limit_challenges if contest.limit_challenges is not none else '' }}"
-                               placeholder="0 (unlimited)">
-                    </div>
+                <div class="panel-footer">
+                    <button type="button" class="clean-btn clean-btn-primary" onclick="saveSection('team', this)">
+                        <i class="bx bx-save"></i> Update
+                    </button>
                 </div>
             </div>
-            <div class="row">
-                <div class="col-md-3">
-                    <div class="custom-control custom-switch mb-2">
-                        <input type="checkbox" class="custom-control-input" id="captain-start"
-                               name="captain_only_start_challenge"
-                               {% if contest.captain_only_start_challenge %}checked{% endif %}>
-                        <label class="custom-control-label" for="captain-start">Captain only start challenge</label>
-                    </div>
+
+            <!-- Brackets -->
+            <div id="panel-brackets" class="settings-panel">
+                <div class="panel-title">Brackets</div>
+                <div class="panel-desc">Segment teams into groups for the scoreboard filter. Each team can be assigned to one bracket.</div>
+                <div class="mb-3 text-right">
+                    <button type="button" class="clean-btn clean-btn-primary" style="font-size:.8rem;" onclick="BR.openModal()">
+                        <i class="bx bx-plus"></i> Add Bracket
+                    </button>
                 </div>
-                <div class="col-md-3">
-                    <div class="custom-control custom-switch mb-2">
-                        <input type="checkbox" class="custom-control-input" id="captain-submit"
-                               name="captain_only_submit_challenge"
-                               {% if contest.captain_only_submit_challenge %}checked{% endif %}>
-                        <label class="custom-control-label" for="captain-submit">Captain only submit flag</label>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="custom-control custom-switch mb-2">
-                        <input type="checkbox" class="custom-control-input" id="team-disband"
-                               name="team_disbanding"
-                               {% if contest.team_disbanding %}checked{% endif %}>
-                        <label class="custom-control-label" for="team-disband">Allow team disbanding</label>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="custom-control custom-switch mb-2">
-                        <input type="checkbox" class="custom-control-input" id="name-change"
-                               name="allow_name_change"
-                               {% if contest.allow_name_change %}checked{% endif %}>
-                        <label class="custom-control-label" for="name-change">Allow name change</label>
-                    </div>
+                <div class="clean-table-wrapper">
+                    <table class="clean-table table mb-0">
+                        <thead>
+                            <tr>
+                                <th style="width:40px;">#</th>
+                                <th>Name</th>
+                                <th>Description</th>
+                                <th class="text-center" style="width:140px;">Teams Assigned</th>
+                                <th class="text-center" style="width:100px;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="br-body">
+                            {% if brackets %}
+                                {% for b in brackets %}
+                                <tr data-br-id="{{ b.id }}">
+                                    <td class="text-muted">{{ loop.index }}</td>
+                                    <td><strong>{{ b.name }}</strong></td>
+                                    <td class="text-muted" style="font-size:.82rem;">{{ b.description or '—' }}</td>
+                                    <td class="text-center">
+                                        <span class="clean-badge clean-badge-secondary">{{ b.member_count }}</span>
+                                    </td>
+                                    <td class="text-center" style="white-space:nowrap;">
+                                        <button class="clean-btn clean-action-btn-sm" onclick="BR.openModal({{ b.id }})">
+                                            <i class="bx bx-edit"></i>
+                                        </button>
+                                        <button class="clean-btn clean-btn-danger clean-action-btn-sm" onclick="BR.del({{ b.id }}, this)">
+                                            <i class="bx bx-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr id="br-empty-row">
+                                    <td colspan="5" class="text-center text-muted py-3">No brackets yet.</td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
                 </div>
             </div>
-        </div>
 
-        <!-- Save button -->
-        <div class="d-flex justify-content-end mb-3">
-            <button type="submit" class="clean-btn clean-btn-primary" id="save-btn">
-                <i class="bx bx-save"></i> Save Changes
-            </button>
-        </div>
-
-    </form>
-
-    <!-- Danger Zone -->
-    <div class="danger-zone mb-4">
-        <div class="danger-zone-title"><i class="bx bx-error-circle"></i> Danger Zone</div>
-        <div class="d-flex justify-content-between align-items-center">
-            <div>
-                <strong>Delete this contest</strong>
-                <div class="text-muted" style="font-size:0.82rem;">
-                    Permanently delete <strong>{{ contest.name }}</strong> and all associated data.
-                    This action cannot be undone.
+            <!-- Danger Zone -->
+            <div id="panel-danger" class="settings-panel">
+                <div class="panel-title" style="color:#dc3545;">Danger Zone</div>
+                <div class="panel-desc">Irreversible actions for this contest.</div>
+                <div class="danger-zone">
+                    <div class="danger-zone-desc">
+                        <strong>Delete this contest</strong>
+                        <p>Permanently delete <strong>{{ contest.name }}</strong> and all associated data. This cannot be undone.</p>
+                    </div>
+                    <button type="button" class="clean-btn clean-btn-danger" id="delete-contest-btn">
+                        <i class="bx bx-trash"></i> Delete Contest
+                    </button>
                 </div>
             </div>
-            <button type="button" class="clean-btn clean-btn-danger" id="delete-contest-btn">
-                <i class="bx bx-trash"></i> Delete Contest
-            </button>
+
+        </div><!-- /.settings-content -->
+    </div><!-- /.settings-wrap -->
+</div><!-- /.container -->
+
+<!-- Bracket add/edit modal -->
+<div class="modal fade" id="brModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="brModalTitle">Add Bracket</h5>
+                <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="br-id" value="">
+                <div class="form-group">
+                    <label class="form-label-sm">Name <span class="text-danger">*</span></label>
+                    <input type="text" id="br-name" class="clean-form-control w-100"
+                           placeholder="e.g. Open Division, Student, Professional">
+                </div>
+                <div class="form-group mb-0">
+                    <label class="form-label-sm">Description</label>
+                    <input type="text" id="br-description" class="clean-form-control w-100"
+                           placeholder="Optional description">
+                </div>
+                <div id="br-modal-error" class="alert alert-danger mt-3 d-none" style="font-size:.82rem;"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="clean-btn" data-dismiss="modal">Cancel</button>
+                <button type="button" class="clean-btn clean-btn-primary" id="br-save-btn" onclick="BR.save()">
+                    <i class="bx bx-save"></i> Save
+                </button>
+            </div>
         </div>
     </div>
-
 </div>
 
-<!-- Delete confirmation modal -->
+<!-- Delete modal -->
 <div class="modal fade" id="deleteModal" tabindex="-1" role="dialog">
     <div class="modal-dialog" role="document">
         <div class="modal-content">
@@ -339,147 +519,380 @@
 
 {% block contest_scripts %}
 <script>
-function togglePassword(inputId, btn) {
-    var input = document.getElementById(inputId);
-    var icon = btn.querySelector('i');
-    if (input.type === 'password') {
-        input.type = 'text';
-        icon.className = 'bx bx-show';
-    } else {
-        input.type = 'password';
-        icon.className = 'bx bx-hide';
-    }
-}
-
-function validateContestTimes(startVal, endVal, freezeVal) {
-    const start  = startVal  ? new Date(startVal)  : null;
-    const end    = endVal    ? new Date(endVal)    : null;
-    const freeze = freezeVal ? new Date(freezeVal) : null;
-
-    if (start && end && end <= start) {
-        return 'End time must be after start time.';
-    }
-    if (freeze && start && freeze < start) {
-        return 'Freeze scoreboard time must be on or after start time.';
-    }
-    if (freeze && end && freeze > end) {
-        return 'Freeze scoreboard time must be on or before end time.';
-    }
-    return null;
-}
-
 (function () {
-    const nonce = init.csrfNonce;
-    const contestId = {{ contest.id }};
+    var contestId = {{ contest.id }};
+    var nonce     = init.csrfNonce;
+    var localTZ   = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-    // User mode → toggle team size visibility
-    const userModeSelect = document.querySelector('select[name="user_mode"]');
-    const teamSizeGroup  = document.getElementById('team-size-group');
-    const teamSizeInput  = document.getElementById('team-size-input');
+    // Stored UTC ISO strings from Python (naive = UTC)
+    var STORED = {
+        start:  {{ ('"' ~ contest.start_time.strftime('%Y-%m-%dT%H:%M:%S') ~ '"') | safe if contest.start_time else 'null' }},
+        end:    {{ ('"' ~ contest.end_time.strftime('%Y-%m-%dT%H:%M:%S') ~ '"') | safe if contest.end_time else 'null' }},
+        freeze: {{ ('"' ~ contest.freeze_scoreboard_at.strftime('%Y-%m-%dT%H:%M:%S') ~ '"') | safe if contest.freeze_scoreboard_at else 'null' }}
+    };
 
-    function applyUserModeUI(mode) {
-        if (mode === 'users') {
-            teamSizeGroup.style.display = 'none';
-            teamSizeInput.value = '1';
-        } else {
-            teamSizeGroup.style.display = '';
-        }
+    // ── Sidebar ───────────────────────────────────────────────────────────────
+    var navItems = document.querySelectorAll('.settings-nav-item');
+    var panels   = document.querySelectorAll('.settings-panel');
+
+    function showPanel(name) {
+        panels.forEach(function (p) { p.classList.remove('active'); });
+        navItems.forEach(function (n) { n.classList.remove('active'); });
+        var panel = document.getElementById('panel-' + name);
+        if (panel) panel.classList.add('active');
+        var nav = document.querySelector('.settings-nav-item[data-panel="' + name + '"]');
+        if (nav) nav.classList.add('active');
+        history.replaceState(null, '', '#' + name);
     }
 
-    userModeSelect.addEventListener('change', function () {
-        applyUserModeUI(this.value);
-    });
-    applyUserModeUI(userModeSelect.value); // apply on load
-
-    document.getElementById('contest-edit-form').addEventListener('submit', function (e) {
-        e.preventDefault();
-        const btn = document.getElementById('save-btn');
-        btn.disabled = true;
-        btn.innerHTML = '<i class="bx bx-loader-alt bx-spin"></i> Saving…';
-
-        const form = e.target;
-        const data = {
-            name: form.name.value.trim(),
-            slug: form.slug.value.trim(),
-            description: form.description.value.trim(),
-            access_password: form.access_password.value.trim() || null,
-            user_mode: form.user_mode.value,
-            state: form.state.value,
-            start_time: form.start_time.value || null,
-            end_time: form.end_time.value || null,
-            freeze_scoreboard_at: form.freeze_scoreboard_at.value || null,
-            view_after_ctf: form.view_after_ctf.checked,
-
-            score_visibility: form.score_visibility.value,
-            team_size: form.user_mode.value === 'users' ? 1 : (form.team_size.value ? parseInt(form.team_size.value) : null),
-            incorrect_submissions_per_min: form.incorrect_submissions_per_min.value
-                ? parseInt(form.incorrect_submissions_per_min.value) : null,
-            captain_only_start_challenge: form.captain_only_start_challenge.checked,
-            captain_only_submit_challenge: form.captain_only_submit_challenge.checked,
-            team_disbanding: form.team_disbanding.checked,
-            allow_name_change: form.allow_name_change.checked,
-            challenge_difficulty_visibility: form.challenge_difficulty_visibility.value,
-            limit_challenges: form.limit_challenges.value ? parseInt(form.limit_challenges.value) : null,
-        };
-
-        // Validate time constraints before submitting
-        const timeErr = validateContestTimes(data.start_time, data.end_time, data.freeze_scoreboard_at);
-        if (timeErr) {
-            btn.disabled = false;
-            btn.innerHTML = '<i class="bx bx-save"></i> Save Changes';
-            const ea = document.getElementById('error-alert');
-            document.getElementById('error-msg').textContent = timeErr;
-            ea.classList.remove('d-none');
-            setTimeout(function () { ea.classList.add('d-none'); }, 6000);
-            return;
-        }
-
-        fetch('/api/v1/contests/' + contestId, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json', 'CSRF-Token': nonce },
-            body: JSON.stringify(data),
-        })
-        .then(function (res) { return res.json(); })
-        .then(function (json) {
-            btn.disabled = false;
-            btn.innerHTML = '<i class="bx bx-save"></i> Save Changes';
-            if (json.success) {
-                const sa = document.getElementById('save-alert');
-                sa.classList.remove('d-none');
-                setTimeout(function () { sa.classList.add('d-none'); }, 4000);
-            } else {
-                const ea = document.getElementById('error-alert');
-                document.getElementById('error-msg').textContent =
-                    JSON.stringify(json.errors || json.message || 'Save failed.');
-                ea.classList.remove('d-none');
-                setTimeout(function () { ea.classList.add('d-none'); }, 5000);
-            }
-        })
-        .catch(function (err) {
-            console.error(err);
-            btn.disabled = false;
-            btn.innerHTML = '<i class="bx bx-save"></i> Save Changes';
-            alert('An error occurred. Please try again.');
+    navItems.forEach(function (item) {
+        item.addEventListener('click', function (e) {
+            e.preventDefault();
+            showPanel(this.dataset.panel);
         });
     });
 
-    document.getElementById('delete-contest-btn').addEventListener('click', function () {
-        $('#deleteModal').modal('show');
+    var hash = location.hash.replace('#', '');
+    if (hash && document.getElementById('panel-' + hash)) showPanel(hash);
+
+    // ── Alerts ────────────────────────────────────────────────────────────────
+    function showAlert(type, msg) {
+        var el = document.getElementById(type + '-alert');
+        document.getElementById(type === 'save' ? 'save-msg' : 'error-msg').textContent = msg;
+        el.classList.remove('d-none');
+        setTimeout(function () { el.classList.add('d-none'); }, 4500);
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+    window.togglePassword = function (inputId, btn) {
+        var input = document.getElementById(inputId);
+        var icon  = btn.querySelector('i');
+        input.type      = input.type === 'password' ? 'text' : 'password';
+        icon.className  = input.type === 'password' ? 'bx bx-hide' : 'bx bx-show';
+    };
+
+    var modeSelect    = document.getElementById('t-mode');
+    var teamSizeGroup = document.getElementById('team-size-group');
+    function applyModeUI(v) { teamSizeGroup.style.display = v === 'users' ? 'none' : ''; }
+    modeSelect.addEventListener('change', function () { applyModeUI(this.value); });
+    applyModeUI(modeSelect.value);
+
+    // ── Section save ──────────────────────────────────────────────────────────
+    function patchContest(data, btn) {
+        var orig = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="bx bx-loader-alt bx-spin"></i> Saving…';
+        fetch('/api/v1/contests/' + contestId, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', 'CSRF-Token': nonce },
+            body: JSON.stringify(data)
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (json) {
+            btn.disabled = false;
+            btn.innerHTML = orig;
+            if (json.success) showAlert('save', 'Saved successfully.');
+            else showAlert('error', JSON.stringify(json.errors || json.message || 'Save failed.'));
+        })
+        .catch(function () {
+            btn.disabled = false;
+            btn.innerHTML = orig;
+            showAlert('error', 'Network error. Please try again.');
+        });
+    }
+
+    window.saveSection = function (section, btn) {
+        var data = {};
+        if (section === 'general') {
+            var name = document.getElementById('g-name').value.trim();
+            if (!name) { showAlert('error', 'Contest name is required.'); return; }
+            data = { name: name, slug: document.getElementById('g-slug').value.trim(), description: document.getElementById('g-desc').value.trim() };
+        } else if (section === 'access') {
+            data = { state: document.getElementById('a-state').value, access_password: document.getElementById('a-password').value.trim() || null };
+        } else if (section === 'schedule') {
+            var startUTC  = getTimeUTC('start');
+            var endUTC    = getTimeUTC('end');
+            var freezeUTC = getTimeUTC('freeze');
+            if (startUTC && endUTC && endUTC <= startUTC) { showAlert('error', 'End time must be after start time.'); return; }
+            if (freezeUTC && startUTC && freezeUTC < startUTC) { showAlert('error', 'Freeze time must be on or after start time.'); return; }
+            if (freezeUTC && endUTC && freezeUTC > endUTC) { showAlert('error', 'Freeze time must be on or before end time.'); return; }
+            data = {
+                start_time:           startUTC  ? utcToISO(startUTC)  : null,
+                end_time:             endUTC    ? utcToISO(endUTC)    : null,
+                freeze_scoreboard_at: freezeUTC ? utcToISO(freezeUTC) : null,
+                view_after_ctf: document.getElementById('view-after-ctf').checked
+            };
+        } else if (section === 'visibility') {
+            data = { score_visibility: document.getElementById('v-score').value, challenge_difficulty_visibility: document.getElementById('v-difficulty').value };
+        } else if (section === 'team') {
+            var mode = document.getElementById('t-mode').value;
+            data = {
+                user_mode: mode,
+                team_size: mode === 'users' ? 1 : (document.getElementById('t-size').value ? parseInt(document.getElementById('t-size').value) : null),
+                incorrect_submissions_per_min: document.getElementById('t-wrong').value ? parseInt(document.getElementById('t-wrong').value) : null,
+                limit_challenges: document.getElementById('t-limit').value ? parseInt(document.getElementById('t-limit').value) : null,
+                captain_only_start_challenge: document.getElementById('t-captain-start').checked,
+                captain_only_submit_challenge: document.getElementById('t-captain-submit').checked,
+                team_disbanding: document.getElementById('t-disband').checked,
+                allow_name_change: document.getElementById('t-name-change').checked
+            };
+        }
+        patchContest(data, btn);
+    };
+
+    // ── Time picker ───────────────────────────────────────────────────────────
+    var tzSelect = document.getElementById('sched-tz');
+
+    // Populate timezone list
+    var tzList;
+    try { tzList = Intl.supportedValuesOf('timeZone'); }
+    catch (e) { tzList = ['UTC','Asia/Ho_Chi_Minh','Asia/Bangkok','Asia/Singapore','Asia/Tokyo','America/New_York','America/Los_Angeles','Europe/London','Europe/Paris','Australia/Sydney']; }
+    tzList.forEach(function (tz) {
+        var opt = document.createElement('option');
+        opt.value = tz;
+        opt.textContent = tz.replace(/_/g, ' ');
+        if (tz === localTZ) opt.selected = true;
+        tzSelect.appendChild(opt);
     });
 
+    // Convert inputs (in selected tz) → UTC Date
+    function inputToUTC(year, month, day, hour, minute, tz) {
+        if (!year || !month || !day) return null;
+        var h = parseInt(hour) || 0;
+        var m = parseInt(minute) || 0;
+        var naive = new Date(Date.UTC(year, month - 1, day, h, m, 0));
+        try {
+            var fmt = new Intl.DateTimeFormat('en-US', {
+                timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit',
+                hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
+            });
+            var parts = {};
+            fmt.formatToParts(naive).forEach(function (p) { parts[p.type] = p.value; });
+            var ph = parseInt(parts.hour); if (ph === 24) ph = 0;
+            var shown = new Date(Date.UTC(parseInt(parts.year), parseInt(parts.month) - 1, parseInt(parts.day), ph, parseInt(parts.minute), parseInt(parts.second)));
+            return new Date(naive.getTime() - (shown.getTime() - naive.getTime()));
+        } catch (e) { return null; }
+    }
+
+    // Convert UTC Date → fields in given timezone
+    function utcToFields(utcDate, tz) {
+        try {
+            var fmt = new Intl.DateTimeFormat('en-US', {
+                timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit',
+                hour: '2-digit', minute: '2-digit', hour12: false
+            });
+            var parts = {};
+            fmt.formatToParts(utcDate).forEach(function (p) { parts[p.type] = p.value; });
+            var h = parseInt(parts.hour); if (h === 24) h = 0;
+            return { year: parseInt(parts.year), month: parseInt(parts.month), day: parseInt(parts.day), hour: h, minute: parseInt(parts.minute) };
+        } catch (e) { return null; }
+    }
+
+    function utcToISO(d) {
+        function pad(n) { return String(n).padStart(2, '0'); }
+        return d.getUTCFullYear() + '-' + pad(d.getUTCMonth() + 1) + '-' + pad(d.getUTCDate()) + 'T' + pad(d.getUTCHours()) + ':' + pad(d.getUTCMinutes()) + ':00';
+    }
+
+    function formatPreview(utcDate, tz) {
+        try {
+            return new Intl.DateTimeFormat('en-US', {
+                timeZone: tz, weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+                hour: 'numeric', minute: '2-digit', second: '2-digit', timeZoneName: 'long'
+            }).format(utcDate);
+        } catch (e) { return '—'; }
+    }
+
+    function getTimeUTC(name) {
+        var tz = tzSelect.value;
+        var y  = parseInt(document.getElementById(name + '-year').value);
+        var mo = parseInt(document.getElementById(name + '-month').value);
+        var d  = parseInt(document.getElementById(name + '-day').value);
+        var h  = parseInt(document.getElementById(name + '-hour').value) || 0;
+        var mi = parseInt(document.getElementById(name + '-minute').value) || 0;
+        if (!y || !mo || !d) return null;
+        return inputToUTC(y, mo, d, h, mi, tz);
+    }
+
+    function updatePreviews(name) {
+        var utc = getTimeUTC(name);
+        var tz  = tzSelect.value;
+        if (utc && !isNaN(utc.getTime())) {
+            document.getElementById(name + '-local-preview').textContent = formatPreview(utc, localTZ);
+            document.getElementById(name + '-tz-preview').textContent    = formatPreview(utc, tz);
+            document.getElementById(name + '-utc-ts').value = Math.floor(utc.getTime() / 1000);
+        } else {
+            document.getElementById(name + '-local-preview').textContent = '—';
+            document.getElementById(name + '-tz-preview').textContent    = '—';
+            document.getElementById(name + '-utc-ts').value = '';
+        }
+    }
+
+    function populateFromUTC(name, isoStr) {
+        if (!isoStr) {
+            ['month','day','year','hour','minute'].forEach(function (f) { document.getElementById(name + '-' + f).value = ''; });
+            updatePreviews(name);
+            return;
+        }
+        var utcDate = new Date(isoStr + 'Z');
+        var fields  = utcToFields(utcDate, tzSelect.value);
+        if (!fields) return;
+        document.getElementById(name + '-month').value  = fields.month;
+        document.getElementById(name + '-day').value    = fields.day;
+        document.getElementById(name + '-year').value   = fields.year;
+        document.getElementById(name + '-hour').value   = fields.hour;
+        document.getElementById(name + '-minute').value = fields.minute;
+        updatePreviews(name);
+    }
+
+    window.clearTime = function (name) {
+        ['month','day','year','hour','minute'].forEach(function (f) { document.getElementById(name + '-' + f).value = ''; });
+        updatePreviews(name);
+    };
+
+    // Bind input events
+    ['start','end','freeze'].forEach(function (name) {
+        ['month','day','year','hour','minute'].forEach(function (field) {
+            document.getElementById(name + '-' + field).addEventListener('input', function () { updatePreviews(name); });
+        });
+    });
+
+    // Timezone change → repopulate all
+    tzSelect.addEventListener('change', function () {
+        ['start','end','freeze'].forEach(function (name) { populateFromUTC(name, STORED[name]); });
+    });
+
+    // Initial population
+    ['start','end','freeze'].forEach(function (name) { populateFromUTC(name, STORED[name]); });
+
+    // ── Time tabs ─────────────────────────────────────────────────────────────
+    document.querySelectorAll('.time-tab').forEach(function (tab) {
+        tab.addEventListener('click', function () {
+            document.querySelectorAll('.time-tab').forEach(function (t) { t.classList.remove('active'); });
+            document.querySelectorAll('.time-panel').forEach(function (p) { p.style.display = 'none'; });
+            this.classList.add('active');
+            document.getElementById('time-panel-' + this.dataset.target).style.display = '';
+        });
+    });
+
+    // ── Brackets ──────────────────────────────────────────────────────────────
+    var BR_API = '/api/v1/brackets';
+
+    window.BR = {
+        openModal: function (bracketId) {
+            var isEdit = !!bracketId;
+            document.getElementById('brModalTitle').textContent = isEdit ? 'Edit Bracket' : 'Add Bracket';
+            document.getElementById('br-id').value          = bracketId || '';
+            document.getElementById('br-name').value        = '';
+            document.getElementById('br-description').value = '';
+            document.getElementById('br-modal-error').classList.add('d-none');
+            var btn = document.getElementById('br-save-btn');
+            btn.disabled = false; btn.innerHTML = '<i class="bx bx-save"></i> Save';
+            if (isEdit) {
+                fetch(BR_API + '/' + bracketId, { headers: { 'CSRF-Token': nonce } })
+                    .then(function (r) { return r.json(); })
+                    .then(function (json) {
+                        if (!json.success) return;
+                        document.getElementById('br-name').value        = json.data.name || '';
+                        document.getElementById('br-description').value = json.data.description || '';
+                    });
+            }
+            $('#brModal').modal('show');
+        },
+
+        save: function () {
+            var bracketId = document.getElementById('br-id').value;
+            var name      = document.getElementById('br-name').value.trim();
+            var errEl     = document.getElementById('br-modal-error');
+            var btn       = document.getElementById('br-save-btn');
+            if (!name) { errEl.textContent = 'Name is required.'; errEl.classList.remove('d-none'); return; }
+            errEl.classList.add('d-none');
+            btn.disabled = true; btn.innerHTML = '<i class="bx bx-loader-alt bx-spin"></i> Saving…';
+            fetch(bracketId ? (BR_API + '/' + bracketId) : BR_API, {
+                method:  bracketId ? 'PATCH' : 'POST',
+                headers: { 'Content-Type': 'application/json', 'CSRF-Token': nonce },
+                body: JSON.stringify({ name: name, description: document.getElementById('br-description').value.trim() || null, type: 'teams', contest_id: contestId }),
+            })
+            .then(function (r) { return r.json(); })
+            .then(function (json) {
+                btn.disabled = false; btn.innerHTML = '<i class="bx bx-save"></i> Save';
+                if (json.success) {
+                    $('#brModal').modal('hide');
+                    var tbody = document.getElementById('br-body');
+                    var emptyRow = document.getElementById('br-empty-row');
+                    if (emptyRow) emptyRow.remove();
+                    if (bracketId) {
+                        var existing = tbody.querySelector('tr[data-br-id="' + bracketId + '"]');
+                        if (existing) {
+                            existing.querySelector('td:nth-child(2) strong').textContent = json.data.name;
+                            existing.querySelector('td:nth-child(3)').textContent = json.data.description || '—';
+                        }
+                    } else {
+                        var idx = tbody.querySelectorAll('tr[data-br-id]').length + 1;
+                        var tr = document.createElement('tr');
+                        tr.dataset.brId = json.data.id;
+                        tr.innerHTML = '<td class="text-muted">' + idx + '</td>'
+                            + '<td><strong>' + escHtml(json.data.name) + '</strong></td>'
+                            + '<td class="text-muted" style="font-size:.82rem;">' + escHtml(json.data.description || '—') + '</td>'
+                            + '<td class="text-center"><span class="clean-badge clean-badge-secondary">0</span></td>'
+                            + '<td class="text-center" style="white-space:nowrap;">'
+                            + '<button class="clean-btn clean-action-btn-sm" onclick="BR.openModal(' + json.data.id + ')"><i class="bx bx-edit"></i></button> '
+                            + '<button class="clean-btn clean-btn-danger clean-action-btn-sm" onclick="BR.del(' + json.data.id + ', this)"><i class="bx bx-trash"></i></button>'
+                            + '</td>';
+                        tbody.appendChild(tr);
+                    }
+                } else {
+                    var msgs = Object.values(json.errors || {}).flat().join(' ') || 'Save failed.';
+                    errEl.textContent = msgs; errEl.classList.remove('d-none');
+                }
+            })
+            .catch(function () {
+                btn.disabled = false; btn.innerHTML = '<i class="bx bx-save"></i> Save';
+                errEl.textContent = 'Request failed.'; errEl.classList.remove('d-none');
+            });
+        },
+
+        del: function (bracketId, triggerBtn) {
+            if (!confirm('Delete this bracket? Teams assigned to it will become unbracketed.')) return;
+            triggerBtn.disabled = true;
+            fetch(BR_API + '/' + bracketId, { method: 'DELETE', headers: { 'CSRF-Token': nonce, 'Content-Type': 'application/json' } })
+            .then(function (r) { return r.json(); })
+            .then(function (json) {
+                if (json.success) {
+                    var row = document.querySelector('#br-body tr[data-br-id="' + bracketId + '"]');
+                    if (row) row.remove();
+                    var tbody = document.getElementById('br-body');
+                    if (!tbody.querySelector('tr[data-br-id]')) {
+                        tbody.innerHTML = '<tr id="br-empty-row"><td colspan="5" class="text-center text-muted py-3">No brackets yet.</td></tr>';
+                    } else {
+                        tbody.querySelectorAll('tr[data-br-id]').forEach(function (r, i) { r.querySelector('td:first-child').textContent = i + 1; });
+                    }
+                } else {
+                    triggerBtn.disabled = false;
+                    alert('Delete failed: ' + (json.message || ''));
+                }
+            })
+            .catch(function () { triggerBtn.disabled = false; alert('Request failed.'); });
+        },
+    };
+
+    function escHtml(s) {
+        return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    // ── Delete ────────────────────────────────────────────────────────────────
+    document.getElementById('delete-contest-btn').addEventListener('click', function () { $('#deleteModal').modal('show'); });
     document.getElementById('confirm-delete-btn').addEventListener('click', function () {
-        const btn = this;
+        var btn = this;
         btn.disabled = true;
         btn.innerHTML = '<i class="bx bx-loader-alt bx-spin"></i> Deleting…';
         fetch('/api/v1/contests/' + contestId, {
             method: 'DELETE',
-            headers: { 'CSRF-Token': nonce, 'Content-Type': 'application/json' },
+            headers: { 'CSRF-Token': nonce, 'Content-Type': 'application/json' }
         })
-        .then(function (res) { return res.json(); })
+        .then(function (r) { return r.json(); })
         .then(function (json) {
-            if (json.success) {
-                window.location.href = '/admin/contests';
-            } else {
+            if (json.success) { window.location.href = '/admin/contests'; }
+            else {
                 btn.disabled = false;
                 btn.innerHTML = '<i class="bx bx-trash"></i> Delete';
                 alert('Delete failed: ' + (json.message || 'Unknown error'));
@@ -491,7 +904,7 @@ function validateContestTimes(startVal, endVal, freezeVal) {
             alert('An error occurred.');
         });
     });
-})();
 
+})();
 </script>
 {% endblock %}

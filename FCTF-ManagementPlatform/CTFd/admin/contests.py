@@ -303,12 +303,41 @@ def contest_pause_toggle(contest_id):
 @admin.route("/admin/contests/<int:contest_id>/settings")
 @admins_only
 def contest_settings(contest_id):
+    from CTFd.models import Brackets, Teams
     contest = Contests.query.filter_by(id=contest_id).first_or_404()
-    is_detail = True
+
+    brackets = (
+        Brackets.query
+        .filter_by(contest_id=contest_id, type="teams")
+        .order_by(Brackets.id.asc())
+        .all()
+    )
+    bracket_ids = [b.id for b in brackets]
+    team_counts = {}
+    if bracket_ids:
+        rows = (
+            db.session.query(Teams.bracket_id, db.func.count(Teams.id))
+            .filter(Teams.bracket_id.in_(bracket_ids))
+            .group_by(Teams.bracket_id)
+            .all()
+        )
+        team_counts = {bid: cnt for bid, cnt in rows}
+    brackets_data = [
+        {
+            "id": b.id,
+            "name": b.name,
+            "description": b.description or "",
+            "type": "teams",
+            "member_count": team_counts.get(b.id, 0),
+        }
+        for b in brackets
+    ]
+
     return render_template(
         "admin/contests/contest.html",
         contest=contest,
-        is_detail=is_detail,
+        brackets=brackets_data,
+        is_detail=True,
     )
 
 @admin.route("/admin/contests/<int:contest_id>/submissions")
