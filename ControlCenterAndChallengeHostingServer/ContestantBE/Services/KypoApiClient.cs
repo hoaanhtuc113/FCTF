@@ -191,9 +191,10 @@ public class KypoApiClient
     }
 
     // ──────────────────────────────────────────────────────────
-    // Keycloak Users API — lấy username từ sub (email)
+    // Keycloak Users API — lấy Keycloak UUID từ sub (email)
+    // UUID bất biến, chính xác hơn username
     // ──────────────────────────────────────────────────────────
-    public async Task<string?> GetKeycloakUsernameBySubAsync(string baseUrl, string sub)
+    public async Task<string?> GetKeycloakUserIdBySubAsync(string baseUrl, string sub)
     {
         var token = await GetKeycloakAdminTokenAsync(baseUrl);
         var url   = $"{baseUrl.TrimEnd('/')}/keycloak/admin/realms/CRCZP/users?email={Uri.EscapeDataString(sub)}";
@@ -204,6 +205,16 @@ public class KypoApiClient
         try
         {
             var resp = await client.GetAsync(url);
+
+            // Token hết hạn → xóa cache, thử lại 1 lần
+            if (resp.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+            {
+                _cachedKcAdminToken = null;
+                token = await GetKeycloakAdminTokenAsync(baseUrl);
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+                resp = await client.GetAsync(url);
+            }
+
             resp.EnsureSuccessStatusCode();
 
             var json  = await resp.Content.ReadAsStringAsync();
@@ -211,13 +222,14 @@ public class KypoApiClient
 
             if (users.GetArrayLength() == 0) return null;
 
-            return users[0].TryGetProperty("username", out var uname)
-                ? uname.GetString()
+            // Trả về UUID (id) thay vì username — UUID bất biến, chính xác hơn
+            return users[0].TryGetProperty("id", out var id)
+                ? id.GetString()
                 : null;
         }
         catch (Exception e)
         {
-            _logger.LogWarning("[KYPO] Không lấy được username từ sub={Sub}: {Msg}", sub, e.Message);
+            _logger.LogWarning("[KYPO] Không lấy được user id từ sub={Sub}: {Msg}", sub, e.Message);
             return null;
         }
     }

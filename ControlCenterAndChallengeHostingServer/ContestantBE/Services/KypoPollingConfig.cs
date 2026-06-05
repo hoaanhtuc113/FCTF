@@ -2,6 +2,7 @@ namespace ContestantBE.Services;
 
 /// <summary>
 /// Config cho KYPO Polling — đọc từ environment variables.
+/// Credentials được set qua file .env (không commit) hoặc env vars.
 /// </summary>
 public static class KypoPollingConfig
 {
@@ -15,10 +16,10 @@ public static class KypoPollingConfig
     public static void Init()
     {
         AdminUsername         = Environment.GetEnvironmentVariable("KYPO_ADMIN_USERNAME")          ?? "crczp-admin";
-        AdminPassword         = Environment.GetEnvironmentVariable("KYPO_ADMIN_PASSWORD")          ?? "CAUehoz449aGNy";
+        AdminPassword         = Environment.GetEnvironmentVariable("KYPO_ADMIN_PASSWORD")          ?? "";
         ClientId              = Environment.GetEnvironmentVariable("KYPO_CLIENT_ID")               ?? "CRCZP-Client";
         KeycloakAdminUsername = Environment.GetEnvironmentVariable("KYPO_KEYCLOAK_ADMIN_USERNAME") ?? "admin";
-        KeycloakAdminPassword = Environment.GetEnvironmentVariable("KYPO_KEYCLOAK_ADMIN_PASSWORD") ?? "f3RvfeblN9Wq6Mgmkg0e";
+        KeycloakAdminPassword = Environment.GetEnvironmentVariable("KYPO_KEYCLOAK_ADMIN_PASSWORD") ?? "";
         PollIntervalSeconds   = int.TryParse(
             Environment.GetEnvironmentVariable("KYPO_POLL_INTERVAL_SECONDS"), out var v) ? v : 5;
     }
