@@ -138,6 +138,9 @@
             <a class="settings-nav-item" data-panel="visibility" href="#visibility">
                 <i class="bx bx-show"></i> Visibility
             </a>
+            <a class="settings-nav-item" data-panel="pause" href="#pause">
+                <i class="bx bx-pause-circle"></i> Pause
+            </a>
             <div class="settings-nav-group-label">Participants</div>
             <a class="settings-nav-item" data-panel="team" href="#team">
                 <i class="bx bx-group"></i> Team Settings
@@ -389,6 +392,46 @@
                     <button type="button" class="clean-btn clean-btn-primary" onclick="saveSection('team', this)">
                         <i class="bx bx-save"></i> Update
                     </button>
+                </div>
+            </div>
+
+            <!-- Pause -->
+            <div id="panel-pause" class="settings-panel">
+                <div class="panel-title">Pause Contest</div>
+                <div class="panel-desc">Temporarily block all flag submissions. Challenges remain visible but participants cannot submit answers until the contest is resumed.</div>
+                <div style="border:1px solid var(--border-light); border-radius:6px; padding:1.25rem 1.5rem; background:#fafafa; display:flex; justify-content:space-between; align-items:center; gap:1rem; flex-wrap:wrap;">
+                    <div>
+                        <div style="font-size:0.88rem; font-weight:600; color:var(--text-dark); margin-bottom:0.3rem;">
+                            Current status:
+                            {% if contest.state == 'paused' %}
+                            <span style="display:inline-block; background:#fff3cd; color:#856404; font-size:0.75rem; font-weight:700; padding:0.15em 0.55em; border-radius:3px; margin-left:4px;">PAUSED</span>
+                            {% else %}
+                            <span style="display:inline-block; background:#d4edda; color:#155724; font-size:0.75rem; font-weight:700; padding:0.15em 0.55em; border-radius:3px; margin-left:4px;" id="pause-status-badge">RUNNING</span>
+                            {% endif %}
+                        </div>
+                        <div id="pause-status-desc" style="font-size:0.8rem; color:var(--text-light); margin-top:0.2rem;">
+                            {% if contest.state == 'paused' %}
+                            Submissions are currently blocked. Click <strong>Resume</strong> to re-enable.
+                            {% else %}
+                            Contest is running normally. Click <strong>Pause</strong> to block submissions.
+                            {% endif %}
+                        </div>
+                    </div>
+                    <button type="button" id="pause-toggle-btn"
+                        class="clean-btn {% if contest.state == 'paused' %}clean-btn-primary{% else %}btn btn-warning{% endif %}"
+                        style="font-size:0.85rem; font-weight:600; white-space:nowrap;"
+                        onclick="togglePause(this)">
+                        {% if contest.state == 'paused' %}
+                        <i class="bx bx-play"></i> Resume Contest
+                        {% else %}
+                        <i class="bx bx-pause"></i> Pause Contest
+                        {% endif %}
+                    </button>
+                </div>
+                <div style="margin-top:1rem; padding:0.75rem 1rem; background:#fff8e1; border:1px solid #ffe082; border-radius:4px; font-size:0.79rem; color:#795548;">
+                    <i class="bx bx-info-circle"></i>
+                    Pausing only blocks <strong>submissions</strong>. Challenges remain visible and teams can still view the scoreboard.
+                    This is different from setting state to <em>Hidden</em> or <em>Ended</em>.
                 </div>
             </div>
 
@@ -773,6 +816,53 @@
             document.getElementById('time-panel-' + this.dataset.target).style.display = '';
         });
     });
+
+    // ── Pause toggle ─────────────────────────────────────────────────────────
+    window.togglePause = function (btn) {
+        var isPaused = btn.textContent.trim().indexOf('Resume') !== -1;
+        var action   = isPaused ? 'Resume' : 'Pause';
+        if (!confirm(action + ' this contest?\n\n' + (isPaused
+            ? 'Participants will be able to submit answers again.'
+            : 'Participants will not be able to submit answers until you resume.'))) return;
+        var orig = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="bx bx-loader-alt bx-spin"></i> ' + action + 'ing…';
+        var newState = isPaused ? 'visible' : 'paused';
+        fetch('/api/v1/contests/' + contestId, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', 'CSRF-Token': nonce },
+            body: JSON.stringify({ state: newState })
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (json) {
+            btn.disabled = false;
+            if (json.success) {
+                if (newState === 'paused') {
+                    btn.innerHTML = '<i class="bx bx-play"></i> Resume Contest';
+                    btn.className = 'clean-btn clean-btn-primary';
+                    document.getElementById('pause-status-desc').innerHTML = 'Submissions are currently blocked. Click <strong>Resume</strong> to re-enable.';
+                    var badge = document.getElementById('pause-status-badge');
+                    if (badge) { badge.textContent = 'PAUSED'; badge.style.background = '#fff3cd'; badge.style.color = '#856404'; }
+                    // sync state dropdown
+                    var sel = document.getElementById('a-state');
+                    if (sel) sel.value = 'paused';
+                } else {
+                    btn.innerHTML = '<i class="bx bx-pause"></i> Pause Contest';
+                    btn.className = 'clean-btn btn btn-warning';
+                    document.getElementById('pause-status-desc').innerHTML = 'Contest is running normally. Click <strong>Pause</strong> to block submissions.';
+                    var badge = document.getElementById('pause-status-badge');
+                    if (badge) { badge.textContent = 'RUNNING'; badge.style.background = '#d4edda'; badge.style.color = '#155724'; }
+                    var sel = document.getElementById('a-state');
+                    if (sel) sel.value = 'visible';
+                }
+                showAlert('save', 'Contest ' + (newState === 'paused' ? 'paused' : 'resumed') + ' successfully.');
+            } else {
+                btn.innerHTML = orig;
+                showAlert('error', JSON.stringify(json.errors || json.message || 'Failed.'));
+            }
+        })
+        .catch(function () { btn.disabled = false; btn.innerHTML = orig; showAlert('error', 'Network error.'); });
+    };
 
     // ── Brackets ──────────────────────────────────────────────────────────────
     var BR_API = '/api/v1/brackets';
