@@ -742,7 +742,10 @@ user svc_deployment_center on >${DEPLOYMENT_CENTER_REDIS_PASSWORD} ~deploy_chall
 user svc_deployment_consumer on >${DEPLOYMENT_CONSUMER_REDIS_PASSWORD} ~deploy_challenge_* ~active_deploys_team_* &* +ping +echo +select +get +set +setex +del +exists +expire +ttl +incr +decr +scan +keys +zadd +zrem +zremrangebyscore +zscore +zcard +eval +evalsha
 user svc_deployment_listener on >${DEPLOYMENT_LISTENER_REDIS_PASSWORD} ~deploy_challenge_* ~active_deploys_team_* &* +ping +echo +select +get +set +setex +del +exists +expire +ttl +incr +decr +scan +keys +zadd +zrem +zremrangebyscore +zscore +zcard +eval +evalsha"
 
-  patch_secret_string_key "${ns}" "redis-acl-file" "usersacl" "${new_usersacl}"
+  local acl_b64
+  acl_b64="$(printf '%s' "${new_usersacl}" | base64 -w0)"
+  kubectl -n "${ns}" patch secret redis-acl-file --type='json' \
+    -p="[{\"op\":\"replace\",\"path\":\"/data/usersacl\",\"value\":\"${acl_b64}\"}]" >/dev/null
   echo "    patched ${ns}/redis-acl-file:usersacl"
 }
 
