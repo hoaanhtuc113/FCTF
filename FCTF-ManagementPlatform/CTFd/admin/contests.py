@@ -1695,6 +1695,90 @@ def contest_users_new(contest_id):
     return render_template("admin/contests/users_new.html", contest=contest)
 
 
+@admin.route("/admin/contests/<int:contest_id>/users/export/csv")
+@admins_only
+def contest_users_export_csv(contest_id):
+    import csv, io, secrets, concurrent.futures
+    from CTFd.models import Contests, Teams, Users, UserTeamMember
+    from CTFd.models import ContestParticipant
+
+    contest = Contests.query.filter_by(id=contest_id).first_or_404()
+    include_passwords = request.args.get("include_passwords") == "1"
+
+    team_users_subq = db.session.query(UserTeamMember.user_id)\
+        .join(Teams, Teams.id == UserTeamMember.team_id)\
+        .filter(Teams.contest_id == contest_id).subquery()
+    cp_users_subq = db.session.query(ContestParticipant.user_id)\
+        .filter(ContestParticipant.contest_id == contest_id).subquery()
+
+    rows = (
+        db.session.query(Users, Teams, ContestParticipant)
+        .outerjoin(UserTeamMember, UserTeamMember.user_id == Users.id)
+        .outerjoin(Teams, (Teams.id == UserTeamMember.team_id) & (Teams.contest_id == contest_id))
+        .outerjoin(ContestParticipant, (ContestParticipant.user_id == Users.id) & (ContestParticipant.contest_id == contest_id))
+        .filter(
+            Users.type == "user",
+            db.or_(Users.id.in_(team_users_subq), Users.id.in_(cp_users_subq))
+        )
+        .distinct(Users.id)
+        .order_by(Users.id)
+        .all()
+    )
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+
+    if include_passwords:
+        from passlib.hash import bcrypt_sha256
+        writer.writerow(["name", "email", "team_name", "contest_role", "password_plain"])
+        charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+
+        def hash_row(item):
+            user, team, cp = item
+            new_pass = "".join(secrets.choice(charset) for _ in range(12))
+            hashed = bcrypt_sha256.using(rounds=4).hash(str(new_pass))
+            if isinstance(hashed, bytes):
+                hashed = hashed.decode("utf-8")
+            return (user.id, hashed, user.name, user.email,
+                    team.name if team else "", cp.role if cp else "contestant", new_pass)
+
+        results = []
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            for res in executor.map(hash_row, rows):
+                results.append(res)
+
+        for user_id, hashed, name, email, team_name, role, new_pass in results:
+            db.session.execute(
+                db.text("UPDATE users SET password = :pw WHERE id = :uid"),
+                {"pw": hashed, "uid": user_id}
+            )
+            writer.writerow([name, email, team_name, role, new_pass])
+        db.session.commit()
+
+        from CTFd.utils.logging.audit_logger import log_audit
+        log_audit(action="bulk_password_reset", data={"contest_id": contest_id, "count": len(results)})
+    else:
+        writer.writerow(["name", "email", "team_name", "contest_role", "verified", "banned"])
+        for user, team, cp in rows:
+            writer.writerow([
+                user.name, user.email,
+                team.name if team else "",
+                cp.role if cp else "contestant",
+                str(user.verified).lower(),
+                str(user.banned).lower(),
+            ])
+
+    output.seek(0)
+    safe_slug = contest.slug.replace(" ", "_")[:40]
+    fname = f"{safe_slug}-users{'-with-passwords' if include_passwords else ''}.csv"
+    return send_file(
+        io.BytesIO(output.getvalue().encode("utf-8")),
+        as_attachment=True,
+        max_age=-1,
+        download_name=fname,
+    )
+
+
 @admin.route("/admin/contests/<int:contest_id>/users")
 @admins_only
 def contest_users(contest_id):

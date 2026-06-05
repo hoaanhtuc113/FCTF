@@ -3,6 +3,15 @@
 {% block contest_stylesheets %}
 <style>
 /* Contest Users page — page-specific overrides only */
+#export-csv-button + .dropdown-menu {
+    position: absolute !important;
+    top: 100% !important;
+    right: 0 !important;
+    left: auto !important;
+    transform: none !important;
+    margin-top: 6px !important;
+    z-index: 1050 !important;
+}
 .import-modal-overlay {
     display: none;
     position: fixed;
@@ -178,6 +187,36 @@
                     id="users-delete-button" title="Delete selected users">
                 <i class="btn-fa fas fa-trash-alt"></i> Delete
             </button>
+            <div class="dropdown d-inline-block" style="position:relative;">
+                <button class="clean-btn dropdown-toggle" type="button" id="export-csv-button"
+                        aria-haspopup="true" aria-expanded="false">
+                    <i class="fas fa-download"></i> Export CSV
+                </button>
+                <div class="dropdown-menu shadow-sm p-3" id="export-csv-dropdown"
+                     aria-labelledby="export-csv-button" style="min-width:270px;right:0;left:auto;">
+                    <p style="font-size:0.78rem;color:#666;margin-bottom:0.75rem;">
+                        Export all users in this contest to CSV.
+                    </p>
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" id="export-include-passwords">
+                        <label class="form-check-label small font-weight-bold" for="export-include-passwords">
+                            Include Passwords (Reset)
+                        </label>
+                        <small class="form-text text-muted d-block mt-1">
+                            Generates new random passwords and resets all users.
+                        </small>
+                    </div>
+                    <div id="export-pw-warning" class="alert alert-warning py-2 px-2 mb-2"
+                         style="display:none;font-size:0.8rem;">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <small>Contest is active. Password reset export is disabled.</small>
+                    </div>
+                    <button class="btn btn-warning btn-sm w-100 text-white font-weight-bold"
+                            id="export-contest-users-btn">
+                        <i class="fas fa-download"></i> Export
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -1323,6 +1362,60 @@ if (cuForm) {
         });
     });
 }
+
+// ── Export CSV ────────────────────────────────────────────────────────────
+(function () {
+    var exportBtn     = document.getElementById('export-csv-button');
+    var exportDropdown = document.getElementById('export-csv-dropdown');
+    var doExportBtn   = document.getElementById('export-contest-users-btn');
+    var inclPasswords = document.getElementById('export-include-passwords');
+    var pwWarning     = document.getElementById('export-pw-warning');
+
+    if (!exportBtn) return;
+
+    exportBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var open = exportDropdown.classList.contains('show');
+        exportDropdown.classList.toggle('show', !open);
+        exportBtn.setAttribute('aria-expanded', String(!open));
+    });
+    document.addEventListener('click', function (e) {
+        if (!exportBtn.contains(e.target) && !exportDropdown.contains(e.target)) {
+            exportDropdown.classList.remove('show');
+            exportBtn.setAttribute('aria-expanded', 'false');
+        }
+    });
+
+    inclPasswords.addEventListener('change', function () {
+        if (this.checked) {
+            var state = '{{ contest.state }}';
+            if (state === 'visible' || state === 'paused') {
+                pwWarning.style.display = 'block';
+                this.checked = false;
+            }
+        }
+    });
+
+    doExportBtn.addEventListener('click', function () {
+        var url = '/admin/contests/{{ contest.id }}/users/export/csv';
+        if (inclPasswords.checked) url += '?include_passwords=1';
+        var orig = doExportBtn.innerHTML;
+        doExportBtn.disabled = true;
+        doExportBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Exporting…';
+        // Trigger download via hidden link
+        var a = document.createElement('a');
+        a.href = url;
+        a.style.display = 'none';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(function () {
+            doExportBtn.disabled = false;
+            doExportBtn.innerHTML = orig;
+            exportDropdown.classList.remove('show');
+        }, 2000);
+    });
+})();
 
 })();
 </script>
