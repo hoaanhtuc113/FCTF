@@ -293,10 +293,10 @@ def auto_initialize():
     set_config("captain_only_submit_challenge", 0)
     set_config("limit_challenges", 3)
 
-    existing = Users.query.filter_by(name="adminmultiple").first()
+    existing = Users.query.filter_by(name="admin").first()
     if not existing:
         admin = Admins(
-            name="adminmultiple",
+            name="admin",
             email="admin@fctf.local",
             password="1",
             type="admin",
