@@ -274,6 +274,17 @@ class BaseChallenge(object):
             provided=submission,
         )
         db.session.add(solve)
+        db.session.flush()
+
+        # Update per-member score in UserTeamMember
+        if team and challenge.value:
+            from CTFd.models import UserTeamMember
+            utm = UserTeamMember.query.filter_by(
+                user_id=user.id, team_id=team.id
+            ).first()
+            if utm:
+                utm.score += challenge.value
+
         db.session.commit()
 
     @classmethod

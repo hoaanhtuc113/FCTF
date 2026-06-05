@@ -2008,7 +2008,7 @@ def contest_create_team(contest_id):
 @admins_only
 def contest_team_detail(contest_id, team_id):
     from sqlalchemy import not_
-    from CTFd.models import Challenges, Tracking
+    from CTFd.models import Challenges, Tracking, Solves, Fails, Awards, UserTeamMember
 
     contest = Contests.query.filter_by(id=contest_id).first_or_404()
     team = Teams.query.filter_by(id=team_id).first_or_404()
@@ -2016,11 +2016,53 @@ def contest_team_detail(contest_id, team_id):
     members = team.members
     member_ids = [member.id for member in members]
 
-    solves = team.get_solves(admin=True)
-    fails = team.get_fails(admin=True)
-    awards = team.get_awards(admin=True)
-    score = team.get_score(admin=True)
-    place = team.get_place(admin=True)
+    # Scope all queries to challenges belonging to this contest
+    challenge_ids_subq = db.session.query(Challenges.id).filter(
+        Challenges.contest_id == contest_id
+    ).subquery()
+
+    solves = (
+        Solves.query
+        .filter(Solves.user_id.in_(member_ids), Solves.challenge_id.in_(challenge_ids_subq))
+        .order_by(Solves.date.desc())
+        .all()
+    )
+    fails = (
+        Fails.query
+        .filter(Fails.user_id.in_(member_ids), Fails.challenge_id.in_(challenge_ids_subq))
+        .all()
+    )
+    awards = (
+        Awards.query
+        .filter(Awards.user_id.in_(member_ids), Awards.contest_id == contest_id)
+        .all()
+    ) if member_ids else []
+
+    # Score = sum of UserTeamMember.score (updated on every correct solve)
+    score = db.session.query(db.func.sum(UserTeamMember.score)).filter(
+        UserTeamMember.team_id == team_id
+    ).scalar() or 0
+
+    # Per-member scores from UserTeamMember
+    member_scores = {
+        utm.user_id: utm.score
+        for utm in UserTeamMember.query.filter_by(team_id=team_id).all()
+    }
+
+    # Place: rank this team among all teams in the same contest by score
+    team_scores = db.session.query(
+        UserTeamMember.team_id,
+        db.func.sum(UserTeamMember.score).label("total")
+    ).join(Teams, Teams.id == UserTeamMember.team_id).filter(
+        Teams.contest_id == contest_id
+    ).group_by(UserTeamMember.team_id).order_by(db.desc("total")).all()
+
+    place = None
+    for rank, (tid, _) in enumerate(team_scores, start=1):
+        if tid == team_id:
+            suffixes = {1: "st", 2: "nd", 3: "rd"}
+            place = str(rank) + suffixes.get(rank if rank <= 3 else 0, "th")
+            break
 
     solve_ids = [s.challenge_id for s in solves]
     missing_q = Challenges.query.filter(Challenges.contest_id == contest_id)
@@ -2046,6 +2088,7 @@ def contest_team_detail(contest_id, team_id):
         missing=missing,
         awards=awards,
         addrs=addrs,
+        member_scores=member_scores,
         is_detail=True,
     )
 

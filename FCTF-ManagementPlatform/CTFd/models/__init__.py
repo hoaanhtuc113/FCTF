@@ -571,6 +571,7 @@ class UserTeamMember(db.Model):
         db.Integer, db.ForeignKey("teams.id", ondelete="CASCADE"), nullable=False
     )
     joined_at = db.Column(db.DateTime, default=datetime.datetime.utcnow, nullable=False)
+    score = db.Column(db.Integer, default=0, nullable=False, server_default="0")
 
     user = db.relationship("Users", foreign_keys=[user_id], lazy="select")
     team = db.relationship("Teams", foreign_keys=[team_id], lazy="select")

@@ -496,7 +496,11 @@
 							</a>
 						</td>
 						<td class="text-center" data-href="{{ member_url }}">
-							{{ member.score }}
+							{% if member_scores is defined %}
+								{{ member_scores.get(member.id, 0) }}
+							{% else %}
+								{{ member.score }}
+							{% endif %}
 						</td>
 						<td class="text-center">
 							<span class="delete-member cursor-pointer" member-id="{{ member.id }}"
