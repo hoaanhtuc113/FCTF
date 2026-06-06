@@ -13,8 +13,6 @@ public partial class Solf
 
     public int? TeamId { get; set; }
 
-    public int? Value { get; set; }
-
     public virtual Challenge? Challenge { get; set; }
 
     public virtual Submission IdNavigation { get; set; } = null!;

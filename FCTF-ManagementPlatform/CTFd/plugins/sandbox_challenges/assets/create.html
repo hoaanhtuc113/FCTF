@@ -5,7 +5,7 @@
     <i class="fas fa-shield-alt mr-2"></i>
     <div>
         <strong>Sandbox Challenge</strong> &mdash; Attack-Defense challenge powered by the KYPO Cyber Range platform.
-        Select a KYPO training instance — score will be fetched automatically.
+        Chọn KYPO instance và tự nhập điểm (Score). Điểm chỉ được cộng khi team hoàn thành tất cả phase.
     </div>
 </div>
 {% endblock %}
@@ -54,21 +54,11 @@
     <label>
         Score / Points:<br>
         <small class="form-text text-muted">
-            Reward points fetched automatically from the KYPO training definition.
-            Select an instance below to populate this field.
+            Điểm thưởng khi hoàn thành tất cả phase (do admin đặt — KHÔNG lấy từ KYPO).
         </small>
     </label>
-    <div class="input-group">
-        <input type="number" class="form-control" name="value" id="kypo-score-input"
-               min="0" value="0" placeholder="Select a KYPO instance…"
-               readonly style="background-color:#e9ecef;" required>
-        <div class="input-group-append">
-            <span class="input-group-text d-none" id="kypo-score-badge">
-                <i class="fas fa-check-circle text-success mr-1"></i>
-                <small class="text-muted">from KYPO</small>
-            </span>
-        </div>
-    </div>
+    <input type="number" class="form-control" name="value" id="kypo-score-input"
+           min="0" value="100" placeholder="Nhập điểm cho challenge" required>
 </div>
 {% endblock %}
 
@@ -101,16 +91,6 @@
         <i class="fas fa-exclamation-triangle mr-1"></i>
         Could not load instances from KYPO. Check server connectivity and credentials.
     </div>
-</div>
-
-{# Inline feedback while fetching score from KYPO #}
-<div id="kypo-details-loading" class="d-none py-1">
-    <div class="spinner-border spinner-border-sm text-secondary" role="status" aria-hidden="true"></div>
-    <span class="ml-2 text-muted small">Fetching score from KYPO training definition&hellip;</span>
-</div>
-<div id="kypo-details-error" class="alert alert-warning d-none mt-1" role="alert">
-    <i class="fas fa-exclamation-triangle mr-1"></i>
-    Could not retrieve score for this instance — please enter it manually in the Score field above.
 </div>
 
 {# Hidden KYPO metadata fields populated by create.js #}

@@ -117,10 +117,10 @@ builder.Services.AddScoped<IFileService, FileService>();
 builder.Services.AddScoped<IActionLogsServices, ActionLogsServices>();
 builder.Services.AddScoped<IUserContext, UserContext>();
 
-// KYPO Polling
+// KYPO — chốt điểm all-or-nothing (Stop / hết giờ)
 builder.Services.AddSingleton<KypoApiClient>();
-builder.Services.AddScoped<KypoSyncService>();
-builder.Services.AddHostedService<KypoPollingService>();
+builder.Services.AddScoped<KypoScoreLockService>();
+builder.Services.AddHostedService<KypoTimeoutWatcher>();
 // DI services from ResourceShared
 builder.Services.AddResourceShared();
 

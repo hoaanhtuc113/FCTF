@@ -14,14 +14,12 @@
     <label>
         Score / Points:<br>
         <small class="form-text text-muted">
-            Reward points from the KYPO training definition.
-            Change the instance below to refresh this value automatically.
+            Điểm thưởng khi hoàn thành tất cả phase (do admin đặt — KHÔNG lấy từ KYPO).
         </small>
     </label>
     <input type="number" class="form-control chal-value" name="value"
            id="kypo-score-input-update"
-           value="{{ challenge.value if challenge.value else 0 }}" min="0"
-           readonly style="background-color:#e9ecef;">
+           value="{{ challenge.value if challenge.value else 0 }}" min="0" required>
 </div>
 
 {# ── Current KYPO instance (server-rendered from DB) ─────────────────── #}
@@ -147,31 +145,6 @@
         if (typEl) typEl.value = opt.dataset.instanceType || "linear";
     }
 
-    function fetchScore(instanceId, instanceType, definitionId) {
-        var scoreEl = elU("kypo-score-input-update");
-        addClassU("kypo-details-error-update", "d-none");
-        removeClassU("kypo-details-loading-update", "d-none");
-
-        var url = "/api/v1/kypo/instances/" + encodeURIComponent(instanceId) +
-                  "/details?instance_type=" + encodeURIComponent(instanceType || "linear");
-        if (definitionId) url += "&definition_id=" + encodeURIComponent(definitionId);
-
-        fetch(url, { method: "GET", credentials: "same-origin" })
-            .then(function (r) { return r.json(); })
-            .then(function (data) {
-                addClassU("kypo-details-loading-update", "d-none");
-                if (data.success && data.data && data.data.max_score !== undefined) {
-                    if (scoreEl) scoreEl.value = data.data.max_score;
-                } else {
-                    removeClassU("kypo-details-error-update", "d-none");
-                }
-            })
-            .catch(function () {
-                addClassU("kypo-details-loading-update", "d-none");
-                removeClassU("kypo-details-error-update", "d-none");
-            });
-    }
-
     function loadInstances() {
         var loading = elU("kypo-instance-loading-update");
         var select  = elU("kypo-instance-select-update");
@@ -209,8 +182,8 @@
                 select.addEventListener("change", function () {
                     var opt = this.options[this.selectedIndex];
                     if (!opt || !opt.value) return;
+                    // Chỉ cập nhật metadata instance — KHÔNG fetch điểm từ KYPO
                     syncHidden(opt);
-                    fetchScore(opt.value, opt.dataset.instanceType, opt.dataset.definitionId);
                 });
             })
             .catch(function () {

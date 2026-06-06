@@ -27,6 +27,7 @@ public class ChallengeController : BaseController
     private readonly RedisLockHelper _redisLockHelper;
     private readonly AppLogger _userBehaviorLogger;
     private readonly IActionLogsServices _actionLogsServices;
+    private readonly KypoScoreLockService _scoreLockService;
 
     public ChallengeController(
         IUserContext userContext,
@@ -37,7 +38,8 @@ public class ChallengeController : BaseController
         RedisHelper redisHelper,
         RedisLockHelper redisLockHelper,
         AppLogger userBehaviorLogger,
-        IActionLogsServices actionLogsServices) : base(userContext)
+        IActionLogsServices actionLogsServices,
+        KypoScoreLockService scoreLockService) : base(userContext)
     {
         _context = context;
         _configHelper = configHelper;
@@ -47,6 +49,7 @@ public class ChallengeController : BaseController
         _redisLockHelper = redisLockHelper;
         _userBehaviorLogger = userBehaviorLogger;
         _actionLogsServices = actionLogsServices;
+        _scoreLockService = scoreLockService;
     }
 
     private static bool IsDuplicateKey(DbUpdateException ex)
@@ -858,6 +861,33 @@ public class ChallengeController : BaseController
     };
     await _redisHelper.SetCacheAsync(sandboxCacheKey, sandboxCacheDto, cacheTtl);
 
+    // Ghi challenge_start_tracking làm nguồn started_at cho trigger "hết giờ".
+    // Chỉ ghi nếu chưa có phiên đang mở (stopped_at == null) cho team+challenge.
+    try
+    {
+        var hasOpenTracking = await _context.ChallengeStartTrackings
+            .AnyAsync(t => t.ChallengeId == challenge.Id
+                        && t.TeamId == user.TeamId.Value
+                        && t.StoppedAt == null);
+
+        if (!hasOpenTracking)
+        {
+            _context.ChallengeStartTrackings.Add(new ChallengeStartTracking
+            {
+                UserId      = user.Id,
+                TeamId      = user.TeamId.Value,
+                ChallengeId = challenge.Id,
+                StartedAt   = DateTime.UtcNow,
+                Label       = "kypo",
+            });
+            await _context.SaveChangesAsync();
+        }
+    }
+    catch (Exception ex)
+    {
+        await Console.Error.WriteLineAsync($"[KYPO] Ghi challenge_start_tracking lỗi: {ex.Message}");
+    }
+
     return Ok(new ChallengeDeployResponeDTO
     {
         status = (int)HttpStatusCode.OK,
@@ -1109,10 +1139,38 @@ public class ChallengeController : BaseController
         if (!await _redisHelper.KeyExistsAsync(cache_key))
             return BadRequest(new { error = "Challenge not started or already stopped, no active cache found." });
 
-        // Sandbox challenge: chỉ cần xóa Redis key, không gọi external deployment API
+        // Sandbox/KYPO challenge: xóa Redis key + chốt điểm KYPO
         bool isSandboxChallenge = string.Equals(challenge.Type, "sandbox", StringComparison.OrdinalIgnoreCase);
-        if (isSandboxChallenge)
+        bool isKypoChallenge = await _context.KypoChallengeConfigs
+            .AsNoTracking()
+            .AnyAsync(k => k.ChallengeId == challenge.Id);
+
+        if (isSandboxChallenge || isKypoChallenge)
         {
+            var teamId = user.TeamId.Value;
+
+            // Đánh dấu phiên đã dừng (stopped_at) — ngừng đếm giờ
+            var openTrackings = await _context.ChallengeStartTrackings
+                .Where(t => t.ChallengeId == challenge.Id
+                         && t.TeamId == teamId
+                         && t.StoppedAt == null)
+                .ToListAsync();
+            foreach (var t in openTrackings) t.StoppedAt = DateTime.UtcNow;
+            if (openTrackings.Count > 0) await _context.SaveChangesAsync();
+
+            // Chốt điểm: all-or-nothing, điểm lấy từ challenges.value
+            if (isKypoChallenge)
+            {
+                try
+                {
+                    await _scoreLockService.LockScoreAsync(challenge.Id, teamId);
+                }
+                catch (Exception ex)
+                {
+                    await Console.Error.WriteLineAsync($"[KYPO] Chốt điểm khi stop lỗi: {ex.Message}");
+                }
+            }
+
             await _redisHelper.RemoveCacheAsync(cache_key);
             return Ok(new ChallengeDeployResponeDTO
             {
