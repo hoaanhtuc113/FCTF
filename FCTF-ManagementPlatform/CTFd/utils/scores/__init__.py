@@ -25,17 +25,12 @@ def get_standings(count=None, bracket_id=None, admin=False, fields=None):
     scores = (
         db.session.query(
             Solves.account_id.label("account_id"),
-            db.func.sum(
-                db.case(
-                    (Solves.value != None, Solves.value),
-                    else_=Challenges.value,
-                )
-            ).label("score"),
+            db.func.sum(Challenges.value).label("score"),
             db.func.max(Solves.id).label("id"),
             db.func.max(Solves.date).label("date"),
         )
         .join(Challenges)
-        .filter(db.or_(Challenges.value != 0, Solves.value != None))
+        .filter(Challenges.value != 0)
         .group_by(Solves.account_id)
     )
 
@@ -152,17 +147,12 @@ def get_team_standings(count=None, bracket_id=None, admin=False, fields=None):
     scores = (
         db.session.query(
             Solves.team_id.label("team_id"),
-            db.func.sum(
-                db.case(
-                    (Solves.value != None, Solves.value),
-                    else_=Challenges.value,
-                )
-            ).label("score"),
+            db.func.sum(Challenges.value).label("score"),
             db.func.max(Solves.id).label("id"),
             db.func.max(Solves.date).label("date"),
         )
         .join(Challenges)
-        .filter(db.or_(Challenges.value != 0, Solves.value != None))
+        .filter(Challenges.value != 0)
         .group_by(Solves.team_id)
     )
 
@@ -250,17 +240,12 @@ def get_user_standings(count=None, bracket_id=None, admin=False, fields=None):
     scores = (
         db.session.query(
             Solves.user_id.label("user_id"),
-            db.func.sum(
-                db.case(
-                    (Solves.value != None, Solves.value),
-                    else_=Challenges.value,
-                )
-            ).label("score"),
+            db.func.sum(Challenges.value).label("score"),
             db.func.max(Solves.id).label("id"),
             db.func.max(Solves.date).label("date"),
         )
         .join(Challenges)
-        .filter(db.or_(Challenges.value != 0, Solves.value != None))
+        .filter(Challenges.value != 0)
         .group_by(Solves.user_id)
     )
 

@@ -101,9 +101,11 @@ public class KypoApiClient
                 {
                     levels.Add(new KypoLevelProgress
                     {
-                        Id    = lv.TryGetProperty("id",    out var id)    ? id.GetInt32()     : 0,
-                        State = lv.TryGetProperty("state", out var st)    ? st.GetString()!   : "",
-                        Score = lv.TryGetProperty("score", out var score) ? score.GetInt32()  : 0,
+                        Id    = lv.TryGetProperty("id",    out var id) ? id.GetInt32()   : 0,
+                        State = lv.TryGetProperty("state", out var st) ? st.GetString()! : "",
+                        // Field "score" KHÔNG tồn tại ở cấp level.
+                        // Điểm của phase nằm trong events[].actual_score_in_level (= max_score của phase).
+                        Score = ExtractLevelScore(lv),
                     });
                 }
             }
@@ -122,6 +124,32 @@ public class KypoApiClient
         }
 
         return results;
+    }
+
+    /// <summary>
+    /// Lấy điểm của 1 phase (level) từ events[].
+    /// KYPO không trả "score" trực tiếp ở level — điểm nằm trong events.
+    /// Dùng giá trị lớn nhất của "actual_score_in_level" (hoặc "max_score").
+    /// Mục đích: chỉ cần biết phase có điểm > 0 (phase tính điểm) hay = 0 (phase info/access).
+    /// </summary>
+    private static int ExtractLevelScore(JsonElement level)
+    {
+        if (!level.TryGetProperty("events", out var events)
+            || events.ValueKind != JsonValueKind.Array)
+            return 0;
+
+        var max = 0;
+        foreach (var ev in events.EnumerateArray())
+        {
+            if (ev.TryGetProperty("actual_score_in_level", out var a)
+                && a.ValueKind == JsonValueKind.Number)
+                max = Math.Max(max, a.GetInt32());
+
+            if (ev.TryGetProperty("max_score", out var m)
+                && m.ValueKind == JsonValueKind.Number)
+                max = Math.Max(max, m.GetInt32());
+        }
+        return max;
     }
 
     // ──────────────────────────────────────────────────────────

@@ -895,9 +895,6 @@ public partial class AppDbContext : DbContext
             entity.Property(e => e.UserId)
                 .HasColumnType("int(11)")
                 .HasColumnName("user_id");
-            entity.Property(e => e.Value)
-                .HasColumnType("int(11)")
-                .HasColumnName("value");
 
             entity.HasOne(d => d.Challenge).WithMany(p => p.Solves)
                 .HasForeignKey(d => d.ChallengeId)
