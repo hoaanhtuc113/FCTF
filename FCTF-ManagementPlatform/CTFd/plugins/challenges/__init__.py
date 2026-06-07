@@ -310,88 +310,6 @@ class BaseChallenge(object):
         db.session.commit()
 
 
-class CTFdSandboxChallenge(BaseChallenge):
-    id = "sandbox"
-    name = "sandbox"
-    templates = {
-        "create": "/plugins/challenges/assets/create.html",
-        "update": "/plugins/challenges/assets/update.html",
-        "view": "/plugins/challenges/assets/view.html",
-    }
-    scripts = {
-        "create": "/plugins/challenges/assets/create.js",
-        "update": "/plugins/challenges/assets/update.js",
-        "view": "/plugins/challenges/assets/view.js",
-    }
-    route = "/plugins/challenges/assets/"
-
-    @classmethod
-    def create(cls, request, extra_data=None):
-        from CTFd.models import SandboxChallenge, db as _db
-        import json as _json
-
-        data = request.form or request.get_json()
-        data = dict(data)
-        data.pop("contest_token", None)
-        data.pop("file_upload", None)
-        if "user_id" in data:
-            data.setdefault("created_by", data.pop("user_id"))
-        if extra_data:
-            data.update(extra_data)
-
-        # Extract pool_id before column filtering
-        pool_id = None
-        if "pool_id" in data:
-            try:
-                pool_id = int(data["pool_id"])
-            except (TypeError, ValueError):
-                pool_id = None
-
-        # Convert numeric fields
-        for key in ("cpu_limit", "cpu_request", "memory_limit", "memory_request", "max_deploy_count"):
-            if key in data and data[key] is not None:
-                try:
-                    data[key] = int(data[key])
-                except (TypeError, ValueError):
-                    pass
-
-        # Convert booleans
-        for bool_key in ("use_gvisor", "harden_container", "shared_instant"):
-            if bool_key in data and isinstance(data[bool_key], str):
-                data[bool_key] = data[bool_key].lower() in ("true", "1", "yes", "on")
-
-        # Handle difficulty
-        if "difficulty" in data:
-            v = data["difficulty"]
-            if v is None or (isinstance(v, str) and v.strip() == ""):
-                data["difficulty"] = None
-            else:
-                try:
-                    data["difficulty"] = int(v)
-                except (TypeError, ValueError):
-                    data["difficulty"] = None
-
-        # Allow columns from both challenges (parent) + sandbox_challenge (child)
-        parent_cols = {c.name for c in Challenges.__table__.columns}
-        child_cols  = {c.name for c in SandboxChallenge.__table__.columns}
-        valid_cols  = (parent_cols | child_cols) - {"id"}   # exclude PK (auto)
-
-        data = {k: v for k, v in data.items() if k in valid_cols}
-
-        # Force correct type and pool_id
-        data["type"]    = "sandbox"
-        data["pool_id"] = pool_id
-
-        if int(data.get("time_limit", 0)) >= -1:
-            challenge = SandboxChallenge(**data)
-            _db.session.add(challenge)
-            _db.session.commit()
-        else:
-            from flask import jsonify
-            return jsonify({"error": "Time limit must be greater than -1"}), 400
-
-        return challenge
-
 
 class CTFdStandardChallenge(BaseChallenge):
     id = "standard"  # Unique identifier used to register challenges
@@ -434,7 +352,6 @@ your Challenge Type.
 """
 CHALLENGE_CLASSES = {
     "standard": CTFdStandardChallenge,
-    "sandbox":  CTFdSandboxChallenge,
 }
 
 

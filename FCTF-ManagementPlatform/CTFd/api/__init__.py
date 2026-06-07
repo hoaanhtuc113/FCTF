@@ -28,7 +28,6 @@ from CTFd.api.v1.action_logs import action_logs_namespace
 from CTFd.api.v1.contests import contests_namespace
 from CTFd.api.v1.contest_statistics import contest_statistics_namespace
 from CTFd.api.v1.contest_challenges import contest_challenges_namespace
-from CTFd.api.v1.kypo import kypo_namespace
 from CTFd.api.v1.contest_fields import contest_fields_namespace
 
 api = Blueprint("api", __name__, url_prefix="/api/v1")
@@ -93,6 +92,5 @@ CTFd_API_v1.add_namespace(action_logs_namespace, "/action_logs")
 CTFd_API_v1.add_namespace(contests_namespace, "/contests")
 CTFd_API_v1.add_namespace(contest_statistics_namespace, "/contest_statistics")
 CTFd_API_v1.add_namespace(contest_challenges_namespace, "/contest_challenges")
-CTFd_API_v1.add_namespace(kypo_namespace, "/kypo")
 CTFd_API_v1.add_namespace(contest_fields_namespace, "/contest_fields")
 

@@ -483,11 +483,7 @@
 					<a class="nav-item nav-link small" data-toggle="tab" href="#tags" role="tab">Tags</a>
 					<a class="nav-item nav-link small" data-toggle="tab" href="#hints" role="tab">Hints</a>
 					<a class="nav-item nav-link small" data-toggle="tab" href="#requirements" role="tab">Requirements</a>
-					{% if challenge.type == 'sandbox' %}
-					<a class="nav-item nav-link small" data-toggle="tab" href="#sandbox-info" role="tab">Sandbox</a>
-					{% else %}
 					<a class="nav-item nav-link small" data-toggle="tab" href="#deploy" role="tab">Deploy</a>
-					{% endif %}
 					<a class="nav-item nav-link small" data-toggle="tab" href="#versions" role="tab">Versions</a>
 					<a class="nav-item nav-link small" data-toggle="tab" href="#next" role="tab">Next</a>
 				</nav>
@@ -549,181 +545,6 @@
 							</div>
 						</div>
 					</div>
-					{% if challenge.type == 'sandbox' %}
-					<div class="tab-pane fade" id="sandbox-info" role="tabpanel">
-						<div class="row">
-							<div class="col-md-12">
-								<h3 class="text-center py-3 d-block">Sandbox Info</h3>
-
-								<!-- Sandbox Definition -->
-								<div class="form-group">
-									<label class="font-weight-600" style="font-weight:600;">
-										<i class="fas fa-cube mr-1" style="color:#ff6b35;"></i>
-										Sandbox Definition
-									</label>
-									{% if sandbox_pool_id %}
-									<div class="border rounded p-3" id="sb-def-card" style="background:#f8f9fa;">
-										<div class="d-flex align-items-center mb-1">
-											<span class="badge badge-secondary mr-2" id="sb-def-id-badge" style="font-size:.8rem;">
-												{{ ('ID ' ~ sandbox_definition_id) if sandbox_definition_id else '…' }}
-											</span>
-											<span id="sb-def-name" style="font-size:.95rem;">
-												<i class="fas fa-spinner fa-spin text-muted" style="font-size:.8rem;"></i>
-												<span class="text-muted" style="font-size:.85rem;">Loading…</span>
-											</span>
-										</div>
-										<div id="sb-def-meta" class="text-muted" style="font-size:.82rem;display:none;">
-											<span id="sb-def-url"></span>
-										</div>
-									</div>
-									{% else %}
-									<div class="border rounded p-3 text-muted" style="background:#f8f9fa;font-size:.9rem;">
-										<i class="fas fa-info-circle mr-1"></i>
-										No pool assigned — cannot determine definition.
-									</div>
-									{% endif %}
-								</div>
-
-								<!-- Pool -->
-								<div class="form-group mt-3">
-									<label class="font-weight-600" style="font-weight:600;">
-										<i class="fas fa-server mr-1" style="color:#ff6b35;"></i>
-										Pool
-									</label>
-									{% if sandbox_pool_id %}
-									<div class="border rounded p-3" style="background:#f8f9fa;">
-										<div class="d-flex align-items-center mb-1">
-											<span class="badge badge-secondary mr-2" style="font-size:.8rem;">ID {{ sandbox_pool_id }}</span>
-											<span id="sb-pool-name" style="font-size:.95rem;">
-												<i class="fas fa-spinner fa-spin text-muted" style="font-size:.8rem;"></i>
-												<span class="text-muted" style="font-size:.85rem;">Loading…</span>
-											</span>
-										</div>
-										<div id="sb-pool-meta" class="text-muted" style="font-size:.82rem;display:none;">
-											<span id="sb-pool-max-size"></span>
-											<span id="sb-pool-state" class="ml-2"></span>
-										</div>
-									</div>
-									{% else %}
-									<div class="border rounded p-3 text-muted" style="background:#f8f9fa;font-size:.9rem;">
-										<i class="fas fa-info-circle mr-1"></i>
-										No pool assigned to this challenge.
-									</div>
-									{% endif %}
-								</div>
-							</div>
-						</div>
-					</div>
-
-					<script>
-					(function() {
-						var CONTEST_ID_SB    = {{ contest.id }};
-						// definition_id may be null if not yet deployed — we'll derive it from the pool
-						var DEFINITION_ID_SB = {{ sandbox_definition_id if sandbox_definition_id is not none else 'null' }};
-						var POOL_ID_SB       = {{ sandbox_pool_id if sandbox_pool_id is not none else 'null' }};
-
-						function loadDefinition(definitionId) {
-							var nameEl  = document.getElementById('sb-def-name');
-							var metaEl  = document.getElementById('sb-def-meta');
-							var urlEl   = document.getElementById('sb-def-url');
-							var badgeEl = document.getElementById('sb-def-id-badge');
-
-							if (!nameEl) return;
-
-							// Update ID badge if we just discovered the id from pool
-							if (badgeEl && definitionId) {
-								badgeEl.textContent = 'ID ' + definitionId;
-							}
-
-							fetch('/api/v1/kypo/sandbox-definitions/' + definitionId)
-								.then(function(r) { return r.json(); })
-								.then(function(json) {
-									if (json.success && json.data) {
-										var d    = json.data;
-										var name = d.name || d.title || d.rev || ('Definition #' + definitionId);
-										nameEl.innerHTML = '<strong>' + name + '</strong>';
-										var gitUrl = d.url || d.git_url || '';
-										if (gitUrl && urlEl && metaEl) {
-											urlEl.innerHTML = '<i class="fab fa-git-alt mr-1"></i>' +
-												'<a href="' + gitUrl + '" target="_blank" rel="noopener" style="color:#6c757d;">' + gitUrl + '</a>';
-											metaEl.style.display = '';
-										}
-									} else {
-										nameEl.innerHTML = '<span class="text-muted">(cannot load name)</span>';
-									}
-								})
-								.catch(function() {
-									if (nameEl) nameEl.innerHTML = '<span class="text-muted">(KYPO unreachable)</span>';
-								});
-						}
-
-						function loadSandboxInfo() {
-							if (!POOL_ID_SB) return;
-
-							// ── Pool ─────────────────────────────────────────
-							fetch('/api/v1/kypo/contests/' + CONTEST_ID_SB + '/pools/' + POOL_ID_SB)
-								.then(function(r) { return r.json(); })
-								.then(function(json) {
-									var nameEl  = document.getElementById('sb-pool-name');
-									var metaEl  = document.getElementById('sb-pool-meta');
-									var sizeEl  = document.getElementById('sb-pool-max-size');
-									var stateEl = document.getElementById('sb-pool-state');
-
-									if (json.success && json.data) {
-										var p    = json.data;
-										var name = p.comment || p.name || p.title || ('Pool #' + POOL_ID_SB);
-										if (nameEl) nameEl.innerHTML = '<strong>' + name + '</strong>';
-
-										if (p.max_size !== undefined && sizeEl) {
-											sizeEl.innerHTML = '<i class="fas fa-database mr-1"></i>Max size: <strong>' + p.max_size + '</strong>';
-										}
-										if (p.lock_state && stateEl) {
-											var locked = p.lock_state === 'LOCKED';
-											stateEl.innerHTML = locked
-												? '<span class="badge badge-warning ml-2"><i class="fas fa-lock mr-1"></i>Locked</span>'
-												: '<span class="badge badge-success ml-2"><i class="fas fa-lock-open mr-1"></i>Unlocked</span>';
-										}
-										if (metaEl) metaEl.style.display = '';
-
-										// ── Derive definition_id from pool if not already known ──
-										var defId = DEFINITION_ID_SB
-											|| p.definition_id
-											|| (p.definition && p.definition.id)
-											|| null;
-										if (defId) {
-											loadDefinition(defId);
-										} else {
-											var defNameEl = document.getElementById('sb-def-name');
-											if (defNameEl) defNameEl.innerHTML = '<span class="text-muted">Not available</span>';
-										}
-									} else {
-										if (nameEl) nameEl.innerHTML = '<span class="text-muted">(cannot load)</span>';
-									}
-								})
-								.catch(function() {
-									var nameEl = document.getElementById('sb-pool-name');
-									if (nameEl) nameEl.innerHTML = '<span class="text-muted">(KYPO unreachable)</span>';
-									// Fallback: try definition directly if id already known
-									if (DEFINITION_ID_SB) loadDefinition(DEFINITION_ID_SB);
-								});
-						}
-
-						// Trigger on tab click (Bootstrap 4 event or plain click)
-						var tab = document.querySelector('a[href="#sandbox-info"]');
-						if (tab) {
-							var loaded = false;
-							function once() {
-								if (loaded) return;
-								loaded = true;
-								loadSandboxInfo();
-							}
-							tab.addEventListener('shown.bs.tab', once);
-							tab.addEventListener('click', function() { setTimeout(once, 60); });
-						}
-					})();
-					</script>
-
-					{% else %}
 					<div class="tab-pane fade" id="deploy" role="tabpanel">
 						<div class="row">
 							<div class="col-md-12">
@@ -732,7 +553,6 @@
 							</div>
 						</div>
 					</div>
-					{% endif %}
 					<div class="tab-pane fade" id="versions" role="tabpanel">
 						<div class="row">
 							<div class="col-md-12">

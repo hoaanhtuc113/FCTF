@@ -116,17 +116,9 @@
     <!-- Challenge Type Tabs -->
     <div class="ch-type-tabs">
         <a href="{{ url_for('admin.contest_challenges', contest_id=contest.id) }}"
-           class="ch-type-tab {% if challenge_type == 'all' %}active{% endif %}">
+           class="ch-type-tab active">
             <i class="bx bx-list-ul mr-1"></i>All
             <span class="tab-count">{{ contest_challenges.total }}</span>
-        </a>
-        <a href="{{ url_for('admin.contest_challenges', contest_id=contest.id, challenge_type='regular') }}"
-           class="ch-type-tab {% if challenge_type == 'regular' %}active{% endif %}">
-            <i class="bx bx-book mr-1"></i>Regular
-        </a>
-        <a href="{{ url_for('admin.contest_challenges', contest_id=contest.id, challenge_type='sandbox') }}"
-           class="ch-type-tab {% if challenge_type == 'sandbox' %}active{% endif %}">
-            <i class="bx bx-grid-alt mr-1"></i>Sandbox
         </a>
     </div>
 
@@ -275,9 +267,7 @@
                     </td>
                     <td class="text-center cell-truncate-sm" title="{{ cc.creator }}">{{ cc.creator | truncate(20) }}</td>
                     <td class="text-center">{{ cc.value if cc.value is not none else '&mdash;' }}</td>
-                    <td class="text-center">
-                        {% if cc.sandbox_id %}sandbox{% else %}{{ cc.type }}{% endif %}
-                    </td>
+                    <td class="text-center">{{ cc.type }}</td>
                     <td class="text-center">
                         {% if cc.tags %}
                             {% for t in cc.tags %}
@@ -288,9 +278,7 @@
                         {% endif %}
                     </td>
                     <td class="text-center">
-                        {% if cc.sandbox_id %}
-                            <span class="sb-type-badge">Sandbox #{{ cc.sandbox_id }}</span>
-                        {% elif cc.deploy_status == 'DEPLOY_SUCCESS' %}
+                        {% if cc.deploy_status == 'DEPLOY_SUCCESS' %}
                         <span class="clean-badge clean-badge-success">DEPLOY_SUCCESS</span>
                         {% elif cc.deploy_status == 'DEPLOY_FAILED' %}
                         <span class="clean-badge clean-badge-danger">DEPLOY_FAILED</span>

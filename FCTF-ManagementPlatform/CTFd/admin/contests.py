@@ -912,18 +912,9 @@ def contest_challenges(contest_id):
     state_filter = request.args.get("state", "")
     tags_q = request.args.get("tags", "")
     tag_terms = [t.strip() for t in tags_q.split(",") if t.strip()] if tags_q else []
-    challenge_type = request.args.get("challenge_type", "all")  # "all", "regular", "sandbox"
     page = abs(request.args.get("page", 1, type=int))
 
-    _sandbox_filter = Challenges.image_link.like('%"definition_id"%')
-
     query = Challenges.query.filter(Challenges.contest_id == contest_id)
-    if challenge_type == "sandbox":
-        query = query.filter(_sandbox_filter)
-    elif challenge_type == "regular":
-        query = query.filter(
-            db.or_(Challenges.image_link.is_(None), db.not_(_sandbox_filter))
-        )
 
     if tag_terms:
         for term in tag_terms:
@@ -966,12 +957,6 @@ def contest_challenges(contest_id):
         creator_id = getattr(ch, "created_by", None)
         user = Users.query.filter_by(id=creator_id).first() if creator_id else None
         ch.creator = user.name if user else "Unknown"
-        ch.sandbox_id = None
-        if ch.image_link:
-            try:
-                ch.sandbox_id = json.loads(ch.image_link).get("definition_id")
-            except Exception:
-                pass
 
     raw_categories = (
         Challenges.query.with_entities(Challenges.category)
@@ -1010,7 +995,6 @@ def contest_challenges(contest_id):
         tag_terms=tag_terms,
         categories=categories,
         types=types,
-        challenge_type=challenge_type,
         is_detail=is_detail,
     )
 
@@ -1084,18 +1068,11 @@ def contest_challenge_detail(contest_id, challenge_id):
     expose_port = ""
     image_link_name = ""
     image_link_display = ""
-    sandbox_definition_id = None
-    sandbox_pool_id = None
     if challenge.image_link:
         obj = json.loads(challenge.image_link)
         expose_port = obj.get("exposedPort", "")
         image_link_name = obj.get("imageLink", "")
         image_link_display = image_link_name
-        if challenge.type == "sandbox":
-            sandbox_definition_id = obj.get("definition_id")
-
-    if challenge.type == "sandbox":
-        sandbox_pool_id = getattr(challenge, "pool_id", None)
 
     try:
         challenge_class = get_chal_class(challenge.type)
@@ -1138,8 +1115,6 @@ def contest_challenge_detail(contest_id, challenge_id):
         is_detail=True,
         ctf_is_active=ctf_is_active,
         versions=versions,
-        sandbox_definition_id=sandbox_definition_id,
-        sandbox_pool_id=sandbox_pool_id,
     )
 
 
@@ -2654,63 +2629,6 @@ def contest_monitoring(contest_id):
         is_detail=True,
     )
 
-
-@admin.route("/admin/contests/<int:contest_id>/challenges/sandbox")
-@admins_only
-def contest_sandbox_challenges(contest_id):
-    contest = Contests.query.filter_by(id=contest_id).first_or_404()
-
-    page = abs(request.args.get("page", 1, type=int))
-    q = request.args.get("q", "").strip()
-    state_filter = request.args.get("state", "")
-
-    query = Challenges.query.filter(
-        Challenges.contest_id == contest_id,
-        Challenges.image_link.like('%"definition_id"%'),
-    )
-    if q:
-        query = query.filter(Challenges.name.ilike(f"%{q}%"))
-    if state_filter:
-        query = query.filter(Challenges.state == state_filter)
-
-    challenges = query.order_by(Challenges.id.asc()).paginate(
-        page=page, per_page=50, error_out=False
-    )
-
-    for ch in challenges.items:
-        sandbox_id = None
-        if ch.image_link:
-            try:
-                sandbox_id = json.loads(ch.image_link).get("definition_id")
-            except Exception:
-                pass
-        ch.sandbox_id = sandbox_id
-
-    args = dict(request.args)
-    args.pop("page", None)
-
-    return render_template(
-        "admin/contests/sections/sandbox_challenges.html",
-        contest=contest,
-        challenges=challenges,
-        prev_page=url_for(request.endpoint, contest_id=contest_id, page=challenges.prev_num, **args),
-        next_page=url_for(request.endpoint, contest_id=contest_id, page=challenges.next_num, **args),
-        q=q,
-        state_filter=state_filter,
-        is_detail=True,
-    )
-
-
-@admin.route("/admin/contests/<int:contest_id>/challenges/sandbox/new")
-@admins_only
-def contest_sandbox_challenge_new(contest_id):
-    contest = Contests.query.filter_by(id=contest_id).first_or_404()
-    return render_template(
-        "admin/challenges/sandbox_challenge.html",
-        contest=contest,
-        is_detail=True,
-        use_kypo_pools=True,
-    )
 
 
 @admin.route("/admin/contests/<int:contest_id>/dynamic_reward")

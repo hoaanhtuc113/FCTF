@@ -336,9 +336,6 @@ class ChallengeList(Resource):
         # the model data (client cannot spoof this value).
         challenge = challenge_class.create(request, extra_data={"contest_id": validated_contest_id})
 
-        # Explicitly save image_link for sandbox challenges.
-        # create() filters fields via valid_columns but image_link may be
-        # dropped by some challenge plugins — guarantee it here.
         req_json = request.get_json() or {}
         image_link_val = req_json.get("image_link")
         if image_link_val and challenge.image_link != image_link_val:
