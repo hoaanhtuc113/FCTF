@@ -38,7 +38,6 @@ from CTFd.admin import action_logs  # noqa: F401
 from CTFd.admin import admin_audit  # noqa: F401
 from CTFd.admin import instances_history  # noqa: F401
 from CTFd.admin import contests  # noqa: F401
-from CTFd.admin import kypo  # noqa: F401
 
 from CTFd.cache import (
     cache,
@@ -86,8 +85,10 @@ from CTFd.utils.user import is_admin,is_challenge_writer,is_jury
 
 @admin.route("/admin", methods=["GET"])
 def view():
-    if is_challenge_writer() or is_admin() or is_jury():
+    if is_admin():
         return redirect(url_for("admin.users_listing"))
+    if is_jury() or is_challenge_writer():
+        return redirect(url_for("admin.contests_listing"))
     return redirect(url_for("auth.login"))
 
 
@@ -500,6 +501,46 @@ def config():
         "admin/config.html",
         **configs,
         force_html_sanitization=force_html_sanitization
+    )
+
+
+@admin.route("/admin/custom-fields")
+@admins_only
+def custom_fields():
+    return render_template("admin/custom_fields.html")
+
+
+@admin.route("/admin/platform-settings", methods=["GET", "POST"])
+@admins_only
+def platform_settings():
+    if request.method == "POST":
+        allowed_keys = {"registration_visibility", "html_sanitization"}
+        for key, values in request.form.lists():
+            if key == "nonce" or key not in allowed_keys:
+                continue
+            if not values:
+                continue
+            value = values[-1]
+            set_config(key=key, value=value)
+
+        clear_config()
+        flash("Settings updated successfully.", "success")
+        return redirect(url_for("admin.platform_settings"))
+
+    clear_config()
+    registration_visibility = get_config("registration_visibility") or "private"
+    # get_config auto-converts "true"/"false" strings to Python booleans,
+    # so normalize back to string for template comparison
+    _html_san_raw = get_config("html_sanitization")
+    html_sanitization = "true" if _html_san_raw is True else "false"
+    # If forced via config.ini, the toggle is locked
+    force_html_sanitization = get_app_config("HTML_SANITIZATION") is True
+
+    return render_template(
+        "admin/platform_settings.html",
+        registration_visibility=registration_visibility,
+        html_sanitization=html_sanitization,
+        force_html_sanitization=force_html_sanitization,
     )
 
 

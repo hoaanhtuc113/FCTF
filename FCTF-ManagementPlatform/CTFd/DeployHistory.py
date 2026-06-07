@@ -106,7 +106,7 @@ def get_pods_logs(challenge_id):
     if user.type == "user":
         return jsonify({"error": "Permission denied"}), 400
 
-    team_id = user.team_id if user.team_id is not None else -1
+    team_id = -1
     team_id_param = request.args.get("team_id")
     if team_id_param is not None:
         try:
@@ -135,7 +135,7 @@ def get_pods_logs_api(challenge_id):
     if user.type == "user":
         return jsonify({"success": False, "error": "Permission denied"}), 400
 
-    team_id = user.team_id if user.team_id is not None else -1
+    team_id = -1
     team_id_param = request.args.get("team_id")
     if team_id_param is not None:
         try:
@@ -160,7 +160,7 @@ def get_request_logs(challenge_id):
     if user.type == "user":
         return jsonify({"error": "Permission denied"}), 400
 
-    team_id = user.team_id if user.team_id is not None else -1
+    team_id = -1
     team_id_param = request.args.get("team_id")
     if team_id_param is not None:
         try:
@@ -192,7 +192,7 @@ def get_request_logs_api(challenge_id):
     if user.type == "user":
         return jsonify({"success": False, "error": "Permission denied"}), 400
 
-    team_id = user.team_id if user.team_id is not None else -1
+    team_id = -1
     team_id_param = request.args.get("team_id")
     if team_id_param is not None:
         try:

@@ -48,7 +48,7 @@ namespace ResourceShared.DTOs.Auth
         public string password { get; set; } = string.Empty;
         [Required,MaxLength(255)]
         public string confirmPassword { get; set; } = string.Empty;
-        [Required,MaxLength(10000)]
+        [MaxLength(10000)]
         public string? captchaToken { get; set; }
         public List<RegistrationFieldValueDTO> userFields { get; set; } = new();
     }

@@ -37,15 +37,14 @@ def _contest_to_dict(contest: Contests) -> dict:
             else None
         ),
         "view_after_ctf": contest.view_after_ctf,
-        "challenge_visibility": contest.challenge_visibility,
         "score_visibility": contest.score_visibility,
-        "account_visibility": contest.account_visibility,
-        "registration_visibility": contest.registration_visibility,
         "team_size": contest.team_size,
         "captain_only_start_challenge": contest.captain_only_start_challenge,
         "captain_only_submit_challenge": contest.captain_only_submit_challenge,
         "team_disbanding": contest.team_disbanding,
         "allow_name_change": contest.allow_name_change,
+        "challenge_difficulty_visibility": contest.challenge_difficulty_visibility,
+        "limit_challenges": contest.limit_challenges,
         "incorrect_submissions_per_min": contest.incorrect_submissions_per_min,
         "created_at": contest.created_at.isoformat() if contest.created_at else None,
         "updated_at": contest.updated_at.isoformat() if contest.updated_at else None,
@@ -172,15 +171,15 @@ class ContestList(Resource):
             end_time=end_time,
             freeze_scoreboard_at=freeze_scoreboard_at,
             view_after_ctf=bool(data.get("view_after_ctf", False)),
-            challenge_visibility=data.get("challenge_visibility") or "private",
+
             score_visibility=data.get("score_visibility") or "private",
-            account_visibility=data.get("account_visibility") or "private",
-            registration_visibility=data.get("registration_visibility") or "private",
             team_size=data.get("team_size") or None,
             captain_only_start_challenge=bool(data.get("captain_only_start_challenge", True)),
             captain_only_submit_challenge=bool(data.get("captain_only_submit_challenge", False)),
             team_disbanding=bool(data.get("team_disbanding", True)),
             allow_name_change=bool(data.get("allow_name_change", True)),
+            challenge_difficulty_visibility=data.get("challenge_difficulty_visibility") or "disabled",
+            limit_challenges=data.get("limit_challenges") or None,
             incorrect_submissions_per_min=data.get("incorrect_submissions_per_min") or None,
         )
 
@@ -213,14 +212,14 @@ class ContestDetail(Resource):
         str_fields = [
             "name", "description", "slug", "access_password",
             "user_mode", "state",
-            "challenge_visibility", "score_visibility",
-            "account_visibility", "registration_visibility",
+            "score_visibility",
         ]
         bool_fields = [
             "view_after_ctf", "captain_only_start_challenge",
             "captain_only_submit_challenge", "team_disbanding", "allow_name_change",
         ]
-        int_fields = ["owner_id", "team_size", "incorrect_submissions_per_min"]
+        str_fields += ["challenge_difficulty_visibility"]
+        int_fields = ["owner_id", "team_size", "incorrect_submissions_per_min", "limit_challenges"]
         dt_fields = ["start_time", "end_time", "freeze_scoreboard_at"]
 
         # Validate slug uniqueness before applying changes

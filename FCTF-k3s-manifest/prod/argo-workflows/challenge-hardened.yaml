@@ -190,6 +190,9 @@ spec:
             readOnlyRootFilesystem: true
             capabilities:
               drop: ["ALL"]
+          env:
+            - name: FLAG
+              value: "${CHALLENGE_FLAG}"
           resources:
             requests:
               memory: "${MEMORY_REQUEST}"

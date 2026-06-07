@@ -33,6 +33,8 @@ spec:
         value: "true"
       - name: CHALLENGE_TIMEOUT
         value: "15m"
+      - name: CHALLENGE_FLAG
+        value: ""
 
   templates:
     - name: main
@@ -63,6 +65,8 @@ spec:
                   value: "{{workflow.parameters.IS_TEMPORARY}}"
                 - name: CHALLENGE_TIMEOUT
                   value: "{{workflow.parameters.CHALLENGE_TIMEOUT}}"
+                - name: CHALLENGE_FLAG
+                  value: "{{workflow.parameters.CHALLENGE_FLAG}}"
 
     - name: deploy-challenge-v2
       inputs:
@@ -78,6 +82,7 @@ spec:
           - name: HARDEN_CONTAINER
           - name: IS_TEMPORARY
           - name: CHALLENGE_TIMEOUT
+          - name: CHALLENGE_FLAG
       priorityClassName: lowest
       activeDeadlineSeconds: 120
       timeout: "120s"
@@ -126,6 +131,7 @@ spec:
             export MEMORY_REQUEST="{{inputs.parameters.MEMORY_REQUEST}}"
             export IS_TEMPORARY="{{inputs.parameters.IS_TEMPORARY}}"
             export CHALLENGE_TIMEOUT="{{inputs.parameters.CHALLENGE_TIMEOUT}}"
+            export CHALLENGE_FLAG="{{inputs.parameters.CHALLENGE_FLAG}}"
 
             if [ "{{inputs.parameters.USE_GVISOR}}" = "true" ]; then
               export RUNTIME_CLASS_NAME_LINE="runtimeClassName: gvisor"

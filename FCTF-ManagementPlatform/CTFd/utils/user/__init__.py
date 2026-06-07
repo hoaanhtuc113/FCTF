@@ -9,7 +9,7 @@ from CTFd.cache import cache, clear_user_session
 from CTFd.constants.languages import Languages
 from CTFd.constants.teams import TeamAttrs
 from CTFd.constants.users import UserAttrs
-from CTFd.models import Fails, Teams, Tokens, Tracking, Users, db
+from CTFd.models import Challenges, Fails, Teams, Tokens, Tracking, Users, db
 from CTFd.utils import get_config
 from CTFd.utils.security.auth import logout_user
 from CTFd.utils.security.signing import hmac
@@ -88,12 +88,36 @@ def get_team_score(team_id):
     return None
 
 
-def get_current_team():
-    if authed():
-        user = get_current_user()
-        return user.team
-    else:
+def get_team_id_for_contest(user, contest_id):
+    """Return the team_id for a user in a specific contest."""
+    from CTFd.models import UserTeamMember, Teams
+    if not user or not contest_id:
         return None
+    utm = (
+        UserTeamMember.query
+        .join(Teams, Teams.id == UserTeamMember.team_id)
+        .filter(UserTeamMember.user_id == user.id, Teams.contest_id == contest_id)
+        .first()
+    )
+    return utm.team_id if utm else None
+
+
+def get_team_for_contest(user, contest_id):
+    """Return the Teams object for a user in a specific contest."""
+    from CTFd.models import UserTeamMember, Teams
+    if not user or not contest_id:
+        return None
+    utm = (
+        UserTeamMember.query
+        .join(Teams, Teams.id == UserTeamMember.team_id)
+        .filter(UserTeamMember.user_id == user.id, Teams.contest_id == contest_id)
+        .first()
+    )
+    return utm.team if utm else None
+
+
+def get_current_team():
+    return None
 
 
 def get_current_team_attrs():
@@ -136,23 +160,35 @@ def is_admin():
 
 
 def is_challenge_writer():
-    if authed():
-        user = get_current_user_attrs()
-
-        if user and user.type:
-            return user.type == "challenge_writer"
-        else:
-            return False
+    """True if the user is a challenge_writer — either platform-level (legacy
+    user.type) or has at least one challenge_writer role in ContestParticipant."""
+    if not authed():
+        return False
+    user = get_current_user_attrs()
+    if not user:
+        return False
+    if user.type == "challenge_writer":
+        return True
+    from CTFd.models import ContestParticipant
+    return db.session.query(ContestParticipant).filter_by(
+        user_id=user.id, role="challenge_writer"
+    ).first() is not None
 
 
 def is_jury():
-    if authed():
-        user = get_current_user_attrs()
-        
-        if user and user.type:
-            return user.type == "jury"
-        else:
-            return False
+    """True if the user is jury — either platform-level (legacy user.type) or
+    has at least one jury role in ContestParticipant."""
+    if not authed():
+        return False
+    user = get_current_user_attrs()
+    if not user:
+        return False
+    if user.type == "jury":
+        return True
+    from CTFd.models import ContestParticipant
+    return db.session.query(ContestParticipant).filter_by(
+        user_id=user.id, role="jury"
+    ).first() is not None
 
 def is_banned():
     auth_header = request.headers.get('Authorization', None)
@@ -164,12 +200,7 @@ def is_banned():
     return False
 
 def is_admin_or_challenge_writer_or_jury():
-    if authed():
-        user = get_current_user_attrs()
-        if user and user.type:
-            return user.type in ["admin", "challenge_writer", "jury"]
-        else:
-            return False
+    return is_admin() or is_challenge_writer() or is_jury()
 
 
 def is_verified():
@@ -237,17 +268,21 @@ def get_user_recent_ips(user_id):
     return {ip for (ip,) in addrs}
 
 
-def get_wrong_submissions_per_minute(account_id):
+def get_wrong_submissions_per_minute(account_id, contest_id=None):
     """
-    Get incorrect submissions per minute.
+    Get incorrect submissions per minute, optionally scoped to a specific contest.
 
-    :param account_id:
-    :return:
+    :param account_id: The account (user or team) ID to check.
+    :param contest_id: When provided, only count fails for challenges in this contest.
+    :return: Number of failed submissions in the last 60 seconds.
     """
     one_min_ago = datetime.datetime.utcnow() + datetime.timedelta(minutes=-1)
-    fails = (
-        db.session.query(Fails)
-        .filter(Fails.account_id == account_id, Fails.date >= one_min_ago)
-        .all()
+    query = db.session.query(Fails).filter(
+        Fails.account_id == account_id,
+        Fails.date >= one_min_ago,
     )
-    return len(fails)
+    if contest_id is not None:
+        query = query.join(
+            Challenges, Challenges.id == Fails.challenge_id
+        ).filter(Challenges.contest_id == contest_id)
+    return query.count()

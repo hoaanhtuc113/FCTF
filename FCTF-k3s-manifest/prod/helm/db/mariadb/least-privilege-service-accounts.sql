@@ -36,6 +36,8 @@ GRANT SELECT ON ctfd.dynamic_challenge TO 'contestant_be'@'%';
 GRANT SELECT ON ctfd.files TO 'contestant_be'@'%';
 GRANT SELECT ON ctfd.hints TO 'contestant_be'@'%';
 GRANT SELECT ON ctfd.flags TO 'contestant_be'@'%';
+GRANT SELECT ON ctfd.dynamic_flag_instances TO 'contestant_be'@'%';
+GRANT INSERT ON ctfd.dynamic_flag_instances TO 'contestant_be'@'%';
 GRANT SELECT ON ctfd.submissions TO 'contestant_be'@'%';
 GRANT INSERT ON ctfd.submissions TO 'contestant_be'@'%';
 GRANT SELECT ON ctfd.solves TO 'contestant_be'@'%';
@@ -58,6 +60,7 @@ GRANT INSERT ON ctfd.tracking TO 'contestant_be'@'%';
 GRANT UPDATE ON ctfd.tracking TO 'contestant_be'@'%';
 GRANT SELECT ON ctfd.challenge_start_tracking TO 'contestant_be'@'%';
 GRANT SELECT ON ctfd.user_team_members TO 'contestant_be'@'%';
+GRANT SELECT ON ctfd.contest_participants TO 'contestant_be'@'%';
 
 -- DeploymentCenter
 GRANT SELECT ON ctfd.users TO 'deployment_center'@'%';

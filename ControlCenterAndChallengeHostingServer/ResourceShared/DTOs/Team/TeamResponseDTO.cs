@@ -31,5 +31,6 @@ namespace ResourceShared.DTOs.Team
         public int Score { get; set; }
         public int ChallengeTotalScore { get; set; }
         public int TotalTeams { get; set; }
+        public bool IsCaptain { get; set; }
     }
 }

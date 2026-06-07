@@ -62,28 +62,26 @@ public class ChallengeController : BaseController
     }
 
     // Helper method: Increment and check KPM using Redis atomic INCR
-    private async Task<(bool exceeded, int current)> CheckAndIncrementKpmAsync(int userId, int limit)
+    // Key is scoped per user+contest so submissions in different contests don't interfere
+    private async Task<(bool exceeded, int current)> CheckAndIncrementKpmAsync(int userId, int contestId, int limit)
     {
         if (limit <= 0) return (false, 0);
 
-        var kpmKey = $"kpm_check_{userId}";
         var currentMinute = DateTimeOffset.UtcNow.ToUnixTimeSeconds() / 60;
-        var kpmWithMinuteKey = $"{kpmKey}_{currentMinute}";
+        // Keep kpm_check_ prefix to stay within existing Redis ACL key permissions
+        var kpmKey = $"kpm_check_{contestId}_{userId}_{currentMinute}";
 
         // Use Redis INCR - atomic operation (thread-safe)
         var redis = await _redisHelper.GetDatabaseAsync();
-        var newCount = await redis.StringIncrementAsync(kpmWithMinuteKey);
+        var newCount = await redis.StringIncrementAsync(kpmKey);
 
-        // Always set TTL to ensure key expires at end of current minute + 1 minute buffer
-        // This prevents keys from persisting indefinitely if TTL fails on first increment
-        var ttl = await redis.KeyTimeToLiveAsync(kpmWithMinuteKey);
-        if (!ttl.HasValue || ttl.Value.TotalSeconds < 0)
+        // Set TTL on first increment (90 s = current minute + 30 s buffer)
+        if (newCount == 1)
         {
-            // Key has no TTL or already expired, set it for 90 seconds (current minute + 30s buffer)
-            await redis.KeyExpireAsync(kpmWithMinuteKey, TimeSpan.FromSeconds(90));
+            await redis.KeyExpireAsync(kpmKey, TimeSpan.FromSeconds(90));
         }
 
-        // Check if exceeded limit
+        // newCount is post-increment: allow exactly `limit` wrong subs per minute
         if (newCount > limit)
         {
             return (true, (int)newCount);
@@ -263,7 +261,12 @@ public class ChallengeController : BaseController
         await Console.Out.WriteLineAsync($"[Requesst Attempt Challenge] User {userId} : Team {teamId} : Challenge {challenge.Name} with flag {request.Submission}");
 
         _userBehaviorLogger.Log("ATTEMPT_CHALLENGE", user?.Id, teamId, new { challengeId = request.ChallengeId, flag = request.Submission });
-        if (_configHelper.GetConfig("paused", false))
+
+        // Load contest once — used for pause, captain-only, and rate-limit checks
+        var contest = await _context.Contests.AsNoTracking().FirstOrDefaultAsync(c => c.Id == contestId);
+
+        // Per-contest pause check
+        if (contest?.State == "paused")
         {
             return StatusCode(StatusCodes.Status403Forbidden, new
             {
@@ -271,7 +274,7 @@ public class ChallengeController : BaseController
                 data = new
                 {
                     status = "paused",
-                    message = $"{_configHelper.CtfName().ToString()} is paused"
+                    message = $"{contest.Name} is paused"
                 }
             });
         }
@@ -307,8 +310,8 @@ public class ChallengeController : BaseController
                 }
             });
         }
-        // Check captain_only_submit_challenge config
-        var captainOnlySubmit = _configHelper.GetConfig("captain_only_submit_challenge", false);
+        // Check captain_only_submit_challenge — per-contest setting
+        var captainOnlySubmit = contest?.CaptainOnlySubmitChallenge ?? false;
         if (captainOnlySubmit && userTeam != null && userTeam.CaptainUserId != user?.Id)
         {
             return StatusCode(StatusCodes.Status403Forbidden, new
@@ -445,7 +448,7 @@ public class ChallengeController : BaseController
         }
 
         // Attempt the challenge (outside lock - CPU intensive, parallel execution OK)
-        AttemptDTO attempt = await ChallengeHelper.Attempt(_context, challenge, request);
+        AttemptDTO attempt = await ChallengeHelper.Attempt(_context, challenge, request, teamId);
         var deploymentKey = ChallengeHelper.GetCacheKey(challenge.Id, teamId!.Value);
 
         // Handle correct attempt - CRITICAL SECTION with minimal lock
@@ -616,10 +619,13 @@ public class ChallengeController : BaseController
         }
 
         // Handle incorrect attempt with rate limit + max attempts validation
-        var kpm_limit = _configHelper.GetConfig("incorrect_submissions_per_min", 10);
+        // Use per-contest limit if set; fall back to global config
+        var kpm_limit = (contest?.IncorrectSubmissionsPerMin is int contestKpm && contestKpm > 0)
+            ? contestKpm
+            : _configHelper.GetConfig("incorrect_submissions_per_min", 10);
 
         // Phase 1: Check KPM with Redis (lightweight, no DB query)
-        var (kpmExceeded, kpmCount) = await CheckAndIncrementKpmAsync(user.Id, kpm_limit);
+        var (kpmExceeded, kpmCount) = await CheckAndIncrementKpmAsync(user.Id, contestId, kpm_limit);
         if (kpmExceeded)
         {
             _userBehaviorLogger.Log("CHALLENGE_SUBMISSION_RATE_LIMITED", user.Id, teamId, new { challengeId = request.ChallengeId, kpmCount, kpm_limit }, LogLevel.Warning);
@@ -870,8 +876,9 @@ public class ChallengeController : BaseController
             return BadRequest(new { error = "Your team has already solved this challenge. You cannot start this challenge." });
         }
 
-        // Check captain_only_start_challenge config (stored as "1" or "0" in database)
-        var captainOnlyStart = _configHelper.GetConfig("captain_only_start_challenge", true);
+        // Check captain_only_start_challenge — per-contest setting
+        var startContest = await _context.Contests.AsNoTracking().FirstOrDefaultAsync(c => c.Id == contestId);
+        var captainOnlyStart = startContest?.CaptainOnlyStartChallenge ?? true;
         if (captainOnlyStart && user!.Id != userTeam.CaptainUserId)
         {
             return BadRequest(new { error = "Contact the organizers to select a team captain. Only the team captain has the permission to start the challenge." });
@@ -879,8 +886,9 @@ public class ChallengeController : BaseController
 
         await Console.Out.WriteLineAsync($"[Requesst Start Challenge] User {userId} : Team {teamId} : Challenge {challenge.Name}");
 
-        // Check limit_challenges - maximum concurrent challenges per team
-        var limit_challenges = _configHelper.LimitChallenges();
+        // Check limit_challenges — per-contest setting
+        var limitContest = await _context.Contests.AsNoTracking().FirstOrDefaultAsync(c => c.Id == contestId);
+        var limit_challenges = (long)(limitContest?.LimitChallenges ?? 0);
 
         var deploymentTeamId = challenge.SharedInstant ? -2 : teamId;
         var deploymentKey = ChallengeHelper.GetCacheKey(challengeStartReq.challengeId, deploymentTeamId);

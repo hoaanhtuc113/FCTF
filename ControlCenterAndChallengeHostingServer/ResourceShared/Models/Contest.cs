@@ -29,13 +29,8 @@ public partial class Contest
 
     public bool ViewAfterCtf { get; set; }
 
-    public string ChallengeVisibility { get; set; } = "private";
+    public string ScoreVisibility { get; set; } = "public";
 
-    public string ScoreVisibility { get; set; } = "private";
-
-    public string AccountVisibility { get; set; } = "private";
-
-    public string RegistrationVisibility { get; set; } = "private";
 
     public int? TeamSize { get; set; }
 
@@ -48,6 +43,10 @@ public partial class Contest
     public bool AllowNameChange { get; set; } = true;
 
     public int? IncorrectSubmissionsPerMin { get; set; }
+
+    public string ChallengeDifficultyVisibility { get; set; } = "disabled";
+
+    public int? LimitChallenges { get; set; }
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

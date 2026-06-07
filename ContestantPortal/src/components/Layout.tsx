@@ -51,14 +51,16 @@ export function Layout({ children }: LayoutProps) {
   const [contestStatus, setContestStatus] = useState<string>('');
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [smallIconUrl, setSmallIconUrl] = useState<string | null>(null);
-  const [activeContest, setActiveContest] = useState<any>(null);
+  const [activeContest, setActiveContest] = useState<any>(() => contestService.getActiveContest());
 
   const { contestId } = useParams<{ contestId?: string }>();
+
+  const scoreVisibility = activeContest?.score_visibility ?? 'public';
 
   const tabs = [
     { label: 'Challenges', path: contestId ? `/contest/${contestId}/challenges` : '/challenges', icon: <Security fontSize="small" /> },
     { label: 'Instances', path: contestId ? `/contest/${contestId}/instances` : '/instances', icon: <ViewList fontSize="small" /> },
-    { label: 'Scoreboard', path: contestId ? `/contest/${contestId}/scoreboard` : '/scoreboard', icon: <EmojiEvents fontSize="small" /> },
+    ...(scoreVisibility === 'public' ? [{ label: 'Scoreboard', path: contestId ? `/contest/${contestId}/scoreboard` : '/scoreboard', icon: <EmojiEvents fontSize="small" /> }] : []),
     { label: 'Action Logs', path: contestId ? `/contest/${contestId}/action-logs` : '/action-logs', icon: <History fontSize="small" /> },
     { label: 'Tickets', path: contestId ? `/contest/${contestId}/tickets` : '/tickets', icon: <SupportAgent fontSize="small" /> },
   ];

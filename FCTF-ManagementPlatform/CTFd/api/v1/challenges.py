@@ -25,7 +25,7 @@ from CTFd.models import (
     DeployedChallenge,
     ChallengeVersion,
 )
-from CTFd.models import Challenges
+from CTFd.models import Challenges, Contests
 from CTFd.models import ChallengeTopics as ChallengeTopicsModel
 from CTFd.models import Fails, Flags, Hints, HintUnlocks, Solves, Submissions, Tags, db
 from CTFd.plugins.challenges import CHALLENGE_CLASSES, get_chal_class
@@ -336,9 +336,6 @@ class ChallengeList(Resource):
         # the model data (client cannot spoof this value).
         challenge = challenge_class.create(request, extra_data={"contest_id": validated_contest_id})
 
-        # Explicitly save image_link for sandbox challenges.
-        # create() filters fields via valid_columns but image_link may be
-        # dropped by some challenge plugins — guarantee it here.
         req_json = request.get_json() or {}
         image_link_val = req_json.get("image_link")
         if image_link_val and challenge.image_link != image_link_val:
@@ -880,13 +877,15 @@ class ChallengeAttempt(Resource):
         if user is None:
             return {"success": False, "error": "User not found"}, 404
 
-        team_id = user.team_id
         if not challenge_id:
             return {"success": False, "error": "ChallengeId is required"}, 400
 
         challenge = Challenges.query.filter_by(id=challenge_id).first()
         if not challenge:
             return {"success": False, "error": "Challenge not found"}, 400
+
+        from CTFd.utils.user import get_team_id_for_contest
+        team_id = get_team_id_for_contest(user, challenge.contest_id)
 
         # cache_name = f"challenge:{challenge_id}:team_id:{team_id}"
 
@@ -918,13 +917,15 @@ class ChallengeAttempt(Resource):
                     },
                 }
 
-        if ctf_paused():
+        # Per-contest pause check
+        contest = Contests.query.filter_by(id=challenge.contest_id).first()
+        if contest and contest.state == "paused":
             return (
                 {
                     "success": True,
                     "data": {
                         "status": "paused",
-                        "message": "{} is paused".format(config.ctf_name()),
+                        "message": "{} is paused".format(contest.name),
                     },
                 },
                 403,
@@ -1009,13 +1010,19 @@ class ChallengeAttempt(Resource):
         chal_class = get_chal_class(challenge.type)
 
         # Anti-bruteforce / submitting Flags too quickly
-        kpm = current_user.get_wrong_submissions_per_minute(user.account_id)
-        kpm_limit = int(get_config("incorrect_submissions_per_min", default=10))
-        if kpm > kpm_limit:
-            if ctftime():
-                chal_class.fail(
-                    user=user, team=team, challenge=challenge, request=request
-                )
+        # Scope the fail count to this contest so cross-contest submissions don't interfere
+        kpm = current_user.get_wrong_submissions_per_minute(
+            user.account_id, contest_id=challenge.contest_id
+        )
+        # Read the limit from the contest settings; fall back to global config if not set
+        if contest and contest.incorrect_submissions_per_min:
+            kpm_limit = int(contest.incorrect_submissions_per_min)
+        else:
+            kpm_limit = int(get_config("incorrect_submissions_per_min", default=10))
+        if kpm >= kpm_limit:
+            # Do NOT record a fail here — writing a Fail entry while rate-limited
+            # would inflate the kpm counter on every retry, making recovery impossible
+            # within the same minute window.
             log(
                 "submissions",
                 "[{date}] {name} submitted {submission} on {challenge_id} with kpm {kpm} [TOO FAST]",

@@ -69,7 +69,34 @@ class CTFdRegexFlag(BaseFlag):
         return res and res.group() == provided
 
 
-FLAG_CLASSES = {"static": CTFdStaticFlag, "regex": CTFdRegexFlag}
+class CTFdDynamicFlag(BaseFlag):
+    name = "dynamic"
+    templates = {
+        "create": "/plugins/flags/assets/dynamic/create.html",
+        "update": "/plugins/flags/assets/dynamic/edit.html",
+    }
+
+    @staticmethod
+    def compare(chal_key_obj, provided, team_id=None, **kwargs):
+        from CTFd.models import DynamicFlagInstance
+        if not provided or team_id is None:
+            return False
+        instance = DynamicFlagInstance.query.filter_by(
+            flag_id=chal_key_obj.id,
+            team_id=team_id,
+        ).first()
+        if not instance:
+            return False
+        saved = instance.value
+        if len(saved) != len(provided):
+            return False
+        result = 0
+        for x, y in zip(saved, provided):
+            result |= ord(x) ^ ord(y)
+        return result == 0
+
+
+FLAG_CLASSES = {"static": CTFdStaticFlag, "regex": CTFdRegexFlag, "dynamic": CTFdDynamicFlag}
 
 
 def get_flag_class(class_id):

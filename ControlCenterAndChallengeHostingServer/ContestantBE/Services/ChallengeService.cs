@@ -178,9 +178,10 @@ public class ChallengeService : IChallengeService
 
             if (file_url != null) files.Add(file_url);
         }
-        var captainOnlyStart = _configHelper.GetConfig<bool>("captain_only_start_challenge", true);
-        var captainOnlySubmit = _configHelper.GetConfig<bool>("captain_only_submit_challenge", true);
-        var difficultyVisible = _configHelper.GetConfig<string>("challenge_difficulty_visibility", "disabled") == "enabled";
+        var contestForCaptain = await _dbContext.Contests.AsNoTracking().FirstOrDefaultAsync(c => c.Id == contestId);
+        var captainOnlyStart = contestForCaptain?.CaptainOnlyStartChallenge ?? true;
+        var captainOnlySubmit = contestForCaptain?.CaptainOnlySubmitChallenge ?? false;
+        var difficultyVisible = (contestForCaptain?.ChallengeDifficultyVisibility ?? "disabled") == "enabled";
 
         // attempt to resolve the name for next challenge if available
         string? nextName = null;
@@ -304,7 +305,8 @@ public class ChallengeService : IChallengeService
             .ToListAsync();
 
         var topics_data = new List<ChallengeByCategoryDTO>();
-        var difficultyVisible = _configHelper.GetConfig<string>("challenge_difficulty_visibility", "disabled") == "enabled";
+        var contestForDiff = await _dbContext.Contests.AsNoTracking().FirstOrDefaultAsync(c => c.Id == contestId);
+        var difficultyVisible = (contestForDiff?.ChallengeDifficultyVisibility ?? "disabled") == "enabled";
 
         var solvedChallengeIds = team_id.HasValue
                 ? (await _dbContext.Solves
@@ -433,13 +435,45 @@ public class ChallengeService : IChallengeService
         var teamId = deploymentTeamId ?? userTeamId;
         try
         {
+            // Generate dynamic flag per team (idempotent: reuse if already created)
+            string? flagValue = null;
+            var dynamicFlags = await _dbContext.Flags
+                .Where(f => f.ChallengeId == challenge.Id && f.Type == "dynamic")
+                .ToListAsync();
+
+            if (dynamicFlags.Count > 0)
+            {
+                var dynFlag = dynamicFlags[0];
+                var existing = await _dbContext.DynamicFlagInstances
+                    .FirstOrDefaultAsync(d => d.FlagId == dynFlag.Id && d.TeamId == teamId);
+
+                if (existing != null)
+                {
+                    flagValue = existing.Value;
+                }
+                else
+                {
+                    var prefix = string.IsNullOrEmpty(dynFlag.Content) ? "FCTF{" : dynFlag.Content;
+                    flagValue = $"{prefix}{Guid.NewGuid():N}}}";
+                    _dbContext.DynamicFlagInstances.Add(new ResourceShared.Models.DynamicFlagInstance
+                    {
+                        FlagId = dynFlag.Id,
+                        ChallengeId = challenge.Id,
+                        TeamId = teamId,
+                        Value = flagValue,
+                    });
+                    await _dbContext.SaveChangesAsync();
+                }
+            }
+
             var unixTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             var parammeters = new ChallengeStartStopReqDTO
             {
                 challengeId = challenge.Id,
                 teamId = teamId,
                 userId = user.Id,
-                unixTime = unixTime.ToString()
+                unixTime = unixTime.ToString(),
+                flagValue = flagValue,
             };
             var data = new Dictionary<string, string>
             {

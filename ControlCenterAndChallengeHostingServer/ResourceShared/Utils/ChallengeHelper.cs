@@ -196,7 +196,8 @@ namespace ResourceShared.Utils
             string memory_request,
             bool use_gvisor,
             bool harden_container,
-            string pow_difficulty)
+            string pow_difficulty,
+            string? flagValue = null)
         {
             var isTemp = true;
             if (challenge.TimeLimit.HasValue && challenge.TimeLimit.Value <= 0)
@@ -210,6 +211,26 @@ namespace ResourceShared.Utils
             var deploymentAppName = GetDeploymentAppName(teamId, challenge.Id, challenge.Name);
             var startChallengeTemplate = Environment.GetEnvironmentVariable("START_CHALLENGE_TEMPLATE")
                 ?? throw new InvalidOperationException("Missing START_CHALLENGE_TEMPLATE");
+
+            var parameters = new List<string>
+            {
+                $"CHALLENGE_NAME={deploymentAppName}",
+                $"CONTAINER_PORT={challengeImage.exposedPort}",
+                $"CONTAINER_IMAGE={challengeImage.imageLink}",
+                $"CPU_LIMIT={cpu_limit}",
+                $"CPU_REQUEST={cpu_request}",
+                $"MEMORY_LIMIT={memory_limit}",
+                $"MEMORY_REQUEST={memory_request}",
+                $"USE_GVISOR={use_gvisor.ToString().ToLower()}",
+                $"HARDEN_CONTAINER={harden_container.ToString().ToLower()}",
+                $"IS_TEMPORARY={isTemp.ToString().ToLower()}",
+                $"CHALLENGE_TIMEOUT={challenge.TimeLimit++}m",
+                $"POW_DIFFICULTY_SECONDS={pow_difficulty}"
+            };
+
+            if (!string.IsNullOrEmpty(flagValue))
+                parameters.Add($"CHALLENGE_FLAG={flagValue}");
+
             return (new
             {
                 resourceKind = "WorkflowTemplate",
@@ -217,21 +238,7 @@ namespace ResourceShared.Utils
                 submitOptions = new
                 {
                     entryPoint = "main",
-                    parameters = new[]
-                    {
-                        $"CHALLENGE_NAME={deploymentAppName}",
-                        $"CONTAINER_PORT={challengeImage.exposedPort}",
-                        $"CONTAINER_IMAGE={challengeImage.imageLink}",
-                        $"CPU_LIMIT={cpu_limit}",
-                        $"CPU_REQUEST={cpu_request}",
-                        $"MEMORY_LIMIT={memory_limit}",
-                        $"MEMORY_REQUEST={memory_request}",
-                        $"USE_GVISOR={use_gvisor.ToString().ToLower()}",
-                        $"HARDEN_CONTAINER={harden_container.ToString().ToLower()}",
-                        $"IS_TEMPORARY={isTemp.ToString().ToLower()}",
-                        $"CHALLENGE_TIMEOUT={challenge.TimeLimit++}m",
-                        $"POW_DIFFICULTY_SECONDS={pow_difficulty}"
-                    }
+                    parameters
                 }
             },
             deploymentAppName);
@@ -251,41 +258,52 @@ namespace ResourceShared.Utils
             return await db.Submissions.Where(s => s.UserId == accountId && s.Type == Enums.SubmissionTypes.INCORRECT && s.Date >= oneHourAgo).CountAsync();
         }
 
-        public static async Task<AttemptDTO> Attempt(AppDbContext db, Challenge challenge, ChallengeAttemptRequest request)
+        public static async Task<AttemptDTO> Attempt(AppDbContext db, Challenge challenge, ChallengeAttemptRequest request, int? teamId = null)
         {
             var flags = await db.Flags.Where(f => f.ChallengeId == challenge.Id).ToListAsync();
             foreach (var flag in flags)
             {
                 try
                 {
-                    if (Compare(flag, request.Submission))
+                    bool correct;
+                    if (flag.Type?.Equals("dynamic", StringComparison.OrdinalIgnoreCase) == true)
                     {
-                        return new AttemptDTO
-                        {
-                            status = true,
-                            message = "Correct"
-                        };
+                        correct = await CompareDynamic(db, flag, request.Submission, teamId);
+                    }
+                    else
+                    {
+                        correct = Compare(flag, request.Submission);
+                    }
+
+                    if (correct)
+                    {
+                        return new AttemptDTO { status = true, message = "Correct" };
                     }
                 }
                 catch (FlagException e)
                 {
-                    return new AttemptDTO
-                    {
-                        status = false,
-                        message = e.Message
-                    };
+                    return new AttemptDTO { status = false, message = e.Message };
                 }
             }
-            return new AttemptDTO
-            {
-                status = false,
-                message = "Incorrect"
-            };
+            return new AttemptDTO { status = false, message = "Incorrect" };
+        }
+
+        private static async Task<bool> CompareDynamic(AppDbContext db, Flag flag, string? provided, int? teamId)
+        {
+            if (string.IsNullOrEmpty(provided) || teamId == null)
+                return false;
+
+            var instance = await db.DynamicFlagInstances
+                .FirstOrDefaultAsync(d => d.FlagId == flag.Id && d.TeamId == teamId);
+
+            if (instance == null)
+                return false;
+
+            return CompareConstantTime(instance.Value, provided);
         }
 
         private static bool Compare(Flag flag, string provided)
         {
-
             if (flag.Type.Equals("static", StringComparison.OrdinalIgnoreCase))
             {
                 return CompareStatic(flag, provided);
@@ -295,7 +313,6 @@ namespace ResourceShared.Utils
                 try
                 {
                     return CompareRegex(flag, provided);
-
                 }
                 catch (Exception ex)
                 {
@@ -306,6 +323,16 @@ namespace ResourceShared.Utils
             {
                 throw new ArgumentException($"Unknown flag type: {flag.Type}");
             }
+        }
+
+        private static bool CompareConstantTime(string saved, string provided)
+        {
+            if (saved.Length != provided.Length)
+                return false;
+            int result = 0;
+            for (int i = 0; i < saved.Length; i++)
+                result |= (saved[i] ^ provided[i]);
+            return result == 0;
         }
 
         private static bool CompareStatic(Flag flag, string provided)

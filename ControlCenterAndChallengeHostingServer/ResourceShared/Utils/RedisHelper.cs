@@ -284,8 +284,9 @@ public class RedisHelper
                     end
 
                     -- C. Check Limit: Đếm số lượng thực tế đang sống
+                    -- maxLimit <= 0 nghĩa là không giới hạn (unlimited)
                     local currentCount = redis.call('ZCARD', zsetKey)
-                    if currentCount >= maxLimit then
+                    if maxLimit > 0 and currentCount >= maxLimit then
                         return 1 -- Limit Exceeded
                     end
 

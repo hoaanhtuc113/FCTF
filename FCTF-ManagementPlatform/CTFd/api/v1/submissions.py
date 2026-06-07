@@ -395,7 +395,7 @@ class SubmissionContestant(Resource):
             token_auth = Tokens.query.filter_by(value=token).first()
             user = Users.query.filter_by(id=token_auth.user_id).first() if token_auth else None
         if user:
-            submissions = Submissions.query.filter_by(team_id=user.team_id).all()
+            submissions = Submissions.query.filter_by(user_id=user.id).all()
             correct_submissions = [
                 submission for submission in submissions if submission.type == "correct"
             ]

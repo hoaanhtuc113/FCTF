@@ -1,0 +1,96 @@
+{% extends "admin/management_hub_base.html" %}
+
+{% block content %}
+<div class="jumbotron page-header">
+    <div class="container">
+        <h1><i class="bx bx-cog"></i> Platform Settings</h1>
+    </div>
+</div>
+
+<div class="container">
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    {% for category, message in messages %}
+    <div class="alert alert-{{ 'success' if category == 'success' else 'danger' }} alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="close" data-dismiss="alert">
+            <span>&times;</span>
+        </button>
+    </div>
+    {% endfor %}
+    {% endif %}
+    {% endwith %}
+
+    <form method="POST" autocomplete="off">
+        <input type="hidden" name="nonce" value="{{ Session.nonce }}">
+
+        <!-- ── Registration ──────────────────────────────────────────── -->
+        <div class="card mb-3">
+            <div class="card-body" style="padding: 1.25rem;">
+                <h5 class="card-title mb-3" style="font-size: 1rem; font-weight: 600; color: var(--text-dark); text-transform: uppercase; letter-spacing: 0.4px;">
+                    <i class="bx bx-user-plus" style="color: var(--primary-orange); margin-right: 6px;"></i>
+                    Registration
+                </h5>
+
+                <div class="form-group mb-0">
+                    <label for="registration_visibility" class="form-label" style="font-size: 0.85rem; font-weight: 600; color: var(--text-medium);">
+                        Registration Visibility
+                    </label>
+                    <select class="form-control custom-select" id="registration_visibility" name="registration_visibility" style="max-width: 200px;">
+                        <option value="public" {% if registration_visibility == 'public' %}selected{% endif %}>Enabled</option>
+                        <option value="private" {% if registration_visibility != 'public' %}selected{% endif %}>Disabled</option>
+                    </select>
+                    <small class="form-text text-muted mt-1">
+                        Controls whether new users can self-register on the contestant portal login page.
+                        Set to <strong>Public</strong> to allow registration; <strong>Private</strong> to hide the register form and require admin invite.
+                    </small>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Security ─────────────────────────────────────────────── -->
+        <div class="card mb-3">
+            <div class="card-body" style="padding: 1.25rem;">
+                <h5 class="card-title mb-3" style="font-size: 1rem; font-weight: 600; color: var(--text-dark); text-transform: uppercase; letter-spacing: 0.4px;">
+                    <i class="bx bx-shield-quarter" style="color: var(--primary-orange); margin-right: 6px;"></i>
+                    Security
+                </h5>
+
+                <div class="form-group mb-0">
+                    <label for="html_sanitization" class="form-label" style="font-size: 0.85rem; font-weight: 600; color: var(--text-medium);">
+                        HTML Sanitization
+                    </label>
+
+                    {% if force_html_sanitization %}
+                    <select class="form-control custom-select" id="html_sanitization" style="max-width: 200px;" disabled>
+                        <option>Enabled (forced via config.ini)</option>
+                    </select>
+                    <small class="form-text text-muted mt-1">
+                        HTML sanitization is <strong>forced on</strong> by the server's <code>config.ini</code>.
+                        To change this, edit <code>HTML_SANITIZATION</code> in <code>config.ini</code> and restart the server.
+                    </small>
+                    {% else %}
+                    <select class="form-control custom-select" id="html_sanitization" name="html_sanitization" style="max-width: 200px;">
+                        <option value="false" {% if html_sanitization != 'true' %}selected{% endif %}>Disabled</option>
+                        <option value="true"  {% if html_sanitization == 'true' %}selected{% endif %}>Enabled</option>
+                    </select>
+                    <small class="form-text text-muted mt-1">
+                        When <strong>Enabled</strong>, HTML in challenge descriptions, hints, and other content will be
+                        filtered to a safe subset — removing <code>&lt;script&gt;</code> tags and dangerous attributes.
+                        User-submitted fields are always sanitized regardless of this setting.
+                    </small>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="d-flex justify-content-end mt-2 mb-4">
+            <button type="submit" class="btn btn-primary" style="padding: 0.45rem 1.5rem; font-size: 0.9rem;">
+                <i class="bx bx-save" style="margin-right: 4px;"></i> Save Settings
+            </button>
+        </div>
+    </form>
+
+</div>
+{% endblock %}

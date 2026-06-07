@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Typography,
   CircularProgress,
@@ -15,13 +16,16 @@ import {
   VisibilityOff,
   CheckCircle,
   Cancel,
-  Email
+  Email,
+  DriveFileRenameOutline,
+  GroupRemove,
 } from '@mui/icons-material';
 import { FaTrophy } from 'react-icons/fa';
 import Swal from '../services/safeSwal';
 import { useTheme } from '../context/ThemeContext';
 import { fetchWithAuth } from '../services/api';
 import { API_ENDPOINTS } from '../config/endpoints';
+import { contestService } from '../services/contestService';
 
 interface UserInfo {
   username: string;
@@ -31,11 +35,13 @@ interface UserInfo {
 }
 
 interface TeamPointInfo {
+  name: string;
   place: number;
   score: number;
   challengeTotalScore: number;
   members: TeamMember[];
   totalTeams: number;
+  isCaptain?: boolean;
 }
 
 interface TeamMember {
@@ -69,6 +75,7 @@ interface PasswordCriteria {
 
 export function Profile() {
   const { theme } = useTheme();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [userInfo, setUserInfo] = useState<UserInfo>({
     username: '',
@@ -76,6 +83,7 @@ export function Profile() {
     team: '',
   });
   const [teamPointInfo, setTeamPointInfo] = useState<TeamPointInfo>({
+    name: '',
     place: 0,
     score: 0,
     challengeTotalScore: 0,
@@ -101,6 +109,17 @@ export function Profile() {
     specialChar: false,
   });
   const [isChangingPassword, setIsChangingPassword] = useState(false);
+
+  // Team management state
+  const [isCaptain, setIsCaptain] = useState(false);
+  const [showRenameModal, setShowRenameModal] = useState(false);
+  const [newTeamName, setNewTeamName] = useState('');
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [isDisbanding, setIsDisbanding] = useState(false);
+
+  const activeContest = contestService.getActiveContest();
+  const allowNameChange = activeContest?.allow_name_change ?? false;
+  const teamDisbanding = activeContest?.team_disbanding ?? false;
 
   useEffect(() => {
     fetchAllData();
@@ -143,6 +162,7 @@ export function Profile() {
       const data = await response.json();
       if (data.data) {
         setTeamPointInfo(data.data);
+        setIsCaptain(data.data.isCaptain === true);
         const score = Number(data.data.score) || 0;
         const total = Number(data.data.challengeTotalScore) || 0;
         const rawPercent = total > 0 ? (score / total) * 100 : 0;
@@ -278,6 +298,68 @@ export function Profile() {
     });
   };
 
+  const handleRenameTeam = async () => {
+    const name = newTeamName.trim();
+    if (!name) return;
+    setIsRenaming(true);
+    try {
+      const res = await fetchWithAuth(API_ENDPOINTS.TEAM.RENAME, {
+        method: 'PUT',
+        body: JSON.stringify({ name }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        showAlert(`Team renamed to "${data.name}" successfully.`, 'success');
+        setShowRenameModal(false);
+        setNewTeamName('');
+        // refresh team info
+        await fetchTeamPointInfo();
+      } else {
+        showAlert(data.message || 'Failed to rename team.', 'error');
+      }
+    } catch {
+      showAlert('An error occurred while renaming the team.', 'error');
+    } finally {
+      setIsRenaming(false);
+    }
+  };
+
+  const handleDisbandTeam = async () => {
+    const result = await Swal.fire({
+      title: '<span class="font-mono text-red-400">[!!] DISBAND TEAM</span>',
+      html: `<div class="font-mono text-sm text-gray-400">This action is <span class="text-red-400 font-bold">irreversible</span>. All team data will be lost. Are you sure?</div>`,
+      icon: 'warning',
+      background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+      showCancelButton: true,
+      confirmButtonText: '[ DISBAND ]',
+      cancelButtonText: '[ CANCEL ]',
+      customClass: {
+        popup: 'rounded-lg border border-red-500/30',
+        confirmButton: 'bg-red-600 hover:bg-red-700 text-white font-mono px-4 py-2 rounded',
+        cancelButton: 'bg-gray-600 hover:bg-gray-700 text-white font-mono px-4 py-2 rounded',
+      },
+    });
+    if (!result.isConfirmed) return;
+    setIsDisbanding(true);
+    try {
+      const res = await fetchWithAuth(API_ENDPOINTS.TEAM.DISBAND, {
+        method: 'DELETE',
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        showAlert('Team disbanded. Redirecting to contests...', 'success');
+        contestService.clearActiveContest();
+        setTimeout(() => navigate('/contests'), 2000);
+      } else {
+        showAlert(data.message || 'Failed to disband team.', 'error');
+      }
+    } catch {
+      showAlert('An error occurred while disbanding the team.', 'error');
+    } finally {
+      setIsDisbanding(false);
+    }
+  };
+
   const getPasswordStrength = () => {
     const validCriteria = Object.values(passwordCriteria).filter(Boolean).length;
     if (validCriteria <= 2) return { label: 'Weak', color: 'error', value: 33 };
@@ -360,6 +442,38 @@ export function Profile() {
                 <Lock />
                 {'[>]'} CHANGE PASSWORD
               </button>
+
+              {/* Captain-only team management */}
+              {isCaptain && (
+                <div className="w-full mt-4 space-y-2">
+                  <div className={`text-xs font-mono font-bold mb-1 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>
+                    // TEAM MANAGEMENT (CAPTAIN)
+                  </div>
+                  {allowNameChange && (
+                    <button
+                      onClick={() => { setNewTeamName(teamPointInfo.name ?? ''); setShowRenameModal(true); }}
+                      className={`w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg font-bold font-mono transition-all text-sm ${theme === 'dark'
+                        ? 'bg-blue-900/30 hover:bg-blue-800/50 text-blue-300 border border-blue-700/50'
+                        : 'bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200'}`}
+                    >
+                      <DriveFileRenameOutline fontSize="small" />
+                      {'[>]'} RENAME TEAM
+                    </button>
+                  )}
+                  {teamDisbanding && (
+                    <button
+                      onClick={handleDisbandTeam}
+                      disabled={isDisbanding}
+                      className={`w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg font-bold font-mono transition-all text-sm ${theme === 'dark'
+                        ? 'bg-red-900/20 hover:bg-red-900/40 text-red-400 border border-red-700/40'
+                        : 'bg-red-50 hover:bg-red-100 text-red-600 border border-red-200'}`}
+                    >
+                      <GroupRemove fontSize="small" />
+                      {isDisbanding ? '[...]' : '[!] DISBAND TEAM'}
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -771,6 +885,61 @@ export function Profile() {
                   )}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Rename Team Modal */}
+      {showRenameModal && (
+        <div
+          className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          onClick={() => !isRenaming && setShowRenameModal(false)}
+        >
+          <div
+            className={`w-full max-w-md rounded-lg border p-6 font-mono ${theme === 'dark' ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'}`}
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <span className={`font-bold text-base ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
+                {'// RENAME TEAM'}
+              </span>
+              <button onClick={() => setShowRenameModal(false)} className={`${theme === 'dark' ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-800'}`}>
+                <Close fontSize="small" />
+              </button>
+            </div>
+
+            <label className={`block text-xs mb-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+              NEW TEAM NAME
+            </label>
+            <input
+              type="text"
+              value={newTeamName}
+              onChange={e => setNewTeamName(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleRenameTeam()}
+              maxLength={128}
+              className={`w-full px-3 py-2 rounded border text-sm font-mono mb-4 outline-none focus:ring-1 focus:ring-blue-500 ${theme === 'dark'
+                ? 'bg-gray-800 border-gray-600 text-white'
+                : 'bg-gray-50 border-gray-300 text-gray-800'}`}
+            />
+
+            <div className="flex gap-2">
+              <button
+                onClick={handleRenameTeam}
+                disabled={isRenaming || !newTeamName.trim()}
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded font-bold text-sm bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white transition-all"
+              >
+                {isRenaming ? '[...] SAVING...' : '[>] SAVE'}
+              </button>
+              <button
+                onClick={() => setShowRenameModal(false)}
+                disabled={isRenaming}
+                className={`flex-1 py-2.5 px-4 rounded font-bold text-sm transition-all ${theme === 'dark'
+                  ? 'bg-gray-700 hover:bg-gray-600 text-gray-300'
+                  : 'bg-gray-200 hover:bg-gray-300 text-gray-700'}`}
+              >
+                [x] CANCEL
+              </button>
             </div>
           </div>
         </div>

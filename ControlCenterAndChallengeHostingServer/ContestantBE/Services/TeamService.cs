@@ -70,7 +70,8 @@ public class TeamService : ITeamService
                 Members = members,
                 Score = await _scoreHelper.GetTeamScore(team, true, contestId),
                 ChallengeTotalScore = challenges.Sum(c => c.Value ?? 0),
-                TotalTeams = totalTeams
+                TotalTeams = totalTeams,
+                IsCaptain = team.CaptainUserId == userId
             };
         }
         catch (Exception ex)

@@ -693,24 +693,38 @@
                 <li class="nav-item">
                     <a class="nav-link {% if request.endpoint and request.endpoint.startswith('admin.contest') %}active{% endif %}"
                        href="{{ url_for('admin.contests_listing') }}">
-                        <i class="bx bx-trophy"></i> Contest
+                        <i class="bx bx-trophy"></i> Contests
                     </a>
                 </li>
+                {% if is_admin() %}
                 <li class="nav-item">
                     <a class="nav-link" href="{{ url_for('admin.users_listing') }}">
-                        <i class="bx bx-user"></i> User
+                        <i class="bx bx-user"></i> Users
                     </a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link" href="{{ url_for('admin.users_pending_listing') }}">
-                        <i class="bx bx-user-check"></i> Registration
+                        <i class="bx bx-user-check"></i> Registrations
                     </a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link" href="{{ url_for('admin.admin_audit_listing') }}">
-                        <i class="bx bx-shield-quarter"></i> Audit Log
+                        <i class="bx bx-shield-quarter"></i> Audit Logs
                     </a>
                 </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if request.endpoint == 'admin.custom_fields' %}active{% endif %}"
+                       href="{{ url_for('admin.custom_fields') }}">
+                        <i class="bx bx-text"></i> Custom Fields
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if request.endpoint == 'admin.platform_settings' %}active{% endif %}"
+                       href="{{ url_for('admin.platform_settings') }}">
+                        <i class="bx bx-cog"></i> Settings
+                    </a>
+                </li>
+                {% endif %}
 
             </ul>
         </div>

@@ -177,8 +177,25 @@ def team_invite():
             errors=errors,
         )
 
-    if user.team_id is not None:
-        if user.team_id == team.id:
+    # Check if user is already in a team — scoped to this contest if applicable
+    from CTFd.models import UserTeamMember
+    if team.contest_id:
+        existing_membership = (
+            db.session.query(UserTeamMember)
+            .join(Teams, Teams.id == UserTeamMember.team_id)
+            .filter(
+                UserTeamMember.user_id == user.id,
+                Teams.contest_id == team.contest_id,
+            )
+            .first()
+        )
+    else:
+        existing_membership = UserTeamMember.query.filter_by(
+            user_id=user.id, team_id=team.id
+        ).first()
+
+    if existing_membership is not None:
+        if existing_membership.team_id == team.id:
             errors.append("You are already a member of this team.")
         else:
             errors.append("You are already in another team. Please contact an admin.")
@@ -197,6 +214,33 @@ def team_invite():
             code=code,
             errors=errors,
         )
+
+    # Enforce team_size limit from the contest settings
+    if team.contest_id:
+        contest = Contests.query.filter_by(id=team.contest_id).first()
+        team_size_limit = contest.team_size if contest else None
+    else:
+        team_size_limit = get_config("team_size", default=0) or None
+
+    if team_size_limit:
+        current_count = (
+            db.session.query(db.func.count(UserTeamMember.id))
+            .filter_by(team_id=team.id)
+            .scalar()
+        )
+        if current_count >= team_size_limit:
+            plural = "" if team_size_limit == 1 else "s"
+            errors.append(
+                "This team is full. Teams are limited to {} member{}.".format(
+                    team_size_limit, plural
+                )
+            )
+            return render_template(
+                "teams/invite.html",
+                team=team,
+                code=code,
+                errors=errors,
+            )
 
     team_name = team.name
     team.members.append(user)
@@ -249,10 +293,10 @@ def auto_initialize():
     set_config("captain_only_submit_challenge", 0)
     set_config("limit_challenges", 3)
 
-    existing = Users.query.filter_by(name="adminmultiple").first()
+    existing = Users.query.filter_by(name="admin").first()
     if not existing:
         admin = Admins(
-            name="adminmultiple",
+            name="admin",
             email="admin@fctf.local",
             password="1",
             type="admin",

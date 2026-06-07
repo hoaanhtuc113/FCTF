@@ -50,7 +50,14 @@ public class ContestsController : BaseController
                 my_team_name = c.Teams
                     .Where(t => t.Members.Any(m => m.UserId == userId))
                     .Select(t => t.Name)
-                    .FirstOrDefault()
+                    .FirstOrDefault(),
+                score_visibility = c.ScoreVisibility,
+                team_disbanding = c.TeamDisbanding,
+                allow_name_change = c.AllowNameChange,
+                captain_only_start = c.CaptainOnlyStartChallenge,
+                captain_only_submit = c.CaptainOnlySubmitChallenge,
+                challenge_difficulty_visibility = c.ChallengeDifficultyVisibility,
+                limit_challenges = c.LimitChallenges
             })
             .ToListAsync();
 
@@ -69,7 +76,14 @@ public class ContestsController : BaseController
             c.challenge_count,
             c.category,
             c.my_team_id,
-            c.my_team_name
+            c.my_team_name,
+            c.score_visibility,
+            c.team_disbanding,
+            c.allow_name_change,
+            c.captain_only_start,
+            c.captain_only_submit,
+            c.challenge_difficulty_visibility,
+            c.limit_challenges
         }));
     }
 
@@ -106,7 +120,14 @@ public class ContestsController : BaseController
                     .Select(t => t.Name)
                     .FirstOrDefault(),
                 view_after_ctf = c.ViewAfterCtf,
-                freeze_scoreboard_at = c.FreezeScoreboardAt
+                freeze_scoreboard_at = c.FreezeScoreboardAt,
+                score_visibility = c.ScoreVisibility,
+                team_disbanding = c.TeamDisbanding,
+                allow_name_change = c.AllowNameChange,
+                captain_only_start = c.CaptainOnlyStartChallenge,
+                captain_only_submit = c.CaptainOnlySubmitChallenge,
+                challenge_difficulty_visibility = c.ChallengeDifficultyVisibility,
+                limit_challenges = c.LimitChallenges
             })
             .FirstOrDefaultAsync();
 
@@ -130,7 +151,14 @@ public class ContestsController : BaseController
             c.my_team_id,
             c.my_team_name,
             c.view_after_ctf,
-            freeze_scoreboard_at = c.freeze_scoreboard_at?.ToString("yyyy-MM-ddTHH:mm:ssZ")
+            freeze_scoreboard_at = c.freeze_scoreboard_at?.ToString("yyyy-MM-ddTHH:mm:ssZ"),
+            c.score_visibility,
+            c.team_disbanding,
+            c.allow_name_change,
+            c.captain_only_start,
+            c.captain_only_submit,
+            c.challenge_difficulty_visibility,
+            c.limit_challenges
         });
     }
 
@@ -170,8 +198,10 @@ public class ContestsController : BaseController
 
     private static string ComputeStatus(string? state, DateTime? startTime, DateTime? endTime, DateTime now)
     {
-        if (state is "paused" or "ended")
+        if (state == "ended")
             return "ended";
+        if (state == "paused")
+            return "paused";
         if (startTime == null || endTime == null)
             return "active";
         if (now < startTime)

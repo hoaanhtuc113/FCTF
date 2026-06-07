@@ -492,6 +492,33 @@ class DynamicFlag(Flags):
         return f"<DynamicFlag {self.content} for challenge {self.challenge_id}>"
 
 
+class DynamicFlagInstance(db.Model):
+    __tablename__ = "dynamic_flag_instances"
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    flag_id = db.Column(
+        db.Integer, db.ForeignKey("flags.id", ondelete="CASCADE"), nullable=False
+    )
+    challenge_id = db.Column(
+        db.Integer, db.ForeignKey("challenges.id", ondelete="CASCADE"), nullable=False
+    )
+    team_id = db.Column(
+        db.Integer, db.ForeignKey("teams.id", ondelete="CASCADE"), nullable=True
+    )
+    user_id = db.Column(
+        db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=True
+    )
+    value = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+
+    __table_args__ = (
+        db.UniqueConstraint("flag_id", "team_id", name="uq_dfi_team"),
+        db.UniqueConstraint("flag_id", "user_id", name="uq_dfi_user"),
+    )
+
+    def __repr__(self):
+        return f"<DynamicFlagInstance flag_id={self.flag_id} team_id={self.team_id}>"
+
+
 class ActionLogs(db.Model):
     __tablename__ = "action_logs"
 
@@ -544,6 +571,7 @@ class UserTeamMember(db.Model):
         db.Integer, db.ForeignKey("teams.id", ondelete="CASCADE"), nullable=False
     )
     joined_at = db.Column(db.DateTime, default=datetime.datetime.utcnow, nullable=False)
+    score = db.Column(db.Integer, default=0, nullable=False, server_default="0")
 
     user = db.relationship("Users", foreign_keys=[user_id], lazy="select")
     team = db.relationship("Teams", foreign_keys=[team_id], lazy="select")
@@ -633,40 +661,6 @@ class Users(db.Model):
         else:
             return None
 
-    @property
-    def team(self):
-        """Return the Teams object this user belongs to (via UserTeamMember).
-
-        A cached value set by admin views takes priority so that templates can
-        use the already-queried team without an extra DB round-trip.
-        """
-        if hasattr(self, "_team_cache"):
-            return self._team_cache
-        utm = UserTeamMember.query.filter_by(user_id=self.id).first()
-        if utm:
-            return Teams.query.filter_by(id=utm.team_id).first()
-        return None
-
-    @team.setter
-    def team(self, value):
-        # Allow admin views to pre-set the team (e.g. admin/users.py) so the
-        # template can use user.team without an additional DB query.
-        self._team_cache = value
-
-    @property
-    def team_id(self):
-        """Return the team ID this user belongs to (via UserTeamMember).
-
-        A cached value set by admin views takes priority.
-        """
-        if hasattr(self, "_team_id_cache"):
-            return self._team_id_cache
-        utm = UserTeamMember.query.filter_by(user_id=self.id).first()
-        return utm.team_id if utm else None
-
-    @team_id.setter
-    def team_id(self, value):
-        self._team_id_cache = value
 
     @property
     def is_admin(self):
@@ -1380,10 +1374,7 @@ class Contests(db.Model):
     view_after_ctf = db.Column(db.Boolean, nullable=False, default=False)
 
     # Visibility settings
-    challenge_visibility = db.Column(db.String(32), nullable=False, default="private")
-    score_visibility = db.Column(db.String(32), nullable=False, default="private")
-    account_visibility = db.Column(db.String(32), nullable=False, default="private")
-    registration_visibility = db.Column(db.String(32), nullable=False, default="private")
+    score_visibility = db.Column(db.String(32), nullable=False, default="public")
 
     # Team settings
     team_size = db.Column(db.Integer, nullable=True)
@@ -1394,6 +1385,13 @@ class Contests(db.Model):
     # Participant settings
     allow_name_change = db.Column(db.Boolean, nullable=False, default=True)
     incorrect_submissions_per_min = db.Column(db.Integer, nullable=True)
+
+    # Challenge settings
+    challenge_difficulty_visibility = db.Column(db.String(32), nullable=False, default="disabled")
+    limit_challenges = db.Column(db.Integer, nullable=True)  # null = unlimited
+
+    # Cleanup tracking — set when the scheduler auto-stops all instances after end_time
+    cleanup_triggered_at = db.Column(db.DateTime, nullable=True)
 
     created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow, nullable=False)
     updated_at = db.Column(
@@ -1479,6 +1477,7 @@ class ChallengeComments(Comments):
 class UserComments(Comments):
     __mapper_args__ = {"polymorphic_identity": "user"}
     user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"))
+    contest_id = db.Column(db.Integer, db.ForeignKey("contests.id", ondelete="CASCADE"), nullable=True)
 
 
 class TeamComments(Comments):
@@ -1496,9 +1495,6 @@ class Fields(db.Model):
     required = db.Column(db.Boolean, default=False)
     public = db.Column(db.Boolean, default=False)
     editable = db.Column(db.Boolean, default=False)
-    contest_id = db.Column(
-        db.Integer, db.ForeignKey("contests.id", ondelete="SET NULL"), nullable=True
-    )
 
     __mapper_args__ = {"polymorphic_identity": "standard", "polymorphic_on": type}
 
@@ -1517,9 +1513,6 @@ class FieldEntries(db.Model):
     type = db.Column(db.String(80), default="standard")
     value = db.Column(db.JSON)
     field_id = db.Column(db.Integer, db.ForeignKey("fields.id", ondelete="CASCADE"))
-    contest_id = db.Column(
-        db.Integer, db.ForeignKey("contests.id", ondelete="SET NULL"), nullable=True
-    )
 
     field = db.relationship(
         "Fields", foreign_keys="FieldEntries.field_id", lazy="joined"
@@ -1631,49 +1624,28 @@ class AdminAuditLog(db.Model):
         )
 
 
-class Pool(db.Model):
-    __tablename__ = "pool"
+class KypoTeamAccount(db.Model):
+    __tablename__ = "kypo_team_accounts"
 
-    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    pool_id = db.Column(db.Integer, nullable=False)
-    contest_id = db.Column(
-        db.Integer, db.ForeignKey("contests.id", ondelete="CASCADE"), nullable=False
-    )
-    contest = db.relationship("Contests", foreign_keys=[contest_id], lazy="select")
+    id            = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    team_id       = db.Column(db.Integer, db.ForeignKey("teams.id", ondelete="CASCADE"), nullable=False, unique=True)
+    kypo_user_id  = db.Column(db.String(64), nullable=False)
+    kypo_username = db.Column(db.String(128), nullable=False)
+    kypo_password = db.Column(db.String(255), nullable=False)
+    created_at    = db.Column(db.DateTime, default=datetime.datetime.utcnow)
 
-
-class SandboxDefinition(db.Model):
-    __tablename__ = "sandbox_definition"
-
-    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    sandbox_definition_id = db.Column(db.Integer, nullable=False)
-    contest_id = db.Column(
-        db.Integer, db.ForeignKey("contests.id", ondelete="CASCADE"), nullable=False
-    )
-    contest = db.relationship("Contests", foreign_keys=[contest_id], lazy="select")
+    team = db.relationship("Teams", foreign_keys=[team_id], lazy="select")
 
 
-class SandboxChallenge(Challenges):
-    __tablename__ = "sandbox_challenge"
+class KypoChallengeConfig(db.Model):
+    __tablename__ = "kypo_challenge_configs"
 
-    id = db.Column(
-        db.Integer, db.ForeignKey("challenges.id", ondelete="CASCADE"), primary_key=True
-    )
-    pool_id = db.Column(db.Integer, nullable=True)
+    id                 = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    challenge_id       = db.Column(db.Integer, db.ForeignKey("challenges.id", ondelete="CASCADE"), nullable=False, unique=True)
+    kypo_instance_id   = db.Column(db.Integer, nullable=False)
+    kypo_access_token  = db.Column(db.String(64), nullable=False)
+    kypo_instance_type = db.Column(db.String(32), default="linear")
+    kypo_base_url      = db.Column(db.String(255), nullable=True)
+    created_at         = db.Column(db.DateTime, default=datetime.datetime.utcnow)
 
-    __mapper_args__ = {"polymorphic_identity": "sandbox"}
-
-
-class SandboxRunTracking(db.Model):
-    __tablename__ = "sandbox_run_tracking"
-
-    id = db.Column(
-        db.Integer,
-        db.ForeignKey("challenge_start_tracking.id", ondelete="CASCADE"),
-        primary_key=True,
-    )
-    sandbox_instance_id = db.Column(db.String(255), nullable=True)
-    status = db.Column(db.String(64), nullable=True)
-    tracking = db.relationship(
-        "ChallengeStartTracking", foreign_keys=[id], lazy="select"
-    )
+    challenge = db.relationship("Challenges", foreign_keys=[challenge_id], lazy="select")

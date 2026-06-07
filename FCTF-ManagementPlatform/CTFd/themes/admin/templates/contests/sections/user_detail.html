@@ -310,6 +310,9 @@
         <a class="nav-item nav-link" data-toggle="tab" href="#nav-missing" role="tab">
             Missing <span class="badge badge-secondary ml-1">{{ missing|length }}</span>
         </a>
+        <a class="nav-item nav-link" data-toggle="tab" href="#nav-notes" role="tab">
+            <i class="fas fa-sticky-note mr-1"></i> Notes
+        </a>
     </nav>
 
     <div class="tab-content min-vh-25 pb-5" id="nav-tabContent">
@@ -555,6 +558,19 @@
                             </tbody>
                         </table>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        {# ── Notes (contest-scoped user comments) ────────────────────── #}
+        <div class="tab-pane fade" id="nav-notes" role="tabpanel">
+            <h3 class="text-center pt-5 d-block">Notes</h3>
+            <p class="text-center text-muted" style="font-size:0.85rem;">
+                Internal notes for <strong>{{ user.name }}</strong> in this contest. Visible to admins only.
+            </p>
+            <div class="row mt-3">
+                <div class="col-md-10 offset-md-1">
+                    <div id="comment-box"></div>
                 </div>
             </div>
         </div>

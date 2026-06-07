@@ -226,8 +226,11 @@ def login():
                 log("logins", "[{date}] {ip} - {name} logged in", name=user.name)
 
                 db.session.close()
-                if is_challenge_writer() or is_admin() or is_jury():
+                if is_admin():
                     return redirect(url_for("admin.users_listing"))
+                if is_jury() or is_challenge_writer():
+                    # user has jury/challenge_writer role in at least one contest
+                    return redirect(url_for("admin.contests_listing"))
                 return redirect(url_for("views.contests_list"))
 
             else:
@@ -360,7 +363,8 @@ def oauth_redirect():
                     )
                     return redirect(url_for("auth.login"))
 
-            if get_config("user_mode") == TEAMS_MODE and user.team_id is None:
+            from CTFd.models import UserTeamMember
+            if get_config("user_mode") == TEAMS_MODE and not UserTeamMember.query.filter_by(user_id=user.id).first():
                 team_id = api_data["team"]["id"]
                 team_name = api_data["team"]["name"]
 

@@ -123,7 +123,8 @@ internal class Worker : BackgroundService
                     memoryRequestValue,
                     useGvisor,
                     hardenContainer,
-                    DeploymentConsumerConfigHelper.POD_START_TIMEOUT_MINUTES);
+                    DeploymentConsumerConfigHelper.POD_START_TIMEOUT_MINUTES,
+                    startReq.flagValue);
 
                 var response = await _multiServiceConnector.ExecuteRequest(
                     DeploymentConsumerConfigHelper.ARGO_WORKFLOWS_URL,

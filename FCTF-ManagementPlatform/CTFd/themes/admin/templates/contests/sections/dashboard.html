@@ -63,6 +63,43 @@
 </div>
 
 <div class="container">
+
+	{% if contest.state in ('visible', 'paused') and not is_jury() and not is_challenge_writer() %}
+	<div class="d-flex align-items-center justify-content-between px-3 py-2 mb-3"
+		 style="background:#fff; border:1px solid var(--border-light); border-radius:6px; box-shadow:var(--shadow-sm);">
+		<div>
+			<span style="font-weight:600; font-size:0.9rem; color:var(--text-dark);">
+				{% if contest.state == 'paused' %}
+				<span class="badge" style="background:#fff3cd; color:#856404; font-size:0.75rem; padding:0.2em 0.55em; border-radius:3px; margin-right:6px;">PAUSED</span>
+				{% endif %}
+				Pause CTF
+			</span>
+			<div style="font-size:0.82rem; color:var(--text-light); margin-top:2px;">
+				{% if contest.state == 'paused' %}
+				Submissions are currently blocked. Click <strong>Resume</strong> to re-enable.
+				{% else %}
+				Prevent users from submitting answers until unpaused. Challenges can still be viewed.
+				{% endif %}
+			</div>
+		</div>
+		<form method="POST"
+			  action="{{ url_for('admin.contest_pause_toggle', contest_id=contest.id) }}"
+			  onsubmit="return confirm('{% if contest.state == "paused" %}Resume CTF?\n\nParticipants will be able to submit answers again.{% else %}Pause CTF?\n\nParticipants will not be able to submit answers until you resume.{% endif %}')">
+			<input type="hidden" name="nonce" value="{{ Session.nonce }}">
+			<button type="submit"
+				class="btn btn-sm {% if contest.state == 'paused' %}btn-success{% else %}btn-warning{% endif %}"
+				style="font-size:0.82rem; font-weight:600; padding:0.3rem 0.9rem; white-space:nowrap; margin-left:1rem;">
+				{% if contest.state == 'paused' %}
+				<i class="bx bx-play"></i> Resume CTF
+				{% else %}
+				<i class="bx bx-pause"></i> Pause CTF
+				{% endif %}
+			</button>
+		</form>
+	</div>
+	{% endif %}
+
+<div class="container" style="padding:0;">
 	<div class="row d-flex align-items-stretch">
 		<div class="col-md-4 mb-4">
 			<div class="statistics-text h-100">
@@ -224,6 +261,7 @@
 			</div>
 		</div>
 	</div>
+</div>
 </div>
 {% endblock %}
 
@@ -509,5 +547,6 @@ document.getElementById("challenge-analytics-export").addEventListener("click", 
 });
 
 })();
+
 </script>
 {% endblock %}

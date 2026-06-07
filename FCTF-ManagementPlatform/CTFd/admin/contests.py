@@ -13,7 +13,43 @@ from CTFd.admin import admin
 from CTFd.models import ChallengeStartTracking, ChallengeVersion, Challenges, ContestParticipant, Contests, DeployedChallenge, Flags, Solves, Teams, Users, db
 from CTFd.plugins.challenges import CHALLENGE_CLASSES, get_chal_class
 from CTFd.utils.dates import ctftime
-from CTFd.utils.decorators import admins_only
+from CTFd.utils.decorators import admin_or_challenge_writer_only_or_jury as admins_only
+
+
+# ─── Jury / Challenge-Writer per-contest scope enforcement ───────────────────
+
+@admin.before_request
+def enforce_jury_cw_contest_scope():
+    """
+    Jury and challenge_writer users may only access contests they are assigned
+    to via ContestParticipant.  Admin bypasses all checks.
+    """
+    from CTFd.utils.user import authed, is_admin, is_jury, is_challenge_writer, get_current_user_attrs
+
+    if not authed():
+        return
+    if is_admin():
+        return
+
+    if not (is_jury() or is_challenge_writer()):
+        return
+
+    m = re.match(r'^/admin/contests/(\d+)(?:/|$)', request.path)
+    if not m:
+        return
+
+    contest_id = int(m.group(1))
+    user_attrs = get_current_user_attrs()
+    if user_attrs is None:
+        abort(403)
+
+    participant = ContestParticipant.query.filter(
+        ContestParticipant.user_id == user_attrs.id,
+        ContestParticipant.contest_id == contest_id,
+        ContestParticipant.role.in_(["jury", "challenge_writer"]),
+    ).first()
+    if not participant:
+        abort(403)
 
 
 # ─── Contest access-password enforcement ─────────────────────────────────────
@@ -148,6 +184,8 @@ def _ci_apply_filters(query, team_filter, challenge_filter, start_date, end_date
 @admin.route("/admin/contests")
 @admins_only
 def contests_listing():
+    from CTFd.utils.user import is_admin, get_current_user_attrs
+
     q = request.args.get("q", "").strip()
     field = request.args.get("field", "name")
     state_filter = request.args.get("state", "")
@@ -157,6 +195,20 @@ def contests_listing():
     page = abs(request.args.get("page", 1, type=int))
 
     filters = []
+
+    # Non-admin: only show contests where they have jury/challenge_writer role
+    if not is_admin():
+        user_attrs = get_current_user_attrs()
+        if user_attrs:
+            allowed_ids = (
+                db.session.query(ContestParticipant.contest_id)
+                .filter(
+                    ContestParticipant.user_id == user_attrs.id,
+                    ContestParticipant.role.in_(["jury", "challenge_writer"]),
+                )
+                .scalar_subquery()
+            )
+            filters.append(Contests.id.in_(allowed_ids))
 
     if q:
         allowed_fields = {"name", "slug", "description"}
@@ -236,15 +288,56 @@ def contest_dashboard(contest_id):
     )
 
 
+@admin.route("/admin/contests/<int:contest_id>/pause-toggle", methods=["POST"])
+@admins_only
+def contest_pause_toggle(contest_id):
+    contest = Contests.query.filter_by(id=contest_id).first_or_404()
+    if contest.state == "paused":
+        contest.state = "visible"
+    elif contest.state == "visible":
+        contest.state = "paused"
+    db.session.commit()
+    return redirect(url_for("admin.contest_dashboard", contest_id=contest_id))
+
+
 @admin.route("/admin/contests/<int:contest_id>/settings")
 @admins_only
 def contest_settings(contest_id):
+    from CTFd.models import Brackets, Teams
     contest = Contests.query.filter_by(id=contest_id).first_or_404()
-    is_detail = True
+
+    brackets = (
+        Brackets.query
+        .filter_by(contest_id=contest_id, type="teams")
+        .order_by(Brackets.id.asc())
+        .all()
+    )
+    bracket_ids = [b.id for b in brackets]
+    team_counts = {}
+    if bracket_ids:
+        rows = (
+            db.session.query(Teams.bracket_id, db.func.count(Teams.id))
+            .filter(Teams.bracket_id.in_(bracket_ids))
+            .group_by(Teams.bracket_id)
+            .all()
+        )
+        team_counts = {bid: cnt for bid, cnt in rows}
+    brackets_data = [
+        {
+            "id": b.id,
+            "name": b.name,
+            "description": b.description or "",
+            "type": "teams",
+            "member_count": team_counts.get(b.id, 0),
+        }
+        for b in brackets
+    ]
+
     return render_template(
         "admin/contests/contest.html",
         contest=contest,
-        is_detail=is_detail,
+        brackets=brackets_data,
+        is_detail=True,
     )
 
 @admin.route("/admin/contests/<int:contest_id>/submissions")
@@ -382,6 +475,49 @@ def _contest_submissions_view(contest_id, submission_type):
         date_to=date_to,
         timezone_offset=timezone_offset,
         is_detail=is_detail,
+    )
+
+
+@admin.route("/admin/contests/<int:contest_id>/brackets")
+@admins_only
+def contest_brackets(contest_id):
+    from CTFd.models import Brackets, Teams
+    contest = Contests.query.filter_by(id=contest_id).first_or_404()
+    brackets = (
+        Brackets.query
+        .filter_by(contest_id=contest_id, type="teams")
+        .order_by(Brackets.id.asc())
+        .all()
+    )
+
+    # Count teams per bracket
+    bracket_ids = [b.id for b in brackets]
+    team_counts = {}
+    if bracket_ids:
+        rows = (
+            db.session.query(Teams.bracket_id, db.func.count(Teams.id))
+            .filter(Teams.bracket_id.in_(bracket_ids))
+            .group_by(Teams.bracket_id)
+            .all()
+        )
+        team_counts = {bid: cnt for bid, cnt in rows}
+
+    brackets_data = [
+        {
+            "id": b.id,
+            "name": b.name,
+            "description": b.description or "",
+            "type": "teams",
+            "member_count": team_counts.get(b.id, 0),
+        }
+        for b in brackets
+    ]
+
+    return render_template(
+        "admin/contests/brackets.html",
+        contest=contest,
+        brackets=brackets_data,
+        is_detail=True,
     )
 
 
@@ -776,18 +912,9 @@ def contest_challenges(contest_id):
     state_filter = request.args.get("state", "")
     tags_q = request.args.get("tags", "")
     tag_terms = [t.strip() for t in tags_q.split(",") if t.strip()] if tags_q else []
-    challenge_type = request.args.get("challenge_type", "all")  # "all", "regular", "sandbox"
     page = abs(request.args.get("page", 1, type=int))
 
-    _sandbox_filter = Challenges.image_link.like('%"definition_id"%')
-
     query = Challenges.query.filter(Challenges.contest_id == contest_id)
-    if challenge_type == "sandbox":
-        query = query.filter(_sandbox_filter)
-    elif challenge_type == "regular":
-        query = query.filter(
-            db.or_(Challenges.image_link.is_(None), db.not_(_sandbox_filter))
-        )
 
     if tag_terms:
         for term in tag_terms:
@@ -830,12 +957,6 @@ def contest_challenges(contest_id):
         creator_id = getattr(ch, "created_by", None)
         user = Users.query.filter_by(id=creator_id).first() if creator_id else None
         ch.creator = user.name if user else "Unknown"
-        ch.sandbox_id = None
-        if ch.image_link:
-            try:
-                ch.sandbox_id = json.loads(ch.image_link).get("definition_id")
-            except Exception:
-                pass
 
     raw_categories = (
         Challenges.query.with_entities(Challenges.category)
@@ -874,7 +995,6 @@ def contest_challenges(contest_id):
         tag_terms=tag_terms,
         categories=categories,
         types=types,
-        challenge_type=challenge_type,
         is_detail=is_detail,
     )
 
@@ -948,18 +1068,11 @@ def contest_challenge_detail(contest_id, challenge_id):
     expose_port = ""
     image_link_name = ""
     image_link_display = ""
-    sandbox_definition_id = None
-    sandbox_pool_id = None
     if challenge.image_link:
         obj = json.loads(challenge.image_link)
         expose_port = obj.get("exposedPort", "")
         image_link_name = obj.get("imageLink", "")
         image_link_display = image_link_name
-        if challenge.type == "sandbox":
-            sandbox_definition_id = obj.get("definition_id")
-
-    if challenge.type == "sandbox":
-        sandbox_pool_id = getattr(challenge, "pool_id", None)
 
     try:
         challenge_class = get_chal_class(challenge.type)
@@ -1002,8 +1115,6 @@ def contest_challenge_detail(contest_id, challenge_id):
         is_detail=True,
         ctf_is_active=ctf_is_active,
         versions=versions,
-        sandbox_definition_id=sandbox_definition_id,
-        sandbox_pool_id=sandbox_pool_id,
     )
 
 
@@ -1219,44 +1330,38 @@ def contest_add_existing_user(contest_id):
     resolved_team_name = None
 
     if contest.user_mode == "users":
-        # --- user mode: 1 user = 1 solo team ---
+        # --- user mode ---
+        # Only contestants get a solo team; jury/challenge_writer are added as participants only.
 
-        # 2a. Check if user already has a team in this contest
-        existing_team = (
-            db.session.query(Teams)
-            .join(UserTeamMember, UserTeamMember.team_id == Teams.id)
-            .filter(
-                Teams.contest_id == contest_id,
-                UserTeamMember.user_id == user.id,
-            )
-            .first()
-        )
-        if existing_team:
+        # 2a. Check if user is already a participant in this contest
+        existing_cp = ContestParticipant.query.filter_by(
+            contest_id=contest_id, user_id=user.id
+        ).first()
+        if existing_cp:
             return {"success": False, "errors": {"username": ["User is already in this contest."]}}, 400
 
-        # 3a. Determine target team name
-        resolved_team_name = team_name if team_name else user.name
+        if role == "contestant":
+            # Auto-create a solo team named after the user
+            resolved_team_name = user.name
 
-        # 4a. Find or create the solo team
-        team = Teams.query.filter_by(
-            contest_id=contest_id,
-            name=resolved_team_name,
-        ).first()
-
-        if team is None:
-            if team_name:
-                return {"success": False, "errors": {"team": ["Team does not exist in this contest."]}}, 400
-            team = Teams(
-                name=resolved_team_name,
-                email=user.email,
-                password=hash_password("changeme"),
+            # 4a. Find or create the solo team
+            team = Teams.query.filter_by(
                 contest_id=contest_id,
-                captain_user_id=user.id,
-            )
-            db.session.add(team)
-            db.session.flush()
+                name=resolved_team_name,
+            ).first()
 
-        team.members.append(user)
+            if team is None:
+                team = Teams(
+                    name=resolved_team_name,
+                    email=user.email,
+                    password=hash_password("changeme"),
+                    contest_id=contest_id,
+                    captain_user_id=user.id,
+                )
+                db.session.add(team)
+                db.session.flush()
+
+            team.members.append(user)
 
     else:
         # --- team mode: register participant, optionally assign to a team ---
@@ -1295,6 +1400,30 @@ def contest_add_existing_user(contest_id):
                 if already:
                     return {"success": False, "errors": {"team": ["User is already in this team."]}}, 400
 
+                # Enforce team_size limit when joining an existing team
+                if contest.team_size:
+                    current_count = (
+                        db.session.query(db.func.count(UserTeamMember.id))
+                        .filter_by(team_id=team.id)
+                        .scalar()
+                    )
+                    if current_count >= contest.team_size:
+                        return (
+                            {
+                                "success": False,
+                                "errors": {
+                                    "team": [
+                                        "Team '{}' is full. Teams are limited to {} member{}.".format(
+                                            team_name,
+                                            contest.team_size,
+                                            "" if contest.team_size == 1 else "s",
+                                        )
+                                    ]
+                                },
+                            },
+                            400,
+                        )
+
             team.members.append(user)
             resolved_team_name = team_name
 
@@ -1320,6 +1449,152 @@ def contest_add_existing_user(contest_id):
             "role": role,
         }
     }, 200
+
+
+@admin.route("/admin/contests/<int:contest_id>/create_user", methods=["POST"])
+@admins_only
+def contest_create_user(contest_id):
+    """
+    Create a brand-new platform user and immediately add them to this contest.
+
+    Inserts:
+      1. users          — new platform account
+      2. contest_participants — contest membership with chosen role
+      3. user_team_members / teams (optional) — only for contestants:
+           user_mode:  auto-creates a solo team named after the user
+           team_mode:  assigns to an existing team OR creates a new one
+    """
+    from CTFd.models import Teams, UserTeamMember, Users
+    from CTFd.utils.crypto import hash_password
+    from sqlalchemy import or_
+
+    contest = Contests.query.filter_by(id=contest_id).first_or_404()
+    req = request.get_json(force=True) or {}
+
+    name     = (req.get("name") or "").strip()
+    email    = (req.get("email") or "").strip()
+    password = (req.get("password") or "").strip()
+    role     = (req.get("role") or "contestant").strip()
+    team_name   = (req.get("team") or "").strip()
+    create_team = bool(req.get("create_team", False))
+
+    if role not in ("contestant", "jury", "challenge_writer"):
+        role = "contestant"
+
+    # ── Validate required fields ──────────────────────────────────────────────
+    errors = {}
+    if not name:
+        errors["name"] = ["Username is required."]
+    if not email:
+        errors["email"] = ["Email is required."]
+    if not password:
+        errors["password"] = ["Password is required."]
+    if errors:
+        return {"success": False, "errors": errors}, 400
+
+    # ── Check uniqueness ──────────────────────────────────────────────────────
+    if Users.query.filter_by(name=name).first():
+        return {"success": False, "errors": {"name": ["Username already taken."]}}, 400
+    if Users.query.filter_by(email=email).first():
+        return {"success": False, "errors": {"email": ["Email already registered."]}}, 400
+
+    # ── 1. Create the platform user ───────────────────────────────────────────
+    user = Users(
+        name=name,
+        email=email,
+        password=password,   # auto-hashed by @validates
+        type="user",
+        verified=True,       # admin-created accounts are pre-verified
+    )
+    db.session.add(user)
+    db.session.flush()       # get user.id before further inserts
+
+    resolved_team_name = None
+
+    # ── 2. Contest-mode-specific team logic ───────────────────────────────────
+    if contest.user_mode == "users":
+        if role == "contestant":
+            # Auto-create solo team named after the user
+            resolved_team_name = user.name
+            team = Teams.query.filter_by(
+                contest_id=contest_id, name=resolved_team_name
+            ).first()
+            if team is None:
+                team = Teams(
+                    name=resolved_team_name,
+                    email=user.email,
+                    password=hash_password("changeme"),
+                    contest_id=contest_id,
+                    captain_user_id=user.id,
+                )
+                db.session.add(team)
+                db.session.flush()
+            team.members.append(user)
+    else:
+        # team mode — optional team assignment for contestants
+        if team_name and role == "contestant":
+            if create_team:
+                if Teams.query.filter_by(contest_id=contest_id, name=team_name).first():
+                    db.session.rollback()
+                    return {"success": False, "errors": {"team": ["A team with this name already exists."]}}, 400
+                team = Teams(
+                    name=team_name,
+                    email=user.email,
+                    password=hash_password("changeme"),
+                    contest_id=contest_id,
+                    captain_user_id=user.id,
+                )
+                db.session.add(team)
+                db.session.flush()
+            else:
+                team = Teams.query.filter_by(contest_id=contest_id, name=team_name).first()
+                if not team:
+                    db.session.rollback()
+                    return {"success": False, "errors": {"team": ["Team not found in this contest."]}}, 404
+
+                # Enforce team_size limit
+                if contest.team_size:
+                    current_count = (
+                        db.session.query(db.func.count(UserTeamMember.id))
+                        .filter_by(team_id=team.id)
+                        .scalar()
+                    )
+                    if current_count >= contest.team_size:
+                        db.session.rollback()
+                        return (
+                            {
+                                "success": False,
+                                "errors": {
+                                    "team": [
+                                        "Team '{}' is full. Teams are limited to {} member{}.".format(
+                                            team_name,
+                                            contest.team_size,
+                                            "" if contest.team_size == 1 else "s",
+                                        )
+                                    ]
+                                },
+                            },
+                            400,
+                        )
+            team.members.append(user)
+            resolved_team_name = team_name
+
+    # ── 3. Insert ContestParticipant ──────────────────────────────────────────
+    cp = ContestParticipant(contest_id=contest_id, user_id=user.id, role=role)
+    db.session.add(cp)
+
+    db.session.commit()
+
+    return {
+        "success": True,
+        "data": {
+            "id":   user.id,
+            "name": user.name,
+            "email": user.email,
+            "team": resolved_team_name,
+            "role": role,
+        }
+    }, 201
 
 
 @admin.route("/admin/contests/<int:contest_id>/teams_search", methods=["GET"])
@@ -1393,6 +1668,90 @@ def contest_users_new(contest_id):
     from CTFd.models import Contests
     contest = Contests.query.filter_by(id=contest_id).first_or_404()
     return render_template("admin/contests/users_new.html", contest=contest)
+
+
+@admin.route("/admin/contests/<int:contest_id>/users/export/csv")
+@admins_only
+def contest_users_export_csv(contest_id):
+    import csv, io, secrets, concurrent.futures
+    from CTFd.models import Contests, Teams, Users, UserTeamMember
+    from CTFd.models import ContestParticipant
+
+    contest = Contests.query.filter_by(id=contest_id).first_or_404()
+    include_passwords = request.args.get("include_passwords") == "1"
+
+    team_users_subq = db.session.query(UserTeamMember.user_id)\
+        .join(Teams, Teams.id == UserTeamMember.team_id)\
+        .filter(Teams.contest_id == contest_id).subquery()
+    cp_users_subq = db.session.query(ContestParticipant.user_id)\
+        .filter(ContestParticipant.contest_id == contest_id).subquery()
+
+    rows = (
+        db.session.query(Users, Teams, ContestParticipant)
+        .outerjoin(UserTeamMember, UserTeamMember.user_id == Users.id)
+        .outerjoin(Teams, (Teams.id == UserTeamMember.team_id) & (Teams.contest_id == contest_id))
+        .outerjoin(ContestParticipant, (ContestParticipant.user_id == Users.id) & (ContestParticipant.contest_id == contest_id))
+        .filter(
+            Users.type == "user",
+            db.or_(Users.id.in_(team_users_subq), Users.id.in_(cp_users_subq))
+        )
+        .distinct(Users.id)
+        .order_by(Users.id)
+        .all()
+    )
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+
+    if include_passwords:
+        from passlib.hash import bcrypt_sha256
+        writer.writerow(["name", "email", "team_name", "contest_role", "password_plain"])
+        charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+
+        def hash_row(item):
+            user, team, cp = item
+            new_pass = "".join(secrets.choice(charset) for _ in range(12))
+            hashed = bcrypt_sha256.using(rounds=4).hash(str(new_pass))
+            if isinstance(hashed, bytes):
+                hashed = hashed.decode("utf-8")
+            return (user.id, hashed, user.name, user.email,
+                    team.name if team else "", cp.role if cp else "contestant", new_pass)
+
+        results = []
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            for res in executor.map(hash_row, rows):
+                results.append(res)
+
+        for user_id, hashed, name, email, team_name, role, new_pass in results:
+            db.session.execute(
+                db.text("UPDATE users SET password = :pw WHERE id = :uid"),
+                {"pw": hashed, "uid": user_id}
+            )
+            writer.writerow([name, email, team_name, role, new_pass])
+        db.session.commit()
+
+        from CTFd.utils.logging.audit_logger import log_audit
+        log_audit(action="bulk_password_reset", data={"contest_id": contest_id, "count": len(results)})
+    else:
+        writer.writerow(["name", "email", "team_name", "contest_role", "verified", "banned"])
+        for user, team, cp in rows:
+            writer.writerow([
+                user.name, user.email,
+                team.name if team else "",
+                cp.role if cp else "contestant",
+                str(user.verified).lower(),
+                str(user.banned).lower(),
+            ])
+
+    output.seek(0)
+    safe_slug = contest.slug.replace(" ", "_")[:40]
+    fname = f"{safe_slug}-users{'-with-passwords' if include_passwords else ''}.csv"
+    return send_file(
+        io.BytesIO(output.getvalue().encode("utf-8")),
+        as_attachment=True,
+        max_age=-1,
+        download_name=fname,
+    )
 
 
 @admin.route("/admin/contests/<int:contest_id>/users")
@@ -1624,7 +1983,7 @@ def contest_create_team(contest_id):
 @admins_only
 def contest_team_detail(contest_id, team_id):
     from sqlalchemy import not_
-    from CTFd.models import Challenges, Tracking
+    from CTFd.models import Challenges, Tracking, Solves, Fails, Awards, UserTeamMember
 
     contest = Contests.query.filter_by(id=contest_id).first_or_404()
     team = Teams.query.filter_by(id=team_id).first_or_404()
@@ -1632,11 +1991,53 @@ def contest_team_detail(contest_id, team_id):
     members = team.members
     member_ids = [member.id for member in members]
 
-    solves = team.get_solves(admin=True)
-    fails = team.get_fails(admin=True)
-    awards = team.get_awards(admin=True)
-    score = team.get_score(admin=True)
-    place = team.get_place(admin=True)
+    # Scope all queries to challenges belonging to this contest
+    challenge_ids_subq = db.session.query(Challenges.id).filter(
+        Challenges.contest_id == contest_id
+    ).subquery()
+
+    solves = (
+        Solves.query
+        .filter(Solves.user_id.in_(member_ids), Solves.challenge_id.in_(challenge_ids_subq))
+        .order_by(Solves.date.desc())
+        .all()
+    )
+    fails = (
+        Fails.query
+        .filter(Fails.user_id.in_(member_ids), Fails.challenge_id.in_(challenge_ids_subq))
+        .all()
+    )
+    awards = (
+        Awards.query
+        .filter(Awards.user_id.in_(member_ids), Awards.contest_id == contest_id)
+        .all()
+    ) if member_ids else []
+
+    # Score = sum of UserTeamMember.score (updated on every correct solve)
+    score = db.session.query(db.func.sum(UserTeamMember.score)).filter(
+        UserTeamMember.team_id == team_id
+    ).scalar() or 0
+
+    # Per-member scores from UserTeamMember
+    member_scores = {
+        utm.user_id: utm.score
+        for utm in UserTeamMember.query.filter_by(team_id=team_id).all()
+    }
+
+    # Place: rank this team among all teams in the same contest by score
+    team_scores = db.session.query(
+        UserTeamMember.team_id,
+        db.func.sum(UserTeamMember.score).label("total")
+    ).join(Teams, Teams.id == UserTeamMember.team_id).filter(
+        Teams.contest_id == contest_id
+    ).group_by(UserTeamMember.team_id).order_by(db.desc("total")).all()
+
+    place = None
+    for rank, (tid, _) in enumerate(team_scores, start=1):
+        if tid == team_id:
+            suffixes = {1: "st", 2: "nd", 3: "rd"}
+            place = str(rank) + suffixes.get(rank if rank <= 3 else 0, "th")
+            break
 
     solve_ids = [s.challenge_id for s in solves]
     missing_q = Challenges.query.filter(Challenges.contest_id == contest_id)
@@ -1662,6 +2063,7 @@ def contest_team_detail(contest_id, team_id):
         missing=missing,
         awards=awards,
         addrs=addrs,
+        member_scores=member_scores,
         is_detail=True,
     )
 
@@ -1715,7 +2117,7 @@ def contest_add_team_member(contest_id, team_id):
     from CTFd.models import Teams, UserTeamMember, Users
     from flask import jsonify
 
-    Contests.query.filter_by(id=contest_id).first_or_404()
+    contest = Contests.query.filter_by(id=contest_id).first_or_404()
     team = Teams.query.filter_by(id=team_id, contest_id=contest_id).first_or_404()
 
     data = request.get_json(force=True) or {}
@@ -1752,6 +2154,29 @@ def contest_add_team_member(contest_id, team_id):
             {"success": False, "errors": {"user_id": ["User is already in a team in this contest"]}},
             400,
         )
+
+    # Enforce team_size limit from contest settings
+    if contest.team_size:
+        current_count = (
+            db.session.query(db.func.count(UserTeamMember.id))
+            .filter_by(team_id=team.id)
+            .scalar()
+        )
+        if current_count >= contest.team_size:
+            return (
+                {
+                    "success": False,
+                    "errors": {
+                        "user_id": [
+                            "This team is full. Teams are limited to {} member{}.".format(
+                                contest.team_size,
+                                "" if contest.team_size == 1 else "s",
+                            )
+                        ]
+                    },
+                },
+                400,
+            )
 
     team.members.append(user)
 
@@ -2204,63 +2629,6 @@ def contest_monitoring(contest_id):
         is_detail=True,
     )
 
-
-@admin.route("/admin/contests/<int:contest_id>/challenges/sandbox")
-@admins_only
-def contest_sandbox_challenges(contest_id):
-    contest = Contests.query.filter_by(id=contest_id).first_or_404()
-
-    page = abs(request.args.get("page", 1, type=int))
-    q = request.args.get("q", "").strip()
-    state_filter = request.args.get("state", "")
-
-    query = Challenges.query.filter(
-        Challenges.contest_id == contest_id,
-        Challenges.image_link.like('%"definition_id"%'),
-    )
-    if q:
-        query = query.filter(Challenges.name.ilike(f"%{q}%"))
-    if state_filter:
-        query = query.filter(Challenges.state == state_filter)
-
-    challenges = query.order_by(Challenges.id.asc()).paginate(
-        page=page, per_page=50, error_out=False
-    )
-
-    for ch in challenges.items:
-        sandbox_id = None
-        if ch.image_link:
-            try:
-                sandbox_id = json.loads(ch.image_link).get("definition_id")
-            except Exception:
-                pass
-        ch.sandbox_id = sandbox_id
-
-    args = dict(request.args)
-    args.pop("page", None)
-
-    return render_template(
-        "admin/contests/sections/sandbox_challenges.html",
-        contest=contest,
-        challenges=challenges,
-        prev_page=url_for(request.endpoint, contest_id=contest_id, page=challenges.prev_num, **args),
-        next_page=url_for(request.endpoint, contest_id=contest_id, page=challenges.next_num, **args),
-        q=q,
-        state_filter=state_filter,
-        is_detail=True,
-    )
-
-
-@admin.route("/admin/contests/<int:contest_id>/challenges/sandbox/new")
-@admins_only
-def contest_sandbox_challenge_new(contest_id):
-    contest = Contests.query.filter_by(id=contest_id).first_or_404()
-    return render_template(
-        "admin/challenges/sandbox_challenge.html",
-        contest=contest,
-        is_detail=True,
-        use_kypo_pools=True,
-    )
 
 
 @admin.route("/admin/contests/<int:contest_id>/dynamic_reward")
