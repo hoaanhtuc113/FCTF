@@ -106,6 +106,9 @@ builder.Services.AddScoped<IFileService, FileService>();
 builder.Services.AddScoped<IActionLogsServices, ActionLogsServices>();
 builder.Services.AddScoped<IUserContext, UserContext>();
 builder.Services.AddSingleton<KypoService>();
+builder.Services.AddSingleton<KypoApiClient>();
+builder.Services.AddScoped<KypoScoreLockService>();
+builder.Services.AddHostedService<KypoTimeoutWatcher>();
 builder.Services.AddHttpClient("kypo")
     .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
     {

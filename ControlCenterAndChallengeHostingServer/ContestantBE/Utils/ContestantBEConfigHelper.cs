@@ -15,6 +15,11 @@ public class ContestantBEConfigHelper
     public static string KypoClientSecret = "";
     public static string KypoAdminUser = "";
     public static string KypoAdminPass = "";
+    // Keycloak master admin (dùng để map training_run → team)
+    public static string KypoKeycloakAdminUser = "admin";
+    public static string KypoKeycloakAdminPass = "";
+    // Polling interval cho KypoTimeoutWatcher (giây)
+    public static int KypoPollIntervalSeconds = 10;
 
 
     public static bool IsTurnstileEnabled => !string.IsNullOrWhiteSpace(CLOUDFLARE_TURNSTILE_SECRET_KEY);
@@ -35,6 +40,10 @@ public class ContestantBEConfigHelper
         KypoAdminUser = GetOptionalEnv("KYPO_ADMIN_USER") ?? "";
         KypoAdminPass = GetOptionalEnv("KYPO_ADMIN_PASS") ?? "";
         KypoClientSecret = GetOptionalEnv("KYPO_CLIENT_SECRET") ?? "";
+        KypoKeycloakAdminUser = GetOptionalEnv("KYPO_KEYCLOAK_ADMIN_USER") ?? "admin";
+        KypoKeycloakAdminPass = GetOptionalEnv("KYPO_KEYCLOAK_ADMIN_PASS") ?? "";
+        KypoPollIntervalSeconds = int.TryParse(
+            GetOptionalEnv("KYPO_POLL_INTERVAL_SECONDS"), out var kpi) ? kpi : 10;
     }
 
     private static string GetRequiredEnv(string key)
