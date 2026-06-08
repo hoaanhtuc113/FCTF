@@ -30,5 +30,6 @@ namespace ResourceShared.DTOs.Challenge
         public bool captain_only_submit { get; set; }
         public int? difficulty { get; set; }
         public bool shared_instance { get; set; }
+        public bool is_submitted { get; set; }
     }
 }

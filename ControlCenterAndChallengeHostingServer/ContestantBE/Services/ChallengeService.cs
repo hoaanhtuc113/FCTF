@@ -165,6 +165,10 @@ public class ChallengeService : IChallengeService
             .AsNoTracking()
             .CountAsync(d => d.ChallengeId == challenge.Id && d.TeamId == teamId);
 
+        var isSubmitted = await _dbContext.ChallengeStartTrackings
+            .AsNoTracking()
+            .AnyAsync(t => t.ChallengeId == challenge.Id && t.TeamId == teamId && t.Label == "submitted");
+
         var files = new List<object>();
         foreach (var file in challenge.Files)
         {
@@ -216,7 +220,8 @@ public class ChallengeService : IChallengeService
             captain_only_start = captainOnlyStart,
             captain_only_submit = captainOnlySubmit,
             difficulty = difficultyVisible ? challenge.Difficulty : null,
-            shared_instance = challenge.SharedInstant
+            shared_instance = challenge.SharedInstant,
+            is_submitted = isSubmitted
         };
         int resolvedTeamId = teamId ?? 0;
         if (challenge.SharedInstant)

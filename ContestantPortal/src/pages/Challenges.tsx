@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import React, { useEffect, useState, useRef } from 'react';
 import { useSearchParams, useParams } from 'react-router-dom';
 import { challengeService } from '../services/challengeService';
-import { contestService } from '../services/contestService';
 import { useTheme } from '../context/ThemeContext';
 import {
   LockOpen,
@@ -31,11 +30,12 @@ import {
   ChallengeDetailSkeleton
 } from '../components/Skeleton';
 import { challengeTimerService } from '../services/challengeTimerService';
+import { contestService } from '../services/contestService';
+import { actionLogService } from '../services/actionLogService';
+import { actionType } from '../constants/ActionLogConstant';
 
 // Setup PDF worker - mirror legacy behavior using jsDelivr CDN (handles MIME/CORS)
 pdfjs.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
-
-// Team ID is now resolved server-side from contestId — no longer read from localStorage.
 
 interface Category {
   topic_name: string;
@@ -74,6 +74,7 @@ interface Challenge {
   next_id?: number | null;
   next_name?: string | null;
   connection_protocol?: 'http' | 'tcp' | string | null;
+  is_submitted?: boolean;
 }
 
 interface PrerequisiteChallenge {
@@ -90,58 +91,11 @@ interface Hint {
   isUnlocked?: boolean;
 }
 
-const DIFFICULTY_LABEL: Record<number, string> = {
-  1: 'Easy',
-  2: 'Medium',
-  3: 'Hard',
-  4: 'Very Hard',
-  5: 'Insane',
-};
-
-// Returns the filled-star color based on difficulty level
-function getDifficultyStarColor(difficulty: number): string {
-  if (difficulty <= 1) return '#22c55e'; // green-500
-  if (difficulty === 2) return '#eab308'; // yellow-500
-  if (difficulty === 3) return '#f97316'; // orange-500
-  if (difficulty === 4) return '#ef4444'; // red-500
-  return '#a855f7';                       // purple-500 (Insane)
-}
-
-function DifficultyBadge({ difficulty, theme }: { difficulty: number | null | undefined; theme: string }) {
-  if (difficulty == null || difficulty < 1 || difficulty > 5) return null;
-  const total = 5;
-  const filledColor = getDifficultyStarColor(difficulty);
-  const emptyColor = theme === 'dark' ? '#4b5563' : '#d1d5db'; // gray-600 / gray-300
-  return (
-    <span className="inline-flex items-center gap-0.5" aria-label={`Difficulty: ${DIFFICULTY_LABEL[difficulty] ?? difficulty}/5`}>
-      {Array.from({ length: total }, (_, i) => (
-        <svg
-          key={i}
-          width="13"
-          height="13"
-          viewBox="0 0 24 24"
-          fill={i < difficulty ? filledColor : emptyColor}
-          xmlns="http://www.w3.org/2000/svg"
-          style={{ flexShrink: 0 }}
-        >
-          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-        </svg>
-      ))}
-      <span
-        className="ml-0.5 text-xs font-mono"
-        style={{ color: theme === 'dark' ? '#9ca3af' : '#6b7280' }}
-      >
-        {difficulty}/5
-      </span>
-    </span>
-  );
-}
-
 export function Challenges() {
   const { theme } = useTheme();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { contestId: contestIdParam } = useParams<{ contestId: string }>();
   const contestId = parseInt(contestIdParam ?? '0');
-  const [searchParams, setSearchParams] = useSearchParams();
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [selectedChallenge, setSelectedChallenge] = useState<Challenge | null>(null);
@@ -911,6 +865,7 @@ export function Challenges() {
                 isSidebarVisible={isSidebarVisible}
                 onToggleSidebar={() => setIsSidebarVisible(!isSidebarVisible)}
                 onNavigate={handleNavigateToChallenge}
+                contestId={contestId}
               />
             </motion.div>
           ) : null}
@@ -1176,8 +1131,6 @@ function ChallengeListItem({
                   {challenge.value}pts
                 </span>
 
-                <DifficultyBadge difficulty={challenge.difficulty} theme={theme} />
-
                 {challenge.solves !== undefined && (
                   <span className={`px-2 py-0.5 rounded ${theme === 'dark'
                     ? 'bg-gray-700 text-gray-400 border border-gray-600'
@@ -1350,7 +1303,8 @@ function ChallengeDetailPanel({
   onFlagSuccess,
   isSidebarVisible = true,
   onToggleSidebar,
-  onNavigate
+  onNavigate,
+  contestId,
 }: {
   challenge: Challenge;
   theme: string;
@@ -1359,15 +1313,25 @@ function ChallengeDetailPanel({
   isSidebarVisible?: boolean;
   onToggleSidebar?: () => void;
   onNavigate?: (id: number) => void; // optional callback when user wants to jump to another challenge
+  contestId: number;
 }) {
   const [answer, setAnswer] = useState('');
   const [hints, setHints] = useState<Hint[]>([]);
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
   const [isChallengeStarted, setIsChallengeStarted] = useState(false);
   const [url, setUrl] = useState<string | null>(null);
+  const [kypoInfo, setKypoInfo] = useState<{ username: string; password: string; access_token: string; portalUrl: string } | null>(() => {
+    try {
+      const saved = localStorage.getItem(`kypo_${challenge.id}`);
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
   const [isSubmittingFlag, setIsSubmittingFlag] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
   const [isStopping, setIsStopping] = useState(false);
+  const [isLocallySubmitted, setIsLocallySubmitted] = useState(false);
   const [isDeploymentInProgress, setIsDeploymentInProgress] = useState(false);
   const [isHealthChecking, setIsHealthChecking] = useState(false);
   const [isPodHealthy, setIsPodHealthy] = useState(false);
@@ -1459,6 +1423,17 @@ function ChallengeDetailPanel({
   // Load cooldown and deployment state from localStorage when challenge changes
   useEffect(() => {
     setPodStatus(challenge.pod_status ?? null);
+    setIsLocallySubmitted(false);
+
+    // Restore KYPO info when switching between challenges
+    try {
+      const saved = localStorage.getItem(`kypo_${challenge.id}`);
+      setKypoInfo(saved ? JSON.parse(saved) : null);
+    } catch {
+      localStorage.removeItem(`kypo_${challenge.id}`);
+      setKypoInfo(null);
+    }
+
     const loadCooldown = () => {
       const cooldownKey = `cooldown_${challenge.id}`;
       const savedCooldown = localStorage.getItem(cooldownKey);
@@ -1513,6 +1488,16 @@ function ChallengeDetailPanel({
       }
     };
   }, [challenge.id]);
+
+  // Persist KYPO info to localStorage whenever it changes
+  useEffect(() => {
+    const kypoKey = `kypo_${challenge.id}`;
+    if (kypoInfo) {
+      localStorage.setItem(kypoKey, JSON.stringify(kypoInfo));
+    } else {
+      localStorage.removeItem(kypoKey);
+    }
+  }, [kypoInfo, challenge.id]);
 
   // Cooldown countdown effect
   useEffect(() => {
@@ -1635,6 +1620,37 @@ function ChallengeDetailPanel({
 
             // Call API to stop in background (fire and forget)
             autoStopChallengeOnTimeout();
+          } else if (challenge.type === 'sandbox') {
+            // Auto-stop KYPO/sandbox challenge when timer runs out
+            setIsChallengeStarted(false);
+            setUrl(null);
+            setKypoInfo(null);
+            challengeTimerService.stopTimer(challenge.id);
+            localStorage.removeItem(`timer_endtime_${challenge.id}`);
+            localStorage.removeItem(`kypo_${challenge.id}`);
+            endTimeRef.current = null;
+
+            Swal.fire({
+              html: `
+                <div class="font-mono text-left text-sm">
+                  <div class="text-orange-400 mb-2">[⏱] Time's Up!</div>
+                  <div class="text-gray-400 mb-2">> Challenge: ${challenge.name}</div>
+                  <div class="text-gray-400">> Stopping session automatically...</div>
+                </div>
+              `,
+              icon: 'info',
+              iconColor: '#fb923c',
+              background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+              color: theme === 'dark' ? '#fb923c' : '#000000',
+              toast: true,
+              position: 'top-end',
+              showConfirmButton: false,
+              timer: 3000,
+              timerProgressBar: true,
+            });
+
+            // Gọi API để xóa session trên backend (fire and forget)
+            autoStopChallengeOnTimeout();
           }
           return;
         }
@@ -1668,6 +1684,7 @@ function ChallengeDetailPanel({
         setIsPodHealthy(false);
         setIsHealthChecking(false);
         setIsDeploymentInProgress(false);
+        setKypoInfo(null);
 
         // Clear timer and endTimeRef
         if (timerRef.current) {
@@ -1763,6 +1780,40 @@ function ChallengeDetailPanel({
             adjustedTimeRemaining,
             challenge.require_deploy || false
           );
+        } else if (data.is_started && challenge.type === 'sandbox') {
+          // Sandbox/KYPO: time_remaining === 0 means timer expired (only when challenge has a time limit)
+          if (challenge.time_limit && challenge.time_limit > 0 && data.time_remaining === 0) {
+            setIsChallengeStarted(false);
+            setUrl(null);
+            setTimeRemaining(null);
+            setKypoInfo(null);
+            localStorage.removeItem(`timer_endtime_${challenge.id}`);
+            localStorage.removeItem(`kypo_${challenge.id}`);
+            autoStopChallengeOnTimeout();
+            return;
+          }
+          // Ưu tiên dùng time_remaining từ backend nếu có (không null)
+          if (data.time_remaining != null && data.time_remaining > 0) {
+            const adjustedTimeRemaining = Math.max(0, data.time_remaining - rttMs / 2000);
+            setTimeRemaining(adjustedTimeRemaining);
+            challengeTimerService.startTimer(challenge.id, challenge.name, adjustedTimeRemaining, false);
+          } else {
+            // Fallback: khôi phục từ localStorage (trường hợp không có time limit)
+            const savedEndTime = localStorage.getItem(`timer_endtime_${challenge.id}`);
+            if (savedEndTime) {
+              const endTime = parseInt(savedEndTime, 10);
+              const remaining = Math.max(0, Math.floor((endTime - Date.now()) / 1000));
+              if (remaining > 0) {
+                setTimeRemaining(remaining);
+                challengeTimerService.startTimer(challenge.id, challenge.name, remaining, false);
+              } else {
+                localStorage.removeItem(`timer_endtime_${challenge.id}`);
+                setTimeRemaining(null);
+              }
+            } else {
+              setTimeRemaining(null);
+            }
+          }
         } else {
           setTimeRemaining(null); // Show --:-- when no URL
         }
@@ -2021,57 +2072,78 @@ function ChallengeDetailPanel({
         method: 'POST',
         body: JSON.stringify({
           challengeId: challenge.id,
+          contestId,
         })
       });
       const data = await response.json();
 
-      // ── Case KYPO: challenge_type === 'kypo' → mở bridge.html trong tab mới ──
+      // Case KYPO: sandbox challenge
       if (response.status === 200 && data.success === true && data.challenge_type === 'kypo') {
         setIsStarting(false);
 
-        if (data.challenge_url) {
-          // Mở bridge.html trong tab mới — Angular sẽ inject token vào localStorage
-          window.open(data.challenge_url, '_blank', 'noopener,noreferrer');
+        const newKypoInfo = {
+          username: data.kypo_username || '',
+          password: data.kypo_password || '',
+          access_token: data.kypo_access_token || '', // Instance access token (not account token)
+          portalUrl: data.challenge_url || ''
+        };
+        setKypoInfo(newKypoInfo);
+        setIsChallengeStarted(true);
+        setUrl(data.challenge_url);
 
-          setIsChallengeStarted(true);
-          setUrl(data.challenge_url);
-
-          // Bắt đầu đếm ngược nếu có time_limit
-          if (data.time_limit && data.time_limit > 0) {
-            challengeTimerService.startTimer(
-              challenge.id,
-              challenge.name,
-              data.time_limit * 60,
-              true
-            );
-          }
-
-          Swal.fire({
-            html: `
-              <div class="font-mono text-left text-sm">
-                <div class="${theme === 'dark' ? 'text-green-400' : 'text-green-600'} mb-2">[✓] KYPO Ready!</div>
-                <div class="${theme === 'dark' ? 'text-gray-400' : 'text-gray-700'} mb-1">> Opening KYPO training environment in a new tab...</div>
-                <div class="${theme === 'dark' ? 'text-yellow-400' : 'text-yellow-600'} mt-2">> Complete all phases to receive points.</div>
-              </div>
-            `,
-            icon: 'success',
-            iconColor: '#22c55e',
-            background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
-            color: theme === 'dark' ? '#22c55e' : '#000000',
-            timer: 4000,
-            showConfirmButton: false,
-            customClass: {
-              popup: 'rounded-lg border border-green-500/30',
-            },
-          });
+        // Start timer if challenge has a time limit
+        if (challenge.time_limit && challenge.time_limit > 0) {
+          const seconds = challenge.time_limit * 60;
+          setTimeRemaining(seconds);
+          challengeTimerService.startTimer(challenge.id, challenge.name, seconds, false);
         }
+
+        // Build instruction dialog content
+        const timerLine = (challenge.time_limit && challenge.time_limit > 0)
+          ? `<div class="${theme === 'dark' ? 'text-orange-400' : 'text-orange-600'} mb-1">> Time limit: <strong>${formatTime(challenge.time_limit * 60)}</strong></div>`
+          : '';
+        const credLines = newKypoInfo.access_token
+          ? `<div class="${theme === 'dark' ? 'bg-gray-800 border-gray-600' : 'bg-gray-50 border-gray-300'} rounded border p-3 mb-2">
+              <div class="${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'} text-xs mb-1">Instance Access Token:</div>
+              <div class="${theme === 'dark' ? 'text-orange-300' : 'text-orange-700'} text-xs break-all select-all">${newKypoInfo.access_token}</div>
+            </div>`
+          : '';
+
+        const result = await Swal.fire({
+          html: `
+            <div class="font-mono text-left text-sm space-y-2">
+              <div class="${theme === 'dark' ? 'text-green-400' : 'text-green-600'} mb-2">[✓] Challenge is ready!</div>
+              ${timerLine}
+              ${credLines}
+              <div class="${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'} text-xs">> Click "Enter Challenge" to open KYPO in a new tab.</div>
+              <div class="${theme === 'dark' ? 'text-yellow-400' : 'text-yellow-600'} text-xs">> Timer has started.</div>
+            </div>
+          `,
+          icon: 'success',
+          iconColor: '#22c55e',
+          confirmButtonText: '[→] Enter Challenge',
+          showCancelButton: true,
+          cancelButtonText: 'Close',
+          background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+          color: theme === 'dark' ? '#e5e7eb' : '#111827',
+          customClass: {
+            popup: 'rounded-lg border border-green-500/30',
+            confirmButton: 'bg-green-600 hover:bg-green-700 text-white font-mono px-4 py-2 rounded mr-2',
+            cancelButton: 'bg-gray-600 hover:bg-gray-700 text-white font-mono px-4 py-2 rounded',
+          },
+        });
+
+        if (result.isConfirmed) {
+          window.open(data.challenge_url, '_blank', 'noopener,noreferrer');
+        }
+
         return;
       }
-      // ── End KYPO case ─────────────────────────────────────────────────────────
 
       // Case 1: URL is ready immediately
       if (response.status === 200 && data.success === true && data.challenge_url != null) {
         const safeChallengeUrl = escapeHtml(String(data.challenge_url).trim());
+        actionLogService.logAction(actionType.START_CHALLENGE, `Bắt đầu thử thách ${challenge.name}`, challenge.id);
         setIsDeploymentInProgress(true);
         // Save deployment state AFTER successful response
         localStorage.setItem(deploymentKey, JSON.stringify({
@@ -2124,6 +2196,7 @@ function ChallengeDetailPanel({
       }
       // Case 2: Success but URL is null - deploying, need to wait
       else if (response.status === 200 && data.success === true && data.challenge_url == null) {
+        actionLogService.logAction(actionType.START_CHALLENGE, `Bắt đầu thử thách ${challenge.name}`, challenge.id);
         setIsDeploymentInProgress(true);
         // Save deployment state AFTER successful response
         localStorage.setItem(deploymentKey, JSON.stringify({
@@ -2229,6 +2302,101 @@ function ChallengeDetailPanel({
     }
   };
 
+
+
+  const handleSubmitKypo = async () => {
+    if (isStopping) return;
+
+    const result = await Swal.fire({
+      html: `
+        <div class="font-mono text-left text-sm">
+          <div class="text-yellow-400 mb-2">[?] Submit Challenge</div>
+          <div class="text-gray-400 mb-2">> Challenge: ${challenge.name}</div>
+          <div class="text-red-400 mb-1">> Warning: This will permanently lock this challenge!</div>
+          <div class="text-gray-400">> You cannot start it again after submitting.</div>
+        </div>
+      `,
+      icon: 'warning',
+      iconColor: '#fbbf24',
+      showCancelButton: true,
+      confirmButtonText: 'Submit',
+      cancelButtonText: 'Cancel',
+      background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+      color: theme === 'dark' ? '#fbbf24' : '#000000',
+      customClass: {
+        popup: 'rounded-lg border border-yellow-500/30',
+        confirmButton: 'bg-orange-500 hover:bg-orange-600 text-white font-mono px-4 py-2 rounded',
+        cancelButton: 'bg-gray-600 hover:bg-gray-700 text-white font-mono px-4 py-2 rounded',
+      }
+    });
+
+    if (!result.isConfirmed) return;
+
+    setIsStopping(true);
+    try {
+      const res = await fetchWithAuth(API_ENDPOINTS.CHALLENGES.SUBMIT_CHALLENGE, {
+        method: 'POST',
+        body: JSON.stringify({ challengeId: challenge.id, contestId })
+      });
+      const resData = await res.json();
+      if (!resData.success) {
+        Swal.fire({
+          html: `<div class="font-mono text-sm text-red-400">[!] Submit failed: ${resData.error || resData.message || 'Unknown error'}</div>`,
+          icon: 'error', iconColor: '#ef4444', confirmButtonText: 'OK',
+          background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+          color: theme === 'dark' ? '#ef4444' : '#000000',
+          customClass: { popup: 'rounded-lg border border-red-500/30', confirmButton: 'bg-red-500 text-white font-mono px-4 py-2 rounded' },
+        });
+        return;
+      }
+    } catch {
+      Swal.fire({
+        html: `<div class="font-mono text-sm text-red-400">[!] Connection error. Please try again.</div>`,
+        icon: 'error', iconColor: '#ef4444', confirmButtonText: 'OK',
+        background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+        color: theme === 'dark' ? '#ef4444' : '#000000',
+        customClass: { popup: 'rounded-lg border border-red-500/30', confirmButton: 'bg-red-500 text-white font-mono px-4 py-2 rounded' },
+      });
+      return;
+    } finally {
+      setIsStopping(false);
+    }
+
+    // Lock immediately on success
+    setIsLocallySubmitted(true);
+    setIsChallengeStarted(false);
+    setUrl(null);
+    setKypoInfo(null);
+    setTimeRemaining(null);
+
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    endTimeRef.current = null;
+    localStorage.removeItem(`timer_endtime_${challenge.id}`);
+    challengeTimerService.stopTimer(challenge.id);
+
+    if (onFlagSuccess) await onFlagSuccess();
+
+    Swal.fire({
+      html: `
+        <div class="font-mono text-left text-sm">
+          <div class="text-green-400 mb-2">[✓] Challenge Submitted</div>
+          <div class="text-gray-400">> Challenge: ${challenge.name}</div>
+          <div class="text-gray-400">> This challenge is now permanently locked.</div>
+        </div>
+      `,
+      icon: 'success',
+      iconColor: '#22c55e',
+      background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+      color: theme === 'dark' ? '#22c55e' : '#000000',
+      timer: 3000,
+      showConfirmButton: false,
+      customClass: { popup: 'rounded-lg border border-green-500/30' },
+    });
+  };
+
   // Health check loop function - runs silently in background
   const startHealthCheckLoop = async () => {
 
@@ -2264,6 +2432,7 @@ function ChallengeDetailPanel({
           method: 'POST',
           body: JSON.stringify({
             challengeId: challenge.id,
+            contestId,
           }),
         });
         const data = await response.json();
@@ -2447,6 +2616,7 @@ function ChallengeDetailPanel({
         method: 'POST',
         body: JSON.stringify({
           challengeId: challenge.id,
+          contestId,
         })
       });
       const data = await response.json();
@@ -2484,25 +2654,22 @@ function ChallengeDetailPanel({
     }
   };
 
-  const handleStopChallenge = async () => {
-    // Prevent duplicate stop requests
-    if (stopChallengeRunningRef.current) {
-      return;
-    }
+  const handleSubmitChallenge = async () => {
+    if (stopChallengeRunningRef.current) return;
 
-    // Show confirmation dialog
     const result = await Swal.fire({
       html: `
         <div class="font-mono text-left text-sm">
-          <div class="text-yellow-400 mb-2">[?] Stop Challenge</div>
+          <div class="text-yellow-400 mb-2">[?] Submit Challenge</div>
           <div class="text-gray-400 mb-2">> Challenge: ${challenge.name}</div>
-          <div class="text-gray-400">> Confirm stop instance?</div>
+          <div class="text-red-400 mb-1">> Warning: This will permanently lock this challenge!</div>
+          <div class="text-gray-400">> You cannot start it again after submitting.</div>
         </div>
       `,
-      icon: 'question',
+      icon: 'warning',
       iconColor: '#fbbf24',
       showCancelButton: true,
-      confirmButtonText: 'Stop',
+      confirmButtonText: 'Submit',
       cancelButtonText: 'Cancel',
       background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
       color: theme === 'dark' ? '#fbbf24' : '#000000',
@@ -2513,69 +2680,58 @@ function ChallengeDetailPanel({
       }
     });
 
-    if (!result.isConfirmed) {
-      return;
-    }
+    if (!result.isConfirmed) return;
 
     stopChallengeRunningRef.current = true;
     setIsStopping(true);
 
     try {
-      const response = await fetchWithAuth(API_ENDPOINTS.CHALLENGES.STOP, {
+      const response = await fetchWithAuth(API_ENDPOINTS.CHALLENGES.SUBMIT_CHALLENGE, {
         method: 'POST',
-        body: JSON.stringify({
-          challengeId: challenge.id,
-        })
+        body: JSON.stringify({ challengeId: challenge.id, contestId })
       });
       const data = await response.json();
 
       if (data.success) {
+        // Lock immediately — don't wait for refresh
+        setIsLocallySubmitted(true);
         setIsChallengeStarted(false);
         setUrl(null);
         setTimeRemaining(null);
         setIsPodHealthy(false);
 
-        // Clear timer and endTimeRef
         if (timerRef.current) {
           clearInterval(timerRef.current);
           timerRef.current = null;
         }
         endTimeRef.current = null;
         localStorage.removeItem(`timer_endtime_${challenge.id}`);
-
-        // Stop global timer
         challengeTimerService.stopTimer(challenge.id);
 
-        // Refresh challenge data to update pod_status and call category refresh
-        if (onFlagSuccess) {
-          await onFlagSuccess();
-        }
+        if (onFlagSuccess) await onFlagSuccess();
 
         Swal.fire({
           html: `
             <div class="font-mono text-left text-sm">
-              <div class="text-green-400 mb-2">[✓] Challenge Stopped</div>
+              <div class="text-green-400 mb-2">[✓] Challenge Submitted</div>
               <div class="text-gray-400 mb-2">> Challenge: ${challenge.name}</div>
-              <div class="text-gray-400">> Instance terminated successfully</div>
-              <div class="text-yellow-400 mt-2 text-xs">> Please wait 30~60 seconds for cleanup...</div>
+              <div class="text-gray-400">> This challenge is now permanently locked.</div>
             </div>
           `,
           icon: 'success',
           iconColor: '#22c55e',
           background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
           color: theme === 'dark' ? '#22c55e' : '#000000',
-          timer: 5000,
+          timer: 4000,
           showConfirmButton: false,
-          customClass: {
-            popup: 'rounded-lg border border-green-500/30',
-          },
+          customClass: { popup: 'rounded-lg border border-green-500/30' },
         });
       } else {
         Swal.fire({
           html: `
             <div class="font-mono text-left text-sm">
-              <div class="text-red-400 mb-2">[!] Stop Failed</div>
-              <div class="text-gray-400">> ${data.message || 'Unknown error'}</div>
+              <div class="text-red-400 mb-2">[!] Submit Failed</div>
+              <div class="text-gray-400">> ${data.message || data.error || 'Unknown error'}</div>
             </div>
           `,
           icon: 'error',
@@ -2590,13 +2746,12 @@ function ChallengeDetailPanel({
         });
       }
     } catch (error) {
-      console.error('Stop challenge error:', error);
+      console.error('Submit challenge error:', error);
       Swal.fire({
         html: `
           <div class="font-mono text-left text-sm">
             <div class="text-red-400 mb-2">[!] Connection Error</div>
-            <div class="text-gray-400">> Failed to stop challenge</div>
-            <div class="text-gray-400">> Please try again</div>
+            <div class="text-gray-400">> Failed to submit challenge. Please try again.</div>
           </div>
         `,
         icon: 'error',
@@ -2669,7 +2824,8 @@ function ChallengeDetailPanel({
       // Send as JSON instead of FormData
       const requestBody = {
         challengeId: challenge.id,
-        submission: answer
+        submission: answer,
+        contestId,
       };
 
       const response = await fetchWithAuth(API_ENDPOINTS.FLAGS.SUBMIT, {
@@ -2998,63 +3154,6 @@ function ChallengeDetailPanel({
     }).catch((err) => {
       console.error('Failed to copy TCP address:', err);
     });
-  };
-
-  const [isDownloadingSsh, setIsDownloadingSsh] = useState(false);
-
-  const handleDownloadSandboxSsh = async () => {
-    setIsDownloadingSsh(true);
-    try {
-      const response = await fetchWithAuth(API_ENDPOINTS.CHALLENGES.SANDBOX_SSH(challenge.id), {
-        method: 'GET',
-      });
-
-      if (!response.ok) {
-        const data = await response.json().catch(() => ({}));
-        Swal.fire({
-          html: `
-            <div class="font-mono text-left text-sm">
-              <div class="text-red-400 mb-2">[!] Download failed</div>
-              <div class="text-gray-400">> ${(data as any).error || 'Unable to retrieve SSH config'}</div>
-            </div>
-          `,
-          icon: 'error',
-          iconColor: '#ef4444',
-          confirmButtonText: 'OK',
-          background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
-          color: theme === 'dark' ? '#ef4444' : '#000000',
-          customClass: {
-            popup: 'rounded-lg border border-red-500/30',
-            confirmButton: 'bg-red-500 hover:bg-red-600 text-white font-mono px-4 py-2 rounded',
-          },
-        });
-        return;
-      }
-
-      const blob = await response.blob();
-      saveAs(blob, `challenge-${challenge.id}-sandbox-ssh.zip`);
-    } catch (error) {
-      console.error('SSH config download error:', error);
-      Swal.fire({
-        html: `
-          <div class="font-mono text-left text-sm">
-            <div class="text-red-400 mb-2">[!] Connection error</div>
-            <div class="text-gray-400">> Failed to download SSH config</div>
-          </div>
-        `,
-        icon: 'error',
-        iconColor: '#ef4444',
-        confirmButtonText: 'OK',
-        background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
-        color: theme === 'dark' ? '#ef4444' : '#000000',
-        customClass: {
-          popup: 'rounded-lg border border-red-500/30',
-          confirmButton: 'bg-red-500 hover:bg-red-600 text-white font-mono px-4 py-2 rounded',
-        },
-      });
-    } finally {
-      setIsDownloadingSsh(false);
-    }
   };
 
   const handleDownloadFile = async (filePath: string) => {
@@ -3528,16 +3627,14 @@ function ChallengeDetailPanel({
           </div>
 
           <div className="flex items-center gap-2">
-            {challenge.require_deploy && !challenge.solve_by_myteam && (
+            {isChallengeStarted && timeRemaining != null && timeRemaining > 0
+              && !challenge.solve_by_myteam && !(isLocallySubmitted || challenge.is_submitted) && (
               <div className={`flex items-center gap-1.5 px-3 py-1 rounded border text-sm font-mono ${theme === 'dark'
                 ? 'bg-gray-900 border-gray-700'
                 : 'bg-gray-50 border-gray-300'
                 }`}>
                 <Timer sx={{ fontSize: 16 }} className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'} />
-                <span className={`font-bold ${isChallengeStarted
-                  ? 'text-green-500'
-                  : theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                  }`}>
+                <span className="font-bold text-green-500">
                   {formatTime(timeRemaining)}
                 </span>
               </div>
@@ -3778,13 +3875,6 @@ function ChallengeDetailPanel({
                   {challenge.value} pts
                 </span>
               </Tooltip>
-              {challenge.difficulty != null && (
-                <Tooltip title={`Difficulty: ${DIFFICULTY_LABEL[challenge.difficulty] ?? challenge.difficulty}/5`} placement="top" arrow enterDelay={0} enterNextDelay={0}>
-                  <span className="cursor-help py-1">
-                    <DifficultyBadge difficulty={challenge.difficulty} theme={theme} />
-                  </span>
-                </Tooltip>
-              )}
               {challenge.shared_instance && (
                 <Tooltip title="This challenge uses a shared instance for all teams" placement="top" arrow enterDelay={0} enterNextDelay={0}>
                   <span className={`cursor-help px-2 py-1 rounded border ${theme === 'dark'
@@ -3898,8 +3988,8 @@ function ChallengeDetailPanel({
               </div>
             )}
 
-            {/* Connection Info with Token */}
-            {(url || isHealthChecking || isDeploymentInProgress) && (
+            {/* Connection Info with Token — hidden for sandbox/KYPO challenges */}
+            {challenge.type !== 'sandbox' && (url || isHealthChecking || isDeploymentInProgress) && (
               <div className={`p-3 rounded border ${theme === 'dark' ? 'bg-gray-900 border-gray-700' : 'bg-gray-50 border-gray-300'}`}>
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
@@ -4071,7 +4161,7 @@ function ChallengeDetailPanel({
             )}
 
             {/* Submit Form */}
-            {!challenge.solve_by_myteam && (
+            {!challenge.solve_by_myteam && challenge.type !== 'sandbox' && (
               <div className="space-y-2">
                 <div className={`text-xs font-mono font-bold ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
                   [SUBMIT FLAG]
@@ -4152,11 +4242,118 @@ function ChallengeDetailPanel({
               </div>
             )}
 
-            {/* Start/Stop Buttons */}
+            {/* Sandbox Challenge Buttons */}
+            {challenge.type === 'sandbox' && !challenge.solve_by_myteam && (
+              <div className="space-y-2">
+                {(isLocallySubmitted || challenge.is_submitted) ? (
+                  <div className={`w-full py-2 px-4 rounded font-mono font-bold text-sm flex items-center justify-center gap-2 ${theme === 'dark'
+                    ? 'bg-gray-800/60 border border-red-900/50 text-red-400/70'
+                    : 'bg-red-50 border border-red-200 text-red-500/80'
+                    }`}>
+                    <Lock sx={{ fontSize: 15 }} />
+                    Challenge Submitted &amp; Locked
+                  </div>
+                ) : isChallengeStarted ? (
+                  <>
+                    {/* Enter Challenge button — directly opens KYPO portal */}
+                    <button
+                      onClick={() => window.open(kypoInfo?.portalUrl || url || '', '_blank', 'noopener,noreferrer')}
+                      style={{
+                        fontFamily: 'monospace',
+                        fontSize: '13px',
+                        fontWeight: 'bold',
+                        width: '100%',
+                        padding: '10px 16px',
+                        border: '1px solid #4ade80',
+                        backgroundColor: '#4ade80',
+                        color: '#000',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '8px',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = '#22c55e';
+                        e.currentTarget.style.borderColor = '#22c55e';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = '#4ade80';
+                        e.currentTarget.style.borderColor = '#4ade80';
+                      }}
+                    >
+                      <span>[&gt;] Enter Challenge</span>
+                    </button>
+                    {/* Submit challenge button */}
+                    <button
+                      onClick={handleSubmitKypo}
+                      disabled={isStopping}
+                      className={`w-full py-2 px-4 rounded font-mono font-bold text-sm transition-colors flex items-center justify-center gap-2 ${theme === 'dark'
+                        ? 'bg-orange-600 hover:bg-orange-700 text-white border border-orange-500'
+                        : 'bg-orange-500 hover:bg-orange-600 text-white border border-orange-400'
+                        } disabled:opacity-50 disabled:cursor-not-allowed`}
+                    >
+                      {isStopping && <CircularProgress size={14} sx={{ color: '#fff' }} />}
+                      {isStopping ? '[...] Submitting...' : '[✓] Submit'}
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={handleStartChallenge}
+                    disabled={isStarting}
+                    style={{
+                      fontFamily: 'monospace',
+                      fontSize: '13px',
+                      fontWeight: 'bold',
+                      width: '100%',
+                      padding: '10px 16px',
+                      border: '1px solid #4ade80',
+                      backgroundColor: '#4ade80',
+                      color: '#000',
+                      borderRadius: '4px',
+                      cursor: isStarting ? 'not-allowed' : 'pointer',
+                      opacity: isStarting ? 0.5 : 1,
+                      transition: 'all 0.2s',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px',
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isStarting) {
+                        e.currentTarget.style.backgroundColor = '#22c55e';
+                        e.currentTarget.style.borderColor = '#22c55e';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isStarting) {
+                        e.currentTarget.style.backgroundColor = '#4ade80';
+                        e.currentTarget.style.borderColor = '#4ade80';
+                      }
+                    }}
+                  >
+                    {isStarting && <CircularProgress size={14} sx={{ color: '#000' }} />}
+                    <span>{isStarting ? '[~] Connecting...' : '[>] Enter Challenge'}</span>
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Start/Submit Buttons */}
             {challenge.require_deploy && !challenge.solve_by_myteam && !challenge.shared_instance &&
               !(challenge.max_attempts > 0 && (challenge.attemps || 0) >= challenge.max_attempts) && (
                 <div className="space-y-2">
-                  {isHealthChecking || isDeploymentInProgress ? (
+                  {(isLocallySubmitted || challenge.is_submitted) ? (
+                    <div className={`w-full py-2 px-4 rounded font-mono font-bold text-sm flex items-center justify-center gap-2 ${theme === 'dark'
+                      ? 'bg-gray-800/60 border border-red-900/50 text-red-400/70'
+                      : 'bg-red-50 border border-red-200 text-red-500/80'
+                      }`}>
+                      <Lock sx={{ fontSize: 15 }} />
+                      Challenge Submitted &amp; Locked
+                    </div>
+                  ) : isHealthChecking || isDeploymentInProgress ? (
                     <button disabled={true} className={`w-full py-2 px-4 rounded font-mono font-bold text-sm transition-colors flex items-center justify-center gap-2 ${theme === 'dark' ? 'bg-yellow-600 text-white border border-yellow-500' : 'bg-yellow-500 text-white border border-yellow-400'} cursor-not-allowed`}>
                       <CircularProgress size={14} sx={{ color: '#fff' }} />
                       <span>{podStatus ? `[-] Checking: (${podStatus})` : '[-] Checking...'}</span>
@@ -4207,15 +4404,15 @@ function ChallengeDetailPanel({
                     )
                   ) : (
                     <button
-                      onClick={handleStopChallenge}
+                      onClick={handleSubmitChallenge}
                       disabled={isStopping || !!(challenge.pod_status && (challenge.pod_status === 'Deleting' || challenge.pod_status.toString().toLowerCase().includes('delet')))}
                       className={`w-full py-2 px-4 rounded font-mono font-bold text-sm transition-colors flex items-center justify-center gap-2 ${theme === 'dark'
-                        ? 'bg-red-600 hover:bg-red-700 text-white border border-red-500'
-                        : 'bg-red-500 hover:bg-red-600 text-white border border-red-400'
+                        ? 'bg-orange-600 hover:bg-orange-700 text-white border border-orange-500'
+                        : 'bg-orange-500 hover:bg-orange-600 text-white border border-orange-400'
                         } disabled:opacity-50 disabled:cursor-not-allowed`}
                     >
                       {isStopping && <CircularProgress size={14} sx={{ color: '#fff' }} />}
-                      {isStopping ? '[...] Stopping' : '[-] Stop Challenge'}
+                      {isStopping ? '[...] Submitting...' : '[✓] Submit'}
                     </button>
                   )}
                 </div>
@@ -4233,35 +4430,6 @@ function ChallengeDetailPanel({
                 </div>
               )}
 
-            {/* Sandbox SSH config download */}
-            {challenge.type === 'sandbox' && (
-              <div className={`rounded border p-3 ${theme === 'dark' ? 'bg-gray-900 border-gray-700' : 'bg-gray-50 border-gray-300'}`}>
-                <div className={`text-xs font-mono font-bold mb-2 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                  [SANDBOX ACCESS]
-                </div>
-                <p className={`text-xs font-mono mb-2 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                  Download the SSH key configuration for the sandboxes in this challenge's pool.
-                </p>
-                <button
-                  onClick={handleDownloadSandboxSsh}
-                  disabled={isDownloadingSsh}
-                  className={`w-full flex items-center justify-center gap-2 px-3 py-2 rounded border font-mono text-xs font-bold transition-colors ${isDownloadingSsh
-                      ? theme === 'dark'
-                        ? 'bg-gray-800 text-gray-500 border-gray-700 cursor-not-allowed'
-                        : 'bg-gray-200 text-gray-400 border-gray-300 cursor-not-allowed'
-                      : theme === 'dark'
-                        ? 'bg-cyan-900/30 text-cyan-400 border-cyan-700 hover:bg-cyan-900/50'
-                        : 'bg-cyan-50 text-cyan-700 border-cyan-300 hover:bg-cyan-100'
-                    }`}
-                >
-                  {isDownloadingSsh
-                    ? <><CircularProgress size={12} sx={{ color: 'currentColor' }} /> Downloading...</>
-                    : <><FaDownload size={12} /> Download SSH Config (.zip)</>
-                  }
-                </button>
-              </div>
-            )}
-
             {challenge.next_id && (
               <div className="mt-6 flex items-center gap-3">
                 {/* Status label - keep it concise and professional */}
@@ -4278,7 +4446,7 @@ function ChallengeDetailPanel({
                     {challenge.next_name}
                   </span>
 
-                  {/* Icon mũi tên kiểu 'Double Arrow' cho cảm giác tiến tới */}
+                  {/* Double arrow icon */}
                   <svg
                     className="w-3.5 h-3.5 transition-transform duration-300 group-hover:translate-x-1"
                     fill="none" viewBox="0 0 24 24" stroke="currentColor"
