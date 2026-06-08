@@ -22,6 +22,7 @@ export const API_ENDPOINTS = {
     SUBMIT: (id: string | number) => `/challenges/${id}/submit`,
     START: '/challenge/start',
     STOP: '/challenge/stop-by-user',
+    SUBMIT_CHALLENGE: '/challenge/submit-by-user',
     CHECK_CACHE: '/challenge/check_cache',
     START_CHECKING: '/challenge/check-status',
     INSTANCES: '/challenge/instances',

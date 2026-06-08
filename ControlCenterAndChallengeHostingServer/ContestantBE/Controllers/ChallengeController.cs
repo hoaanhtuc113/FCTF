@@ -856,10 +856,10 @@ public class ChallengeController : BaseController
                     long nowSec = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
                     long remainSec = existingCache.time_finished > 0
                         ? Math.Max(0, existingCache.time_finished - nowSec) : 0;
-                    return Ok(new ChallengeDeployResponeDTO
+                    return Ok(new
                     {
-                        status        = (int)HttpStatusCode.OK,
-                        success       = true,
+                        status         = (int)HttpStatusCode.OK,
+                        success        = true,
                         challenge_type = "kypo",
                         challenge_url  = existingCache.challenge_url,
                         time_limit     = (int)(remainSec / 60),
@@ -914,12 +914,15 @@ public class ChallengeController : BaseController
                 await Console.Error.WriteLineAsync($"[KYPO] Ghi challenge_start_tracking lỗi: {ex.Message}");
             }
 
-            return Ok(new ChallengeDeployResponeDTO
+            return Ok(new
             {
-                status        = (int)HttpStatusCode.OK,
-                success       = true,
-                challenge_type = "kypo",
-                challenge_url  = bridgeUrl,
+                status             = (int)HttpStatusCode.OK,
+                success            = true,
+                challenge_type     = "kypo",
+                challenge_url      = bridgeUrl,
+                kypo_username      = kypoAccount?.kypo_username ?? "",
+                kypo_password      = kypoAccount?.kypo_password ?? "",
+                kypo_access_token  = kypoConfig?.kypo_access_token ?? "",
             });
         }
         // ── End KYPO block ──────────────────────────────────────────────────────────
@@ -1009,6 +1012,14 @@ public class ChallengeController : BaseController
         if (solve != null)
         {
             return BadRequest(new { error = "Your team has already solved this challenge. You cannot start this challenge." });
+        }
+
+        var alreadySubmitted = await _context.ChallengeStartTrackings
+            .AsNoTracking()
+            .AnyAsync(t => t.ChallengeId == challenge.Id && t.TeamId == teamId && t.Label == "submitted");
+        if (alreadySubmitted)
+        {
+            return BadRequest(new { error = "You have already submitted this challenge. It is permanently locked." });
         }
 
         // Check captain_only_start_challenge — per-contest setting
@@ -1231,6 +1242,108 @@ public class ChallengeController : BaseController
                 error_detail = e.ToString(),
             });
         }
+    }
+
+    [HttpPost("submit-by-user")]
+    [DuringCtfTimeOnly]
+    public async Task<IActionResult> SubmitChallengeByUser([FromRoute] int contestId, [FromBody] ChallengeStartStopReqDTO challengeStartReq)
+    {
+        if (challengeStartReq == null || challengeStartReq.challengeId <= 0)
+            return BadRequest(new { error = "ChallengeId is required" });
+
+        var userId = UserContext.UserId;
+        var user = await _context.Users
+            .Include(u => u.TeamMemberships).ThenInclude(m => m.Team)
+            .AsNoTracking()
+            .FirstOrDefaultAsync(u => u.Id == userId);
+        var userTeam = GetUserTeamForContest(user, contestId);
+        var teamId = (int?)userTeam?.Id;
+        if (teamId == null || user == null)
+            return BadRequest(new { error = "User no join team in this contest" });
+
+        _userBehaviorLogger.Log("SUBMIT_CHALLENGE", userId, teamId, new { challengeStartReq.challengeId });
+
+        var challenge = await _context.Challenges
+            .AsNoTracking()
+            .FirstOrDefaultAsync(c => c.Id == challengeStartReq.challengeId);
+
+        if (challenge == null) return BadRequest(new { error = "Challenge not found" });
+
+        var alreadySubmitted = await _context.ChallengeStartTrackings
+            .AsNoTracking()
+            .AnyAsync(t => t.ChallengeId == challenge.Id && t.TeamId == teamId.Value && t.Label == "submitted");
+        if (alreadySubmitted)
+            return BadRequest(new { error = "Challenge already submitted." });
+
+        var cache_key = ChallengeHelper.GetCacheKey(challenge.Id, teamId.Value);
+
+        // Stop running instance if any
+        bool isSandbox = string.Equals(challenge.Type, "sandbox", StringComparison.OrdinalIgnoreCase);
+        var kypoConfig = await GetKypoChallengeConfigRawAsync(challenge.Id);
+
+        if (await _redisHelper.KeyExistsAsync(cache_key))
+        {
+            if (isSandbox || kypoConfig != null)
+            {
+                var openTrackings = await _context.ChallengeStartTrackings
+                    .Where(t => t.ChallengeId == challenge.Id && t.TeamId == teamId.Value && t.StoppedAt == null && t.Label != "submitted")
+                    .ToListAsync();
+                foreach (var t in openTrackings) t.StoppedAt = DateTime.UtcNow;
+                if (openTrackings.Count > 0) await _context.SaveChangesAsync();
+
+                if (kypoConfig != null)
+                {
+                    try { await _scoreLockService.LockScoreAsync(challenge.Id, teamId.Value); }
+                    catch (Exception ex) { await Console.Error.WriteLineAsync($"[KYPO] Score lock error on submit: {ex.Message}"); }
+                }
+
+                await _redisHelper.RemoveCacheAsync(cache_key);
+            }
+            else
+            {
+                try
+                {
+                    await _challengeServices.ForceStopChallenge(challenge.Id, user, contestId);
+                }
+                catch (Exception ex)
+                {
+                    await Console.Error.WriteLineAsync($"[Submit] Error stopping challenge {challenge.Id}: {ex.Message}");
+                }
+            }
+        }
+
+        // Permanently lock: insert a "submitted" tracking record
+        _context.ChallengeStartTrackings.Add(new ChallengeStartTracking
+        {
+            UserId = user.Id,
+            TeamId = teamId.Value,
+            ChallengeId = challenge.Id,
+            StartedAt = DateTime.UtcNow,
+            StoppedAt = DateTime.UtcNow,
+            Label = "submitted",
+        });
+        await _context.SaveChangesAsync();
+
+        try
+        {
+            await _actionLogsServices.SaveActionLogs(new ActionLogsReq
+            {
+                ActionType = 5, // SUBMIT_CHALLENGE
+                ActionDetail = $"Nộp bài thử thách {challenge.Name}",
+                ChallengeId = challenge.Id,
+            }, user.Id);
+        }
+        catch (Exception ex)
+        {
+            await Console.Error.WriteLineAsync($"[ActionLog] Failed to save SUBMIT_CHALLENGE log: {ex.Message}");
+        }
+
+        return Ok(new ChallengeDeployResponeDTO
+        {
+            status = (int)HttpStatusCode.OK,
+            success = true,
+            message = "Challenge submitted and permanently locked.",
+        });
     }
 
     [HttpPost("check-status")]
