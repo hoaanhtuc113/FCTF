@@ -11,14 +11,14 @@
 		text-align: center;
 		text-transform: none;
 	}
-	
+
 	.team-detail-page .jumbotron h1,
 	.team-detail-page .jumbotron h2,
 	.team-detail-page .jumbotron h3 {
 		color: #2c3e50;
 		text-align: center;
 	}
-	
+
 	.team-detail-page .jumbotron h1 {
 		display: block;
 		text-align: center;
@@ -28,66 +28,66 @@
 		margin-bottom: 1rem;
 		letter-spacing: normal;
 	}
-	
+
 	.team-detail-page .jumbotron h2 {
 		font-weight: 500;
 		font-size: 1.2rem;
 		margin: 0.75rem 0;
 	}
-	
+
 	.team-detail-page .jumbotron h3 {
 		font-weight: 500;
 		font-size: 1rem;
 	}
-	
+
 	.team-detail-page .jumbotron hr {
 		border-top: 2px solid #e8e8e8;
 		opacity: 0.3;
 		margin-left: auto;
 		margin-right: auto;
 	}
-	
+
 	.team-detail-page .btn-fa {
 		color: #495057;
 		transition: all 0.2s ease;
 		cursor: pointer;
 	}
-	
+
 	.team-detail-page .btn-fa:hover {
 		color: #ff6b35;
 		transform: scale(1.15);
 	}
-	
+
 	.team-detail-page .badge {
 		padding: 0.4rem 0.75rem;
 		border-radius: 4px;
 		font-weight: 500;
 		font-size: 0.85rem;
 	}
-	
+
 	.team-detail-page .badge-primary {
 		background-color: #ff6b35;
 		color: #ffffff;
 	}
-	
+
 	.team-detail-page .badge-success {
 		background-color: #28a745;
 		color: #ffffff;
 	}
-	
+
 	.team-detail-page .badge-danger {
 		background-color: #dc3545;
 		color: #ffffff;
 	}
-	
+
 	.nav-tabs {
 		border-bottom: 2px solid #e8e8e8;
 		background: #ffffff;
 		padding: 0.5rem 1rem 0 1rem;
 		border-radius: 8px 8px 0 0;
-		box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 	}
-	
+
 	.nav-tabs .nav-link {
 		color: #495057;
 		border: none;
@@ -96,29 +96,29 @@
 		font-weight: 500;
 		transition: all 0.2s ease;
 	}
-	
+
 	.nav-tabs .nav-link:hover {
 		color: #ff6b35;
 		border-bottom-color: #ff6b35;
 		background-color: transparent !important;
 	}
-	
+
 	.nav-tabs .nav-link.active {
 		color: #ff6b35 !important;
 		background-color: transparent !important;
 		border-bottom-color: #ff6b35 !important;
 		font-weight: 600;
 	}
-	
+
 	.tab-content {
 		background: #ffffff;
 		padding: 2rem;
 		border-radius: 0 0 8px 8px;
-		box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 		border: 1px solid #e8e8e8;
 		border-top: none;
 	}
-	
+
 	.tab-content .table thead th {
 		background-color: #f8f9fa;
 		color: #2c3e50;
@@ -126,71 +126,71 @@
 		border-bottom: 2px solid #e8e8e8;
 		padding: 0.9rem 0.75rem;
 	}
-	
+
 	.tab-content .table tbody td {
 		padding: 0.85rem 0.75rem;
 		vertical-align: middle;
 		color: #495057;
 		border-bottom: 1px solid #f1f1f1;
 	}
-	
+
 	.tab-content .table tbody tr:hover {
 		background-color: #fff5f2;
 	}
-	
+
 	.tab-content .table tbody td a {
 		color: #2c3e50;
 		font-weight: 500;
 		transition: color 0.2s ease;
 	}
-	
+
 	.tab-content .table tbody td a:hover {
 		color: #ff6b35;
 		text-decoration: none;
 	}
-	
+
 	.modal-header {
 		background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
 		border-bottom: 2px solid #e8e8e8;
 		padding: 1.5rem;
 	}
-	
+
 	.modal-header h2 {
 		color: #2c3e50;
 		font-weight: 600;
 		font-size: 1.5rem;
 		margin: 0;
 	}
-	
+
 	.modal-body {
 		padding: 2rem;
 	}
-	
+
 	.card {
 		border: 1px solid #e8e8e8;
 		border-radius: 8px;
-		box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 		margin-bottom: 1.5rem;
 	}
-	
+
 	.card-header {
 		background-color: #f8f9fa;
 		border-bottom: 2px solid #e8e8e8;
 		padding: 1rem 1.25rem;
 	}
-	
+
 	.card-header h5 {
 		color: #2c3e50;
 		font-weight: 600;
 		margin: 0;
 	}
-	
+
 	.btn-primary {
 		background-color: #ff6b35;
 		border-color: #ff6b35;
 		transition: all 0.2s ease;
 	}
-	
+
 	.btn-primary:hover {
 		background-color: #e85d2a;
 		border-color: #e85d2a;
@@ -202,616 +202,742 @@
 
 {% block contest_content %}
 <div class="team-detail-page">
-<div id="team-info-edit-modal" class="modal fade">
-	<div class="modal-dialog">
-		<div class="modal-content">
-			<div class="modal-header">
-				<h2 class="modal-action text-center w-100">Edit Team</h2>
-				<button type="button" class="close" data-dismiss="modal" aria-label="Close">
-					<span aria-hidden="true">&times;</span>
-				</button>
-			</div>
-			<div class="modal-body clearfix">
-				{% include "admin/modals/teams/edit.html" %}
-			</div>
-		</div>
-	</div>
-</div>
-
-<div id="team-add-modal" class="modal fade">
-	<div class="modal-dialog modal-lg">
-		<div class="modal-content">
-			<div class="modal-header">
-				<h2 class="modal-action text-center w-100">Add Team Members</h2>
-				<button type="button" class="close" data-dismiss="modal" aria-label="Close">
-					<span aria-hidden="true">&times;</span>
-				</button>
-			</div>
-			<div class="modal-body clearfix">
+	<div id="team-info-edit-modal" class="modal fade">
+		<div class="modal-dialog">
+			<div class="modal-content">
+				<div class="modal-header">
+					<h2 class="modal-action text-center w-100">Edit Team</h2>
+					<button type="button" class="close" data-dismiss="modal" aria-label="Close">
+						<span aria-hidden="true">&times;</span>
+					</button>
+				</div>
+				<div class="modal-body clearfix">
+					{% include "admin/modals/teams/edit.html" %}
+				</div>
 			</div>
 		</div>
 	</div>
-</div>
 
-<div id="team-invite-modal" class="modal fade">
-	<div class="modal-dialog">
-		<div class="modal-content">
-			<div class="modal-header">
-				<h2 class="modal-action text-center w-100">Team Invite</h2>
-				<button type="button" class="close" data-dismiss="modal" aria-label="Close">
-					<span aria-hidden="true">&times;</span>
-				</button>
+	<div id="team-add-modal" class="modal fade">
+		<div class="modal-dialog modal-lg">
+			<div class="modal-content">
+				<div class="modal-header">
+					<h2 class="modal-action text-center w-100">Add Team Members</h2>
+					<button type="button" class="close" data-dismiss="modal" aria-label="Close">
+						<span aria-hidden="true">&times;</span>
+					</button>
+				</div>
+				<div class="modal-body clearfix">
+				</div>
 			</div>
-			<div class="modal-body clearfix">
-				{% with form = Forms.teams.TeamInviteForm() %}
-				<form id="team-invite-form" method="POST">
-					<div id="team-invite-results"></div>
+		</div>
+	</div>
+
+	<div id="team-invite-modal" class="modal fade">
+		<div class="modal-dialog">
+			<div class="modal-content">
+				<div class="modal-header">
+					<h2 class="modal-action text-center w-100">Team Invite</h2>
+					<button type="button" class="close" data-dismiss="modal" aria-label="Close">
+						<span aria-hidden="true">&times;</span>
+					</button>
+				</div>
+				<div class="modal-body clearfix">
+					{% with form = Forms.teams.TeamInviteForm() %}
+					<form id="team-invite-form" method="POST">
+						<div id="team-invite-results"></div>
+						<div class="form-group">
+							<b>{{ form.link.label }}</b>
+							<div class="input-group mb-3">
+								{{ form.link(id="team-invite-link", class="form-control", readonly=True) }}
+								<div class="input-group-append">
+									<button id="team-invite-link-copy" class="btn btn-outline-secondary" type="button">
+										<i class="fas fa-clipboard"></i>
+									</button>
+								</div>
+							</div>
+							<small class="form-text text-muted">
+								Click the button below to generate a team invite link, then copy and give it to the
+								contestant.
+							</small>
+						</div>
+						<div class="d-flex justify-content-end gap-2">
+							<button id="team-invite-generate" class="btn btn-primary" type="submit">
+								Generate Invite Link
+							</button>
+						</div>
+					</form>
+					{% endwith %}
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<div id="team-statistics-modal" class="modal fade">
+		<div class="modal-dialog modal-xl">
+			<div class="modal-content">
+				<div class="modal-header">
+					<h2 class="modal-action text-center w-100">Team Statistics</h2>
+					<button type="button" class="close" data-dismiss="modal" aria-label="Close">
+						<span aria-hidden="true">&times;</span>
+					</button>
+				</div>
+				<div class="modal-body clearfix">
+					{% include "admin/modals/teams/statistics.html" %}
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<div id="team-captain-modal" class="modal fade">
+		<div class="modal-dialog">
+			<div class="modal-content">
+				<div class="modal-header">
+					<h2 class="modal-action text-center w-100">Choose Captain</h2>
+					<button type="button" class="close" data-dismiss="modal" aria-label="Close">
+						<span aria-hidden="true">&times;</span>
+					</button>
+				</div>
+				<div class="modal-body clearfix">
+					{% include "admin/modals/teams/captain.html" %}
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<div id="team-award-modal" class="modal fade">
+		<div class="modal-dialog">
+			<div class="modal-content">
+				<div class="modal-header">
+					<h2 class="modal-action text-center w-100">Award Team Member</h2>
+					<button type="button" class="close" data-dismiss="modal" aria-label="Close">
+						<span aria-hidden="true">&times;</span>
+					</button>
+				</div>
+				<div class="modal-body clearfix">
 					<div class="form-group">
-						<b>{{ form.link.label }}</b>
-						<div class="input-group mb-3">
-							{{ form.link(id="team-invite-link", class="form-control", readonly=True) }}
+						<label for="award-member-input">Member</label>
+						<select class="form-control custom-select" id="award-member-input">
+							<option value=""> -- </option>
+							{% for member in members %}
+							<option value="{{ member.id }}">{{ member.name }}</option>
+							{% endfor %}
+						</select>
+					</div>
+					{% include "admin/modals/awards/create.html" %}
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<template id="team-member-select">
+		<select class="form-control custom-select">
+			<option value=""> -- </option>
+			{% for member in members %}
+			<option value="{{ member.id }}">{{ member.name }}</option>
+			{% endfor %}
+		</select>
+	</template>
+
+	<div id="team-kypo-modal" class="modal fade">
+		<div class="modal-dialog">
+			<div class="modal-content">
+				<div class="modal-header">
+					<h2 class="modal-action text-center w-100">KYPO Account</h2>
+					<button type="button" class="close" data-dismiss="modal" aria-label="Close">
+						<span aria-hidden="true">&times;</span>
+					</button>
+				</div>
+				<div class="modal-body">
+					{% if kypo_account %}
+					<div class="form-group">
+						<label class="font-weight-bold">KYPO User ID</label>
+						<div class="input-group">
+							<input type="text" class="form-control" value="{{ kypo_account.kypo_user_id }}" readonly>
 							<div class="input-group-append">
-								<button id="team-invite-link-copy" class="btn btn-outline-secondary" type="button">
+								<button class="btn btn-outline-secondary" type="button"
+									onclick="copyToClipboard('{{ kypo_account.kypo_user_id }}', this)">
 									<i class="fas fa-clipboard"></i>
 								</button>
 							</div>
 						</div>
-						<small class="form-text text-muted">
-							Click the button below to generate a team invite link, then copy and give it to the contestant.
-						</small>
 					</div>
-					<div class="d-flex justify-content-end gap-2">
-						<button id="team-invite-generate" class="btn btn-primary" type="submit">
-							Generate Invite Link
-						</button>
-					</div>
-				</form>
-				{% endwith %}
-			</div>
-		</div>
-	</div>
-</div>
-
-<div id="team-statistics-modal" class="modal fade">
-	<div class="modal-dialog modal-xl">
-		<div class="modal-content">
-			<div class="modal-header">
-				<h2 class="modal-action text-center w-100">Team Statistics</h2>
-				<button type="button" class="close" data-dismiss="modal" aria-label="Close">
-					<span aria-hidden="true">&times;</span>
-				</button>
-			</div>
-			<div class="modal-body clearfix">
-				{% include "admin/modals/teams/statistics.html" %}
-			</div>
-		</div>
-	</div>
-</div>
-
-<div id="team-captain-modal" class="modal fade">
-	<div class="modal-dialog">
-		<div class="modal-content">
-			<div class="modal-header">
-				<h2 class="modal-action text-center w-100">Choose Captain</h2>
-				<button type="button" class="close" data-dismiss="modal" aria-label="Close">
-					<span aria-hidden="true">&times;</span>
-				</button>
-			</div>
-			<div class="modal-body clearfix">
-				{% include "admin/modals/teams/captain.html" %}
-			</div>
-		</div>
-	</div>
-</div>
-
-<div id="team-award-modal" class="modal fade">
-	<div class="modal-dialog">
-		<div class="modal-content">
-			<div class="modal-header">
-				<h2 class="modal-action text-center w-100">Award Team Member</h2>
-				<button type="button" class="close" data-dismiss="modal" aria-label="Close">
-					<span aria-hidden="true">&times;</span>
-				</button>
-			</div>
-			<div class="modal-body clearfix">
-				<div class="form-group">
-					<label for="award-member-input">Member</label>
-					<select class="form-control custom-select" id="award-member-input">
-						<option value=""> -- </option>
-						{% for member in members %}
-						<option value="{{ member.id }}">{{ member.name }}</option>
-						{% endfor %}
-					</select>
-				</div>
-				{% include "admin/modals/awards/create.html" %}
-			</div>
-		</div>
-	</div>
-</div>
-
-<template id="team-member-select">
-	<select class="form-control custom-select">
-		<option value=""> -- </option>
-		{% for member in members %}
-		<option value="{{ member.id }}">{{ member.name }}</option>
-		{% endfor %}
-	</select>
-</template>
-
-<div id="team-addresses-modal" class="modal fade">
-	<div class="modal-dialog modal-lg">
-		<div class="modal-content">
-			<div class="modal-header">
-				<h2 class="modal-action text-center w-100">IP Addresses</h2>
-				<button type="button" class="close" data-dismiss="modal" aria-label="Close">
-					<span aria-hidden="true">&times;</span>
-				</button>
-			</div>
-			<div class="modal-body clearfix">
-				{% include "admin/modals/teams/addresses.html" %}
-			</div>
-		</div>
-	</div>
-</div>
-
-<div class="jumbotron">
-	<div class="container text-center" style="text-transform: none;">
-		<h1 id="team-id" class="text-center">{{ team.name }}</h1>
-		<div class="mb-2">
-			{% if team.verified %}
-			<span class="badge badge-success">verified</span>
-			{% endif %}
-			{% if team.hidden %}
-			<span class="badge badge-danger">hidden</span>
-			{% endif %}
-			{% if team.banned %}
-			<span class="badge badge-danger">banned</span>
-			{% endif %}
-		</div>
-
-		{% if team.oauth_id %}
-		<a href="https://majorleaguecyber.org/t/{{ team.name }}">
-			<h3><span class="badge badge-primary">Official</span></h3>
-		</a>
-		{% endif %}
-
-		{% if team.affiliation %}
-		<h3 class="d-inline-block">
-			<span class="badge badge-primary">{{ team.affiliation }}</span>
-		</h3>
-		{% endif %}
-		{% if team.country %}
-		<h3 class="d-inline-block">
-			<span class="badge badge-primary">
-				<i class="flag-{{ team.country.lower() }}"></i>
-				{{ lookup_country_code(team.country) }}
-			</span>
-		</h3>
-		{% endif %}
-
-		{% for field in team.get_fields(admin=true) %}
-		<h3 class="d-block">
-			{{ field.name }}: {{ field.value }}
-		</h3>
-		{% endfor %}
-
-		<h2 class="text-center">{{ members | length }} members</h2>
-		<h3 id="team-place" class="text-center">
-			{% if place %}
-			{{ place }}
-			<small>place</small>
-			{% endif %}
-		</h3>
-		<h3 id="team-score" class="text-center">
-			{% if score %}
-			{{ score }}
-			<small>points</small>
-			{% endif %}
-		</h3>
-		<hr class="w-50 mx-auto">
-		<div class="pt-3">
-			{% if not is_jury() %}
-
-			<a class="edit-team text-dark">
-				<i class="btn-fa fas fa-pencil-alt fa-2x px-2" data-toggle="tooltip" data-placement="top"
-					title="Edit Team"></i>
-			</a>
-			{% endif %}
-
-
-			<a class="invite-team text-dark">
-				<i class="btn-fa fas fa-ticket-alt fa-2x px-2" data-toggle="tooltip" data-placement="top"
-					title="Team Invite Link"></i>
-			</a>
-			<a class="members-team text-dark">
-				<i class="btn-fa fas fa-user-plus fa-2x px-2" data-toggle="tooltip" data-placement="top"
-					title="Add Team Members"></i>
-			</a>
-			<a class="edit-captain text-dark">
-				<i class="btn-fa fas fa-user-tag fa-2x px-2" data-toggle="tooltip" data-placement="top"
-					title="Choose Captain"></i>
-			</a>
-			<a class="award-team text-dark">
-				<i class="btn-fa fas fa-trophy fa-2x px-2" data-toggle="tooltip" data-placement="top"
-					title="Award Team Member"></i>
-			</a>
-			{% if not is_jury() %}
-			<a class="delete-team text-dark">
-				<i class="btn-fa fas fa-trash-alt fa-2x px-2" data-toggle="tooltip" data-placement="top"
-					title="Delete Team"></i>
-			</a>
-			{% endif %}
-		</div>
-		<div class="pt-3">
-			<a class="statistics-team text-dark">
-				<i class="btn-fa fas fa-chart-pie fa-2x px-2" data-toggle="tooltip" data-placement="top"
-					title="Team Statistics"></i>
-			</a>
-			<a class="addresses-team text-dark">
-				<i class="btn-fa fas fa-network-wired fa-2x px-2" data-toggle="tooltip" data-placement="top"
-					title="IP Addresses"></i>
-			</a>
-			{% if team.website %}
-			<a href="{{ team.website }}" target="_blank" class="text-dark" rel="noopener">
-				<i class="btn-fa fas fa-external-link-alt fa-2x px-2" data-toggle="tooltip" data-placement="top"
-					title="{{ team.website }}" aria-hidden="true"></i>
-			</a>
-			{% endif %}
-		</div>
-	</div>
-</div>
-
-<div class="container">
-	<div class="row min-vh-25 pt-5 pb-5">
-		<div class="col-md-12">
-			<h3 class="text-center">Team Members</h3>
-			<div class="clean-table-wrapper">
-			<table class="clean-table table">
-				<thead>
-					<tr>
-						<th class="text-center"></th>
-						<th class="text-center"><b>User Name</b></th>
-						<th class="text-center"><b>E-Mail</b></th>
-						<th class="text-center"><b>Score</b></th>
-						<th class="text-center"></th>
-					</tr>
-				</thead>
-				<tbody>
-					{% for member in members %}
-					{% set member_url = url_for('admin.users_detail', user_id=member.id) if (is_detail is defined and is_detail) else url_for('admin.contest_user_detail', contest_id=contest.id, user_id=member.id) %}
-					<tr>
-						<td class="text-center" data-href="{{ member_url }}">
-							{% if team.captain_id == member.id %}
-							<span class="badge badge-primary">Captain</span>
-							{% endif %}
-						</td>
-						<td class="text-left" data-href="{{ member_url }}">
-							<a href="{{ member_url }}">
-								{{ member.name }}
-							</a>
-						</td>
-						<td class="text-center" data-href="{{ member_url }}">
-							<a href="mailto:{{ member.email }}" target="_blank">
-								{{ member.email }}
-							</a>
-						</td>
-						<td class="text-center" data-href="{{ member_url }}">
-							{% if member_scores is defined %}
-								{{ member_scores.get(member.id, 0) }}
-							{% else %}
-								{{ member.score }}
-							{% endif %}
-						</td>
-						<td class="text-center">
-							<span class="delete-member cursor-pointer" member-id="{{ member.id }}"
-								member-name="{{ member.name }}" data-toggle="tooltip" data-placement="top"
-								title="Remove {{ member.name }}">
-								<i class="fas fa-times"></i>
-							</span>
-						</td>
-					</tr>
-					{% endfor %}
-				</tbody>
-			</table>
-			</div>
-		</div>
-	</div>
-
-	<nav class="nav nav-tabs nav-fill pt-5" id="myTab" role="tablist">
-		<a class="nav-item nav-link active" id="nav-solves-tab" data-toggle="tab" href="#nav-solves" role="tab"
-			aria-controls="nav-solves" aria-selected="true">Solves</a>
-
-		<a class="nav-item nav-link" id="nav-wrong-tab" data-toggle="tab" href="#nav-wrong" role="tab"
-			aria-controls="nav-wrong" aria-selected="false">Fails</a>
-
-		<a class="nav-item nav-link" id="nav-awards-tab" data-toggle="tab" href="#nav-awards" role="tab"
-			aria-controls="nav-awards" aria-selected="false">Awards</a>
-
-		<a class="nav-item nav-link" id="nav-missing-tab" data-toggle="tab" href="#nav-missing" role="tab"
-			aria-controls="nav-missing" aria-selected="false">Missing</a>
-
-		<a class="nav-item nav-link" id="nav-notes-tab" data-toggle="tab" href="#nav-notes" role="tab"
-			aria-controls="nav-notes" aria-selected="false">
-			<i class="fas fa-sticky-note mr-1"></i> Notes
-		</a>
-	</nav>
-
-	<div class="tab-content min-vh-50 pb-5" id="nav-tabContent">
-		<div class="tab-pane fade show active" id="nav-solves" role="tabpanel" aria-labelledby="nav-solves-tab">
-			<h3 class="text-center pt-5 d-block">Solves</h3>
-			<div class="row">
-				<div class="col-md-12">
-					<div class="float-right pb-3">
-						<div class="btn-group" role="group">
-							<button type="button" class="btn btn-outline-danger" id="solves-delete-button">
-								<i class="btn-fa fas fa-trash-alt"></i>
-							</button>
+					<div class="form-group">
+						<label class="font-weight-bold">Username</label>
+						<div class="input-group">
+							<input type="text" class="form-control" value="{{ kypo_account.kypo_username }}" readonly>
+							<div class="input-group-append">
+								<button class="btn btn-outline-secondary" type="button"
+									onclick="copyToClipboard('{{ kypo_account.kypo_username }}', this)">
+									<i class="fas fa-clipboard"></i>
+								</button>
+							</div>
 						</div>
 					</div>
+					<div class="form-group">
+						<label class="font-weight-bold">Password</label>
+						<div class="input-group">
+							<input type="password" class="form-control" id="kypo-modal-password"
+								value="{{ kypo_account.kypo_password }}" readonly>
+							<div class="input-group-append">
+								<button class="btn btn-outline-secondary" type="button"
+									onclick="toggleKypoPassword()">
+									<i class="fas fa-eye" id="kypo-eye-icon"></i>
+								</button>
+								<button class="btn btn-outline-secondary" type="button"
+									onclick="copyToClipboard('{{ kypo_account.kypo_password }}', this)">
+									<i class="fas fa-clipboard"></i>
+								</button>
+							</div>
+						</div>
+					</div>
+					<div class="form-group">
+						<label class="font-weight-bold">Created At</label>
+						<input type="text" class="form-control"
+							value="{{ kypo_account.created_at.strftime('%Y-%m-%d %H:%M:%S') if kypo_account.created_at else '' }}"
+							readonly>
+					</div>
+					{% else %}
+					<div class="text-center text-muted py-4">
+						<i class="fas fa-exclamation-circle fa-3x mb-3 d-block"></i>
+						<p>No KYPO account found for this team.</p>
+					</div>
+					{% endif %}
 				</div>
 			</div>
-			<div class="row">
-				<div class="col-md-12">
+		</div>
+	</div>
+
+	<div id="team-addresses-modal" class="modal fade">
+		<div class="modal-dialog modal-lg">
+			<div class="modal-content">
+				<div class="modal-header">
+					<h2 class="modal-action text-center w-100">IP Addresses</h2>
+					<button type="button" class="close" data-dismiss="modal" aria-label="Close">
+						<span aria-hidden="true">&times;</span>
+					</button>
+				</div>
+				<div class="modal-body clearfix">
+					{% include "admin/modals/teams/addresses.html" %}
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<div class="jumbotron">
+		<div class="container text-center" style="text-transform: none;">
+			<h1 id="team-id" class="text-center">{{ team.name }}</h1>
+			<div class="mb-2">
+				{% if team.verified %}
+				<span class="badge badge-success">verified</span>
+				{% endif %}
+				{% if team.hidden %}
+				<span class="badge badge-danger">hidden</span>
+				{% endif %}
+				{% if team.banned %}
+				<span class="badge badge-danger">banned</span>
+				{% endif %}
+			</div>
+
+			{% if team.oauth_id %}
+			<a href="https://majorleaguecyber.org/t/{{ team.name }}">
+				<h3><span class="badge badge-primary">Official</span></h3>
+			</a>
+			{% endif %}
+
+			{% if team.affiliation %}
+			<h3 class="d-inline-block">
+				<span class="badge badge-primary">{{ team.affiliation }}</span>
+			</h3>
+			{% endif %}
+			{% if team.country %}
+			<h3 class="d-inline-block">
+				<span class="badge badge-primary">
+					<i class="flag-{{ team.country.lower() }}"></i>
+					{{ lookup_country_code(team.country) }}
+				</span>
+			</h3>
+			{% endif %}
+
+			{% for field in team.get_fields(admin=true) %}
+			<h3 class="d-block">
+				{{ field.name }}: {{ field.value }}
+			</h3>
+			{% endfor %}
+
+			<h2 class="text-center">{{ members | length }} members</h2>
+			<h3 id="team-place" class="text-center">
+				{% if place %}
+				{{ place }}
+				<small>place</small>
+				{% endif %}
+			</h3>
+			<h3 id="team-score" class="text-center">
+				{% if score %}
+				{{ score }}
+				<small>points</small>
+				{% endif %}
+			</h3>
+			<hr class="w-50 mx-auto">
+			<div class="pt-3">
+				{% if not is_jury() %}
+
+				<a class="edit-team text-dark">
+					<i class="btn-fa fas fa-pencil-alt fa-2x px-2" data-toggle="tooltip" data-placement="top"
+						title="Edit Team"></i>
+				</a>
+				{% endif %}
+
+
+				<a class="invite-team text-dark">
+					<i class="btn-fa fas fa-ticket-alt fa-2x px-2" data-toggle="tooltip" data-placement="top"
+						title="Team Invite Link"></i>
+				</a>
+				<a class="members-team text-dark">
+					<i class="btn-fa fas fa-user-plus fa-2x px-2" data-toggle="tooltip" data-placement="top"
+						title="Add Team Members"></i>
+				</a>
+				<a class="edit-captain text-dark">
+					<i class="btn-fa fas fa-user-tag fa-2x px-2" data-toggle="tooltip" data-placement="top"
+						title="Choose Captain"></i>
+				</a>
+				<a class="award-team text-dark">
+					<i class="btn-fa fas fa-trophy fa-2x px-2" data-toggle="tooltip" data-placement="top"
+						title="Award Team Member"></i>
+				</a>
+				{% if not is_jury() %}
+				<a class="delete-team text-dark">
+					<i class="btn-fa fas fa-trash-alt fa-2x px-2" data-toggle="tooltip" data-placement="top"
+						title="Delete Team"></i>
+				</a>
+				{% endif %}
+			</div>
+			<div class="pt-3">
+				<a class="statistics-team text-dark">
+					<i class="btn-fa fas fa-chart-pie fa-2x px-2" data-toggle="tooltip" data-placement="top"
+						title="Team Statistics"></i>
+				</a>
+				<a class="addresses-team text-dark">
+					<i class="btn-fa fas fa-network-wired fa-2x px-2" data-toggle="tooltip" data-placement="top"
+						title="IP Addresses"></i>
+				</a>
+				<a class="kypo-account-team text-dark" data-toggle="modal" data-target="#team-kypo-modal">
+					<i class="btn-fa fas fa-key fa-2x px-2" data-toggle="tooltip" data-placement="top"
+						title="KYPO Account"></i>
+				</a>
+				{% if team.website %}
+				<a href="{{ team.website }}" target="_blank" class="text-dark" rel="noopener">
+					<i class="btn-fa fas fa-external-link-alt fa-2x px-2" data-toggle="tooltip" data-placement="top"
+						title="{{ team.website }}" aria-hidden="true"></i>
+				</a>
+				{% endif %}
+			</div>
+		</div>
+	</div>
+
+	<div class="container">
+		<div class="row min-vh-25 pt-5 pb-5">
+			<div class="col-md-12">
+				<h3 class="text-center">Team Members</h3>
 				<div class="clean-table-wrapper">
 					<table class="clean-table table">
 						<thead>
 							<tr>
-								<th data-checkbox>
-									<input type="checkbox" class="table-check" autocomplete="off"
-										data-checkbox-all>
-								</th>
-								<th class="sort-col text-center"><b>Challenge</b></th>
-								<th class="sort-col text-center"><b>User</b></th>
-								<th class="sort-col text-center"><b>Submitted</b></th>
-								<th class="sort-col text-center"><b>Category</b></th>
-								<th class="sort-col text-center"><b>Value</b></th>
-								<th class="sort-col text-center"><b>Time</b></th>
+								<th class="text-center"></th>
+								<th class="text-center"><b>User Name</b></th>
+								<th class="text-center"><b>E-Mail</b></th>
+								<th class="text-center"><b>Score</b></th>
+								<th class="text-center"></th>
 							</tr>
 						</thead>
 						<tbody>
-							{% for solve in solves %}
-							<tr class="chal-solve" data-href="{{ url_for("admin.challenges_detail",
-								challenge_id=solve.challenge_id) }}">
-								<td data-checkbox>
-									<input type="checkbox" class="table-check" value="{{ solve.id }}"
-										autocomplete="off" data-submission-id="{{ solve.id }}"
-										data-submission-type="{{ solve.type }}"
-										data-submission-challenge="{{ solve.challenge.name }}">
+							{% for member in members %}
+							{% set member_url = url_for('admin.users_detail', user_id=member.id) if (is_detail is
+							defined and is_detail) else url_for('admin.contest_user_detail', contest_id=contest.id,
+							user_id=member.id) %}
+							<tr>
+								<td class="text-center" data-href="{{ member_url }}">
+									{% if team.captain_id == member.id %}
+									<span class="badge badge-primary">Captain</span>
+									{% endif %}
 								</td>
-								<td class="text-center chal" id="{{ solve.challenge_id }}">
-									<a href="{{ url_for("admin.challenges_detail", challenge_id=solve.challenge_id)
-										}}">
-										{{ solve.challenge.name }}
+								<td class="text-left" data-href="{{ member_url }}">
+									<a href="{{ member_url }}">
+										{{ member.name }}
 									</a>
+								</td>
+								<td class="text-center" data-href="{{ member_url }}">
+									<a href="mailto:{{ member.email }}" target="_blank">
+										{{ member.email }}
+									</a>
+								</td>
+								<td class="text-center" data-href="{{ member_url }}">
+									{% if member_scores is defined %}
+									{{ member_scores.get(member.id, 0) }}
+									{% else %}
+									{{ member.score }}
+									{% endif %}
 								</td>
 								<td class="text-center">
-									<a href="{{ url_for('admin.users_detail', user_id=solve.user_id) if (is_detail is defined and is_detail) else url_for('admin.contest_user_detail', contest_id=contest.id, user_id=solve.user_id) }}">
-										{{ solve.user.name }}
-									</a>
-								</td>
-								<td class="text-center flag" id="{{ solve.id }}">
-									<pre>{{ solve.provided }}</pre>
-								</td>
-								<td class="text-center">{{ solve.challenge.category }}</td>
-								<td class="text-center">{{ solve.challenge.value }}</td>
-								<td class="text-center solve-time">
-									<span data-time="{{ solve.date | isoformat }}"></span>
+									<span class="delete-member cursor-pointer" member-id="{{ member.id }}"
+										member-name="{{ member.name }}" data-toggle="tooltip" data-placement="top"
+										title="Remove {{ member.name }}">
+										<i class="fas fa-times"></i>
+									</span>
 								</td>
 							</tr>
 							{% endfor %}
 						</tbody>
 					</table>
 				</div>
-				</div>
 			</div>
 		</div>
 
-		<div class="tab-pane fade" id="nav-wrong" role="tabpanel" aria-labelledby="nav-wrong-tab">
-			<h3 class="text-center pt-5 d-block">Fails</h3>
-			<div class="row">
-				<div class="col-md-12">
-					<div class="float-right pb-3">
-						<div class="btn-group" role="group">
-							<button type="button" class="btn btn-outline-success" id="correct-fail-button">
-								<i class="btn-fa fas fa-check"></i>
-							</button>
-							<button type="button" class="btn btn-outline-danger" id="fails-delete-button">
-								<i class="btn-fa fas fa-trash-alt"></i>
-							</button>
+		<nav class="nav nav-tabs nav-fill pt-5" id="myTab" role="tablist">
+			<a class="nav-item nav-link active" id="nav-solves-tab" data-toggle="tab" href="#nav-solves" role="tab"
+				aria-controls="nav-solves" aria-selected="true">Solves</a>
+
+			<a class="nav-item nav-link" id="nav-wrong-tab" data-toggle="tab" href="#nav-wrong" role="tab"
+				aria-controls="nav-wrong" aria-selected="false">Fails</a>
+
+			<a class="nav-item nav-link" id="nav-awards-tab" data-toggle="tab" href="#nav-awards" role="tab"
+				aria-controls="nav-awards" aria-selected="false">Awards</a>
+
+			<a class="nav-item nav-link" id="nav-missing-tab" data-toggle="tab" href="#nav-missing" role="tab"
+				aria-controls="nav-missing" aria-selected="false">Missing</a>
+
+			<a class="nav-item nav-link" id="nav-kypo-tab" data-toggle="tab" href="#nav-kypo" role="tab"
+				aria-controls="nav-kypo" aria-selected="false">KYPO Account</a>
+		</nav>
+
+		<div class="tab-content min-vh-50 pb-5" id="nav-tabContent">
+			<div class="tab-pane fade show active" id="nav-solves" role="tabpanel" aria-labelledby="nav-solves-tab">
+				<h3 class="text-center pt-5 d-block">Solves</h3>
+				<div class="row">
+					<div class="col-md-12">
+						<div class="float-right pb-3">
+							<div class="btn-group" role="group">
+								<button type="button" class="btn btn-outline-danger" id="solves-delete-button">
+									<i class="btn-fa fas fa-trash-alt"></i>
+								</button>
+							</div>
+						</div>
+					</div>
+				</div>
+				<div class="row">
+					<div class="col-md-12">
+						<div class="clean-table-wrapper">
+							<table class="clean-table table">
+								<thead>
+									<tr>
+										<th data-checkbox>
+											<input type="checkbox" class="table-check" autocomplete="off"
+												data-checkbox-all>
+										</th>
+										<th class="sort-col text-center"><b>Challenge</b></th>
+										<th class="sort-col text-center"><b>User</b></th>
+										<th class="sort-col text-center"><b>Submitted</b></th>
+										<th class="sort-col text-center"><b>Category</b></th>
+										<th class="sort-col text-center"><b>Value</b></th>
+										<th class="sort-col text-center"><b>Time</b></th>
+									</tr>
+								</thead>
+								<tbody>
+									{% for solve in solves %}
+									<tr class="chal-solve"
+										data-href="{{ url_for('admin.challenges_detail', challenge_id=solve.challenge_id) }}">
+										<td data-checkbox>
+											<input type="checkbox" class="table-check" value="{{ solve.id }}"
+												autocomplete="off" data-submission-id="{{ solve.id }}"
+												data-submission-type="{{ solve.type }}"
+												data-submission-challenge="{{ solve.challenge.name }}">
+										</td>
+										<td class="text-center chal" id="{{ solve.challenge_id }}">
+											<a
+												href="{{ url_for('admin.challenges_detail', challenge_id=solve.challenge_id) }}">
+												{{ solve.challenge.name }}
+											</a>
+										</td>
+										<td class="text-center">
+											<a
+												href="{{ url_for('admin.users_detail', user_id=solve.user_id) if (is_detail is defined and is_detail) else url_for('admin.contest_user_detail', contest_id=contest.id, user_id=solve.user_id) }}">
+												{{ solve.user.name }}
+											</a>
+										</td>
+										<td class="text-center flag" id="{{ solve.id }}">
+											<pre>{{ solve.provided }}</pre>
+										</td>
+										<td class="text-center">{{ solve.challenge.category }}</td>
+										<td class="text-center">{{ solve.challenge.value }}</td>
+										<td class="text-center solve-time">
+											<span data-time="{{ solve.date | isoformat }}"></span>
+										</td>
+									</tr>
+									{% endfor %}
+								</tbody>
+							</table>
 						</div>
 					</div>
 				</div>
 			</div>
-			<div class="row">
-				<div class="col-md-12">
-				<div class="clean-table-wrapper">
-					<table class="clean-table table">
-						<thead>
-							<tr>
-								<th data-checkbox>
-									<input type="checkbox" class="table-check" autocomplete="off"
-										data-checkbox-all>
-								</th>
-								<th class="sort-col text-center"><b>Challenge</b></th>
-								<th class="sort-col text-center"><b>User</b></th>
-								<th class="sort-col text-center"><b>Submitted</b></th>
-								<th class="sort-col text-center"><b>Time</b></th>
-							</tr>
-						</thead>
-						<tbody>
-							{% for fail in fails %}
-							<tr class="chal-wrong"
-								data-href="{{ url_for('admin.challenges_detail', challenge_id=fail.challenge_id) }}">
-								<td data-checkbox>
-									<input type="checkbox" class="table-check" value="{{ fail.id }}"
-										autocomplete="off" data-submission-id="{{ fail.id }}"
-										data-submission-type="{{ fail.type }}"
-										data-submission-challenge="{{ fail.challenge.name }}">
-								</td>
-								<td class="text-center chal" id="{{ fail.challenge_id }}">
-									<a href="{{ url_for("admin.challenges_detail", challenge_id=fail.challenge_id) }}">
-										{{ fail.challenge.name }}
-									</a>
-								</td>
-								<td class="text-center">
-									<a href="{{ url_for('admin.users_detail', user_id=fail.user_id) if (is_detail is defined and is_detail) else url_for('admin.contest_user_detail', contest_id=contest.id, user_id=fail.user_id) }}">
-										{{ fail.user.name }}
-									</a>
-								</td>
-								<td class="text-center flag" id="{{ fail.id }}">
-									<pre>{{ fail.provided }}</pre>
-								</td>
-								<td class="text-center solve-time">
-									<span data-time="{{ fail.date | isoformat }}"></span>
-								</td>
-							</tr>
-							{% endfor %}
-						</tbody>
-					</table>
-				</div>
-				</div>
-			</div>
-		</div>
 
-		<div class="tab-pane fade" id="nav-awards" role="tabpanel" aria-labelledby="nav-awards-tab">
-			<h3 class="text-center pt-5 d-block">Awards</h3>
-			<div class="row">
-				<div class="col-md-12">
-					<div class="float-right pb-3">
-						<div class="btn-group" role="group">
-							<button type="button" class="btn btn-outline-danger" id="awards-delete-button">
-								<i class="btn-fa fas fa-trash-alt"></i>
-							</button>
+			<div class="tab-pane fade" id="nav-wrong" role="tabpanel" aria-labelledby="nav-wrong-tab">
+				<h3 class="text-center pt-5 d-block">Fails</h3>
+				<div class="row">
+					<div class="col-md-12">
+						<div class="float-right pb-3">
+							<div class="btn-group" role="group">
+								<button type="button" class="btn btn-outline-success" id="correct-fail-button">
+									<i class="btn-fa fas fa-check"></i>
+								</button>
+								<button type="button" class="btn btn-outline-danger" id="fails-delete-button">
+									<i class="btn-fa fas fa-trash-alt"></i>
+								</button>
+							</div>
+						</div>
+					</div>
+				</div>
+				<div class="row">
+					<div class="col-md-12">
+						<div class="clean-table-wrapper">
+							<table class="clean-table table">
+								<thead>
+									<tr>
+										<th data-checkbox>
+											<input type="checkbox" class="table-check" autocomplete="off"
+												data-checkbox-all>
+										</th>
+										<th class="sort-col text-center"><b>Challenge</b></th>
+										<th class="sort-col text-center"><b>User</b></th>
+										<th class="sort-col text-center"><b>Submitted</b></th>
+										<th class="sort-col text-center"><b>Time</b></th>
+									</tr>
+								</thead>
+								<tbody>
+									{% for fail in fails %}
+									<tr class="chal-wrong"
+										data-href="{{ url_for('admin.challenges_detail', challenge_id=fail.challenge_id) }}">
+										<td data-checkbox>
+											<input type="checkbox" class="table-check" value="{{ fail.id }}"
+												autocomplete="off" data-submission-id="{{ fail.id }}"
+												data-submission-type="{{ fail.type }}"
+												data-submission-challenge="{{ fail.challenge.name }}">
+										</td>
+										<td class="text-center chal" id="{{ fail.challenge_id }}">
+											<a
+												href="{{ url_for('admin.challenges_detail', challenge_id=fail.challenge_id) }}">
+												{{ fail.challenge.name }}
+											</a>
+										</td>
+										<td class="text-center">
+											<a
+												href="{{ url_for('admin.users_detail', user_id=fail.user_id) if (is_detail is defined and is_detail) else url_for('admin.contest_user_detail', contest_id=contest.id, user_id=fail.user_id) }}">
+												{{ fail.user.name }}
+											</a>
+										</td>
+										<td class="text-center flag" id="{{ fail.id }}">
+											<pre>{{ fail.provided }}</pre>
+										</td>
+										<td class="text-center solve-time">
+											<span data-time="{{ fail.date | isoformat }}"></span>
+										</td>
+									</tr>
+									{% endfor %}
+								</tbody>
+							</table>
 						</div>
 					</div>
 				</div>
 			</div>
-			<div class="row">
-				<div class="col-md-12">
-				<div class="clean-table-wrapper">
-					<table class="clean-table table">
-						<thead>
-							<tr>
-								<th data-checkbox>
-									<input type="checkbox" class="table-check" autocomplete="off"
-										data-checkbox-all>
-								</th>
-								<th class="sort-col text-center"><b>Name</b></th>
-								<th class="sort-col text-center"><b>User</b></th>
-								<th class="sort-col text-center"><b>Description</b></th>
-								<th class="sort-col text-center"><b>Date</b></th>
-								<th class="sort-col text-center"><b>Value</b></th>
-								<th class="sort-col text-center"><b>Category</b></th>
-								<th class="sort-col text-center"><b>Icon</b></th>
-							</tr>
-						</thead>
-						<tbody id="awards-body">
-							{% for award in awards %}
-							<tr class="award-row">
-								<td data-checkbox>
-									<input type="checkbox" class="table-check" value="{{ award.id }}"
-										autocomplete="off" data-award-id="{{ award.id }}"
-										data-award-name="{{ award.name }}">
-								</td>
-								<td class="text-center chal" id="{{ award.id }}">{{ award.name }}</td>
-								<td class="text-center">
-									<a href="{{ url_for('admin.users_detail', user_id=award.user_id) if (is_detail is defined and is_detail) else url_for('admin.contest_user_detail', contest_id=contest.id, user_id=award.user_id) }}">
-										{{ award.user.name }}
-									</a>
-								</td>
-								<td class="text-center">
-									<pre>{{ award.description }}</pre>
-								</td>
-								<td class="text-center solve-time">
-									<span data-time="{{ award.date | isoformat }}"></span>
-								</td>
-								<td class="text-center">{{ award.value }}</td>
-								<td class="text-center">{{ award.category }}</td>
-								<td class="text-center"><i class="award-icon award-{{ award.icon }}"></i> {{ award.icon
-									}}</td>
-							</tr>
-							{% endfor %}
-						</tbody>
-					</table>
-				</div>
-				</div>
-			</div>
-		</div>
 
-		<div class="tab-pane fade" id="nav-missing" role="tabpanel" aria-labelledby="nav-missing-tab">
-			<h3 class="text-center pt-5 d-block">Missing</h3>
-			<div class="row">
-				<div class="col-md-12">
-					<div class="float-right pb-3">
-						<div class="btn-group" role="group">
-							<button type="button" class="btn btn-outline-success" id="missing-solve-button">
-								<i class="btn-fa fas fa-check"></i>
-							</button>
+			<div class="tab-pane fade" id="nav-awards" role="tabpanel" aria-labelledby="nav-awards-tab">
+				<h3 class="text-center pt-5 d-block">Awards</h3>
+				<div class="row">
+					<div class="col-md-12">
+						<div class="float-right pb-3">
+							<div class="btn-group" role="group">
+								<button type="button" class="btn btn-outline-danger" id="awards-delete-button">
+									<i class="btn-fa fas fa-trash-alt"></i>
+								</button>
+							</div>
+						</div>
+					</div>
+				</div>
+				<div class="row">
+					<div class="col-md-12">
+						<div class="clean-table-wrapper">
+							<table class="clean-table table">
+								<thead>
+									<tr>
+										<th data-checkbox>
+											<input type="checkbox" class="table-check" autocomplete="off"
+												data-checkbox-all>
+										</th>
+										<th class="sort-col text-center"><b>Name</b></th>
+										<th class="sort-col text-center"><b>User</b></th>
+										<th class="sort-col text-center"><b>Description</b></th>
+										<th class="sort-col text-center"><b>Date</b></th>
+										<th class="sort-col text-center"><b>Value</b></th>
+										<th class="sort-col text-center"><b>Category</b></th>
+										<th class="sort-col text-center"><b>Icon</b></th>
+									</tr>
+								</thead>
+								<tbody id="awards-body">
+									{% for award in awards %}
+									<tr class="award-row">
+										<td data-checkbox>
+											<input type="checkbox" class="table-check" value="{{ award.id }}"
+												autocomplete="off" data-award-id="{{ award.id }}"
+												data-award-name="{{ award.name }}">
+										</td>
+										<td class="text-center chal" id="{{ award.id }}">{{ award.name }}</td>
+										<td class="text-center">
+											<a
+												href="{{ url_for('admin.users_detail', user_id=award.user_id) if (is_detail is defined and is_detail) else url_for('admin.contest_user_detail', contest_id=contest.id, user_id=award.user_id) }}">
+												{{ award.user.name }}
+											</a>
+										</td>
+										<td class="text-center">
+											<pre>{{ award.description }}</pre>
+										</td>
+										<td class="text-center solve-time">
+											<span data-time="{{ award.date | isoformat }}"></span>
+										</td>
+										<td class="text-center">{{ award.value }}</td>
+										<td class="text-center">{{ award.category }}</td>
+										<td class="text-center"><i class="award-icon award-{{ award.icon }}"></i> {{
+											award.icon
+											}}</td>
+									</tr>
+									{% endfor %}
+								</tbody>
+							</table>
 						</div>
 					</div>
 				</div>
 			</div>
-			<div class="row">
-				<div class="col-md-12">
-				<div class="clean-table-wrapper">
-					<table class="clean-table table">
-						<thead>
-							<tr>
-								<th data-checkbox>
-									<input type="checkbox" class="table-check" autocomplete="off"
-										data-checkbox-all>
-								</th>
-								<th class="sort-col text-center"><b>Challenge</b></th>
-								<th class="sort-col text-center"><b>Category</b></th>
-								<th class="sort-col text-center"><b>Value</b></th>
-							</tr>
-						</thead>
-						<tbody>
-							{% for challenge in missing %}
-							<tr class="chal-solve" data-href="{{ url_for("admin.challenges_detail",
-								challenge_id=challenge.id) }}">
-								<td data-checkbox>
-									<input type="checkbox" class="table-check" value="{{ challenge.id }}"
-										autocomplete="off" data-missing-challenge-id="{{ challenge.id }}"
-										data-missing-challenge-name="{{ challenge.name }}">
-								</td>
-								<td class="text-center chal" id="{{ challenge.id }}">
-									<a href="{{ url_for("admin.challenges_detail", challenge_id=challenge.id) }}">
-										{{ challenge.name }}
-									</a>
-								</td>
-								<td class="text-center">{{ challenge.category }}</td>
-								<td class="text-center">{{ challenge.value }}</td>
-							</tr>
-							{% endfor %}
-						</tbody>
-					</table>
+
+			<div class="tab-pane fade" id="nav-missing" role="tabpanel" aria-labelledby="nav-missing-tab">
+				<h3 class="text-center pt-5 d-block">Missing</h3>
+				<div class="row">
+					<div class="col-md-12">
+						<div class="float-right pb-3">
+							<div class="btn-group" role="group">
+								<button type="button" class="btn btn-outline-success" id="missing-solve-button">
+									<i class="btn-fa fas fa-check"></i>
+								</button>
+							</div>
+						</div>
+					</div>
 				</div>
+				<div class="row">
+					<div class="col-md-12">
+						<div class="clean-table-wrapper">
+							<table class="clean-table table">
+								<thead>
+									<tr>
+										<th data-checkbox>
+											<input type="checkbox" class="table-check" autocomplete="off"
+												data-checkbox-all>
+										</th>
+										<th class="sort-col text-center"><b>Challenge</b></th>
+										<th class="sort-col text-center"><b>Category</b></th>
+										<th class="sort-col text-center"><b>Value</b></th>
+									</tr>
+								</thead>
+								<tbody>
+									{% for challenge in missing %}
+									<tr class="chal-solve"
+										data-href="{{ url_for('admin.challenges_detail', challenge_id=challenge.id) }}">
+										<td data-checkbox>
+											<input type="checkbox" class="table-check" value="{{ challenge.id }}"
+												autocomplete="off" data-missing-challenge-id="{{ challenge.id }}"
+												data-missing-challenge-name="{{ challenge.name }}">
+										</td>
+										<td class="text-center chal" id="{{ challenge.id }}">
+											<a
+												href="{{ url_for('admin.challenges_detail', challenge_id=challenge.id) }}">
+												{{ challenge.name }}
+											</a>
+										</td>
+										<td class="text-center">{{ challenge.category }}</td>
+										<td class="text-center">{{ challenge.value }}</td>
+									</tr>
+									{% endfor %}
+								</tbody>
+							</table>
+						</div>
+					</div>
+				</div>
+			</div>
+
+		<div class="tab-pane fade" id="nav-kypo" role="tabpanel" aria-labelledby="nav-kypo-tab">
+			<h3 class="text-center pt-5 d-block">KYPO Account</h3>
+			<div class="row justify-content-center pt-3">
+				<div class="col-md-6">
+					{% if kypo_account %}
+					<div class="card">
+						<div class="card-header">
+							<h5><i class="fas fa-key mr-2"></i>KYPO Credentials</h5>
+						</div>
+						<div class="card-body">
+							<div class="form-group">
+								<label class="font-weight-bold">KYPO User ID</label>
+								<input type="text" class="form-control" value="{{ kypo_account.kypo_user_id }}" readonly>
+							</div>
+							<div class="form-group">
+								<label class="font-weight-bold">Username</label>
+								<input type="text" class="form-control" value="{{ kypo_account.kypo_username }}" readonly>
+							</div>
+							<div class="form-group">
+								<label class="font-weight-bold">Password</label>
+								<div class="input-group">
+									<input type="password" class="form-control" id="kypo-password-field"
+										value="{{ kypo_account.kypo_password }}" readonly>
+									<div class="input-group-append">
+										<button class="btn btn-outline-secondary" type="button"
+											onclick="toggleKypoPassword(this)">
+											<i class="fas fa-eye"></i>
+										</button>
+										<button class="btn btn-outline-secondary" type="button"
+											onclick="copyKypoPassword('{{ kypo_account.kypo_password }}')"
+											data-toggle="tooltip" title="Copy password">
+											<i class="fas fa-clipboard"></i>
+										</button>
+									</div>
+								</div>
+							</div>
+							<div class="form-group">
+								<label class="font-weight-bold">Created At</label>
+								<input type="text" class="form-control"
+									value="{{ kypo_account.created_at.strftime('%Y-%m-%d %H:%M:%S') if kypo_account.created_at else '' }}"
+									readonly>
+							</div>
+						</div>
+					</div>
+					{% else %}
+					<div class="text-center text-muted py-5">
+						<i class="fas fa-exclamation-circle fa-3x mb-3"></i>
+						<p>No KYPO account found for this team.</p>
+					</div>
+					{% endif %}
 				</div>
 			</div>
 		</div>
+		</div>{# /tab-content #}
 
-		{# ── Notes (contest-scoped team comments) ──────────────────────── #}
-		<div class="tab-pane fade" id="nav-notes" role="tabpanel" aria-labelledby="nav-notes-tab">
-			<h3 class="text-center pt-5 d-block">Notes</h3>
-			<p class="text-center text-muted" style="font-size:0.85rem;">
-				Internal notes for team <strong>{{ team.name }}</strong>. Visible to admins only.
-			</p>
-			<div class="row mt-3">
-				<div class="col-md-10 offset-md-1">
-					<div id="comment-box"></div>
-				</div>
+	<div class="row min-vh-25 pt-5">
+		<div class="col-md-10 offset-md-1">
+			<div id="comment-box">
 			</div>
 		</div>
-
-	</div>{# /tab-content #}
-</div>
+	</div>
+	</div>
 </div>
 
 {% endblock %}
 
 {% block contest_scripts %}
-
 
 <script>
 	var TEAM_ID = {{ team.id }};
@@ -823,6 +949,26 @@
 		'name': team.name,
 		'account_id': team.id,
 	} | tojson }};
+
+	function toggleKypoPassword() {
+		var field = document.getElementById('kypo-modal-password');
+		var icon = document.getElementById('kypo-eye-icon');
+		if (field.type === 'password') {
+			field.type = 'text';
+			icon.classList.replace('fa-eye', 'fa-eye-slash');
+		} else {
+			field.type = 'password';
+			icon.classList.replace('fa-eye-slash', 'fa-eye');
+		}
+	}
+
+	function copyToClipboard(text, btn) {
+		navigator.clipboard.writeText(text).then(function() {
+			var icon = btn.querySelector('i');
+			icon.classList.replace('fa-clipboard', 'fa-check');
+			setTimeout(function() { icon.classList.replace('fa-check', 'fa-clipboard'); }, 1500);
+		});
+	}
 </script>
 {% endblock %}
 

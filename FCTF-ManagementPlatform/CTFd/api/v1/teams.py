@@ -1,4 +1,5 @@
 import copy
+import logging
 from typing import List
 
 from flask import abort, request, session
@@ -17,7 +18,7 @@ from CTFd.cache import (
     clear_user_session,
 )
 from CTFd.constants import RawEnum
-from CTFd.models import Awards, Challenges, Contests, Submissions, Teams, Tokens, Unlocks, UserTeamMember, Users, db
+from CTFd.models import Awards, Challenges, Contests, KypoTeamAccount, Submissions, Teams, Tokens, Unlocks, UserTeamMember, Users, db
 from CTFd.schemas.awards import AwardSchema
 from CTFd.schemas.submissions import SubmissionSchema
 from CTFd.schemas.teams import TeamSchema
@@ -30,8 +31,11 @@ from CTFd.utils.decorators.visibility import (
     check_score_visibility,
 )
 from CTFd.utils.helpers.models import build_model_filters
+from CTFd.utils.keycloak_service import create_kypo_user
 from CTFd.utils.logging.audit_logger import log_audit
 from CTFd.utils.user import get_current_team, get_current_user_type, is_admin
+
+logger = logging.getLogger(__name__)
 
 teams_namespace = Namespace("teams", description="Endpoint to retrieve Teams")
 
@@ -167,29 +171,49 @@ class TeamList(Resource):
         db.session.add(response.data)
         db.session.commit()
 
+        team = response.data
+        kypo_error = None
+        try:
+            kypo_creds = create_kypo_user(team.id, team.name)
+            kypo_account = KypoTeamAccount(
+                team_id=team.id,
+                kypo_user_id=kypo_creds["kypo_user_id"],
+                kypo_username=kypo_creds["kypo_username"],
+                kypo_password=kypo_creds["kypo_password"],
+            )
+            db.session.add(kypo_account)
+            db.session.commit()
+            logger.info("Created KYPO account for team %s (id=%s)", team.name, team.id)
+        except Exception as exc:
+            kypo_error = str(exc)
+            logger.error("Failed to create KYPO account for team %s: %s", team.id, exc, exc_info=True)
+
         log_audit(
             action="team_create",
             data={
-                "team_id": response.data.id,
-                "name": response.data.name,
-                "email": response.data.email,
-                "website": response.data.website,
-                "affiliation": response.data.affiliation,
-                "country": response.data.country,
-                "bracket_id": response.data.bracket_id,
-                "hidden": response.data.hidden,
-                "banned": response.data.banned,
-                "captain_id": response.data.captain_id,
+                "team_id": team.id,
+                "name": team.name,
+                "email": team.email,
+                "website": team.website,
+                "affiliation": team.affiliation,
+                "country": team.country,
+                "bracket_id": team.bracket_id,
+                "hidden": team.hidden,
+                "banned": team.banned,
+                "captain_id": team.captain_id,
             }
         )
 
-        response = schema.dump(response.data)
+        response = schema.dump(team)
         db.session.close()
 
         clear_standings()
         clear_challenges()
 
-        return {"success": True, "data": response.data}
+        result = {"success": True, "data": response.data}
+        if kypo_error:
+            result["kypo_warning"] = f"Team created but KYPO account creation failed: {kypo_error}"
+        return result
 
 
 @teams_namespace.route("/<int:team_id>")
