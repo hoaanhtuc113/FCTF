@@ -1,0 +1,205 @@
+{% extends "admin/challenges/update.html" %}
+
+{% block header %}
+<div class="alert alert-info d-flex align-items-center mb-3" role="alert">
+    <i class="fas fa-shield-alt mr-2"></i>
+    <div>
+        <strong>Sandbox Challenge</strong> &mdash; Attack-Defense challenge powered by the KYPO Cyber Range platform.
+    </div>
+</div>
+{% endblock %}
+
+{% block value %}
+<div class="form-group">
+    <label>
+        Score / Points:<br>
+        <small class="form-text text-muted">
+            Điểm thưởng khi hoàn thành tất cả phase (do admin đặt — KHÔNG lấy từ KYPO).
+        </small>
+    </label>
+    <input type="number" class="form-control chal-value" name="value"
+           id="kypo-score-input-update"
+           value="{{ challenge.value if challenge.value else 0 }}" min="0" required>
+</div>
+
+{# ── Current KYPO instance (server-rendered from DB) ─────────────────── #}
+{% if challenge.kypo_config %}
+<div class="card mb-3 border-info">
+    <div class="card-header bg-transparent border-info py-2">
+        <small class="text-info font-weight-bold">
+            <i class="fas fa-link mr-1"></i> Current KYPO Instance
+        </small>
+    </div>
+    <div class="card-body py-2 px-3">
+        <div class="row">
+            <div class="col-sm-4 text-muted small">Instance ID</div>
+            <div class="col-sm-8 small font-weight-medium">{{ challenge.kypo_config.kypo_instance_id }}</div>
+        </div>
+        <div class="row mt-1">
+            <div class="col-sm-4 text-muted small">Type</div>
+            <div class="col-sm-8 small">
+                <span class="badge badge-{{ 'primary' if challenge.kypo_config.kypo_instance_type == 'linear' else 'warning' }}">
+                    {{ challenge.kypo_config.kypo_instance_type | upper }}
+                </span>
+            </div>
+        </div>
+        <div class="row mt-1">
+            <div class="col-sm-4 text-muted small">Access Token</div>
+            <div class="col-sm-8 small"><code>{{ challenge.kypo_config.kypo_access_token }}</code></div>
+        </div>
+        <div class="row mt-1">
+            <div class="col-sm-4 text-muted small">Base URL</div>
+            <div class="col-sm-8 small">{{ challenge.kypo_config.kypo_base_url }}</div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{# ── Change KYPO instance ─────────────────────────────────────────────── #}
+<div class="form-group">
+    <label>
+        Change KYPO Instance:<br>
+        <small class="form-text text-muted">
+            The current instance is pre-selected. Change it to link a different KYPO training instance.
+        </small>
+    </label>
+
+    <div id="kypo-instance-loading-update" class="py-2">
+        <div class="spinner-border spinner-border-sm text-primary" role="status" aria-hidden="true"></div>
+        <span class="ml-2 text-muted small">Loading KYPO instances&hellip;</span>
+    </div>
+
+    {# No default placeholder — the current instance will be auto-selected by JS #}
+    <select class="form-control custom-select" id="kypo-instance-select-update" style="display:none;">
+    </select>
+
+    <div id="kypo-instance-error-update" class="alert alert-info mt-2 d-none" role="alert">
+        <i class="fas fa-info-circle mr-1"></i>
+        KYPO không khả dụng. Cấu hình hiện tại sẽ được giữ nguyên khi lưu.
+    </div>
+</div>
+
+<div id="kypo-details-loading-update" class="d-none py-1">
+    <div class="spinner-border spinner-border-sm text-secondary" role="status" aria-hidden="true"></div>
+    <span class="ml-2 text-muted small">Fetching score from KYPO&hellip;</span>
+</div>
+<div id="kypo-details-error-update" class="alert alert-warning d-none mt-1" role="alert">
+    <i class="fas fa-exclamation-triangle mr-1"></i>
+    Could not retrieve score for this instance — the current score is kept.
+</div>
+
+{# Hidden KYPO fields — pre-populated from DB, updated by inline JS on instance change #}
+<input type="hidden" name="kypo_instance_id" id="kypo-instance-id-update"
+       value="{{ challenge.kypo_config.kypo_instance_id if challenge.kypo_config else '' }}">
+<input type="hidden" name="kypo_access_token" id="kypo-access-token-update"
+       value="{{ challenge.kypo_config.kypo_access_token if challenge.kypo_config else '' }}">
+<input type="hidden" name="kypo_instance_type" id="kypo-instance-type-update"
+       value="{{ challenge.kypo_config.kypo_instance_type if challenge.kypo_config else 'linear' }}">
+<input type="hidden" name="kypo_base_url" id="kypo-base-url-update"
+       value="{{ challenge.kypo_config.kypo_base_url if challenge.kypo_config else 'https://vuontre.iahn.hanoi.vn' }}">
+<input type="hidden" id="kypo-current-instance-id"
+       value="{{ challenge.kypo_config.kypo_instance_id if challenge.kypo_config else '' }}">
+{% endblock %}
+
+{% block time_limit %}
+<div class="form-group">
+    <label>
+        Time Limit (minutes):<br>
+        <small class="form-text text-muted">
+            Duration for this sandbox session. Use -1 for unlimited.
+        </small>
+    </label>
+    <input type="number" class="form-control chal-time-limit" min="-1" name="time_limit"
+           value="{{ challenge.time_limit }}" required>
+</div>
+{% endblock %}
+
+{% block max_attempts %}
+{# Max Attempts is not applicable for Sandbox challenges — field hidden, no data sent #}
+{% endblock %}
+
+{% block deploy_status %}
+{% endblock %}
+
+{% block latest_build %}
+{% endblock %}
+
+{% block footer %}
+{{ super() }}
+<script>
+{# Inline JS — runs immediately as part of the server-rendered update template.
+   No external file loading needed, so this always executes regardless of
+   how the parent page loads scripts. #}
+(function () {
+    function elU(id) { return document.getElementById(id); }
+    function addClassU(id, cls) { var e = elU(id); if (e) e.classList.add(cls); }
+    function removeClassU(id, cls) { var e = elU(id); if (e) e.classList.remove(cls); }
+
+    function syncHidden(opt) {
+        if (!opt || !opt.value) return;
+        var idEl  = elU("kypo-instance-id-update");
+        var tokEl = elU("kypo-access-token-update");
+        var typEl = elU("kypo-instance-type-update");
+        if (idEl)  idEl.value  = opt.value;
+        if (tokEl) tokEl.value = opt.dataset.accessToken || "";
+        if (typEl) typEl.value = opt.dataset.instanceType || "linear";
+    }
+
+    function loadInstances() {
+        var loading = elU("kypo-instance-loading-update");
+        var select  = elU("kypo-instance-select-update");
+        if (!loading || !select) return;
+
+        var currentId = (elU("kypo-current-instance-id") || {}).value || "";
+
+        fetch("/api/v1/kypo/instances", { method: "GET", credentials: "same-origin" })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                loading.style.display = "none";
+
+                if (!data.success || !data.data || !data.data.length) {
+                    removeClassU("kypo-instance-error-update", "d-none");
+                    return;
+                }
+
+                data.data.forEach(function (inst) {
+                    var opt = document.createElement("option");
+                    opt.value = inst.id;
+                    opt.textContent = "[" + inst.instance_type.toUpperCase() + "] " + inst.title;
+                    opt.dataset.accessToken  = inst.access_token || "";
+                    opt.dataset.instanceType = inst.instance_type || "linear";
+                    opt.dataset.definitionId = inst.training_definition_id || "";
+
+                    // Auto-select the instance that is currently linked to this challenge
+                    if (String(inst.id) === String(currentId)) {
+                        opt.selected = true;
+                    }
+
+                    select.appendChild(opt);
+                });
+
+                select.style.display = "block";
+                select.addEventListener("change", function () {
+                    var opt = this.options[this.selectedIndex];
+                    if (!opt || !opt.value) return;
+                    // Chỉ cập nhật metadata instance — KHÔNG fetch điểm từ KYPO
+                    syncHidden(opt);
+                });
+            })
+            .catch(function () {
+                loading.style.display = "none";
+                removeClassU("kypo-instance-error-update", "d-none");
+            });
+    }
+
+    /* Run after the DOM is ready. The template is injected via innerHTML /
+       {{ update_template | safe }}, so DOMContentLoaded may have already
+       fired. Use a small timeout to ensure elements are in the DOM. */
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", loadInstances);
+    } else {
+        setTimeout(loadInstances, 0);
+    }
+})();
+</script>
+{% endblock %}
