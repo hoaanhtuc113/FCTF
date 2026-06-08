@@ -1,9 +1,8 @@
-namespace ContestantBE.Services;
+namespace ResourceShared.Models;
 
 /// <summary>
 /// Ánh xạ raw SQL từ bảng kypo_challenge_configs.
 /// Tên property = tên cột SQL (snake_case) để EF SqlQueryRaw map tự động.
-/// Dùng chung bởi KypoScoreLockService và ChallengeController.
 /// </summary>
 public class KypoChallengeConfig
 {
@@ -18,7 +17,6 @@ public class KypoChallengeConfig
 /// <summary>
 /// Ánh xạ raw SQL từ bảng kypo_team_accounts.
 /// Tên property = tên cột SQL (snake_case) để EF SqlQueryRaw map tự động.
-/// Dùng chung bởi KypoScoreLockService và ChallengeController.
 /// </summary>
 public class KypoTeamAccount
 {

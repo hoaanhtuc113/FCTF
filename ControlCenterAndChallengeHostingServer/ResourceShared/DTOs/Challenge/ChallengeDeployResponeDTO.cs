@@ -15,6 +15,7 @@ namespace ResourceShared.DTOs.Challenge
         public bool success { get; set; }
         public string? message { get; set; }
         public string? challenge_url { get; set; }
+        public string? challenge_type { get; set; }
         public int time_limit { get; set; }
         
         [JsonConverter(typeof(JsonStringEnumConverter))]

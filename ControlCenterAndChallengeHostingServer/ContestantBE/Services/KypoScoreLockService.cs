@@ -1,3 +1,4 @@
+using ContestantBE.Utils;
 using Microsoft.EntityFrameworkCore;
 using ResourceShared.Models;
 
@@ -214,3 +215,4 @@ public class KypoScoreLockService
     }
 
 }
+
