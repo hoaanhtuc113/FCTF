@@ -5,6 +5,7 @@ import requests
 import json
 from flask import (
     abort,
+    current_app,
     flash,
     jsonify,
     render_template,
@@ -264,8 +265,28 @@ def challenges_preview(challenge_id):
 @admin.route("/admin/challenges/new")
 @admin_or_challenge_writer_only
 def challenges_new():
+    from itsdangerous import URLSafeTimedSerializer
+    from CTFd.models import Contests
+
     types = CHALLENGE_CLASSES.keys()
-    return render_template("admin/challenges/new.html", types=types)
+    contests = Contests.query.order_by(Contests.id).all()
+
+    contest_id = request.args.get("contest_id", type=int)
+    contest_token = None
+    selected_contest = None
+
+    if contest_id:
+        selected_contest = Contests.query.filter_by(id=contest_id).first_or_404()
+        s = URLSafeTimedSerializer(current_app.secret_key)
+        contest_token = s.dumps({"contest_id": contest_id}, salt="create-challenge")
+
+    return render_template(
+        "admin/challenges/new.html",
+        types=types,
+        contests=contests,
+        selected_contest=selected_contest,
+        contest_token=contest_token,
+    )
 
 
 

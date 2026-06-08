@@ -2025,6 +2025,50 @@ function ChallengeDetailPanel({
       });
       const data = await response.json();
 
+      // ── Case KYPO: challenge_type === 'kypo' → mở bridge.html trong tab mới ──
+      if (response.status === 200 && data.success === true && data.challenge_type === 'kypo') {
+        setIsStarting(false);
+
+        if (data.challenge_url) {
+          // Mở bridge.html trong tab mới — Angular sẽ inject token vào localStorage
+          window.open(data.challenge_url, '_blank', 'noopener,noreferrer');
+
+          setIsChallengeStarted(true);
+          setUrl(data.challenge_url);
+
+          // Bắt đầu đếm ngược nếu có time_limit
+          if (data.time_limit && data.time_limit > 0) {
+            challengeTimerService.startTimer(
+              challenge.id,
+              challenge.name,
+              data.time_limit * 60,
+              true
+            );
+          }
+
+          Swal.fire({
+            html: `
+              <div class="font-mono text-left text-sm">
+                <div class="${theme === 'dark' ? 'text-green-400' : 'text-green-600'} mb-2">[✓] KYPO Ready!</div>
+                <div class="${theme === 'dark' ? 'text-gray-400' : 'text-gray-700'} mb-1">> Opening KYPO training environment in a new tab...</div>
+                <div class="${theme === 'dark' ? 'text-yellow-400' : 'text-yellow-600'} mt-2">> Complete all phases to receive points.</div>
+              </div>
+            `,
+            icon: 'success',
+            iconColor: '#22c55e',
+            background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+            color: theme === 'dark' ? '#22c55e' : '#000000',
+            timer: 4000,
+            showConfirmButton: false,
+            customClass: {
+              popup: 'rounded-lg border border-green-500/30',
+            },
+          });
+        }
+        return;
+      }
+      // ── End KYPO case ─────────────────────────────────────────────────────────
+
       // Case 1: URL is ready immediately
       if (response.status === 200 && data.success === true && data.challenge_url != null) {
         const safeChallengeUrl = escapeHtml(String(data.challenge_url).trim());
@@ -4201,15 +4245,14 @@ function ChallengeDetailPanel({
                 <button
                   onClick={handleDownloadSandboxSsh}
                   disabled={isDownloadingSsh}
-                  className={`w-full flex items-center justify-center gap-2 px-3 py-2 rounded border font-mono text-xs font-bold transition-colors ${
-                    isDownloadingSsh
+                  className={`w-full flex items-center justify-center gap-2 px-3 py-2 rounded border font-mono text-xs font-bold transition-colors ${isDownloadingSsh
                       ? theme === 'dark'
                         ? 'bg-gray-800 text-gray-500 border-gray-700 cursor-not-allowed'
                         : 'bg-gray-200 text-gray-400 border-gray-300 cursor-not-allowed'
                       : theme === 'dark'
                         ? 'bg-cyan-900/30 text-cyan-400 border-cyan-700 hover:bg-cyan-900/50'
                         : 'bg-cyan-50 text-cyan-700 border-cyan-300 hover:bg-cyan-100'
-                  }`}
+                    }`}
                 >
                   {isDownloadingSsh
                     ? <><CircularProgress size={12} sx={{ color: 'currentColor' }} /> Downloading...</>
