@@ -807,22 +807,22 @@ public class ChallengeController : BaseController
 
             var kypoAccount = await GetKypoTeamAccountRawAsync(teamId);
 
-            var baseUrl = !string.IsNullOrEmpty(kypoConfig?.KypoBaseUrl)
-                ? kypoConfig!.KypoBaseUrl!.TrimEnd('/')
+            var baseUrl = !string.IsNullOrEmpty(kypoConfig?.kypo_base_url)
+                ? kypoConfig!.kypo_base_url!.TrimEnd('/')
                 : ContestantBEConfigHelper.KypoBaseUrl.TrimEnd('/');
 
             string bridgeUrl;
 
-            if (kypoAccount?.KypoUsername != null && kypoAccount?.KypoPassword != null)
+            if (kypoAccount?.kypo_username != null && kypoAccount?.kypo_password != null)
             {
                 var tokenResult = await GetKeycloakTokenAsync(
-                    kypoAccount.KypoUsername, kypoAccount.KypoPassword, baseUrl);
+                    kypoAccount.kypo_username, kypoAccount.kypo_password, baseUrl);
 
                 if (tokenResult != null)
                 {
                     var (accessToken, refreshToken, idToken, sessionState, expiresIn) = tokenResult.Value;
 
-                    var kypoAccessToken = kypoConfig?.KypoAccessToken;
+                    var kypoAccessToken = kypoConfig?.kypo_access_token;
                     await GetOrCreateTrainingRunAsync(accessToken, kypoAccessToken, baseUrl);
 
                     var redirectTo = !string.IsNullOrEmpty(kypoAccessToken)
@@ -1326,10 +1326,10 @@ public class ChallengeController : BaseController
     // ── KYPO helper methods ────────────────────────────────────────────────────────
 
     /// <summary>Lấy KypoChallengeConfig qua raw SQL (bảng không có trong AppDbContext).</summary>
-    private async Task<KypoChallengeConfigData?> GetKypoChallengeConfigRawAsync(int challengeId)
+    private async Task<KypoChallengeConfig?> GetKypoChallengeConfigRawAsync(int challengeId)
     {
         var rows = await _context.Database
-            .SqlQueryRaw<KypoChallengeConfigData>(
+            .SqlQueryRaw<KypoChallengeConfig>(
                 "SELECT id, challenge_id, kypo_instance_id, kypo_access_token, kypo_instance_type, kypo_base_url " +
                 "FROM kypo_challenge_configs WHERE challenge_id = {0} LIMIT 1",
                 challengeId)
@@ -1338,10 +1338,10 @@ public class ChallengeController : BaseController
     }
 
     /// <summary>Lấy KypoTeamAccount qua raw SQL.</summary>
-    private async Task<KypoTeamAccountData?> GetKypoTeamAccountRawAsync(int teamId)
+    private async Task<KypoTeamAccount?> GetKypoTeamAccountRawAsync(int teamId)
     {
         var rows = await _context.Database
-            .SqlQueryRaw<KypoTeamAccountData>(
+            .SqlQueryRaw<KypoTeamAccount>(
                 "SELECT id, team_id, kypo_user_id, kypo_username, kypo_password " +
                 "FROM kypo_team_accounts WHERE team_id = {0} LIMIT 1",
                 teamId)
@@ -1416,32 +1416,4 @@ public class ChallengeController : BaseController
             await Console.Error.WriteLineAsync($"[KYPO] GetOrCreateTrainingRun failed: {ex.Message}");
         }
     }
-}
-
-// ── Raw SQL result types (private to controller) ────────────────────────────
-file class KypoChallengeConfigData
-{
-    public int     id                { get; set; }
-    public int     challenge_id      { get; set; }
-    public int     kypo_instance_id  { get; set; }
-    public string? kypo_access_token  { get; set; }
-    public string? kypo_instance_type { get; set; }
-    public string? kypo_base_url      { get; set; }
-
-    // Convenience properties for the controller block
-    public string  KypoAccessToken  => kypo_access_token  ?? "";
-    public string  KypoInstanceType => kypo_instance_type ?? "linear";
-    public string? KypoBaseUrl      => kypo_base_url;
-}
-
-file class KypoTeamAccountData
-{
-    public int     id            { get; set; }
-    public int     team_id       { get; set; }
-    public string? kypo_user_id  { get; set; }
-    public string? kypo_username { get; set; }
-    public string? kypo_password { get; set; }
-
-    public string? KypoUsername => kypo_username;
-    public string? KypoPassword => kypo_password;
 }

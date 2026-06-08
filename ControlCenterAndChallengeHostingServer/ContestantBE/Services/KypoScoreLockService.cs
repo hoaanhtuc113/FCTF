@@ -53,7 +53,7 @@ public class KypoScoreLockService
             return false;
         }
 
-        var baseUrl = config.KypoBaseUrl ?? ContestantBEConfigHelper.KypoBaseUrl;
+        var baseUrl = config.kypo_base_url ?? ContestantBEConfigHelper.KypoBaseUrl;
         if (string.IsNullOrWhiteSpace(baseUrl))
         {
             _logger.LogWarning("[KYPO LOCK] Challenge {ChallengeId}: KypoBaseUrl trống", challengeId);
@@ -65,11 +65,11 @@ public class KypoScoreLockService
         try
         {
             progressList = await _kypoClient.GetInstanceProgressAsync(
-                baseUrl, config.KypoInstanceType, config.KypoInstanceId);
+                baseUrl, config.kypo_instance_type ?? "linear", config.kypo_instance_id);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "[KYPO LOCK] Lỗi gọi Progress API instance {InstanceId}", config.KypoInstanceId);
+            _logger.LogError(ex, "[KYPO LOCK] Lỗi gọi Progress API instance {InstanceId}", config.kypo_instance_id);
             return false;
         }
 
@@ -78,7 +78,7 @@ public class KypoScoreLockService
         foreach (var entry in progressList)
         {
             var mappedTeamId = await GetTeamIdByTrainingRunAsync(
-                baseUrl, config.KypoInstanceType, entry.RunId);
+                baseUrl, config.kypo_instance_type ?? "linear", entry.RunId);
 
             if (mappedTeamId == teamId)
             {
@@ -90,7 +90,7 @@ public class KypoScoreLockService
         if (teamEntry == null)
         {
             _logger.LogDebug("[KYPO LOCK] Không tìm thấy progress của team {TeamId} trong instance {InstanceId}",
-                teamId, config.KypoInstanceId);
+                teamId, config.kypo_instance_id);
             return false;
         }
 
@@ -130,45 +130,22 @@ public class KypoScoreLockService
 
     private async Task<KypoChallengeConfig?> GetKypoChallengeConfigAsync(int challengeId)
     {
-        var rows = await _db.Database.SqlQueryRaw<KypoConfigRaw>(
+        var rows = await _db.Database.SqlQueryRaw<KypoChallengeConfig>(
             "SELECT id, challenge_id, kypo_instance_id, kypo_access_token, kypo_instance_type, kypo_base_url " +
             "FROM kypo_challenge_configs WHERE challenge_id = {0} LIMIT 1",
             challengeId
         ).ToListAsync();
-
-        var row = rows.FirstOrDefault();
-        if (row == null) return null;
-
-        return new KypoChallengeConfig
-        {
-            Id              = row.id,
-            ChallengeId     = row.challenge_id,
-            KypoInstanceId  = row.kypo_instance_id,
-            KypoAccessToken = row.kypo_access_token ?? "",
-            KypoInstanceType = row.kypo_instance_type ?? "linear",
-            KypoBaseUrl     = row.kypo_base_url,
-        };
+        return rows.FirstOrDefault();
     }
 
     private async Task<KypoTeamAccount?> GetKypoTeamAccountByUserIdAsync(string kypoUserId)
     {
-        var rows = await _db.Database.SqlQueryRaw<KypoAccountRaw>(
+        var rows = await _db.Database.SqlQueryRaw<KypoTeamAccount>(
             "SELECT id, team_id, kypo_user_id, kypo_username, kypo_password " +
             "FROM kypo_team_accounts WHERE kypo_user_id = {0} LIMIT 1",
             kypoUserId
         ).ToListAsync();
-
-        var row = rows.FirstOrDefault();
-        if (row == null) return null;
-
-        return new KypoTeamAccount
-        {
-            Id           = row.id,
-            TeamId       = row.team_id,
-            KypoUserId   = row.kypo_user_id ?? "",
-            KypoUsername = row.kypo_username ?? "",
-            KypoPassword = row.kypo_password ?? "",
-        };
+        return rows.FirstOrDefault();
     }
 
     // ──────────────────────────────────────────────────────────
@@ -190,8 +167,8 @@ public class KypoScoreLockService
         var account = await GetKypoTeamAccountByUserIdAsync(keycloakUserId);
         if (account == null) return null;
 
-        _runTeamCache[trainingRunId] = account.TeamId;
-        return account.TeamId;
+        _runTeamCache[trainingRunId] = account.team_id;
+        return account.team_id;
     }
 
     private async Task<int?> GetTeamCaptainAsync(int teamId)
@@ -236,26 +213,4 @@ public class KypoScoreLockService
         await _db.SaveChangesAsync();
     }
 
-    // ──────────────────────────────────────────────────────────
-    // Raw SQL result types
-    // ──────────────────────────────────────────────────────────
-
-    private class KypoConfigRaw
-    {
-        public int    id               { get; set; }
-        public int    challenge_id     { get; set; }
-        public int    kypo_instance_id { get; set; }
-        public string? kypo_access_token { get; set; }
-        public string? kypo_instance_type { get; set; }
-        public string? kypo_base_url   { get; set; }
-    }
-
-    private class KypoAccountRaw
-    {
-        public int    id            { get; set; }
-        public int    team_id       { get; set; }
-        public string? kypo_user_id  { get; set; }
-        public string? kypo_username { get; set; }
-        public string? kypo_password { get; set; }
-    }
 }
