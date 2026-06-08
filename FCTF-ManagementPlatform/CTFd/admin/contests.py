@@ -1946,7 +1946,12 @@ def contest_new_team_page(contest_id):
 @admin.route("/admin/contests/<int:contest_id>/teams/new", methods=["POST"])
 @admins_only
 def contest_create_team(contest_id):
+    import logging
+    from CTFd.models import KypoTeamAccount
     from CTFd.utils.crypto import hash_password
+    from CTFd.utils.keycloak_service import create_kypo_user
+
+    logger = logging.getLogger(__name__)
 
     Contests.query.filter_by(id=contest_id).first_or_404()
     req = request.get_json(force=True) or {}
@@ -1976,14 +1981,33 @@ def contest_create_team(contest_id):
     db.session.add(team)
     db.session.commit()
 
-    return {"success": True, "data": {"id": team.id, "name": team.name}}, 201
+    kypo_error = None
+    try:
+        kypo_creds = create_kypo_user(team.id, team.name)
+        kypo_account = KypoTeamAccount(
+            team_id=team.id,
+            kypo_user_id=kypo_creds["kypo_user_id"],
+            kypo_username=kypo_creds["kypo_username"],
+            kypo_password=kypo_creds["kypo_password"],
+        )
+        db.session.add(kypo_account)
+        db.session.commit()
+        logger.info("Created KYPO account for team %s (id=%s)", team.name, team.id)
+    except Exception as exc:
+        kypo_error = str(exc)
+        logger.error("Failed to create KYPO account for team %s: %s", team.id, exc, exc_info=True)
+
+    result = {"success": True, "data": {"id": team.id, "name": team.name}}
+    if kypo_error:
+        result["kypo_warning"] = f"Team created but KYPO account creation failed: {kypo_error}"
+    return result, 201
 
 
 @admin.route("/admin/contests/<int:contest_id>/teams/<int:team_id>")
 @admins_only
 def contest_team_detail(contest_id, team_id):
     from sqlalchemy import not_
-    from CTFd.models import Challenges, Tracking, Solves, Fails, Awards, UserTeamMember
+    from CTFd.models import Challenges, Tracking, Solves, Fails, Awards, UserTeamMember, KypoTeamAccount
 
     contest = Contests.query.filter_by(id=contest_id).first_or_404()
     team = Teams.query.filter_by(id=team_id).first_or_404()
@@ -2051,6 +2075,8 @@ def contest_team_detail(contest_id, team_id):
         .all()
     )
 
+    kypo_account = KypoTeamAccount.query.filter_by(team_id=team_id).first()
+
     return render_template(
         "admin/teams/team.html",
         contest=contest,
@@ -2064,6 +2090,7 @@ def contest_team_detail(contest_id, team_id):
         awards=awards,
         addrs=addrs,
         member_scores=member_scores,
+        kypo_account=kypo_account,
         is_detail=True,
     )
 
