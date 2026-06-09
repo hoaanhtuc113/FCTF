@@ -4296,47 +4296,81 @@ function ChallengeDetailPanel({
                         } disabled:opacity-50 disabled:cursor-not-allowed`}
                     >
                       {isStopping && <CircularProgress size={14} sx={{ color: '#fff' }} />}
-                      {isStopping ? '[...] Submitting...' : '[✓] Submit'}
+                      {isStopping ? '[...] Submitting...' : '[✓] Stop Challenge'}
                     </button>
                   </>
                 ) : (
-                  <button
-                    onClick={handleStartChallenge}
-                    disabled={isStarting}
-                    style={{
-                      fontFamily: 'monospace',
-                      fontSize: '13px',
-                      fontWeight: 'bold',
-                      width: '100%',
-                      padding: '10px 16px',
-                      border: '1px solid #4ade80',
-                      backgroundColor: '#4ade80',
-                      color: '#000',
-                      borderRadius: '4px',
-                      cursor: isStarting ? 'not-allowed' : 'pointer',
-                      opacity: isStarting ? 0.5 : 1,
-                      transition: 'all 0.2s',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '8px',
-                    }}
-                    onMouseEnter={(e) => {
-                      if (!isStarting) {
-                        e.currentTarget.style.backgroundColor = '#22c55e';
-                        e.currentTarget.style.borderColor = '#22c55e';
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (!isStarting) {
-                        e.currentTarget.style.backgroundColor = '#4ade80';
-                        e.currentTarget.style.borderColor = '#4ade80';
-                      }
-                    }}
-                  >
-                    {isStarting && <CircularProgress size={14} sx={{ color: '#000' }} />}
-                    <span>{isStarting ? '[~] Connecting...' : '[>] Enter Challenge'}</span>
-                  </button>
+                  <>
+                    {/* KYPO submission guide — shown before starting */}
+                    <div className={`rounded border p-3 text-xs font-mono space-y-2 ${theme === 'dark'
+                      ? 'bg-blue-950/40 border-blue-500/30'
+                      : 'bg-blue-50 border-blue-200'
+                    }`}>
+                      <div className="flex gap-2 items-start">
+                        <span className="shrink-0">ℹ️</span>
+                        <div>
+                          <div className={`font-semibold mb-0.5 ${theme === 'dark' ? 'text-blue-300' : 'text-blue-700'}`}>
+                            How to submit:
+                          </div>
+                          <div className={theme === 'dark' ? 'text-blue-400/80' : 'text-blue-600'}>
+                            Complete <span className="font-bold">ALL phases</span> on the KYPO portal, then click{' '}
+                            <span className="font-bold">"Stop Challenge"</span> to submit your result.
+                          </div>
+                        </div>
+                      </div>
+                      <div className={`h-px ${theme === 'dark' ? 'bg-blue-500/20' : 'bg-blue-200'}`} />
+                      <div className="flex gap-2 items-start">
+                        <span className="shrink-0">⚠️</span>
+                        <div>
+                          <div className={`font-semibold mb-0.5 ${theme === 'dark' ? 'text-orange-400' : 'text-orange-600'}`}>
+                            Warning:
+                          </div>
+                          <div className={theme === 'dark' ? 'text-orange-400/80' : 'text-orange-600'}>
+                            If you click <span className="font-bold">"Stop Challenge"</span> before finishing{' '}
+                            <span className="font-bold">ALL phases</span> on KYPO, you will receive{' '}
+                            <span className="font-bold">0 points</span>.
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      onClick={handleStartChallenge}
+                      disabled={isStarting}
+                      style={{
+                        fontFamily: 'monospace',
+                        fontSize: '13px',
+                        fontWeight: 'bold',
+                        width: '100%',
+                        padding: '10px 16px',
+                        border: '1px solid #4ade80',
+                        backgroundColor: '#4ade80',
+                        color: '#000',
+                        borderRadius: '4px',
+                        cursor: isStarting ? 'not-allowed' : 'pointer',
+                        opacity: isStarting ? 0.5 : 1,
+                        transition: 'all 0.2s',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '8px',
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!isStarting) {
+                          e.currentTarget.style.backgroundColor = '#22c55e';
+                          e.currentTarget.style.borderColor = '#22c55e';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!isStarting) {
+                          e.currentTarget.style.backgroundColor = '#4ade80';
+                          e.currentTarget.style.borderColor = '#4ade80';
+                        }
+                      }}
+                    >
+                      {isStarting && <CircularProgress size={14} sx={{ color: '#000' }} />}
+                      <span>{isStarting ? '[~] Connecting...' : '[>] Enter Challenge'}</span>
+                    </button>
+                  </>
                 )}
               </div>
             )}

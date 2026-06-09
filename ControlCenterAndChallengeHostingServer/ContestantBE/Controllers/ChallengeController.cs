@@ -856,12 +856,18 @@ public class ChallengeController : BaseController
                     long nowSec = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
                     long remainSec = existingCache.time_finished > 0
                         ? Math.Max(0, existingCache.time_finished - nowSec) : 0;
+
+                    // Refresh bridge URL in cache so future calls also get fresh token
+                    existingCache.challenge_url = bridgeUrl;
+                    var remainingTtl = remainSec > 0 ? TimeSpan.FromSeconds(remainSec + 120) : (TimeSpan?)null;
+                    await _redisHelper.SetCacheAsync(sandboxCacheKey, existingCache, remainingTtl);
+
                     return Ok(new
                     {
                         status         = (int)HttpStatusCode.OK,
                         success        = true,
                         challenge_type = "kypo",
-                        challenge_url  = existingCache.challenge_url,
+                        challenge_url  = bridgeUrl,
                         time_limit     = (int)(remainSec / 60),
                     });
                 }

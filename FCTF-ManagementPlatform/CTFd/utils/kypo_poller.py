@@ -78,7 +78,7 @@ def _fetch_progress(token: str, base: str, instance_id: int) -> dict:
     resp = requests.get(
         url,
         headers={"Authorization": f"Bearer {token}"},
-        timeout=15,
+        timeout=60,
         verify=False,
     )
     resp.raise_for_status()

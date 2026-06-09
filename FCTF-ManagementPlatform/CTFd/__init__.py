@@ -360,7 +360,7 @@ def create_app(config="CTFd.config.Config"):
                                 print(f"[WARNING] SQL stamp fallback also failed: {_sql_err}")
             except Exception:
                 pass
-            upgrade()
+            upgrade(revision='heads')
 
         from CTFd.models import ma
 
@@ -430,6 +430,9 @@ def create_app(config="CTFd.config.Config"):
         init_events(app)
         init_plugins(app)
         init_cli(app)
+
+        from CTFd.utils.kypo_poller import start_poller
+        start_poller(app)
 
         @app.before_request
         def _restrict_swagger_to_admins():
