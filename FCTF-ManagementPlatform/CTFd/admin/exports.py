@@ -66,6 +66,7 @@ def export_submission_data():
 
         q = request.args.get("q")
         field = request.args.get("field")
+        contest_id_filter = request.args.get("contest_id", "", type=str).strip()
         team_filter = request.args.get("team_id", "", type=str).strip()
         user_filter = request.args.get("user_id", "", type=str).strip()
         challenge_filter = request.args.get("challenge_id", "", type=str).strip()
@@ -98,6 +99,13 @@ def export_submission_data():
             },
         )
 
+        if contest_id_filter:
+            contest_team_ids = (
+                Teams.query.with_entities(Teams.id)
+                .filter(Teams.contest_id == int(contest_id_filter))
+                .subquery()
+            )
+            filters.append(Submissions.team_id.in_(contest_team_ids))
         if team_filter:
             filters.append(Submissions.team_id == int(team_filter))
         if user_filter:
@@ -172,6 +180,8 @@ def export_submission_data():
         filename = "submissions"
         if submission_type:
             filename = f"{submission_type}-submissions"
+        if contest_id_filter:
+            filename = f"contest-{contest_id_filter}-{filename}"
         return send_file(
             output,
             as_attachment=True,
