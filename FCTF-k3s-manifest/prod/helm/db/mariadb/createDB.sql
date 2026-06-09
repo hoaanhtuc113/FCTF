@@ -828,4 +828,43 @@ CREATE TABLE IF NOT EXISTS `dynamic_flag_instances`  (
 -- Records of dynamic_flag_instances
 -- ----------------------------
 
+-- ----------------------------
+-- Table structure for kypo_team_accounts
+-- ----------------------------
+CREATE TABLE IF NOT EXISTS `kypo_team_accounts`  (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `team_id` int(11) NOT NULL,
+  `kypo_user_id` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `kypo_username` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `kypo_password` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` datetime NULL DEFAULT NULL,
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE INDEX `uq_kypo_team_accounts_team_id`(`team_id`) USING BTREE,
+  CONSTRAINT `fk_kypo_team_accounts_team_id` FOREIGN KEY (`team_id`) REFERENCES `teams` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT
+) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Records of kypo_team_accounts
+-- ----------------------------
+
+-- ----------------------------
+-- Table structure for kypo_challenge_configs
+-- ----------------------------
+CREATE TABLE IF NOT EXISTS `kypo_challenge_configs`  (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `challenge_id` int(11) NOT NULL,
+  `kypo_instance_id` int(11) NOT NULL,
+  `kypo_access_token` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `kypo_instance_type` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT 'linear',
+  `kypo_base_url` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `created_at` datetime NULL DEFAULT NULL,
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE INDEX `uq_kypo_challenge_configs_challenge_id`(`challenge_id`) USING BTREE,
+  CONSTRAINT `fk_kypo_challenge_configs_challenge_id` FOREIGN KEY (`challenge_id`) REFERENCES `challenges` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT
+) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Records of kypo_challenge_configs
+-- ----------------------------
+
 SET FOREIGN_KEY_CHECKS = 1;
