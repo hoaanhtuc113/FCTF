@@ -15,6 +15,8 @@ namespace ContestantBE.Services;
 /// </summary>
 public class KypoTimeoutWatcher : BackgroundService
 {
+    private const int PollIntervalSeconds = 5;
+
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<KypoTimeoutWatcher> _logger;
 
@@ -28,11 +30,11 @@ public class KypoTimeoutWatcher : BackgroundService
     {
         _logger.LogInformation(
             "[KYPO TIMEOUT] ✅ Watcher started (interval={Interval}s)",
-            KypoPollingConfig.PollIntervalSeconds);
+            PollIntervalSeconds);
 
         while (!stoppingToken.IsCancellationRequested)
         {
-            await Task.Delay(TimeSpan.FromSeconds(KypoPollingConfig.PollIntervalSeconds), stoppingToken);
+            await Task.Delay(TimeSpan.FromSeconds(PollIntervalSeconds), stoppingToken);
 
             try
             {

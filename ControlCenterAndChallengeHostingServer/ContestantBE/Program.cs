@@ -83,11 +83,10 @@ builder.Services.AddScoped<IConfigService, ConfigService>();
 builder.Services.AddMemoryCache();
 builder.Services.AddOptions();
 
-// Init env config for ContestantBE
-new ContestantBEConfigHelper().InitConfig();
+// Init config từ bảng config (DB), fallback về ENV
+new ContestantBEConfigHelper().InitConfig(connectionString!);
 
-// Init KYPO polling config
-KypoPollingConfig.Init();
+// KypoPollingConfig.Init() removed — config is now read dynamically from DB via IKypoConfigProvider
 
 builder.Services.AddStackExchangeRedisCache(options =>
 {
@@ -118,6 +117,7 @@ builder.Services.AddScoped<IActionLogsServices, ActionLogsServices>();
 builder.Services.AddScoped<IUserContext, UserContext>();
 
 // KYPO — chốt điểm all-or-nothing (Stop / hết giờ)
+builder.Services.AddSingleton<IKypoConfigProvider, KypoConfigProvider>();
 builder.Services.AddSingleton<KypoApiClient>();
 builder.Services.AddScoped<KypoScoreLockService>();
 builder.Services.AddHostedService<KypoTimeoutWatcher>();

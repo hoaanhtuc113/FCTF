@@ -28,6 +28,7 @@ public class ChallengeController : BaseController
     private readonly AppLogger _userBehaviorLogger;
     private readonly IActionLogsServices _actionLogsServices;
     private readonly KypoScoreLockService _scoreLockService;
+    private readonly IServiceScopeFactory _scopeFactory;
 
     public ChallengeController(
         IUserContext userContext,
@@ -39,7 +40,8 @@ public class ChallengeController : BaseController
         RedisLockHelper redisLockHelper,
         AppLogger userBehaviorLogger,
         IActionLogsServices actionLogsServices,
-        KypoScoreLockService scoreLockService) : base(userContext)
+        KypoScoreLockService scoreLockService,
+        IServiceScopeFactory scopeFactory) : base(userContext)
     {
         _context = context;
         _configHelper = configHelper;
@@ -50,6 +52,7 @@ public class ChallengeController : BaseController
         _userBehaviorLogger = userBehaviorLogger;
         _actionLogsServices = actionLogsServices;
         _scoreLockService = scoreLockService;
+        _scopeFactory = scopeFactory;
     }
 
     private static bool IsDuplicateKey(DbUpdateException ex)
@@ -1158,20 +1161,37 @@ public class ChallengeController : BaseController
             foreach (var t in openTrackings) t.StoppedAt = DateTime.UtcNow;
             if (openTrackings.Count > 0) await _context.SaveChangesAsync();
 
-            // Chốt điểm: all-or-nothing, điểm lấy từ challenges.value
+            // Chốt điểm trong background — không chặn HTTP response
             if (isKypoChallenge)
             {
-                try
+                var cid = challenge.Id;
+                var tid = teamId;
+                var factory = _scopeFactory;
+                _ = Task.Run(async () =>
                 {
-                    await _scoreLockService.LockScoreAsync(challenge.Id, teamId);
-                }
-                catch (Exception ex)
-                {
-                    await Console.Error.WriteLineAsync($"[KYPO] Chốt điểm khi stop lỗi: {ex.Message}");
-                }
+                    using var scope = factory.CreateScope();
+                    var svc = scope.ServiceProvider.GetRequiredService<KypoScoreLockService>();
+                    try { await svc.LockScoreAsync(cid, tid); }
+                    catch (Exception ex) { await Console.Error.WriteLineAsync($"[KYPO] Chốt điểm nền lỗi: {ex.Message}"); }
+                });
             }
 
             await _redisHelper.RemoveCacheAsync(cache_key);
+
+            try
+            {
+                await _actionLogsServices.SaveActionLogs(new ActionLogsReq
+                {
+                    ActionType = 7, // STOP_SANDBOX / SUBMIT_KYPO
+                    ActionDetail = $"Nộp thử thách sandbox {challenge.Name}",
+                    ChallengeId = challenge.Id,
+                }, user.Id);
+            }
+            catch (Exception ex)
+            {
+                await Console.Error.WriteLineAsync($"[ActionLog] Failed to save SUBMIT_SANDBOX log: {ex.Message}");
+            }
+
             return Ok(new ChallengeDeployResponeDTO
             {
                 status = (int)HttpStatusCode.OK,
