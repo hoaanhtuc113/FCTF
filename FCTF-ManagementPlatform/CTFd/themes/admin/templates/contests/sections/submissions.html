@@ -108,9 +108,37 @@
     </div>
 
     <div class="d-flex justify-content-end align-items-center action-buttons mt-2">
-        <button type="button" class="clean-btn clean-btn-danger" id="submission-delete-button">
-            <i class="fas fa-trash-alt"></i> Delete
-        </button>
+        <div class="btn-group" role="group">
+            {% if submission_type != 'correct' %}
+            <button type="button" class="clean-btn" title="Mark selected as correct" id="correct-flags-button">
+                <i class="btn-fa fas fa-check" style="color:#28a745"></i>
+            </button>
+            {% endif %}
+            {% if submission_type != 'incorrect' %}
+            <button type="button" class="clean-btn" title="Mark selected as incorrect" id="incorrect-flags-button">
+                <i class="btn-fa fas fa-times" style="color:#ffc107"></i>
+            </button>
+            {% endif %}
+            {% if request.args.get("full") %}
+            <button type="button" class="clean-btn" title="Show truncated flags" id="show-short-flags-button">
+                <i class="btn-fa far fa-flag"></i>
+            </button>
+            {% else %}
+            <button type="button" class="clean-btn" title="Show full flags" id="show-full-flags-button">
+                <i class="btn-fa fas fa-flag"></i>
+            </button>
+            {% endif %}
+            <button type="button" class="clean-btn clean-btn-danger ml-2" title="Delete selected submissions" id="submission-delete-button">
+                <i class="fas fa-trash-alt"></i> Delete
+            </button>
+            <button type="button" class="clean-btn ml-2" title="Resync Dynamic Challenges" id="resync-dynamic-button">
+                <i class="btn-fa fas fa-sync-alt"></i>
+            </button>
+            <a href="{{ url_for('admin.export_submission_data') }}?contest_id={{ contest.id }}{% if team_filter %}&team_id={{ team_filter }}{% endif %}{% if user_filter %}&user_id={{ user_filter }}{% endif %}{% if challenge_filter %}&challenge_id={{ challenge_filter }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if submission_type %}&submission_type={{ submission_type }}{% endif %}"
+               class="clean-btn ml-2" title="Export Data">
+                <i class="btn-fa fas fa-file-excel"></i> Export
+            </a>
+        </div>
     </div>
 
     <div class="clean-table-wrapper mt-2">
@@ -167,8 +195,20 @@
                         <span class="clean-badge clean-badge-secondary">{{ sub.type }}</span>
                         {% endif %}
                     </td>
-                    <td>
-                        <pre class="mb-0" style="font-size:0.8rem;" title="{{ sub.provided }}">{{ sub.provided | truncate(45, True) if sub.provided else '—' }}</pre>
+                    <td class="flag" id="flag-{{ sub.id }}">
+                        <button class="btn btn-link p-0 float-left copy-flag" type="button">
+                            <i class="fas fa-clipboard"></i>
+                        </button>
+                        {% if request.args.get('full') %}
+                        <pre class="mb-0 pl-2" style="font-size:0.8rem;" title="{{ sub.provided }}">{{ sub.provided if sub.provided else '—' }}</pre>
+                        {% else %}
+                        <pre class="mb-0 pl-2 float-left" style="font-size:0.8rem;" title="{{ sub.provided }}">{{ sub.provided | truncate(45, True) if sub.provided else '—' }}</pre>
+                        {% if sub.provided and sub.provided | length > 50 %}
+                        <button class="btn btn-link p-0 pl-1 float-left show-flag">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        {% endif %}
+                        {% endif %}
                     </td>
                     <td class="text-center" style="white-space:nowrap;">
                         {% if sub.date %}
@@ -232,6 +272,7 @@ function clearAllFilters() {
     window.location.href = window.location.pathname;
 }
 
+// Checkbox select-all
 var allCb = document.querySelector('[data-checkbox-all]');
 if (allCb) {
     allCb.addEventListener('change', function() {
@@ -241,11 +282,16 @@ if (allCb) {
     });
 }
 
+function getCheckedIds() {
+    return Array.from(document.querySelectorAll('input[data-submission-id]:checked'))
+                .map(function(cb) { return cb.value; });
+}
+
+// Delete
 var delBtn = document.getElementById('submission-delete-button');
 if (delBtn) {
     delBtn.addEventListener('click', function() {
-        var ids = Array.from(document.querySelectorAll('input[data-submission-id]:checked'))
-                       .map(function(cb) { return cb.value; });
+        var ids = getCheckedIds();
         if (!ids.length) { alert('Select at least one submission.'); return; }
         if (!confirm('Delete ' + ids.length + ' submission(s)?')) return;
         Promise.all(ids.map(function(id) {
@@ -254,6 +300,97 @@ if (delBtn) {
                 headers: { 'CSRF-Token': init.csrfNonce }
             });
         })).then(function() { window.location.reload(); });
+    });
+}
+
+// Mark as correct
+var correctBtn = document.getElementById('correct-flags-button');
+if (correctBtn) {
+    correctBtn.addEventListener('click', function() {
+        var ids = getCheckedIds();
+        if (!ids.length) { alert('Select at least one submission.'); return; }
+        if (!confirm('Mark ' + ids.length + ' submission(s) as correct? This will update scores and standings.')) return;
+        Promise.all(ids.map(function(id) {
+            return fetch('/api/v1/submissions/' + id, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json', 'CSRF-Token': init.csrfNonce },
+                body: JSON.stringify({ type: 'correct' })
+            });
+        })).then(function() { window.location.reload(); });
+    });
+}
+
+// Mark as incorrect
+var incorrectBtn = document.getElementById('incorrect-flags-button');
+if (incorrectBtn) {
+    incorrectBtn.addEventListener('click', function() {
+        var ids = getCheckedIds();
+        if (!ids.length) { alert('Select at least one submission.'); return; }
+        if (!confirm('Mark ' + ids.length + ' submission(s) as incorrect? This will remove solves and update standings.')) return;
+        Promise.all(ids.map(function(id) {
+            return fetch('/api/v1/submissions/' + id, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json', 'CSRF-Token': init.csrfNonce },
+                body: JSON.stringify({ type: 'incorrect' })
+            });
+        })).then(function() { window.location.reload(); });
+    });
+}
+
+// Show full / truncated flags toggle
+function flagsToggle() {
+    var params = new URLSearchParams(window.location.search);
+    if (params.has('full')) { params.delete('full'); } else { params.set('full', 'true'); }
+    window.location.href = window.location.pathname + '?' + params.toString();
+}
+var showFullBtn = document.getElementById('show-full-flags-button');
+if (showFullBtn) showFullBtn.addEventListener('click', flagsToggle);
+var showShortBtn = document.getElementById('show-short-flags-button');
+if (showShortBtn) showShortBtn.addEventListener('click', flagsToggle);
+
+// Show/hide individual flag
+document.querySelectorAll('.show-flag').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+        var pre = btn.parentElement.querySelector('pre');
+        var eye = btn.querySelector('i');
+        if (!pre.classList.contains('full-flag')) {
+            pre.textContent = pre.getAttribute('title');
+            pre.classList.add('full-flag');
+            eye.classList.replace('fa-eye', 'fa-eye-slash');
+        } else {
+            pre.textContent = pre.getAttribute('title').substring(0, 42) + '...';
+            pre.classList.remove('full-flag');
+            eye.classList.replace('fa-eye-slash', 'fa-eye');
+        }
+    });
+});
+
+// Copy flag
+document.querySelectorAll('.copy-flag').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+        var pre = btn.parentElement.querySelector('pre');
+        if (pre) navigator.clipboard.writeText(pre.getAttribute('title') || pre.textContent);
+    });
+});
+
+// Resync Dynamic Challenges
+var resyncBtn = document.getElementById('resync-dynamic-button');
+if (resyncBtn) {
+    resyncBtn.addEventListener('click', function() {
+        if (!confirm('Recalculate all dynamic challenge values? This will update point values based on current solve counts.')) return;
+        resyncBtn.disabled = true;
+        var orig = resyncBtn.innerHTML;
+        resyncBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        fetch('/admin/submissions/resync-dynamic', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'CSRF-Token': init.csrfNonce }
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            alert(data.success ? (data.message || 'Resynced successfully.') : ('Error: ' + (data.message || 'Failed.')));
+        })
+        .catch(function(e) { alert('Error: ' + e.message); })
+        .finally(function() { resyncBtn.disabled = false; resyncBtn.innerHTML = orig; });
     });
 }
 </script>
