@@ -10,6 +10,10 @@
     .sort-link { color: var(--text-medium); text-decoration: none; white-space: nowrap; }
     .sort-link:hover { color: var(--primary-orange); }
     .sort-link .sort-icon { font-size: 0.7rem; margin-left: 2px; }
+    .role-badge-admin            { background: #ffe8cc; color: #7c4200; }
+    .role-badge-jury             { background: #cce5ff; color: #004085; }
+    .role-badge-challenge_writer { background: #e8d5ff; color: #4b0082; }
+    .role-badge-contestant       { background: #e2e3e5; color: #6c757d; }
 </style>
 {% if is_jury() or is_challenge_writer() %}
 <style>
@@ -137,6 +141,7 @@
                     <th class="text-center">Start Time</th>
                     <th class="text-center">End Time</th>
                     <th class="text-center">Created</th>
+                    <th class="text-center">Your Role</th>
                     <th class="text-center">Actions</th>
                 </tr>
             </thead>
@@ -197,6 +202,14 @@
                         {{ contest.created_at.strftime('%Y-%m-%d') if contest.created_at else '—' }}
                     </td>
                     <td class="text-center" onclick="event.stopPropagation()">
+                        {% set role = user_role_map.get(contest.id) %}
+                        {% if role %}
+                            <span class="clean-badge role-badge-{{ role }}">{{ role | replace('_', ' ') }}</span>
+                        {% else %}
+                            <span class="text-muted">—</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-center" onclick="event.stopPropagation()">
                         <a href="{{ url_for('admin.contest_settings', contest_id=contest.id) }}"
                            class="clean-btn clean-action-btn-sm" title="Edit">
                             <i class="bx bx-edit"></i>
@@ -211,7 +224,7 @@
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="10" class="text-center text-muted py-4">
+                    <td colspan="11" class="text-center text-muted py-4">
                         <i class="bx bx-info-circle"></i> No contests found.
                         <a href="{{ url_for('admin.contests_new') }}">Create one</a>
                     </td>

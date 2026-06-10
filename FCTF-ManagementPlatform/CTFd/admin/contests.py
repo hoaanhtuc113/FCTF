@@ -234,12 +234,28 @@ def contests_listing():
         .paginate(page=page, per_page=20, error_out=False)
     )
 
+    # Build {contest_id: role} for the current user across all shown contests
+    user_role_map = {}
+    current_user = get_current_user_attrs()
+    if current_user:
+        if is_admin():
+            for c in contests.items:
+                user_role_map[c.id] = "admin"
+        else:
+            participants = ContestParticipant.query.filter(
+                ContestParticipant.user_id == current_user.id,
+                ContestParticipant.contest_id.in_([c.id for c in contests.items]),
+            ).all()
+            for p in participants:
+                user_role_map[p.contest_id] = p.role
+
     args = dict(request.args)
     args.pop("page", None)
 
     return render_template(
         "admin/contests/contests.html",
         contests=contests,
+        user_role_map=user_role_map,
         prev_page=url_for(request.endpoint, page=contests.prev_num, **args),
         next_page=url_for(request.endpoint, page=contests.next_num, **args),
         q=q,
