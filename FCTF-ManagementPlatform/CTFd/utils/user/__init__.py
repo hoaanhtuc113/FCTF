@@ -203,6 +203,24 @@ def is_admin_or_challenge_writer_or_jury():
     return is_admin() or is_challenge_writer() or is_jury()
 
 
+def get_user_role_in_contest(contest_id):
+    """Return the current user's role in a specific contest.
+    Returns 'admin', 'jury', 'challenge_writer', 'contestant', or None.
+    Admin users always get 'admin' regardless of ContestParticipant rows."""
+    if not authed():
+        return None
+    user = get_current_user_attrs()
+    if not user:
+        return None
+    if user.type == "admin":
+        return "admin"
+    from CTFd.models import ContestParticipant
+    p = db.session.query(ContestParticipant).filter_by(
+        user_id=user.id, contest_id=contest_id
+    ).first()
+    return p.role if p else None
+
+
 def is_verified():
     if get_config("verify_emails"):
         user = get_current_user_attrs()
