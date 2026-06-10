@@ -10,15 +10,17 @@ public class KypoApiClient
 {
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<KypoApiClient> _logger;
+    private readonly IKypoConfigProvider _kypoConfig;
 
     // Cache token để tránh gọi Keycloak liên tục
     private string? _cachedToken;
     private DateTime _tokenExpiry = DateTime.MinValue;
 
-    public KypoApiClient(IHttpClientFactory httpClientFactory, ILogger<KypoApiClient> logger)
+    public KypoApiClient(IHttpClientFactory httpClientFactory, ILogger<KypoApiClient> logger, IKypoConfigProvider kypoConfig)
     {
         _httpClientFactory = httpClientFactory;
         _logger = logger;
+        _kypoConfig = kypoConfig;
     }
 
     // ─────────────────────────────────────────────────────────
@@ -34,9 +36,9 @@ public class KypoApiClient
         var form = new Dictionary<string, string>
         {
             ["grant_type"] = "password",
-            ["client_id"]  = KypoPollingConfig.ClientId,
-            ["username"]   = KypoPollingConfig.AdminUsername,
-            ["password"]   = KypoPollingConfig.AdminPassword,
+            ["client_id"]  = _kypoConfig.ClientId,
+            ["username"]   = _kypoConfig.AdminUsername,
+            ["password"]   = _kypoConfig.AdminPassword,
         };
 
         var client = _httpClientFactory.CreateClient("kypo");
@@ -168,8 +170,8 @@ public class KypoApiClient
         {
             ["grant_type"] = "password",
             ["client_id"]  = "admin-cli",
-            ["username"]   = KypoPollingConfig.KeycloakAdminUsername,
-            ["password"]   = KypoPollingConfig.KeycloakAdminPassword,
+            ["username"]   = _kypoConfig.KeycloakAdminUsername,
+            ["password"]   = _kypoConfig.KeycloakAdminPassword,
         };
 
         var client = _httpClientFactory.CreateClient("kypo");

@@ -15,6 +15,7 @@ export interface Challenge {
   name: string;
   value: number;
   solve_by_myteam: boolean;
+  kypo_submitted?: boolean;
   solves?: number;
   time_limit: number;
   max_attempts: number;

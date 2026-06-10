@@ -102,14 +102,35 @@ def create_kypo_user(team_id: int, team_name: str) -> dict:
     )
 
     if resp.status_code == 409:
-        raise ValueError(f"Keycloak user '{username}' đã tồn tại.")
-    resp.raise_for_status()
+        # User đã tồn tại — lấy UUID và reset password
+        logger.warning(f"Keycloak user '{username}' đã tồn tại, lấy UUID và reset password.")
+        r2 = requests.get(
+            f"{get_kypo_keycloak_url()}/admin/realms/{get_kypo_realm()}/users?username={username}&exact=true",
+            headers={"Authorization": f"Bearer {token}"},
+            verify=get_kypo_verify_ssl(),
+            timeout=10,
+        )
+        r2.raise_for_status()
+        users = r2.json()
+        if not users:
+            raise ValueError(f"Keycloak user '{username}' tồn tại (409) nhưng không tìm được UUID.")
+        kypo_user_id = users[0]["id"]
+        # Reset password để đồng bộ với DB
+        requests.put(
+            f"{get_kypo_keycloak_url()}/admin/realms/{get_kypo_realm()}/users/{kypo_user_id}/reset-password",
+            json={"type": "password", "value": password, "temporary": False},
+            headers={"Authorization": f"Bearer {token}"},
+            verify=get_kypo_verify_ssl(),
+            timeout=10,
+        ).raise_for_status()
+        logger.info(f"Reused Keycloak user: {username} (id={kypo_user_id}) for team {team_id}")
+    else:
+        resp.raise_for_status()
+        # Keycloak trả về Location header chứa UUID của user mới
+        location = resp.headers.get("Location", "")
+        kypo_user_id = location.rstrip("/").split("/")[-1]
+        logger.info(f"Created Keycloak user: {username} (id={kypo_user_id}) for team {team_id}")
 
-    # Keycloak trả về Location header chứa UUID của user mới
-    location = resp.headers.get("Location", "")
-    kypo_user_id = location.rstrip("/").split("/")[-1]
-
-    logger.info(f"Created Keycloak user: {username} (id={kypo_user_id}) for team {team_id}")
     return {
         "kypo_user_id": kypo_user_id,
         "kypo_username": username,

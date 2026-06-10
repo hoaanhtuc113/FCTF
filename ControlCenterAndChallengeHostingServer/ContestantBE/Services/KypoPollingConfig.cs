@@ -1,8 +1,10 @@
+using ContestantBE.Utils;
+
 namespace ContestantBE.Services;
 
 /// <summary>
-/// Config cho KYPO Polling — đọc từ environment variables.
-/// Credentials được set qua file .env (không commit) hoặc env vars.
+/// Config cho KYPO Polling — đọc từ bảng config trong DB, fallback về ENV.
+/// Keys DB khớp với ManagementPlatform: kypo_username, kypo_password, ...
 /// </summary>
 public static class KypoPollingConfig
 {
@@ -11,16 +13,14 @@ public static class KypoPollingConfig
     public static string ClientId              { get; private set; } = "CRCZP-Client";
     public static string KeycloakAdminUsername { get; private set; } = "admin";
     public static string KeycloakAdminPassword { get; private set; } = "";
-    public static int    PollIntervalSeconds   { get; private set; } = 5;
 
-    public static void Init()
+    public static void Init(string dbConnectionString)
     {
-        AdminUsername         = Environment.GetEnvironmentVariable("KYPO_ADMIN_USERNAME")          ?? "crczp-admin";
-        AdminPassword         = Environment.GetEnvironmentVariable("KYPO_ADMIN_PASSWORD")          ?? "";
-        ClientId              = Environment.GetEnvironmentVariable("KYPO_CLIENT_ID")               ?? "CRCZP-Client";
-        KeycloakAdminUsername = Environment.GetEnvironmentVariable("KYPO_KEYCLOAK_ADMIN_USERNAME") ?? "admin";
-        KeycloakAdminPassword = Environment.GetEnvironmentVariable("KYPO_KEYCLOAK_ADMIN_PASSWORD") ?? "";
-        PollIntervalSeconds   = int.TryParse(
-            Environment.GetEnvironmentVariable("KYPO_POLL_INTERVAL_SECONDS"), out var v) ? v : 5;
+        using var db = DbConfigReader.BuildTempContext(dbConnectionString);
+        AdminUsername         = DbConfigReader.GetOptional(db, "kypo_username",       "KYPO_ADMIN_USERNAME")         ?? "crczp-admin";
+        AdminPassword         = DbConfigReader.GetOptional(db, "kypo_password",       "KYPO_ADMIN_PASSWORD")         ?? "";
+        ClientId              = DbConfigReader.GetOptional(db, "kypo_client_id",      "KYPO_CLIENT_ID")              ?? "CRCZP-Client";
+        KeycloakAdminUsername = DbConfigReader.GetOptional(db, "kypo_admin_username", "KYPO_KEYCLOAK_ADMIN_USERNAME") ?? "admin";
+        KeycloakAdminPassword = DbConfigReader.GetOptional(db, "kypo_admin_password", "KYPO_KEYCLOAK_ADMIN_PASSWORD") ?? "";
     }
 }

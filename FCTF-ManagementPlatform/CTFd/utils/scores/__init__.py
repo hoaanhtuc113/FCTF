@@ -95,13 +95,13 @@ def get_standings(count=None, bracket_id=None, admin=False, fields=None):
                 Brackets.name.label("bracket_name"),
                 Model.hidden,
                 Model.banned,
-                sumscores.columns.score,
+                func.coalesce(sumscores.columns.score, 0).label("score"),
                 *fields,
             )
-            .join(sumscores, Model.id == sumscores.columns.account_id)
+            .join(sumscores, Model.id == sumscores.columns.account_id, isouter=True)
             .join(Brackets, isouter=True)
             .order_by(
-                sumscores.columns.score.desc(),
+                func.coalesce(sumscores.columns.score, 0).desc(),
                 sumscores.columns.date.asc(),
                 sumscores.columns.id.asc(),
             )
@@ -114,14 +114,14 @@ def get_standings(count=None, bracket_id=None, admin=False, fields=None):
                 Model.name.label("name"),
                 Model.bracket_id.label("bracket_id"),
                 Brackets.name.label("bracket_name"),
-                sumscores.columns.score,
+                func.coalesce(sumscores.columns.score, 0).label("score"),
                 *fields,
             )
-            .join(sumscores, Model.id == sumscores.columns.account_id)
+            .join(sumscores, Model.id == sumscores.columns.account_id, isouter=True)
             .join(Brackets, isouter=True)
             .filter(Model.banned == False, Model.hidden == False)
             .order_by(
-                sumscores.columns.score.desc(),
+                func.coalesce(sumscores.columns.score, 0).desc(),
                 sumscores.columns.date.asc(),
                 sumscores.columns.id.asc(),
             )
@@ -288,12 +288,12 @@ def get_user_standings(count=None, bracket_id=None, admin=False, fields=None):
                 Users.team_id.label("team_id"),
                 Users.hidden,
                 Users.banned,
-                sumscores.columns.score,
+                func.coalesce(sumscores.columns.score, 0).label("score"),
                 *fields,
             )
-            .join(sumscores, Users.id == sumscores.columns.user_id)
+            .join(sumscores, Users.id == sumscores.columns.user_id, isouter=True)
             .order_by(
-                sumscores.columns.score.desc(),
+                func.coalesce(sumscores.columns.score, 0).desc(),
                 sumscores.columns.date.asc(),
                 sumscores.columns.id.asc(),
             )
@@ -305,13 +305,13 @@ def get_user_standings(count=None, bracket_id=None, admin=False, fields=None):
                 Users.oauth_id.label("oauth_id"),
                 Users.name.label("name"),
                 Users.team_id.label("team_id"),
-                sumscores.columns.score,
+                func.coalesce(sumscores.columns.score, 0).label("score"),
                 *fields,
             )
-            .join(sumscores, Users.id == sumscores.columns.user_id)
+            .join(sumscores, Users.id == sumscores.columns.user_id, isouter=True)
             .filter(Users.banned == False, Users.hidden == False)
             .order_by(
-                sumscores.columns.score.desc(),
+                func.coalesce(sumscores.columns.score, 0).desc(),
                 sumscores.columns.date.asc(),
                 sumscores.columns.id.asc(),
             )

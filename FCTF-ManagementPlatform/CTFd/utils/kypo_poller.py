@@ -245,26 +245,16 @@ def _insert_solve(challenge_id: int, team_id: int, score: int):
             if not user_id and hasattr(team, 'members') and team.members:
                 user_id = team.members[0].id
 
-        # Kiểm tra solve đã tồn tại chưa
-        result = db.session.execute(
-            db.text("SELECT id, value FROM solves WHERE challenge_id=:cid AND team_id=:tid"),
+        # Kiểm tra solve đã tồn tại chưa — nếu rồi thì bỏ qua (idempotent)
+        exists = db.session.execute(
+            db.text("SELECT id FROM solves WHERE challenge_id=:cid AND team_id=:tid"),
             {"cid": challenge_id, "tid": team_id}
         ).fetchone()
 
-        if result:
-            existing_id, existing_value = result[0], result[1]
-            if existing_value != score:
-                db.session.execute(
-                    db.text("UPDATE solves SET value=:score WHERE id=:sid"),
-                    {"score": score, "sid": existing_id}
-                )
-                db.session.commit()
-                log.info("[KYPO Poller] Updated score challenge=%s team=%s → %s",
-                         challenge_id, team_id, score)
-                _clear_scoreboard_cache()
+        if exists:
             return
 
-        # INSERT submissions + solves, bắt duplicate key để tránh race condition
+        # INSERT submissions + solves
         db.session.execute(
             db.text("""INSERT INTO submissions
                        (challenge_id, user_id, team_id, ip, provided, type, date)
@@ -274,10 +264,9 @@ def _insert_solve(challenge_id: int, team_id: int, score: int):
         sub_id = db.session.execute(db.text("SELECT LAST_INSERT_ID()")).scalar()
 
         db.session.execute(
-            db.text("""INSERT INTO solves (id, challenge_id, user_id, team_id, value)
-                       VALUES (:id, :cid, :uid, :tid, :val)
-                       ON DUPLICATE KEY UPDATE value=:val"""),
-            {"id": sub_id, "cid": challenge_id, "uid": user_id, "tid": team_id, "val": score}
+            db.text("""INSERT IGNORE INTO solves (id, challenge_id, user_id, team_id)
+                       VALUES (:id, :cid, :uid, :tid)"""),
+            {"id": sub_id, "cid": challenge_id, "uid": user_id, "tid": team_id}
         )
         db.session.commit()
         log.info("[KYPO Poller] Inserted solve challenge=%s team=%s score=%s",
@@ -286,28 +275,8 @@ def _insert_solve(challenge_id: int, team_id: int, score: int):
 
     except Exception as exc:
         db.session.rollback()
-        # 1020 "Record has changed" — xảy ra khi 2 cycle chạy đồng thời,
-        # retry 1 lần với fresh SELECT là đủ.
-        if "1020" in str(exc) or "Record has changed" in str(exc):
-            try:
-                result = db.session.execute(
-                    db.text("SELECT id, value FROM solves WHERE challenge_id=:cid AND team_id=:tid"),
-                    {"cid": challenge_id, "tid": team_id}
-                ).fetchone()
-                if result and result[1] != score:
-                    db.session.execute(
-                        db.text("UPDATE solves SET value=:score WHERE id=:sid"),
-                        {"score": score, "sid": result[0]}
-                    )
-                    db.session.commit()
-                    log.info("[KYPO Poller] Retry OK challenge=%s team=%s score=%s",
-                             challenge_id, team_id, score)
-                    _clear_scoreboard_cache()
-            except Exception:
-                db.session.rollback()
-        else:
-            log.error("[KYPO Poller] DB error challenge=%s team=%s: %s",
-                      challenge_id, team_id, exc)
+        log.error("[KYPO Poller] DB error challenge=%s team=%s: %s",
+                  challenge_id, team_id, exc)
 
 
 # ── Core sync per instance ─────────────────────────────────────────────────────

@@ -80,6 +80,7 @@ interface Challenge {
   next_id?: number | null;
   next_name?: string | null;
   connection_protocol?: 'http' | 'tcp' | string | null;
+  kypo_submitted?: boolean;
 }
 
 interface PrerequisiteChallenge {
@@ -2307,7 +2308,7 @@ function ChallengeDetailPanel({
     const result = await Swal.fire({
       html: `
         <div class="font-mono text-left text-sm">
-          <div class="text-yellow-400 mb-2">[?] Stop Challenge</div>
+          <div class="text-yellow-400 mb-2">[?] Submit Challenge</div>
           <div class="text-gray-400 mb-2">> Challenge: ${challenge.name}</div>
           <div class="text-gray-400">> Are you sure you want to stop?</div>
         </div>
@@ -2357,18 +2358,20 @@ function ChallengeDetailPanel({
       Swal.fire({
         html: `
           <div class="font-mono text-left text-sm">
-            <div class="text-green-400 mb-2">[✓] Challenge stopped</div>
-            <div class="text-gray-400">> Challenge: ${challenge.name}</div>
+            <div class="text-green-400 mb-2">[✓] Session submitted</div>
+            <div class="text-gray-400 mb-1">> Challenge: ${challenge.name}</div>
+            <div class="text-gray-400 mb-1">> If you completed all phases on KYPO, your score will be recorded shortly.</div>
+            <div class="text-yellow-400">> Otherwise 0 pts. You can re-enter and retry.</div>
           </div>
         `,
         icon: 'success',
         iconColor: '#22c55e',
         background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
         color: theme === 'dark' ? '#22c55e' : '#000000',
-        timer: 2000,
-        showConfirmButton: false,
+        confirmButtonText: 'OK',
         customClass: {
           popup: 'rounded-lg border border-green-500/30',
+          confirmButton: 'bg-green-600 hover:bg-green-700 text-white font-mono px-4 py-2 rounded',
         },
       });
     }
@@ -2640,7 +2643,7 @@ function ChallengeDetailPanel({
     const result = await Swal.fire({
       html: `
         <div class="font-mono text-left text-sm">
-          <div class="text-yellow-400 mb-2">[?] Stop Challenge</div>
+          <div class="text-yellow-400 mb-2">[?] Submit Challenge</div>
           <div class="text-gray-400 mb-2">> Challenge: ${challenge.name}</div>
           <div class="text-gray-400">> Confirm stop instance?</div>
         </div>
@@ -4280,10 +4283,47 @@ function ChallengeDetailPanel({
                         } disabled:opacity-50 disabled:cursor-not-allowed`}
                     >
                       {isStopping && <CircularProgress size={14} sx={{ color: '#fff' }} />}
-                      {isStopping ? '[...] Stopping...' : '[-] Stop Challenge'}
+                      {isStopping ? '[...] Stopping...' : '[-] Submit Challenge'}
                     </button>
                   </>
+                ) : challenge.kypo_submitted ? (
+                  /* Team submitted without completing — show 0 pts panel */
+                  <div style={{
+                    fontFamily: 'monospace',
+                    fontSize: '12px',
+                    border: '1px solid #ef4444',
+                    borderRadius: '4px',
+                    padding: '10px 14px',
+                    backgroundColor: 'rgba(239, 68, 68, 0.07)',
+                    lineHeight: '1.7',
+                  }}>
+                    <div style={{ color: '#ef4444', fontWeight: 'bold', marginBottom: '6px' }}>[✗] Submitted — 0 pts</div>
+                    <div style={{ color: '#f87171', marginBottom: '4px' }}>Your session was stopped before completing all phases on KYPO.</div>
+                    <div style={{ color: '#f87171' }}>Score: <strong>0 / {challenge.value} pts</strong></div>
+                  </div>
                 ) : (
+                  <>
+                  {/* Instruction panel — always visible before starting */}
+                  <div style={{
+                    fontFamily: 'monospace',
+                    fontSize: '12px',
+                    border: '1px solid #f59e0b',
+                    borderRadius: '4px',
+                    padding: '10px 14px',
+                    backgroundColor: 'rgba(245, 158, 11, 0.07)',
+                    lineHeight: '1.7',
+                  }}>
+                    <div style={{ color: '#f59e0b', fontWeight: 'bold', marginBottom: '6px' }}>[!] Instructions</div>
+                    <div style={{ color: '#ca8a04', marginBottom: '4px' }}>1. Click Enter Challenge to open the KYPO portal.</div>
+                    <div style={{ color: '#ca8a04', marginBottom: '8px' }}>2. Complete <strong>ALL phases</strong> on KYPO, then return here and click <strong>[-] Submit Challenge</strong> to submit your result.</div>
+                    <div style={{
+                      borderTop: '1px solid rgba(245,158,11,0.3)',
+                      paddingTop: '7px',
+                      color: '#ef4444',
+                    }}>
+                      <strong>[⚠] Warning:</strong> If you stop before finishing all phases on KYPO, you will receive <strong>0 points</strong>.
+                    </div>
+                  </div>
                   <button
                     onClick={handleStartChallenge}
                     disabled={isStarting}
@@ -4321,6 +4361,7 @@ function ChallengeDetailPanel({
                     {isStarting && <CircularProgress size={14} sx={{ color: '#000' }} />}
                     <span>{isStarting ? '[~] Connecting...' : '[>] Enter Challenge'}</span>
                   </button>
+                  </>
                 )}
               </div>
             )}
@@ -4388,7 +4429,7 @@ function ChallengeDetailPanel({
                         } disabled:opacity-50 disabled:cursor-not-allowed`}
                     >
                       {isStopping && <CircularProgress size={14} sx={{ color: '#fff' }} />}
-                      {isStopping ? '[...] Stopping' : '[-] Stop Challenge'}
+                      {isStopping ? '[...] Stopping' : '[-] Submit Challenge'}
                     </button>
                   )}
                 </div>

@@ -96,7 +96,7 @@ def scoreboard_listing():
     for solve in solves:
         if solve.team_id is None or solve.challenge is None:
             continue
-        point = solve.value if solve.value is not None else solve.challenge.value
+        point = solve.challenge.value
         if point is None:
             continue
         team_scores[solve.challenge_id][solve.team_id] += point

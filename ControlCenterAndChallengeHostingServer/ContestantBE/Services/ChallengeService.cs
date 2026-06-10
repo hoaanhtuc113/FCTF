@@ -151,6 +151,14 @@ public class ChallengeService : IChallengeService
             .AsNoTracking()
             .FirstOrDefaultAsync(s => s.ChallengeId == challenge.Id && s.TeamId == user.TeamId);
 
+        var kypo_submitted = solve_id == null
+            && string.Equals(challenge.Type, "sandbox", StringComparison.OrdinalIgnoreCase)
+            && user.TeamId.HasValue
+            && await _dbContext.ChallengeStartTrackings
+                .AnyAsync(t => t.ChallengeId == challenge.Id
+                             && t.TeamId == user.TeamId.Value
+                             && t.StoppedAt != null);
+
         var attempts = await _dbContext.Submissions
             .AsNoTracking()
             .CountAsync(s => s.ChallengeId == challenge.Id && s.TeamId == user.TeamId);
@@ -203,7 +211,8 @@ public class ChallengeService : IChallengeService
             type = challenge.Type,
             next_id = challenge.NextId,
             next_name = nextName,
-            solve_by_myteam = solve_id != null ? true : false,
+            solve_by_myteam = solve_id != null,
+            kypo_submitted = kypo_submitted,
             files = files,
             is_captain = user.Id == user.Team.CaptainId,
             captain_only_start = captainOnlyStart,
@@ -312,6 +321,16 @@ public class ChallengeService : IChallengeService
                     .ToHashSet()
                 : [];
 
+        var stoppedChallengeIds = team_id.HasValue
+                ? (await _dbContext.ChallengeStartTrackings
+                    .AsNoTracking()
+                    .Where(t => t.TeamId == team_id.Value && t.StoppedAt != null)
+                    .Select(t => t.ChallengeId)
+                    .Distinct()
+                    .ToListAsync())
+                    .ToHashSet()
+                : [];
+
         var allChallengeIds = (await _dbContext.Challenges
             .AsNoTracking()
             .Select(c => c.Id)
@@ -360,6 +379,9 @@ public class ChallengeService : IChallengeService
                 type = challenge.Type,
                 requirements = requirementsObj,
                 solve_by_myteam = solvedChallengeIds.Contains(challenge.Id),
+                kypo_submitted = !solvedChallengeIds.Contains(challenge.Id)
+                    && string.Equals(challenge.Type, "sandbox", StringComparison.OrdinalIgnoreCase)
+                    && stoppedChallengeIds.Contains(challenge.Id),
                 pod_status = podStatus,
                 difficulty = difficultyVisible ? challenge.Difficulty : null,
             });

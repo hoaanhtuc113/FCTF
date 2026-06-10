@@ -381,12 +381,9 @@ public class ScoreHelper
                 scoreMap[a.TeamId] = (a.Score, a.LastId, a.LastDate);
         }
 
-        var scoredTeamIds = scoreMap.Keys.ToList();
-
-        // Load teams that have scores
+        // Load ALL teams (including those with 0 score)
         var teamsQuery = _context.Teams
-            .AsNoTracking()
-            .Where(t => scoredTeamIds.Contains(t.Id));
+            .AsNoTracking();
 
         if (!admin)
             teamsQuery = teamsQuery.Where(t => !(t.Hidden ?? false) && !(t.Banned ?? false));
@@ -487,11 +484,9 @@ public class ScoreHelper
                 scoreMap[a.UserId] = (a.Score, a.LastId, a.LastDate);
         }
 
-        var scoredUserIds = scoreMap.Keys.ToList();
-
+        // Load ALL users (including those with 0 score)
         var usersQuery = _context.Users
-            .AsNoTracking()
-            .Where(u => scoredUserIds.Contains(u.Id));
+            .AsNoTracking();
 
         if (!admin)
             usersQuery = usersQuery.Where(u => !(u.Hidden ?? false) && !(u.Banned ?? false));
