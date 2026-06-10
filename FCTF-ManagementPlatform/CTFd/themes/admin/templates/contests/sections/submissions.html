@@ -131,7 +131,8 @@
             <button type="button" class="clean-btn clean-btn-danger ml-2" title="Delete selected submissions" id="submission-delete-button">
                 <i class="fas fa-trash-alt"></i> Delete
             </button>
-            <button type="button" class="clean-btn ml-2" title="Resync Dynamic Challenges" id="resync-dynamic-button">
+            <button type="button" class="clean-btn ml-2" title="Resync Dynamic Challenges" id="resync-dynamic-button"
+                    data-contest-id="{{ contest.id }}">
                 <i class="btn-fa fas fa-sync-alt"></i>
             </button>
             <a href="{{ url_for('admin.export_submission_data') }}?contest_id={{ contest.id }}{% if team_filter %}&team_id={{ team_filter }}{% endif %}{% if user_filter %}&user_id={{ user_filter }}{% endif %}{% if challenge_filter %}&challenge_id={{ challenge_filter }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if submission_type %}&submission_type={{ submission_type }}{% endif %}"
