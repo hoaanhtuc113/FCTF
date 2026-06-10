@@ -159,17 +159,26 @@ public class KypoScoreLockService
         if (_runTeamCache.TryGetValue(trainingRunId, out var cached))
             return cached;
 
-        var sub = await _kypoClient.GetParticipantSubAsync(baseUrl, instanceType, trainingRunId);
-        if (string.IsNullOrEmpty(sub)) return null;
+        try
+        {
+            var sub = await _kypoClient.GetParticipantSubAsync(baseUrl, instanceType, trainingRunId);
+            if (string.IsNullOrEmpty(sub)) return null;
 
-        var keycloakUserId = await _kypoClient.GetKeycloakUserIdBySubAsync(baseUrl, sub);
-        if (string.IsNullOrEmpty(keycloakUserId)) return null;
+            var keycloakUserId = await _kypoClient.GetKeycloakUserIdBySubAsync(baseUrl, sub);
+            if (string.IsNullOrEmpty(keycloakUserId)) return null;
 
-        var account = await GetKypoTeamAccountByUserIdAsync(keycloakUserId);
-        if (account == null) return null;
+            var account = await GetKypoTeamAccountByUserIdAsync(keycloakUserId);
+            if (account == null) return null;
 
-        _runTeamCache[trainingRunId] = account.team_id;
-        return account.team_id;
+            _runTeamCache[trainingRunId] = account.team_id;
+            return account.team_id;
+        }
+        catch (Exception ex)
+        {
+            // KYPO server tạm lỗi (5xx, timeout…) — không ném lên, KYPO poller sẽ retry sau
+            _logger.LogWarning("[KYPO LOCK] Không lấy được team ID cho run {RunId}: {Msg}", trainingRunId, ex.Message);
+            return null;
+        }
     }
 
     private async Task<int?> GetTeamCaptainAsync(int teamId)
@@ -190,22 +199,51 @@ public class KypoScoreLockService
     {
         var now = DateTime.UtcNow;
 
-        var submission = new Submission
+        // Idempotent: kiểm tra submission trùng trước khi INSERT
+        var existingSubmission = await _db.Submissions
+            .AsNoTracking()
+            .FirstOrDefaultAsync(s => s.ChallengeId == challengeId
+                                   && s.TeamId == teamId
+                                   && s.Type == "correct");
+
+        int submissionId;
+        if (existingSubmission != null)
         {
-            ChallengeId = challengeId,
-            UserId      = userId,
-            TeamId      = teamId,
-            Ip          = "",
-            Provided    = "KYPO_AUTO_SOLVE",
-            Type        = "correct",
-            Date        = now,
-        };
-        _db.Submissions.Add(submission);
-        await _db.SaveChangesAsync();
+            submissionId = existingSubmission.Id;
+            _logger.LogDebug("[KYPO LOCK] Submission đã tồn tại cho challenge={ChallengeId} team={TeamId}, dùng lại Id={Id}",
+                challengeId, teamId, submissionId);
+        }
+        else
+        {
+            var submission = new Submission
+            {
+                ChallengeId = challengeId,
+                UserId      = userId,
+                TeamId      = teamId,
+                Ip          = "",
+                Provided    = "KYPO_AUTO_SOLVE",
+                Type        = "correct",
+                Date        = now,
+            };
+            _db.Submissions.Add(submission);
+            await _db.SaveChangesAsync();
+            submissionId = submission.Id;
+        }
+
+        // Idempotent: kiểm tra solve trùng trước khi INSERT
+        var existingSolve = await _db.Solves
+            .AsNoTracking()
+            .AnyAsync(s => s.ChallengeId == challengeId && s.TeamId == teamId);
+        if (existingSolve)
+        {
+            _logger.LogDebug("[KYPO LOCK] Solve đã tồn tại cho challenge={ChallengeId} team={TeamId}, bỏ qua",
+                challengeId, teamId);
+            return;
+        }
 
         var solve = new Solf
         {
-            Id          = submission.Id,
+            Id          = submissionId,
             ChallengeId = challengeId,
             UserId      = userId,
             TeamId      = teamId,
