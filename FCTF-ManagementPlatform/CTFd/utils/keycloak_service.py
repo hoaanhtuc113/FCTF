@@ -2,7 +2,12 @@
 keycloak_service.py
 Quản lý Keycloak accounts cho FCTF teams.
 Dùng master admin token để tạo/xóa user trong realm CRCZP.
+
+Config được đọc từ bảng DB `config` tại runtime (qua get_kypo_config),
+với fallback về environment variables. Thay đổi giá trị trong DB sẽ có
+hiệu lực ở lần refresh token tiếp theo (tối đa 240s).
 """
+import hashlib
 import logging
 import secrets
 import string
@@ -10,42 +15,51 @@ import time
 
 import requests
 
-from CTFd.constants.envvars import (
-    KYPO_KEYCLOAK_URL   as KEYCLOAK_BASE_URL,
-    KYPO_REALM          as KEYCLOAK_REALM,
-    KYPO_ADMIN_USERNAME as KEYCLOAK_ADMIN_USER,
-    KYPO_ADMIN_PASSWORD as KEYCLOAK_ADMIN_PASS,
-    KYPO_VERIFY_SSL     as KEYCLOAK_VERIFY_SSL,
-)
-
 logger = logging.getLogger(__name__)
 
-# Cache token để tránh lấy lại liên tục
-_token_cache: dict = {"token": None, "expires_at": 0}
+# Cache token để tránh lấy lại liên tục.
+# creds_hash tự invalidate cache khi admin credentials thay đổi.
+_token_cache: dict = {"token": None, "expires_at": 0, "creds_hash": None}
 
 
 def _get_admin_token() -> str:
     """Lấy master admin token, cache lại trong 240s (token sống 300s)."""
+    from CTFd.utils.kypo_config import get_kypo_config, get_kypo_verify_ssl
+
+    keycloak_url = get_kypo_config("kypo_keycloak_url")
+    admin_user   = get_kypo_config("kypo_admin_username")
+    admin_pass   = get_kypo_config("kypo_admin_password")
+    verify_ssl   = get_kypo_verify_ssl()
+
+    creds_hash = hashlib.md5(
+        f"{keycloak_url}:{admin_user}:{admin_pass}".encode()
+    ).hexdigest()
+
     now = time.time()
-    if _token_cache["token"] and now < _token_cache["expires_at"]:
+    if (
+        _token_cache["token"]
+        and now < _token_cache["expires_at"]
+        and _token_cache["creds_hash"] == creds_hash
+    ):
         return _token_cache["token"]
 
-    url = f"{KEYCLOAK_BASE_URL}/realms/master/protocol/openid-connect/token"
+    url = f"{keycloak_url}/realms/master/protocol/openid-connect/token"
     resp = requests.post(
         url,
         data={
             "grant_type": "password",
             "client_id":  "admin-cli",
-            "username":   KEYCLOAK_ADMIN_USER,
-            "password":   KEYCLOAK_ADMIN_PASS,
+            "username":   admin_user,
+            "password":   admin_pass,
         },
-        verify=KEYCLOAK_VERIFY_SSL,
+        verify=verify_ssl,
         timeout=10,
     )
     resp.raise_for_status()
     data = resp.json()
-    _token_cache["token"] = data["access_token"]
+    _token_cache["token"]      = data["access_token"]
     _token_cache["expires_at"] = now + 240
+    _token_cache["creds_hash"] = creds_hash
     return _token_cache["token"]
 
 
@@ -54,7 +68,6 @@ def _generate_password(length: int = 16) -> str:
     alphabet = string.ascii_letters + string.digits + "!@#$%^&*"
     while True:
         pwd = "".join(secrets.choice(alphabet) for _ in range(length))
-        # Đảm bảo có ít nhất 1 chữ hoa, 1 số, 1 ký tự đặc biệt
         if (any(c.isupper() for c in pwd)
                 and any(c.isdigit() for c in pwd)
                 and any(c in "!@#$%^&*" for c in pwd)):
@@ -75,14 +88,18 @@ def create_kypo_user(team_id: int, team_name: str) -> dict:
     Raises:
         requests.HTTPError nếu gọi API thất bại
     """
-    token = _get_admin_token()
+    from CTFd.utils.kypo_config import get_kypo_config, get_kypo_verify_ssl
 
-    # Tạo username slug từ team_name, fallback về team_id
+    token      = _get_admin_token()
+    realm      = get_kypo_config("kypo_realm")
+    verify_ssl = get_kypo_verify_ssl()
+    keycloak_url = get_kypo_config("kypo_keycloak_url")
+
     safe_name = "".join(c if c.isalnum() else "_" for c in team_name.lower())[:20]
     username  = f"fctf_{safe_name}_{team_id}"
     password  = _generate_password()
 
-    url = f"{KEYCLOAK_BASE_URL}/admin/realms/{KEYCLOAK_REALM}/users"
+    url = f"{keycloak_url}/admin/realms/{realm}/users"
     resp = requests.post(
         url,
         json={
@@ -97,7 +114,7 @@ def create_kypo_user(team_id: int, team_name: str) -> dict:
             ],
         },
         headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
-        verify=KEYCLOAK_VERIFY_SSL,
+        verify=verify_ssl,
         timeout=10,
     )
 
@@ -111,8 +128,7 @@ def create_kypo_user(team_id: int, team_name: str) -> dict:
         )
         resp.raise_for_status()
 
-    # Keycloak trả về Location header chứa UUID của user mới
-    location = resp.headers.get("Location", "")
+    location     = resp.headers.get("Location", "")
     kypo_user_id = location.rstrip("/").split("/")[-1]
 
     if not kypo_user_id:
@@ -123,7 +139,7 @@ def create_kypo_user(team_id: int, team_name: str) -> dict:
 
     logger.info("Created Keycloak user: %s (id=%s) for team %s", username, kypo_user_id, team_id)
     return {
-        "kypo_user_id": kypo_user_id,
+        "kypo_user_id":  kypo_user_id,
         "kypo_username": username,
         "kypo_password": password,
     }
@@ -136,12 +152,18 @@ def delete_kypo_user(kypo_user_id: str) -> bool:
     Returns:
         True nếu xóa thành công hoặc user không tồn tại
     """
-    token = _get_admin_token()
-    url   = f"{KEYCLOAK_BASE_URL}/admin/realms/{KEYCLOAK_REALM}/users/{kypo_user_id}"
-    resp  = requests.delete(
+    from CTFd.utils.kypo_config import get_kypo_config, get_kypo_verify_ssl
+
+    token      = _get_admin_token()
+    realm      = get_kypo_config("kypo_realm")
+    verify_ssl = get_kypo_verify_ssl()
+    keycloak_url = get_kypo_config("kypo_keycloak_url")
+
+    url  = f"{keycloak_url}/admin/realms/{realm}/users/{kypo_user_id}"
+    resp = requests.delete(
         url,
         headers={"Authorization": f"Bearer {token}"},
-        verify=KEYCLOAK_VERIFY_SSL,
+        verify=verify_ssl,
         timeout=10,
     )
     if resp.status_code == 404:
@@ -157,14 +179,20 @@ def reset_kypo_password(kypo_user_id: str) -> str:
     Đổi password của Keycloak user, trả về password mới.
     Dùng sau mỗi contest để tránh team dùng lại credential.
     """
-    token    = _get_admin_token()
+    from CTFd.utils.kypo_config import get_kypo_config, get_kypo_verify_ssl
+
+    token      = _get_admin_token()
+    realm      = get_kypo_config("kypo_realm")
+    verify_ssl = get_kypo_verify_ssl()
+    keycloak_url = get_kypo_config("kypo_keycloak_url")
+
     new_pass = _generate_password()
-    url      = f"{KEYCLOAK_BASE_URL}/admin/realms/{KEYCLOAK_REALM}/users/{kypo_user_id}/reset-password"
+    url      = f"{keycloak_url}/admin/realms/{realm}/users/{kypo_user_id}/reset-password"
     resp     = requests.put(
         url,
         json={"type": "password", "value": new_pass, "temporary": False},
         headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
-        verify=KEYCLOAK_VERIFY_SSL,
+        verify=verify_ssl,
         timeout=10,
     )
     resp.raise_for_status()

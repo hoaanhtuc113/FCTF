@@ -253,3 +253,7 @@ def load(app):
 
     from .routes import sandbox_kypo_api
     app.register_blueprint(sandbox_kypo_api)
+
+    with app.app_context():
+        from CTFd.utils.kypo_config import log_all_kypo_config
+        log_all_kypo_config()

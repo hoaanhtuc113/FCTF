@@ -3,12 +3,6 @@ import urllib3
 from flask import Blueprint, jsonify, request
 import requests
 
-from CTFd.constants.envvars import (
-    KYPO_BASE_URL,
-    KYPO_CLIENT_ID,
-    KYPO_PASSWORD,
-    KYPO_USERNAME,
-)
 from CTFd.utils.decorators import admin_or_challenge_writer_only_or_jury
 from CTFd.utils.kypo_poller import (
     get_all_cached_progress,
@@ -27,16 +21,19 @@ sandbox_kypo_api = Blueprint("sandbox_kypo_api", __name__, url_prefix="/api/v1")
 
 def _get_kypo_token():
     """Authenticate with Keycloak and return a Bearer token string."""
-    token_url = (
-        f"{KYPO_BASE_URL}/keycloak/realms/CRCZP/protocol/openid-connect/token"
-    )
+    from CTFd.utils.kypo_config import get_kypo_config
+    base_url  = get_kypo_config("kypo_base_url")
+    client_id = get_kypo_config("kypo_client_id")
+    username  = get_kypo_config("kypo_username")
+    password  = get_kypo_config("kypo_password")
+    token_url = f"{base_url}/keycloak/realms/CRCZP/protocol/openid-connect/token"
     resp = requests.post(
         token_url,
         data={
             "grant_type": "password",
-            "client_id": KYPO_CLIENT_ID,
-            "username": KYPO_USERNAME,
-            "password": KYPO_PASSWORD,
+            "client_id":  client_id,
+            "username":   username,
+            "password":   password,
         },
         timeout=15,
         verify=False,
@@ -46,9 +43,11 @@ def _get_kypo_token():
 
 
 def _service_base(instance_type):
+    from CTFd.utils.kypo_config import get_kypo_config
+    base_url = get_kypo_config("kypo_base_url")
     if instance_type == "adaptive":
-        return f"{KYPO_BASE_URL}/adaptive-training/api/v1"
-    return f"{KYPO_BASE_URL}/training/api/v1"
+        return f"{base_url}/adaptive-training/api/v1"
+    return f"{base_url}/training/api/v1"
 
 
 # ── Instance list ──────────────────────────────────────────────────────────
