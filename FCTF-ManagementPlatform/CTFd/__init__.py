@@ -331,6 +331,9 @@ def create_app(config="CTFd.config.Config"):
         init_plugins(app)
         init_cli(app)
 
+        from CTFd.utils.kypo_config import seed_kypo_configs_from_env
+        seed_kypo_configs_from_env()
+
         from CTFd.utils.kypo_poller import start_poller
         start_poller(app)
 

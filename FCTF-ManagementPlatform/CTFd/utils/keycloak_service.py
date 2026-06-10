@@ -10,12 +10,12 @@ import time
 
 import requests
 
-from CTFd.constants.envvars import (
-    KYPO_KEYCLOAK_URL   as KEYCLOAK_BASE_URL,
-    KYPO_REALM          as KEYCLOAK_REALM,
-    KYPO_ADMIN_USERNAME as KEYCLOAK_ADMIN_USER,
-    KYPO_ADMIN_PASSWORD as KEYCLOAK_ADMIN_PASS,
-    KYPO_VERIFY_SSL     as KEYCLOAK_VERIFY_SSL,
+from CTFd.utils.kypo_config import (
+    get_kypo_admin_password,
+    get_kypo_admin_username,
+    get_kypo_keycloak_url,
+    get_kypo_realm,
+    get_kypo_verify_ssl,
 )
 
 logger = logging.getLogger(__name__)
@@ -30,16 +30,16 @@ def _get_admin_token() -> str:
     if _token_cache["token"] and now < _token_cache["expires_at"]:
         return _token_cache["token"]
 
-    url = f"{KEYCLOAK_BASE_URL}/realms/master/protocol/openid-connect/token"
+    url = f"{get_kypo_keycloak_url()}/realms/master/protocol/openid-connect/token"
     resp = requests.post(
         url,
         data={
             "grant_type": "password",
             "client_id":  "admin-cli",
-            "username":   KEYCLOAK_ADMIN_USER,
-            "password":   KEYCLOAK_ADMIN_PASS,
+            "username":   get_kypo_admin_username(),
+            "password":   get_kypo_admin_password(),
         },
-        verify=KEYCLOAK_VERIFY_SSL,
+        verify=get_kypo_verify_ssl(),
         timeout=10,
     )
     resp.raise_for_status()
@@ -82,7 +82,7 @@ def create_kypo_user(team_id: int, team_name: str) -> dict:
     username  = f"fctf_{safe_name}_{team_id}"
     password  = _generate_password()
 
-    url = f"{KEYCLOAK_BASE_URL}/admin/realms/{KEYCLOAK_REALM}/users"
+    url = f"{get_kypo_keycloak_url()}/admin/realms/{get_kypo_realm()}/users"
     resp = requests.post(
         url,
         json={
@@ -97,7 +97,7 @@ def create_kypo_user(team_id: int, team_name: str) -> dict:
             ],
         },
         headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
-        verify=KEYCLOAK_VERIFY_SSL,
+        verify=get_kypo_verify_ssl(),
         timeout=10,
     )
 
@@ -125,11 +125,11 @@ def delete_kypo_user(kypo_user_id: str) -> bool:
         True nếu xóa thành công hoặc user không tồn tại
     """
     token = _get_admin_token()
-    url   = f"{KEYCLOAK_BASE_URL}/admin/realms/{KEYCLOAK_REALM}/users/{kypo_user_id}"
+    url   = f"{get_kypo_keycloak_url()}/admin/realms/{get_kypo_realm()}/users/{kypo_user_id}"
     resp  = requests.delete(
         url,
         headers={"Authorization": f"Bearer {token}"},
-        verify=KEYCLOAK_VERIFY_SSL,
+        verify=get_kypo_verify_ssl(),
         timeout=10,
     )
     if resp.status_code == 404:
@@ -147,12 +147,12 @@ def reset_kypo_password(kypo_user_id: str) -> str:
     """
     token    = _get_admin_token()
     new_pass = _generate_password()
-    url      = f"{KEYCLOAK_BASE_URL}/admin/realms/{KEYCLOAK_REALM}/users/{kypo_user_id}/reset-password"
+    url      = f"{get_kypo_keycloak_url()}/admin/realms/{get_kypo_realm()}/users/{kypo_user_id}/reset-password"
     resp     = requests.put(
         url,
         json={"type": "password", "value": new_pass, "temporary": False},
         headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
-        verify=KEYCLOAK_VERIFY_SSL,
+        verify=get_kypo_verify_ssl(),
         timeout=10,
     )
     resp.raise_for_status()
