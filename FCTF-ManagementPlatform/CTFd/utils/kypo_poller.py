@@ -25,13 +25,7 @@ import threading
 import requests
 import urllib3
 
-from CTFd.constants.envvars import (
-    KYPO_BASE_URL,
-    KYPO_CLIENT_ID,
-    KYPO_PASSWORD,
-    KYPO_USERNAME,
-    get_redis_client_kwargs,
-)
+from CTFd.constants.envvars import get_redis_client_kwargs
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -50,13 +44,18 @@ _thread: threading.Thread | None = None
 # ── Keycloak auth ──────────────────────────────────────────────────────────────
 
 def _get_admin_token() -> str:
+    from CTFd.utils.kypo_config import get_kypo_config
+    base_url   = get_kypo_config("kypo_base_url")
+    client_id  = get_kypo_config("kypo_client_id")
+    username   = get_kypo_config("kypo_username")
+    password   = get_kypo_config("kypo_password")
     resp = requests.post(
-        f"{KYPO_BASE_URL}/keycloak/realms/CRCZP/protocol/openid-connect/token",
+        f"{base_url}/keycloak/realms/CRCZP/protocol/openid-connect/token",
         data={
             "grant_type": "password",
-            "client_id": KYPO_CLIENT_ID,
-            "username": KYPO_USERNAME,
-            "password": KYPO_PASSWORD,
+            "client_id":  client_id,
+            "username":   username,
+            "password":   password,
         },
         timeout=15,
         verify=False,
@@ -68,9 +67,11 @@ def _get_admin_token() -> str:
 # ── KYPO API ───────────────────────────────────────────────────────────────────
 
 def _service_base(instance_type: str) -> str:
+    from CTFd.utils.kypo_config import get_kypo_config
+    base_url = get_kypo_config("kypo_base_url")
     if instance_type == "adaptive":
-        return f"{KYPO_BASE_URL}/adaptive-training/api/v1"
-    return f"{KYPO_BASE_URL}/training/api/v1"
+        return f"{base_url}/adaptive-training/api/v1"
+    return f"{base_url}/training/api/v1"
 
 
 def _fetch_progress(token: str, base: str, instance_id: int) -> dict:

@@ -12,7 +12,8 @@
     {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
     {% for category, message in messages %}
-    <div class="alert alert-{{ 'success' if category == 'success' else 'danger' }} alert-dismissible fade show" role="alert">
+    <div class="alert alert-{{ 'success' if category == 'success' else 'danger' }} alert-dismissible fade show"
+        role="alert">
         {{ message }}
         <button type="button" class="close" data-dismiss="alert">
             <span>&times;</span>
@@ -22,28 +23,94 @@
     {% endif %}
     {% endwith %}
 
+    <!-- ── Logo ──────────────────────────────────────────────────── -->
+    <div class="card mb-3">
+        <div class="card-body" style="padding: 1.25rem;">
+            <h5 class="card-title mb-3"
+                style="font-size: 1rem; font-weight: 600; color: var(--text-dark); text-transform: uppercase; letter-spacing: 0.4px;">
+                <i class="bx bx-image" style="color: var(--primary-orange); margin-right: 6px;"></i>
+                Appearance
+            </h5>
+
+            <!-- Logo upload -->
+            <form id="logo-upload" enctype="multipart/form-data" onsubmit="uploadLogo(event)"
+                style="margin-bottom: 1.5rem;">
+                <input type="hidden" name="nonce" value="{{ Session.nonce }}">
+                <div class="form-group mb-2">
+                    <label class="form-label"
+                        style="font-size: 0.85rem; font-weight: 600; color: var(--text-medium);">Logo</label>
+                    <small class="form-text text-muted d-block mb-2">Logo hiển thị thay cho tên CTF.</small>
+                    {% if ctf_logo %}
+                    <div class="mb-2">
+                        <img id="ctf_logo_preview" src="{{ url_for('views.files', path=ctf_logo) }}" alt="CTF Logo"
+                            height="60" style="border-radius:4px; border:1px solid #ddd; padding:4px;">
+                        <button type="button" id="remove-logo" class="btn btn-sm btn-danger ml-2"
+                            onclick="removeLogo()">Remove</button>
+                    </div>
+                    {% endif %}
+                    <div class="d-flex align-items-center" style="gap: 8px;">
+                        <input class="form-control-file" id="ctf_logo_file" name="file" type="file" accept="image/*"
+                            style="max-width: 320px;">
+                        <button type="submit" class="btn btn-sm btn-primary">Upload</button>
+                    </div>
+                </div>
+            </form>
+
+            <!-- Tab Icon upload -->
+            <form id="small-icon-upload" enctype="multipart/form-data" onsubmit="smallIconUpload(event)">
+                <input type="hidden" name="nonce" value="{{ Session.nonce }}">
+                <input type="hidden" name="upload_type" value="small_icon">
+                <div class="form-group mb-0">
+                    <label class="form-label"
+                        style="font-size: 0.85rem; font-weight: 600; color: var(--text-medium);">Tab Icon
+                        (Favicon)</label>
+                    <small class="form-text text-muted d-block mb-2">Chỉ nhận PNG, kích thước 32×32px.</small>
+                    {% if ctf_small_icon %}
+                    <div class="mb-2">
+                        <img id="ctf_small_icon_preview" src="{{ url_for('views.files', path=ctf_small_icon) }}"
+                            height="32" style="border-radius:4px; border:1px solid #ddd; padding:2px;">
+                        <button type="button" id="remove-small-icon" class="btn btn-sm btn-danger ml-2"
+                            onclick="removeSmallIcon()">Remove</button>
+                    </div>
+                    {% endif %}
+                    <div class="d-flex align-items-center" style="gap: 8px;">
+                        <input class="form-control-file" id="ctf_small_icon_file" name="file" type="file"
+                            accept=".png" style="max-width: 320px;">
+                        <button type="submit" class="btn btn-sm btn-primary">Upload</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <form method="POST" autocomplete="off">
         <input type="hidden" name="nonce" value="{{ Session.nonce }}">
 
         <!-- ── Registration ──────────────────────────────────────────── -->
         <div class="card mb-3">
             <div class="card-body" style="padding: 1.25rem;">
-                <h5 class="card-title mb-3" style="font-size: 1rem; font-weight: 600; color: var(--text-dark); text-transform: uppercase; letter-spacing: 0.4px;">
+                <h5 class="card-title mb-3"
+                    style="font-size: 1rem; font-weight: 600; color: var(--text-dark); text-transform: uppercase; letter-spacing: 0.4px;">
                     <i class="bx bx-user-plus" style="color: var(--primary-orange); margin-right: 6px;"></i>
                     Registration
                 </h5>
 
                 <div class="form-group mb-0">
-                    <label for="registration_visibility" class="form-label" style="font-size: 0.85rem; font-weight: 600; color: var(--text-medium);">
+                    <label for="registration_visibility" class="form-label"
+                        style="font-size: 0.85rem; font-weight: 600; color: var(--text-medium);">
                         Registration Visibility
                     </label>
-                    <select class="form-control custom-select" id="registration_visibility" name="registration_visibility" style="max-width: 200px;">
-                        <option value="public" {% if registration_visibility == 'public' %}selected{% endif %}>Enabled</option>
-                        <option value="private" {% if registration_visibility != 'public' %}selected{% endif %}>Disabled</option>
+                    <select class="form-control custom-select" id="registration_visibility"
+                        name="registration_visibility" style="max-width: 200px;">
+                        <option value="public" {% if registration_visibility=='public' %}selected{% endif %}>Enabled
+                        </option>
+                        <option value="private" {% if registration_visibility !='public' %}selected{% endif %}>Disabled
+                        </option>
                     </select>
                     <small class="form-text text-muted mt-1">
                         Controls whether new users can self-register on the contestant portal login page.
-                        Set to <strong>Public</strong> to allow registration; <strong>Private</strong> to hide the register form and require admin invite.
+                        Set to <strong>Public</strong> to allow registration; <strong>Private</strong> to hide the
+                        register form and require admin invite.
                     </small>
                 </div>
             </div>
@@ -52,28 +119,33 @@
         <!-- ── Security ─────────────────────────────────────────────── -->
         <div class="card mb-3">
             <div class="card-body" style="padding: 1.25rem;">
-                <h5 class="card-title mb-3" style="font-size: 1rem; font-weight: 600; color: var(--text-dark); text-transform: uppercase; letter-spacing: 0.4px;">
+                <h5 class="card-title mb-3"
+                    style="font-size: 1rem; font-weight: 600; color: var(--text-dark); text-transform: uppercase; letter-spacing: 0.4px;">
                     <i class="bx bx-shield-quarter" style="color: var(--primary-orange); margin-right: 6px;"></i>
                     Security
                 </h5>
 
                 <div class="form-group mb-0">
-                    <label for="html_sanitization" class="form-label" style="font-size: 0.85rem; font-weight: 600; color: var(--text-medium);">
+                    <label for="html_sanitization" class="form-label"
+                        style="font-size: 0.85rem; font-weight: 600; color: var(--text-medium);">
                         HTML Sanitization
                     </label>
 
                     {% if force_html_sanitization %}
-                    <select class="form-control custom-select" id="html_sanitization" style="max-width: 200px;" disabled>
+                    <select class="form-control custom-select" id="html_sanitization" style="max-width: 200px;"
+                        disabled>
                         <option>Enabled (forced via config.ini)</option>
                     </select>
                     <small class="form-text text-muted mt-1">
                         HTML sanitization is <strong>forced on</strong> by the server's <code>config.ini</code>.
-                        To change this, edit <code>HTML_SANITIZATION</code> in <code>config.ini</code> and restart the server.
+                        To change this, edit <code>HTML_SANITIZATION</code> in <code>config.ini</code> and restart the
+                        server.
                     </small>
                     {% else %}
-                    <select class="form-control custom-select" id="html_sanitization" name="html_sanitization" style="max-width: 200px;">
-                        <option value="false" {% if html_sanitization != 'true' %}selected{% endif %}>Disabled</option>
-                        <option value="true"  {% if html_sanitization == 'true' %}selected{% endif %}>Enabled</option>
+                    <select class="form-control custom-select" id="html_sanitization" name="html_sanitization"
+                        style="max-width: 200px;">
+                        <option value="false" {% if html_sanitization !='true' %}selected{% endif %}>Disabled</option>
+                        <option value="true" {% if html_sanitization=='true' %}selected{% endif %}>Enabled</option>
                     </select>
                     <small class="form-text text-muted mt-1">
                         When <strong>Enabled</strong>, HTML in challenge descriptions, hints, and other content will be
@@ -85,12 +157,219 @@
             </div>
         </div>
 
-        <div class="d-flex justify-content-end mt-2 mb-4">
-            <button type="submit" class="btn btn-primary" style="padding: 0.45rem 1.5rem; font-size: 0.9rem;">
-                <i class="bx bx-save" style="margin-right: 4px;"></i> Save Settings
-            </button>
+
+        <!-- ── KYPO Integration ──────────────────────────────────────────── -->
+        <div class="card mb-3">
+            <div class="card-body" style="padding: 1.25rem;">
+                <h5 class="card-title mb-3"
+                    style="font-size: 1rem; font-weight: 600; color: var(--text-dark); text-transform: uppercase; letter-spacing: 0.4px;">
+                    <i class="bx bx-link-external" style="color: var(--primary-orange); margin-right: 6px;"></i>
+                    KYPO Cyber Range Integration
+                </h5>
+                <small class="form-text text-muted d-block mb-3">
+                    Cấu hình kết nối tới KYPO Cyber Range. Giá trị để trống sẽ dùng lại environment variable mặc định.
+                </small>
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label" style="font-size: 0.85rem; font-weight: 600; color: var(--text-medium);">KYPO Base URL</label>
+                            <input type="text" class="form-control" name="kypo_base_url"
+                                value="{{ kypo_base_url or '' }}" placeholder="https://kypo.example.com">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label" style="font-size: 0.85rem; font-weight: 600; color: var(--text-medium);">Keycloak URL</label>
+                            <input type="text" class="form-control" name="kypo_keycloak_url"
+                                value="{{ kypo_keycloak_url or '' }}" placeholder="https://kypo.example.com/keycloak">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label" style="font-size: 0.85rem; font-weight: 600; color: var(--text-medium);">Keycloak Realm</label>
+                            <input type="text" class="form-control" name="kypo_realm"
+                                value="{{ kypo_realm or '' }}" placeholder="CRCZP">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label" style="font-size: 0.85rem; font-weight: 600; color: var(--text-medium);">KYPO Client ID</label>
+                            <input type="text" class="form-control" name="kypo_client_id"
+                                value="{{ kypo_client_id or '' }}" placeholder="CRCZP-Client">
+                        </div>
+                    </div>
+                </div>
+
+                <hr style="border-color: var(--border-color); margin: 0.75rem 0;">
+                <p class="mb-2" style="font-size: 0.8rem; font-weight: 600; color: var(--text-medium); text-transform: uppercase;">KYPO API Credentials</p>
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label" style="font-size: 0.85rem; font-weight: 600; color: var(--text-medium);">KYPO Username</label>
+                            <input type="text" class="form-control" name="kypo_username"
+                                value="{{ kypo_username or '' }}" placeholder="crczp-admin" autocomplete="off">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label" style="font-size: 0.85rem; font-weight: 600; color: var(--text-medium);">KYPO Password</label>
+                            <div class="input-group">
+                                <input type="password" class="form-control" id="kypo_password_input" name="kypo_password"
+                                    value="{{ kypo_password or '' }}" autocomplete="new-password">
+                                <div class="input-group-append">
+                                    <button class="btn btn-outline-secondary" type="button"
+                                        onclick="togglePasswordVisibility('kypo_password_input', this)">
+                                        <i class="bx bx-show"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <hr style="border-color: var(--border-color); margin: 0.75rem 0;">
+                <p class="mb-2" style="font-size: 0.8rem; font-weight: 600; color: var(--text-medium); text-transform: uppercase;">Keycloak Admin Credentials</p>
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label" style="font-size: 0.85rem; font-weight: 600; color: var(--text-medium);">Admin Username</label>
+                            <input type="text" class="form-control" name="kypo_admin_username"
+                                value="{{ kypo_admin_username or '' }}" placeholder="admin" autocomplete="off">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label" style="font-size: 0.85rem; font-weight: 600; color: var(--text-medium);">Admin Password</label>
+                            <div class="input-group">
+                                <input type="password" class="form-control" id="kypo_admin_password_input" name="kypo_admin_password"
+                                    value="{{ kypo_admin_password or '' }}" autocomplete="new-password">
+                                <div class="input-group-append">
+                                    <button class="btn btn-outline-secondary" type="button"
+                                        onclick="togglePasswordVisibility('kypo_admin_password_input', this)">
+                                        <i class="bx bx-show"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group mb-0">
+                            <label class="form-label" style="font-size: 0.85rem; font-weight: 600; color: var(--text-medium);">Verify SSL</label>
+                            <select class="form-control custom-select" name="kypo_verify_ssl" style="max-width: 160px;">
+                                <option value="false" {% if kypo_verify_ssl != 'true' %}selected{% endif %}>Disabled</option>
+                                <option value="true"  {% if kypo_verify_ssl == 'true'  %}selected{% endif %}>Enabled</option>
+                            </select>
+                            <small class="form-text text-muted mt-1">Tắt khi dùng self-signed certificate.</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
+
+        <button type="submit" class="btn btn-primary" style="padding: 0.45rem 1.5rem; font-size: 0.9rem;">
+            <i class="bx bx-save" style="margin-right: 4px;"></i> Save Settings
+        </button>
     </form>
 
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    var CSRF_TOKEN = "{{ Session.nonce }}";
+
+    function uploadLogo(event) {
+        event.preventDefault();
+        var form = event.target;
+        var formData = new FormData(form);
+        fetch("/api/v1/files", { method: "POST", body: formData })
+            .then(r => r.json())
+            .then(function (resp) {
+                if (!resp.success || !resp.data || !resp.data[0]) {
+                    alert("Upload failed!"); return;
+                }
+                fetch("/api/v1/configs/ctf_logo", {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json", "CSRF-Token": CSRF_TOKEN },
+                    body: JSON.stringify({ value: resp.data[0].location })
+                }).then(r => r.json()).then(function (r2) {
+                    if (r2.success) window.location.reload();
+                    else alert("Logo save failed!");
+                });
+            });
+    }
+
+    function removeLogo() {
+        if (!confirm("Remove the CTF logo?")) return;
+        fetch("/api/v1/configs/ctf_logo", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json", "CSRF-Token": CSRF_TOKEN },
+            body: JSON.stringify({ value: null })
+        }).then(r => r.json()).then(function (r) {
+            if (r.success) window.location.reload();
+        });
+    }
+
+    function smallIconUpload(event) {
+        event.preventDefault();
+        var fileInput = document.getElementById("ctf_small_icon_file");
+        var file = fileInput && fileInput.files[0];
+        if (!file) { alert("Please select a file."); return; }
+        if (file.type !== "image/png") { alert("Only PNG files accepted."); return; }
+        var objectUrl = URL.createObjectURL(file);
+        var img = new Image();
+        img.onload = function () {
+            URL.revokeObjectURL(objectUrl);
+            if (img.naturalWidth !== 32 || img.naturalHeight !== 32) {
+                alert("Image must be 32x32px. Got " + img.naturalWidth + "x" + img.naturalHeight + "px."); return;
+            }
+            var form = event.target;
+            var formData = new FormData(form);
+            fetch("/api/v1/files", { method: "POST", body: formData })
+                .then(r => r.json())
+                .then(function (resp) {
+                    if (!resp.success || !resp.data || !resp.data[0]) {
+                        alert("Upload failed!"); return;
+                    }
+                    fetch("/api/v1/configs/ctf_small_icon", {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json", "CSRF-Token": CSRF_TOKEN },
+                        body: JSON.stringify({ value: resp.data[0].location })
+                    }).then(r => r.json()).then(function (r2) {
+                        if (r2.success) window.location.reload();
+                        else alert("Icon save failed!");
+                    });
+                });
+        };
+        img.onerror = function () { URL.revokeObjectURL(objectUrl); alert("Could not read image."); };
+        img.src = objectUrl;
+    }
+
+    function removeSmallIcon() {
+        if (!confirm("Remove the favicon?")) return;
+        fetch("/api/v1/configs/ctf_small_icon", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json", "CSRF-Token": CSRF_TOKEN },
+            body: JSON.stringify({ value: null })
+        }).then(r => r.json()).then(function (r) {
+            if (r.success) window.location.reload();
+        });
+    }
+
+    function togglePasswordVisibility(inputId, btn) {
+        var input = document.getElementById(inputId);
+        if (!input) return;
+        var icon = btn.querySelector("i");
+        if (input.type === "password") {
+            input.type = "text";
+            if (icon) { icon.classList.remove("bx-show"); icon.classList.add("bx-hide"); }
+        } else {
+            input.type = "password";
+            if (icon) { icon.classList.remove("bx-hide"); icon.classList.add("bx-show"); }
+        }
+    }
+</script>
 {% endblock %}

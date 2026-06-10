@@ -39,6 +39,9 @@ from CTFd.admin import admin_audit  # noqa: F401
 from CTFd.admin import instances_history  # noqa: F401
 from CTFd.admin import contests  # noqa: F401
 
+from CTFd.utils.config import ctf_logo as get_ctf_logo
+
+
 from CTFd.cache import (
     cache,
     clear_all_team_sessions,
@@ -513,8 +516,10 @@ def custom_fields():
 @admin.route("/admin/platform-settings", methods=["GET", "POST"])
 @admins_only
 def platform_settings():
+    from CTFd.utils.kypo_config import KYPO_CONFIG_KEYS
+
     if request.method == "POST":
-        allowed_keys = {"registration_visibility", "html_sanitization"}
+        allowed_keys = {"registration_visibility", "html_sanitization"} | set(KYPO_CONFIG_KEYS)
         for key, values in request.form.lists():
             if key == "nonce" or key not in allowed_keys:
                 continue
@@ -536,11 +541,21 @@ def platform_settings():
     # If forced via config.ini, the toggle is locked
     force_html_sanitization = get_app_config("HTML_SANITIZATION") is True
 
+    ctf_logo_val = get_ctf_logo()
+    ctf_small_icon_val = get_config("ctf_small_icon")
+
+    from CTFd.utils.kypo_config import get_kypo_config, get_kypo_verify_ssl
+    kypo_settings = {k: get_kypo_config(k) for k in KYPO_CONFIG_KEYS}
+    kypo_settings["kypo_verify_ssl"] = "true" if get_kypo_verify_ssl() else "false"
+
     return render_template(
         "admin/platform_settings.html",
         registration_visibility=registration_visibility,
         html_sanitization=html_sanitization,
         force_html_sanitization=force_html_sanitization,
+        ctf_logo=ctf_logo_val,
+        ctf_small_icon=ctf_small_icon_val,
+        **kypo_settings,
     )
 
 
