@@ -4,7 +4,8 @@ using System.Text.Json;
 namespace ContestantBE.Services;
 
 /// <summary>
-/// Gọi KYPO API: lấy admin token từ Keycloak + Progress API.
+/// KYPO API client: obtains admin tokens from Keycloak and calls the Progress API.
+/// All token caches are protected by SemaphoreSlim to support concurrent callers.
 /// </summary>
 public class KypoApiClient
 {
@@ -12,53 +13,72 @@ public class KypoApiClient
     private readonly ILogger<KypoApiClient> _logger;
     private readonly IKypoConfigProvider _kypoConfig;
 
-    // Cache token để tránh gọi Keycloak liên tục
-    private string? _cachedToken;
+    // ── KYPO service token (CRCZP realm) ──────────────────────
+    private string?  _cachedToken;
     private DateTime _tokenExpiry = DateTime.MinValue;
+    private readonly SemaphoreSlim _tokenLock = new(1, 1);
+
+    // ── Keycloak admin token (master realm) ───────────────────
+    private string?  _cachedKcAdminToken;
+    private DateTime _kcAdminTokenExpiry = DateTime.MinValue;
+    private readonly SemaphoreSlim _kcTokenLock = new(1, 1);
 
     public KypoApiClient(IHttpClientFactory httpClientFactory, ILogger<KypoApiClient> logger, IKypoConfigProvider kypoConfig)
     {
         _httpClientFactory = httpClientFactory;
-        _logger = logger;
-        _kypoConfig = kypoConfig;
+        _logger            = logger;
+        _kypoConfig        = kypoConfig;
     }
 
     // ─────────────────────────────────────────────────────────
-    // Lấy admin token (cache 4 phút, token Keycloak thường sống 5 phút)
+    // Admin token — cached for 4 min (Keycloak tokens live ~5 min)
+    // Double-check lock: safe for concurrent callers
     // ─────────────────────────────────────────────────────────
-    public async Task<string> GetAdminTokenAsync(string baseUrl)
+    public async Task<string> GetAdminTokenAsync(string baseUrl, bool forceRefresh = false)
     {
-        if (_cachedToken != null && DateTime.UtcNow < _tokenExpiry)
+        // Fast path: valid cached token, no lock needed
+        if (!forceRefresh && _cachedToken != null && DateTime.UtcNow < _tokenExpiry)
             return _cachedToken;
 
-        var url = $"{baseUrl.TrimEnd('/')}/keycloak/realms/CRCZP/protocol/openid-connect/token";
-
-        var form = new Dictionary<string, string>
+        await _tokenLock.WaitAsync();
+        try
         {
-            ["grant_type"] = "password",
-            ["client_id"]  = _kypoConfig.ClientId,
-            ["username"]   = _kypoConfig.AdminUsername,
-            ["password"]   = _kypoConfig.AdminPassword,
-        };
+            // Double-check: another task may have refreshed the token while we waited
+            if (!forceRefresh && _cachedToken != null && DateTime.UtcNow < _tokenExpiry)
+                return _cachedToken;
 
-        var client = _httpClientFactory.CreateClient("kypo");
-        var resp   = await client.PostAsync(url, new FormUrlEncodedContent(form));
-        resp.EnsureSuccessStatusCode();
+            var url = $"{baseUrl.TrimEnd('/')}/keycloak/realms/CRCZP/protocol/openid-connect/token";
+            var form = new Dictionary<string, string>
+            {
+                ["grant_type"] = "password",
+                ["client_id"]  = _kypoConfig.ClientId,
+                ["username"]   = _kypoConfig.AdminUsername,
+                ["password"]   = _kypoConfig.AdminPassword,
+            };
 
-        var json  = await resp.Content.ReadAsStringAsync();
-        var doc   = JsonDocument.Parse(json);
-        var token = doc.RootElement.GetProperty("access_token").GetString()
-            ?? throw new Exception("Keycloak không trả về access_token");
+            var client = _httpClientFactory.CreateClient("kypo");
+            var resp   = await client.PostAsync(url, new FormUrlEncodedContent(form));
+            resp.EnsureSuccessStatusCode();
 
-        _cachedToken = token;
-        _tokenExpiry = DateTime.UtcNow.AddMinutes(4);
+            var json  = await resp.Content.ReadAsStringAsync();
+            var doc   = JsonDocument.Parse(json);
+            var token = doc.RootElement.GetProperty("access_token").GetString()
+                ?? throw new Exception("Keycloak did not return access_token");
 
-        _logger.LogInformation("[KYPO] Lấy admin token thành công");
-        return token;
+            _cachedToken = token;
+            _tokenExpiry = DateTime.UtcNow.AddMinutes(4);
+
+            _logger.LogInformation("[KYPO] Admin token refreshed");
+            return _cachedToken;
+        }
+        finally
+        {
+            _tokenLock.Release();
+        }
     }
 
     // ─────────────────────────────────────────────────────────
-    // Gọi Progress API → trả về danh sách progress của từng team
+    // Progress API — returns progress list for all participants
     // ─────────────────────────────────────────────────────────
     public async Task<List<KypoProgressEntry>> GetInstanceProgressAsync(
         string baseUrl, string instanceType, int instanceId)
@@ -72,13 +92,12 @@ public class KypoApiClient
 
         var resp = await client.GetAsync(url);
 
-        // Token hết hạn → xóa cache, thử lại 1 lần
+        // Token expired mid-flight — force refresh and retry once
         if (resp.StatusCode == System.Net.HttpStatusCode.Unauthorized)
         {
-            _cachedToken = null;
-            token = await GetAdminTokenAsync(baseUrl);
+            token = await GetAdminTokenAsync(baseUrl, forceRefresh: true);
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-            resp = await client.GetAsync(url);
+            resp  = await client.GetAsync(url);
         }
 
         resp.EnsureSuccessStatusCode();
@@ -93,9 +112,9 @@ public class KypoApiClient
 
         foreach (var entry in progressArr.EnumerateArray())
         {
-            var name    = entry.GetProperty("name").GetString() ?? "";
-            var runId   = entry.TryGetProperty("training_run_id", out var rid) ? rid.GetInt32() : 0;
-            var levels  = new List<KypoLevelProgress>();
+            var name   = entry.GetProperty("name").GetString() ?? "";
+            var runId  = entry.TryGetProperty("training_run_id", out var rid) ? rid.GetInt32() : 0;
+            var levels = new List<KypoLevelProgress>();
 
             if (entry.TryGetProperty("levels", out var levelsArr))
             {
@@ -103,25 +122,21 @@ public class KypoApiClient
                 {
                     levels.Add(new KypoLevelProgress
                     {
-                        Id    = lv.TryGetProperty("id",    out var id) ? id.GetInt32()   : 0,
-                        State = lv.TryGetProperty("state", out var st) ? st.GetString()! : "",
-                        // Field "score" KHÔNG tồn tại ở cấp level.
-                        // Điểm của phase nằm trong events[].actual_score_in_level (= max_score của phase).
-                        Score = ExtractLevelScore(lv),
+                        Id          = lv.TryGetProperty("id",    out var id) ? id.GetInt32()   : 0,
+                        State       = lv.TryGetProperty("state", out var st) ? st.GetString()! : "",
+                        Score       = ExtractLevelScore(lv),
+                        IsCompleted = IsLevelCompleted(lv),
                     });
                 }
             }
 
-            var isFinished  = levels.Count > 0 && levels.All(l => l.State == "FINISHED");
-            var totalScore  = levels.Sum(l => l.Score);
-
             results.Add(new KypoProgressEntry
             {
-                Name        = name,
-                RunId       = runId,
-                IsFinished  = isFinished,
-                TotalScore  = totalScore,
-                Levels      = levels,
+                Name       = name,
+                RunId      = runId,
+                IsFinished = levels.Count > 0 && levels.All(l => l.IsCompleted),
+                TotalScore = levels.Sum(l => l.Score),
+                Levels     = levels,
             });
         }
 
@@ -129,10 +144,8 @@ public class KypoApiClient
     }
 
     /// <summary>
-    /// Lấy điểm của 1 phase (level) từ events[].
-    /// KYPO không trả "score" trực tiếp ở level — điểm nằm trong events.
-    /// Dùng giá trị lớn nhất của "actual_score_in_level" (hoặc "max_score").
-    /// Mục đích: chỉ cần biết phase có điểm > 0 (phase tính điểm) hay = 0 (phase info/access).
+    /// Extracts a level's score from events[].actual_score_in_level (LevelCompleted event).
+    /// The top-level "score" field can be reset to 0 by TrainingRunResumed — events are authoritative.
     /// </summary>
     private static int ExtractLevelScore(JsonElement level)
     {
@@ -154,43 +167,76 @@ public class KypoApiClient
         return max;
     }
 
-    // ──────────────────────────────────────────────────────────
-    // Keycloak Admin Token (master realm) — dùng để query users
-    // ──────────────────────────────────────────────────────────
-    private string? _cachedKcAdminToken;
-    private DateTime _kcAdminTokenExpiry = DateTime.MinValue;
-
-    private async Task<string> GetKeycloakAdminTokenAsync(string baseUrl)
+    /// <summary>
+    /// Returns true if a level is completed: state=FINISHED or a LevelCompleted event exists.
+    /// Handles TrainingRunResumed which resets state=RUNNING after the level was already finished.
+    /// </summary>
+    private static bool IsLevelCompleted(JsonElement level)
     {
-        if (_cachedKcAdminToken != null && DateTime.UtcNow < _kcAdminTokenExpiry)
-            return _cachedKcAdminToken;
+        var state = level.TryGetProperty("state", out var st) ? st.GetString() ?? "" : "";
+        if (state.Equals("FINISHED", StringComparison.OrdinalIgnoreCase))
+            return true;
 
-        var url = $"{baseUrl.TrimEnd('/')}/keycloak/realms/master/protocol/openid-connect/token";
-        var form = new Dictionary<string, string>
+        if (level.TryGetProperty("events", out var events)
+            && events.ValueKind == JsonValueKind.Array)
         {
-            ["grant_type"] = "password",
-            ["client_id"]  = "admin-cli",
-            ["username"]   = _kypoConfig.KeycloakAdminUsername,
-            ["password"]   = _kypoConfig.KeycloakAdminPassword,
-        };
-
-        var client = _httpClientFactory.CreateClient("kypo");
-        var resp   = await client.PostAsync(url, new FormUrlEncodedContent(form));
-        resp.EnsureSuccessStatusCode();
-
-        var json  = await resp.Content.ReadAsStringAsync();
-        var doc   = JsonDocument.Parse(json);
-        var token = doc.RootElement.GetProperty("access_token").GetString()
-            ?? throw new Exception("Không lấy được Keycloak admin token");
-
-        _cachedKcAdminToken = token;
-        _kcAdminTokenExpiry = DateTime.UtcNow.AddMinutes(4);
-        return token;
+            foreach (var ev in events.EnumerateArray())
+            {
+                var type = ev.TryGetProperty("type", out var t) ? t.GetString() ?? "" : "";
+                if (type.Contains("LevelCompleted"))
+                    return true;
+            }
+        }
+        return false;
     }
 
-    // ──────────────────────────────────────────────────────────
-    // Participant API — lấy sub (email) từ training_run_id
-    // ──────────────────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────
+    // Keycloak admin token (master realm) — used to query users
+    // Double-check lock: safe for concurrent callers
+    // ─────────────────────────────────────────────────────────
+    private async Task<string> GetKeycloakAdminTokenAsync(string baseUrl, bool forceRefresh = false)
+    {
+        if (!forceRefresh && _cachedKcAdminToken != null && DateTime.UtcNow < _kcAdminTokenExpiry)
+            return _cachedKcAdminToken;
+
+        await _kcTokenLock.WaitAsync();
+        try
+        {
+            // Double-check inside lock
+            if (!forceRefresh && _cachedKcAdminToken != null && DateTime.UtcNow < _kcAdminTokenExpiry)
+                return _cachedKcAdminToken;
+
+            var url = $"{baseUrl.TrimEnd('/')}/keycloak/realms/master/protocol/openid-connect/token";
+            var form = new Dictionary<string, string>
+            {
+                ["grant_type"] = "password",
+                ["client_id"]  = "admin-cli",
+                ["username"]   = _kypoConfig.KeycloakAdminUsername,
+                ["password"]   = _kypoConfig.KeycloakAdminPassword,
+            };
+
+            var client = _httpClientFactory.CreateClient("kypo");
+            var resp   = await client.PostAsync(url, new FormUrlEncodedContent(form));
+            resp.EnsureSuccessStatusCode();
+
+            var json  = await resp.Content.ReadAsStringAsync();
+            var doc   = JsonDocument.Parse(json);
+            var token = doc.RootElement.GetProperty("access_token").GetString()
+                ?? throw new Exception("Keycloak did not return access_token for admin");
+
+            _cachedKcAdminToken = token;
+            _kcAdminTokenExpiry = DateTime.UtcNow.AddMinutes(4);
+            return _cachedKcAdminToken;
+        }
+        finally
+        {
+            _kcTokenLock.Release();
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // Participant API — get sub (email) from training_run_id
+    // ─────────────────────────────────────────────────────────
     public async Task<string?> GetParticipantSubAsync(
         string baseUrl, string instanceType, int trainingRunId)
     {
@@ -215,15 +261,15 @@ public class KypoApiClient
         }
         catch (Exception e)
         {
-            _logger.LogWarning("[KYPO] Không lấy được participant run={Id}: {Msg}", trainingRunId, e.Message);
+            _logger.LogWarning("[KYPO] Could not get participant for run={Id}: {Msg}", trainingRunId, e.Message);
             return null;
         }
     }
 
-    // ──────────────────────────────────────────────────────────
-    // Keycloak Users API — lấy Keycloak UUID từ sub (email)
-    // UUID bất biến, chính xác hơn username
-    // ──────────────────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────
+    // Keycloak Users API — get Keycloak UUID from sub (email)
+    // UUID is immutable and more reliable than username
+    // ─────────────────────────────────────────────────────────
     public async Task<string?> GetKeycloakUserIdBySubAsync(string baseUrl, string sub)
     {
         var token = await GetKeycloakAdminTokenAsync(baseUrl);
@@ -236,13 +282,12 @@ public class KypoApiClient
         {
             var resp = await client.GetAsync(url);
 
-            // Token hết hạn → xóa cache, thử lại 1 lần
+            // Token expired mid-flight — force refresh and retry once
             if (resp.StatusCode == System.Net.HttpStatusCode.Unauthorized)
             {
-                _cachedKcAdminToken = null;
-                token = await GetKeycloakAdminTokenAsync(baseUrl);
+                token = await GetKeycloakAdminTokenAsync(baseUrl, forceRefresh: true);
                 client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-                resp = await client.GetAsync(url);
+                resp  = await client.GetAsync(url);
             }
 
             resp.EnsureSuccessStatusCode();
@@ -252,28 +297,27 @@ public class KypoApiClient
 
             if (users.GetArrayLength() == 0) return null;
 
-            // Trả về UUID (id) thay vì username — UUID bất biến, chính xác hơn
+            // Return UUID (id field) — immutable, more reliable than username
             return users[0].TryGetProperty("id", out var id)
                 ? id.GetString()
                 : null;
         }
         catch (Exception e)
         {
-            _logger.LogWarning("[KYPO] Không lấy được user id từ sub={Sub}: {Msg}", sub, e.Message);
+            _logger.LogWarning("[KYPO] Could not get user id for sub={Sub}: {Msg}", sub, e.Message);
             return null;
         }
     }
 
-    // ──────────────────────────────────────────────────────────
-    // Instance API — lấy end_time của training instance
-    // Cache kết quả vì end_time không thay đổi
-    // ──────────────────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────
+    // Instance API — get end_time of a training instance
+    // Result is cached because end_time never changes
+    // ─────────────────────────────────────────────────────────
     private readonly Dictionary<int, (DateTime? EndTime, DateTime CachedAt)> _endTimeCache = new();
     private readonly TimeSpan _endTimeCacheTtl = TimeSpan.FromMinutes(10);
 
     public async Task<DateTime?> GetInstanceEndTimeAsync(string baseUrl, string instanceType, int instanceId)
     {
-        // Kiểm tra cache
         if (_endTimeCache.TryGetValue(instanceId, out var cached)
             && DateTime.UtcNow - cached.CachedAt < _endTimeCacheTtl)
         {
@@ -303,7 +347,6 @@ public class KypoApiClient
                     endTime = parsed.ToUniversalTime();
             }
 
-            // Lưu cache
             _endTimeCache[instanceId] = (endTime, DateTime.UtcNow);
 
             _logger.LogDebug("[KYPO] Instance {Id} end_time={EndTime}", instanceId, endTime);
@@ -311,8 +354,8 @@ public class KypoApiClient
         }
         catch (Exception e)
         {
-            _logger.LogWarning("[KYPO] Không lấy được end_time instance {Id}: {Msg}", instanceId, e.Message);
-            return null; // null → poll bình thường
+            _logger.LogWarning("[KYPO] Could not get end_time for instance {Id}: {Msg}", instanceId, e.Message);
+            return null;
         }
     }
 }
@@ -331,7 +374,8 @@ public class KypoProgressEntry
 
 public class KypoLevelProgress
 {
-    public int    Id    { get; set; }
-    public string State { get; set; } = "";
-    public int    Score { get; set; }
+    public int    Id          { get; set; }
+    public string State       { get; set; } = "";
+    public int    Score       { get; set; }
+    public bool   IsCompleted { get; set; }
 }

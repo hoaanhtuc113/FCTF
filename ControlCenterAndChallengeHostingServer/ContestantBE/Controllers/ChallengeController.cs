@@ -1161,19 +1161,18 @@ public class ChallengeController : BaseController
             foreach (var t in openTrackings) t.StoppedAt = DateTime.UtcNow;
             if (openTrackings.Count > 0) await _context.SaveChangesAsync();
 
-            // Chốt điểm trong background — không chặn HTTP response
+            // Chốt điểm ngay trong request — chờ kết quả để trả về frontend luôn
+            bool kypeSolved = false;
             if (isKypoChallenge)
             {
-                var cid = challenge.Id;
-                var tid = teamId;
-                var factory = _scopeFactory;
-                _ = Task.Run(async () =>
+                try
                 {
-                    using var scope = factory.CreateScope();
-                    var svc = scope.ServiceProvider.GetRequiredService<KypoScoreLockService>();
-                    try { await svc.LockScoreAsync(cid, tid); }
-                    catch (Exception ex) { await Console.Error.WriteLineAsync($"[KYPO] Chốt điểm nền lỗi: {ex.Message}"); }
-                });
+                    kypeSolved = await _scoreLockService.LockScoreAsync(challenge.Id, teamId);
+                }
+                catch (Exception ex)
+                {
+                    await Console.Error.WriteLineAsync($"[KYPO] Chốt điểm lỗi: {ex.Message}");
+                }
             }
 
             await _redisHelper.RemoveCacheAsync(cache_key);
@@ -1196,7 +1195,9 @@ public class ChallengeController : BaseController
             {
                 status = (int)HttpStatusCode.OK,
                 success = true,
-                message = "Sandbox session ended."
+                message = isKypoChallenge
+                    ? (kypeSolved ? "Hoàn thành! Điểm đã được ghi nhận." : "Sandbox session ended.")
+                    : "Sandbox session ended.",
             });
         }
 

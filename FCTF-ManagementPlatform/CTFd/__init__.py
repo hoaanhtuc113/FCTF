@@ -334,8 +334,9 @@ def create_app(config="CTFd.config.Config"):
         from CTFd.utils.kypo_config import seed_kypo_configs_from_env
         seed_kypo_configs_from_env()
 
-        from CTFd.utils.kypo_poller import start_poller
-        start_poller(app)
+        # Poll điểm chỉ được gọi khi team ấn Submit — không dùng daemon tự động
+        # from CTFd.utils.kypo_poller import start_poller
+        # start_poller(app)
 
         @app.before_request
         def _restrict_swagger_to_admins():

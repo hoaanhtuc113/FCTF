@@ -98,20 +98,19 @@ def _get_level_score(level: dict) -> int:
     khi đã hoàn thành — TrainingRunResumed đặt score=0 và state=RUNNING,
     che mất điểm thực sự).
     """
-    # Thử field score trực tiếp (format mock/cũ)
-    direct = level.get("score")
-    if direct is not None:
-        return int(direct or 0)
-
     events = level.get("events") or []
 
-    # Tìm LevelCompleted event cuối cùng TRƯỚC KHI check state.
-    # Trường hợp resume: state=RUNNING nhưng đã có LevelCompleted với điểm thật.
+    # Ưu tiên LevelCompleted event — field "score" trực tiếp có thể bị
+    # TrainingRunResumed đặt về 0, che mất điểm thật trong events.
     completed = [e for e in events if "LevelCompleted" in (e.get("type") or "")]
     if completed:
         return int(completed[-1].get("actual_score_in_level") or 0)
 
-    # Không có LevelCompleted → level thực sự chưa hoàn thành
+    # Fallback: field score trực tiếp (format mock/cũ không có events)
+    direct = level.get("score")
+    if direct is not None:
+        return int(direct or 0)
+
     return 0
 
 
@@ -363,8 +362,8 @@ def _sync_instance(cfg, token: str, rc, username_to_team: dict, safe_first_name_
             "last_synced": now_iso,
         })
 
-        # Ghi Solve khi có điểm > 0 (kể cả IN_PROGRESS để lấy điểm partial)
-        if score > 0:
+        # Ghi Solve chỉ khi FINISHED (ALL-OR-NOTHING, nhất quán với KypoScoreLockService)
+        if status == "FINISHED":
             try:
                 _insert_solve(cfg.challenge_id, team_id, score)
             except Exception as exc:

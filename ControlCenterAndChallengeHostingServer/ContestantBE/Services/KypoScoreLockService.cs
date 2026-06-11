@@ -1,18 +1,19 @@
+using System.Collections.Concurrent;
 using Microsoft.EntityFrameworkCore;
 using ResourceShared.Models;
 
 namespace ContestantBE.Services;
 
 /// <summary>
-/// Chốt điểm KYPO cho 1 team theo cơ chế ALL-OR-NOTHING.
+/// Locks KYPO score for one team using ALL-OR-NOTHING logic.
 ///
-/// Trigger: Stop hoặc hết giờ → gọi LockScoreAsync(challengeId, teamId).
+/// Trigger: user clicks Stop/Submit → LockScoreAsync(challengeId, teamId).
 ///
-/// Quy tắc:
-///   - KYPO chỉ dùng để xác định TRẠNG THÁI hoàn thành (tất cả phase FINISHED và score > 0).
-///   - Điểm LẤY TỪ FCTF (challenges.value), KHÔNG dùng score của KYPO.
-///   - Hoàn thành tất cả phase → ghi solve với value = challenges.value.
-///   - Còn phase chưa xong → 0 điểm, không ghi solve.
+/// Rules:
+///   - KYPO is used only to determine completion state (all phases done).
+///   - Points come from FCTF (challenges.value), NOT from KYPO score.
+///   - All phases completed → insert solve; score = challenges.value.
+///   - Any phase incomplete → no solve, 0 points.
 /// </summary>
 public class KypoScoreLockService
 {
@@ -20,8 +21,8 @@ public class KypoScoreLockService
     private readonly KypoApiClient _kypoClient;
     private readonly ILogger<KypoScoreLockService> _logger;
 
-    // Cache: training_run_id → team_id (giảm gọi Participant/Keycloak API)
-    private readonly Dictionary<int, int> _runTeamCache = new();
+    // Thread-safe cache: training_run_id → team_id (avoids repeated Participant/Keycloak API calls)
+    private readonly ConcurrentDictionary<int, int> _runTeamCache = new();
 
     public KypoScoreLockService(AppDbContext db, KypoApiClient kypoClient, ILogger<KypoScoreLockService> logger)
     {
@@ -31,38 +32,38 @@ public class KypoScoreLockService
     }
 
     /// <summary>
-    /// Chốt điểm cho 1 team trên 1 challenge KYPO.
-    /// Trả về true nếu vừa ghi solve (hoàn thành tất cả phase).
+    /// Locks score for one team on one KYPO challenge.
+    /// Returns true if a solve was just inserted (all phases completed).
     /// </summary>
     public async Task<bool> LockScoreAsync(int challengeId, int teamId)
     {
-        // [1] Lấy config KYPO của challenge
+        // [1] Load KYPO config for this challenge
         var config = await _db.KypoChallengeConfigs
             .FirstOrDefaultAsync(c => c.ChallengeId == challengeId);
 
         if (config == null)
         {
-            _logger.LogDebug("[KYPO LOCK] Challenge {ChallengeId} không phải KYPO challenge", challengeId);
+            _logger.LogDebug("[KYPO LOCK] Challenge {ChallengeId} is not a KYPO challenge", challengeId);
             return false;
         }
 
-        // [2] Đã chốt điểm chưa? (tránh ghi trùng)
+        // [2] Already solved? Skip to avoid duplicate entries
         var alreadySolved = await _db.Solves
             .AnyAsync(s => s.ChallengeId == challengeId && s.TeamId == teamId);
         if (alreadySolved)
         {
-            _logger.LogDebug("[KYPO LOCK] Team {TeamId} đã có solve cho challenge {ChallengeId}", teamId, challengeId);
+            _logger.LogDebug("[KYPO LOCK] Team {TeamId} already has a solve for challenge {ChallengeId}", teamId, challengeId);
             return false;
         }
 
         var baseUrl = config.KypoBaseUrl ?? "";
         if (string.IsNullOrWhiteSpace(baseUrl))
         {
-            _logger.LogWarning("[KYPO LOCK] Challenge {ChallengeId}: KypoBaseUrl trống", challengeId);
+            _logger.LogWarning("[KYPO LOCK] Challenge {ChallengeId}: KypoBaseUrl is empty", challengeId);
             return false;
         }
 
-        // [3] Poll KYPO 1 lần → lấy progress tất cả team
+        // [3] Fetch progress for all participants in this instance (single API call)
         List<KypoProgressEntry> progressList;
         try
         {
@@ -71,56 +72,78 @@ public class KypoScoreLockService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "[KYPO LOCK] Lỗi gọi Progress API instance {InstanceId}", config.KypoInstanceId);
+            _logger.LogError(ex, "[KYPO LOCK] Progress API failed for instance {InstanceId}", config.KypoInstanceId);
             return false;
         }
 
-        // [4] Map ngược tìm entry của team đang chốt (dừng ngay khi thấy)
-        KypoProgressEntry? teamEntry = null;
-        foreach (var entry in progressList)
-        {
-            var mappedTeamId = await GetTeamIdByTrainingRunAsync(
-                baseUrl, config.KypoInstanceType, entry.RunId);
+        // [4] Map participants to team IDs in parallel.
+        // Pre-load all KypoTeamAccounts into memory first (single DB query) so that
+        // parallel tasks only call external APIs — no concurrent DbContext access.
+        var allAccounts = await _db.KypoTeamAccounts.AsNoTracking().ToListAsync();
+        var keycloakIdToTeam = allAccounts
+            .Where(a => !string.IsNullOrEmpty(a.KypoUserId))
+            .ToDictionary(a => a.KypoUserId!, a => a.TeamId);
 
-            if (mappedTeamId == teamId)
+        var mappingTasks = progressList
+            .Select(async entry =>
             {
-                teamEntry = entry;
-                break;
-            }
-        }
+                // Cache hit — skip API calls
+                if (_runTeamCache.TryGetValue(entry.RunId, out var cachedId))
+                    return (Entry: entry, TeamId: (int?)cachedId);
+
+                var sub = await _kypoClient.GetParticipantSubAsync(
+                    baseUrl, config.KypoInstanceType, entry.RunId);
+                if (string.IsNullOrEmpty(sub))
+                    return (Entry: entry, TeamId: (int?)null);
+
+                var keycloakUserId = await _kypoClient.GetKeycloakUserIdBySubAsync(baseUrl, sub);
+                if (string.IsNullOrEmpty(keycloakUserId))
+                    return (Entry: entry, TeamId: (int?)null);
+
+                // In-memory lookup — no DB access in parallel task
+                keycloakIdToTeam.TryGetValue(keycloakUserId, out var tid);
+                if (tid != 0) _runTeamCache.TryAdd(entry.RunId, tid);
+                return (Entry: entry, TeamId: tid == 0 ? (int?)null : tid);
+            })
+            .ToList();
+
+        var mappings  = await Task.WhenAll(mappingTasks);
+        var teamEntry = mappings.FirstOrDefault(m => m.TeamId == teamId).Entry;
 
         if (teamEntry == null)
         {
-            _logger.LogDebug("[KYPO LOCK] Không tìm thấy progress của team {TeamId} trong instance {InstanceId}",
+            _logger.LogDebug("[KYPO LOCK] No progress entry found for team {TeamId} in instance {InstanceId}",
                 teamId, config.KypoInstanceId);
-            return false; // chưa vào KYPO hoặc chưa có dữ liệu → 0 điểm
+            return false;
         }
 
-        // [5] Kiểm tra ALL-OR-NOTHING: tất cả phase FINISHED và score > 0
+        // [5] ALL-OR-NOTHING: every phase must be IsCompleted.
+        // Do NOT check Score > 0 — access/info levels have max_score=0 and will always be Score=0.
+        // IsCompleted handles TrainingRunResumed (state=RUNNING but LevelCompleted event exists).
         var allDone = teamEntry.Levels.Count > 0
-            && teamEntry.Levels.All(l => l.State == "FINISHED" && l.Score > 0);
+            && teamEntry.Levels.All(l => l.IsCompleted);
 
         if (!allDone)
         {
             _logger.LogInformation(
-                "[KYPO LOCK] Team {TeamId} challenge {ChallengeId}: CHƯA hoàn thành hết phase → 0 điểm",
+                "[KYPO LOCK] Team {TeamId} challenge {ChallengeId}: not all phases done → 0 points",
                 teamId, challengeId);
-            return false; // làm dở → không ghi solve
-        }
-
-        // [6] user_id = captain của team
-        var userId = await GetTeamCaptainAsync(teamId);
-        if (userId == null)
-        {
-            _logger.LogWarning("[KYPO LOCK] Team {TeamId} không có user, bỏ qua", teamId);
             return false;
         }
 
-        // [7] Ghi solve (điểm tính từ challenges.value khi hiển thị scoreboard)
+        // [6] Resolve user_id = team captain (or first member)
+        var userId = await GetTeamCaptainAsync(teamId);
+        if (userId == null)
+        {
+            _logger.LogWarning("[KYPO LOCK] Team {TeamId} has no users, skipping", teamId);
+            return false;
+        }
+
+        // [7] Insert solve — points come from challenges.value at display time
         await InsertSolveAsync(challengeId, userId.Value, teamId);
 
         _logger.LogInformation(
-            "[KYPO LOCK] ✅ SOLVED challenge={ChallengeId} team={TeamId} user={UserId} (điểm theo challenges.value)",
+            "[KYPO LOCK] SOLVED challenge={ChallengeId} team={TeamId} user={UserId}",
             challengeId, teamId, userId);
 
         return true;
@@ -130,29 +153,8 @@ public class KypoScoreLockService
     // Helpers
     // ─────────────────────────────────────────────────────────
 
-    /// <summary>
-    /// Map training_run_id → team_id qua:
-    /// Cache → Participant API (sub) → Keycloak API (kypo_user_id UUID) → DB.
-    /// </summary>
-    private async Task<int?> GetTeamIdByTrainingRunAsync(
-        string baseUrl, string instanceType, int trainingRunId)
-    {
-        if (_runTeamCache.TryGetValue(trainingRunId, out var cached))
-            return cached;
-
-        var sub = await _kypoClient.GetParticipantSubAsync(baseUrl, instanceType, trainingRunId);
-        if (string.IsNullOrEmpty(sub)) return null;
-
-        var keycloakUserId = await _kypoClient.GetKeycloakUserIdBySubAsync(baseUrl, sub);
-        if (string.IsNullOrEmpty(keycloakUserId)) return null;
-
-        var account = await _db.KypoTeamAccounts
-            .FirstOrDefaultAsync(a => a.KypoUserId == keycloakUserId);
-        if (account == null) return null;
-
-        _runTeamCache[trainingRunId] = account.TeamId;
-        return account.TeamId;
-    }
+    // GetTeamIdByTrainingRunAsync removed — logic inlined into LockScoreAsync step [4]
+    // to avoid concurrent DbContext access when tasks run in parallel via Task.WhenAll.
 
     private async Task<int?> GetTeamCaptainAsync(int teamId)
     {
@@ -167,8 +169,8 @@ public class KypoScoreLockService
     }
 
     /// <summary>
-    /// Ghi solve: submissions trước (lấy Id) → solves dùng chung Id.
-    /// Không lưu điểm vào solve — điểm tính từ challenges.value khi hiển thị.
+    /// Writes a solve: inserts into submissions first (to get the ID), then into solves.
+    /// Score is not stored here — it is derived from challenges.value at display time.
     /// </summary>
     private async Task InsertSolveAsync(int challengeId, int userId, int teamId)
     {
@@ -185,7 +187,7 @@ public class KypoScoreLockService
             Date        = now,
         };
         _db.Submissions.Add(submission);
-        await _db.SaveChangesAsync(); // lấy submission.Id
+        await _db.SaveChangesAsync(); // flush to get submission.Id
 
         var solve = new Solf
         {
