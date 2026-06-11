@@ -5,7 +5,7 @@
     <i class="fas fa-shield-alt mr-2"></i>
     <div>
         <strong>Sandbox Challenge</strong> &mdash; Attack-Defense challenge powered by the KYPO Cyber Range platform.
-        Chọn KYPO instance và tự nhập điểm (Score). Điểm chỉ được cộng khi team hoàn thành tất cả phase.
+        Select a KYPO instance and set the score manually. Points are awarded only when the team completes all phases.
     </div>
 </div>
 {% endblock %}
@@ -54,11 +54,11 @@
     <label>
         Score / Points:<br>
         <small class="form-text text-muted">
-            Điểm thưởng khi hoàn thành tất cả phase (do admin đặt — KHÔNG lấy từ KYPO).
+            Points awarded when all phases are completed (set by admin — NOT taken from KYPO).
         </small>
     </label>
     <input type="number" class="form-control" name="value" id="kypo-score-input"
-           min="0" value="100" placeholder="Nhập điểm cho challenge" required>
+           min="0" value="100" placeholder="Enter score for this challenge" required>
 </div>
 {% endblock %}
 
