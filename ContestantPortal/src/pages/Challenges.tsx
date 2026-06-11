@@ -1298,6 +1298,8 @@ function ChallengeListItem({
   );
 }
 
+const KYPO_MAX_ACCESSES = 10;
+
 // Challenge Detail Panel Component
 function ChallengeDetailPanel({
   challenge,
@@ -1432,6 +1434,7 @@ function ChallengeDetailPanel({
       localStorage.removeItem(`kypo_${challenge.id}`);
       setKypoInfo(null);
     }
+
 
     const loadCooldown = () => {
       const cooldownKey = `cooldown_${challenge.id}`;
@@ -2115,6 +2118,11 @@ function ChallengeDetailPanel({
               ${credLines}
               <div class="${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'} text-xs">> Click "Enter Challenge" to open KYPO in a new tab.</div>
               <div class="${theme === 'dark' ? 'text-yellow-400' : 'text-yellow-600'} text-xs">> Timer has started.</div>
+              <hr style="border-color: ${theme === 'dark' ? '#374151' : '#d1d5db'}; margin: 6px 0;" />
+              <div class="${theme === 'dark' ? 'text-red-400' : 'text-red-600'} text-xs font-bold">> [!] IMPORTANT NOTICE</div>
+              <div class="${theme === 'dark' ? 'text-red-300' : 'text-red-700'} text-xs">> You are allowed to access this sandbox <strong>${KYPO_MAX_ACCESSES} times</strong> only.</div>
+              <div class="${theme === 'dark' ? 'text-red-300' : 'text-red-700'} text-xs">> Each time you open or reload the sandbox page counts as 1 access.</div>
+              <div class="${theme === 'dark' ? 'text-orange-400' : 'text-orange-600'} text-xs">> Use your accesses wisely. Once the limit is reached, access will be denied.</div>
             </div>
           `,
           icon: 'success',
@@ -4242,6 +4250,13 @@ function ChallengeDetailPanel({
               <div className="space-y-2">
                 {isChallengeStarted ? (
                   <>
+                    {/* Sandbox access notice */}
+                    <div className={`text-xs font-mono rounded p-2 mb-1 ${theme === 'dark' ? 'bg-gray-900 border border-yellow-700/40' : 'bg-yellow-50 border border-yellow-300'}`}>
+                      <div className={`${theme === 'dark' ? 'text-yellow-400' : 'text-yellow-700'} font-bold mb-0.5`}>[!] Sandbox Access Notice</div>
+                      <div className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                        You are allowed to access this sandbox <strong>{KYPO_MAX_ACCESSES} times</strong> only. Each time you open or reload the sandbox page counts as 1 access.
+                      </div>
+                    </div>
                     {/* Enter Challenge button — directly opens KYPO portal */}
                     <button
                       onClick={() => window.open(kypoInfo?.portalUrl || url || '', '_blank', 'noopener,noreferrer')}
@@ -4303,64 +4318,50 @@ function ChallengeDetailPanel({
                   </div>
                 ) : (
                   <>
-                  {/* Instruction panel — always visible before starting */}
-                  <div style={{
-                    fontFamily: 'monospace',
-                    fontSize: '12px',
-                    border: '1px solid #f59e0b',
-                    borderRadius: '4px',
-                    padding: '10px 14px',
-                    backgroundColor: 'rgba(245, 158, 11, 0.07)',
-                    lineHeight: '1.7',
-                  }}>
-                    <div style={{ color: '#f59e0b', fontWeight: 'bold', marginBottom: '6px' }}>[!] Instructions</div>
-                    <div style={{ color: '#ca8a04', marginBottom: '4px' }}>1. Click Enter Challenge to open the KYPO portal.</div>
-                    <div style={{ color: '#ca8a04', marginBottom: '8px' }}>2. Complete <strong>ALL phases</strong> on KYPO, then return here and click <strong>[-] Submit Challenge</strong> to submit your result.</div>
-                    <div style={{
-                      borderTop: '1px solid rgba(245,158,11,0.3)',
-                      paddingTop: '7px',
-                      color: '#ef4444',
-                    }}>
-                      <strong>[⚠] Warning:</strong> If you stop before finishing all phases on KYPO, you will receive <strong>0 points</strong>.
+                    {/* Pre-start sandbox notice */}
+                    <div className={`text-xs font-mono rounded p-2 mb-1 ${theme === 'dark' ? 'bg-gray-900 border border-gray-700' : 'bg-gray-50 border border-gray-300'}`}>
+                      <div className={`${theme === 'dark' ? 'text-yellow-400' : 'text-yellow-700'} font-bold mb-0.5`}>[!] Read Before Starting</div>
+                      <div className={`${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                        You are allowed to access this sandbox <strong>{KYPO_MAX_ACCESSES} times</strong> only. Each time you open or reload the sandbox page counts as 1 access. Use your accesses wisely.
+                      </div>
                     </div>
-                  </div>
-                  <button
-                    onClick={handleStartChallenge}
-                    disabled={isStarting}
-                    style={{
-                      fontFamily: 'monospace',
-                      fontSize: '13px',
-                      fontWeight: 'bold',
-                      width: '100%',
-                      padding: '10px 16px',
-                      border: '1px solid #4ade80',
-                      backgroundColor: '#4ade80',
-                      color: '#000',
-                      borderRadius: '4px',
-                      cursor: isStarting ? 'not-allowed' : 'pointer',
-                      opacity: isStarting ? 0.5 : 1,
-                      transition: 'all 0.2s',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '8px',
-                    }}
-                    onMouseEnter={(e) => {
-                      if (!isStarting) {
-                        e.currentTarget.style.backgroundColor = '#22c55e';
-                        e.currentTarget.style.borderColor = '#22c55e';
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (!isStarting) {
-                        e.currentTarget.style.backgroundColor = '#4ade80';
-                        e.currentTarget.style.borderColor = '#4ade80';
-                      }
-                    }}
-                  >
-                    {isStarting && <CircularProgress size={14} sx={{ color: '#000' }} />}
-                    <span>{isStarting ? '[~] Connecting...' : '[>] Enter Challenge'}</span>
-                  </button>
+                    <button
+                      onClick={handleStartChallenge}
+                      disabled={isStarting}
+                      style={{
+                        fontFamily: 'monospace',
+                        fontSize: '13px',
+                        fontWeight: 'bold',
+                        width: '100%',
+                        padding: '10px 16px',
+                        border: '1px solid #4ade80',
+                        backgroundColor: '#4ade80',
+                        color: '#000',
+                        borderRadius: '4px',
+                        cursor: isStarting ? 'not-allowed' : 'pointer',
+                        opacity: isStarting ? 0.5 : 1,
+                        transition: 'all 0.2s',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '8px',
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!isStarting) {
+                          e.currentTarget.style.backgroundColor = '#22c55e';
+                          e.currentTarget.style.borderColor = '#22c55e';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!isStarting) {
+                          e.currentTarget.style.backgroundColor = '#4ade80';
+                          e.currentTarget.style.borderColor = '#4ade80';
+                        }
+                      }}
+                    >
+                      {isStarting && <CircularProgress size={14} sx={{ color: '#000' }} />}
+                      <span>{isStarting ? '[~] Connecting...' : '[>] Enter Challenge'}</span>
+                    </button>
                   </>
                 )}
               </div>

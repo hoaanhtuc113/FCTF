@@ -17,9 +17,8 @@
             Điểm thưởng khi hoàn thành tất cả phase (do admin đặt — KHÔNG lấy từ KYPO).
         </small>
     </label>
-    <input type="number" class="form-control chal-value" name="value"
-           id="kypo-score-input-update"
-           value="{{ challenge.value if challenge.value else 0 }}" min="0" required>
+    <input type="number" class="form-control chal-value" name="value" id="kypo-score-input-update"
+        value="{{ challenge.value if challenge.value else 0 }}" min="0" required>
 </div>
 
 {# ── Current KYPO instance (server-rendered from DB) ─────────────────── #}
@@ -38,7 +37,8 @@
         <div class="row mt-1">
             <div class="col-sm-4 text-muted small">Type</div>
             <div class="col-sm-8 small">
-                <span class="badge badge-{{ 'primary' if challenge.kypo_config.kypo_instance_type == 'linear' else 'warning' }}">
+                <span
+                    class="badge badge-{{ 'primary' if challenge.kypo_config.kypo_instance_type == 'linear' else 'warning' }}">
                     {{ challenge.kypo_config.kypo_instance_type | upper }}
                 </span>
             </div>
@@ -90,15 +90,15 @@
 
 {# Hidden KYPO fields — pre-populated from DB, updated by inline JS on instance change #}
 <input type="hidden" name="kypo_instance_id" id="kypo-instance-id-update"
-       value="{{ challenge.kypo_config.kypo_instance_id if challenge.kypo_config else '' }}">
+    value="{{ challenge.kypo_config.kypo_instance_id if challenge.kypo_config else '' }}">
 <input type="hidden" name="kypo_access_token" id="kypo-access-token-update"
-       value="{{ challenge.kypo_config.kypo_access_token if challenge.kypo_config else '' }}">
+    value="{{ challenge.kypo_config.kypo_access_token if challenge.kypo_config else '' }}">
 <input type="hidden" name="kypo_instance_type" id="kypo-instance-type-update"
-       value="{{ challenge.kypo_config.kypo_instance_type if challenge.kypo_config else 'linear' }}">
+    value="{{ challenge.kypo_config.kypo_instance_type if challenge.kypo_config else 'linear' }}">
 <input type="hidden" name="kypo_base_url" id="kypo-base-url-update"
-       value="{{ challenge.kypo_config.kypo_base_url if challenge.kypo_config else 'https://vuontre.iahn.hanoi.vn' }}">
+    value="{{ challenge.kypo_config.kypo_base_url if challenge.kypo_config else 'https://vuontre.iahn.hanoi.vn' }}">
 <input type="hidden" id="kypo-current-instance-id"
-       value="{{ challenge.kypo_config.kypo_instance_id if challenge.kypo_config else '' }}">
+    value="{{ challenge.kypo_config.kypo_instance_id if challenge.kypo_config else '' }}">
 {% endblock %}
 
 {% block time_limit %}
@@ -110,7 +110,7 @@
         </small>
     </label>
     <input type="number" class="form-control chal-time-limit" min="-1" name="time_limit"
-           value="{{ challenge.time_limit }}" required>
+        value="{{ challenge.time_limit }}" required>
 </div>
 {% endblock %}
 
@@ -127,79 +127,80 @@
 {% block footer %}
 {{ super() }}
 <script>
-{# Inline JS — runs immediately as part of the server-rendered update template.
+    {# Inline JS — runs immediately as part of the server - rendered update template.
    No external file loading needed, so this always executes regardless of
-   how the parent page loads scripts. #}
-(function () {
-    function elU(id) { return document.getElementById(id); }
-    function addClassU(id, cls) { var e = elU(id); if (e) e.classList.add(cls); }
-    function removeClassU(id, cls) { var e = elU(id); if (e) e.classList.remove(cls); }
-
-    function syncHidden(opt) {
-        if (!opt || !opt.value) return;
-        var idEl  = elU("kypo-instance-id-update");
-        var tokEl = elU("kypo-access-token-update");
-        var typEl = elU("kypo-instance-type-update");
-        if (idEl)  idEl.value  = opt.value;
-        if (tokEl) tokEl.value = opt.dataset.accessToken || "";
-        if (typEl) typEl.value = opt.dataset.instanceType || "linear";
+   how the parent page loads scripts. #
     }
+    (function () {
+        function elU(id) { return document.getElementById(id); }
+        function addClassU(id, cls) { var e = elU(id); if (e) e.classList.add(cls); }
+        function removeClassU(id, cls) { var e = elU(id); if (e) e.classList.remove(cls); }
 
-    function loadInstances() {
-        var loading = elU("kypo-instance-loading-update");
-        var select  = elU("kypo-instance-select-update");
-        if (!loading || !select) return;
+        function syncHidden(opt) {
+            if (!opt || !opt.value) return;
+            var idEl = elU("kypo-instance-id-update");
+            var tokEl = elU("kypo-access-token-update");
+            var typEl = elU("kypo-instance-type-update");
+            if (idEl) idEl.value = opt.value;
+            if (tokEl) tokEl.value = opt.dataset.accessToken || "";
+            if (typEl) typEl.value = opt.dataset.instanceType || "linear";
+        }
 
-        var currentId = (elU("kypo-current-instance-id") || {}).value || "";
+        function loadInstances() {
+            var loading = elU("kypo-instance-loading-update");
+            var select = elU("kypo-instance-select-update");
+            if (!loading || !select) return;
 
-        fetch("/api/v1/kypo/instances", { method: "GET", credentials: "same-origin" })
-            .then(function (r) { return r.json(); })
-            .then(function (data) {
-                loading.style.display = "none";
+            var currentId = (elU("kypo-current-instance-id") || {}).value || "";
 
-                if (!data.success || !data.data || !data.data.length) {
-                    removeClassU("kypo-instance-error-update", "d-none");
-                    return;
-                }
+            fetch("/api/v1/kypo/instances", { method: "GET", credentials: "same-origin" })
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    loading.style.display = "none";
 
-                data.data.forEach(function (inst) {
-                    var opt = document.createElement("option");
-                    opt.value = inst.id;
-                    opt.textContent = "[" + inst.instance_type.toUpperCase() + "] " + inst.title;
-                    opt.dataset.accessToken  = inst.access_token || "";
-                    opt.dataset.instanceType = inst.instance_type || "linear";
-                    opt.dataset.definitionId = inst.training_definition_id || "";
-
-                    // Auto-select the instance that is currently linked to this challenge
-                    if (String(inst.id) === String(currentId)) {
-                        opt.selected = true;
+                    if (!data.success || !data.data || !data.data.length) {
+                        removeClassU("kypo-instance-error-update", "d-none");
+                        return;
                     }
 
-                    select.appendChild(opt);
-                });
+                    data.data.forEach(function (inst) {
+                        var opt = document.createElement("option");
+                        opt.value = inst.id;
+                        opt.textContent = "[" + inst.instance_type.toUpperCase() + "] " + inst.title;
+                        opt.dataset.accessToken = inst.access_token || "";
+                        opt.dataset.instanceType = inst.instance_type || "linear";
+                        opt.dataset.definitionId = inst.training_definition_id || "";
 
-                select.style.display = "block";
-                select.addEventListener("change", function () {
-                    var opt = this.options[this.selectedIndex];
-                    if (!opt || !opt.value) return;
-                    // Chỉ cập nhật metadata instance — KHÔNG fetch điểm từ KYPO
-                    syncHidden(opt);
-                });
-            })
-            .catch(function () {
-                loading.style.display = "none";
-                removeClassU("kypo-instance-error-update", "d-none");
-            });
-    }
+                        // Auto-select the instance that is currently linked to this challenge
+                        if (String(inst.id) === String(currentId)) {
+                            opt.selected = true;
+                        }
 
-    /* Run after the DOM is ready. The template is injected via innerHTML /
-       {{ update_template | safe }}, so DOMContentLoaded may have already
-       fired. Use a small timeout to ensure elements are in the DOM. */
-    if (document.readyState === "loading") {
-        document.addEventListener("DOMContentLoaded", loadInstances);
-    } else {
-        setTimeout(loadInstances, 0);
-    }
-})();
+                        select.appendChild(opt);
+                    });
+
+                    select.style.display = "block";
+                    select.addEventListener("change", function () {
+                        var opt = this.options[this.selectedIndex];
+                        if (!opt || !opt.value) return;
+                        // Chỉ cập nhật metadata instance — KHÔNG fetch điểm từ KYPO
+                        syncHidden(opt);
+                    });
+                })
+                .catch(function () {
+                    loading.style.display = "none";
+                    removeClassU("kypo-instance-error-update", "d-none");
+                });
+        }
+
+        /* Run after the DOM is ready. The template is injected via innerHTML /
+           {{ update_template | safe }}, so DOMContentLoaded may have already
+           fired. Use a small timeout to ensure elements are in the DOM. */
+        if (document.readyState === "loading") {
+            document.addEventListener("DOMContentLoaded", loadInstances);
+        } else {
+            setTimeout(loadInstances, 0);
+        }
+    })();
 </script>
 {% endblock %}
