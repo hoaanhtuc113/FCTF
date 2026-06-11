@@ -43,7 +43,22 @@ function createTeam(event) {
     .then(function (response) {
       if (response.success) {
         const team_id = response.data.id;
-        window.location = CTFd.config.urlRoot + "/admin/teams/" + team_id;
+        const dest = CTFd.config.urlRoot + "/admin/teams/" + team_id;
+        if (response.warning) {
+          ezAlert({
+            title: "Team đã tạo — Cảnh báo KYPO",
+            body:
+              `<div class="alert alert-warning mb-0">` +
+              `<i class="fas fa-exclamation-triangle mr-1"></i> ${response.warning}` +
+              `</div>`,
+            button: "OK",
+            success: function () {
+              window.location = dest;
+            },
+          });
+        } else {
+          window.location = dest;
+        }
       } else {
         $("#team-info-create-form > #results").empty();
         Object.keys(response.errors).forEach(function (key, _index) {
