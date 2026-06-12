@@ -27,7 +27,7 @@ from CTFd.models import (
 )
 from CTFd.models import Challenges
 from CTFd.models import ChallengeTopics as ChallengeTopicsModel
-from CTFd.models import Fails, Flags, Hints, HintUnlocks, Solves, Submissions, Tags, db
+from CTFd.models import ChallengeStartTracking, Fails, Flags, Hints, HintUnlocks, Solves, Submissions, Tags, db
 from CTFd.plugins.challenges import CHALLENGE_CLASSES, get_chal_class
 from CTFd.plugins.dynamic_challenges import DynamicChallenge
 from CTFd.schemas.challenges import ChallengeSchema
@@ -574,6 +574,13 @@ class Challenge(Resource):
         user_id = session["id"]
         user = Users.query.filter_by(id=user_id).first()
         challenge = Challenges.query.filter_by(id=challenge_id).first_or_404()
+
+        if ChallengeStartTracking.query.filter_by(challenge_id=challenge_id).first():
+            return {
+                "success": False,
+                "error": "Cannot update: one or more teams have already started this challenge.",
+            }, 403
+
         print(f"Challenge {challenge.name} has been updated by user {user_id} ({user.type})")
 
         # Store before state for audit
