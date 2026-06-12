@@ -4318,11 +4318,29 @@ function ChallengeDetailPanel({
                   </div>
                 ) : (
                   <>
-                    {/* Pre-start sandbox notice */}
-                    <div className={`text-xs font-mono rounded p-2 mb-1 ${theme === 'dark' ? 'bg-gray-900 border border-gray-700' : 'bg-gray-50 border border-gray-300'}`}>
-                      <div className={`${theme === 'dark' ? 'text-yellow-400' : 'text-yellow-700'} font-bold mb-0.5`}>[!] Read Before Starting</div>
-                      <div className={`${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                        You are allowed to access this sandbox <strong>{KYPO_MAX_ACCESSES} times</strong> only. Each time you open or reload the sandbox page counts as 1 access. Use your accesses wisely.
+                    {/* Pre-start instructions panel */}
+                    <div style={{
+                      fontFamily: 'monospace',
+                      fontSize: '12px',
+                      border: `1px solid ${theme === 'dark' ? '#f59e0b' : '#d97706'}`,
+                      borderRadius: '4px',
+                      padding: '10px 14px',
+                      backgroundColor: theme === 'dark' ? 'rgba(245, 158, 11, 0.07)' : 'rgba(245, 158, 11, 0.05)',
+                      lineHeight: '1.7',
+                      marginBottom: '6px',
+                    }}>
+                      <div style={{ color: '#f59e0b', fontWeight: 'bold', marginBottom: '6px' }}>[!] Instructions</div>
+                      <div style={{ color: theme === 'dark' ? '#ca8a04' : '#92400e', marginBottom: '4px' }}>1. Click <strong>Enter Challenge</strong> to open the KYPO portal.</div>
+                      <div style={{ color: theme === 'dark' ? '#ca8a04' : '#92400e', marginBottom: '8px' }}>2. Complete <strong>ALL phases</strong> on KYPO, then return here and click <strong>[-] Submit Challenge</strong> to submit your result.</div>
+                      <div style={{ color: theme === 'dark' ? '#9ca3af' : '#6b7280', marginBottom: '4px' }}>
+                        You are allowed to access this sandbox <strong>{KYPO_MAX_ACCESSES} times</strong> only. Each reload counts as 1 access.
+                      </div>
+                      <div style={{
+                        borderTop: `1px solid ${theme === 'dark' ? 'rgba(245,158,11,0.3)' : 'rgba(217,119,6,0.3)'}`,
+                        paddingTop: '7px',
+                        color: '#ef4444',
+                      }}>
+                        <strong>[⚠] Warning:</strong> If you stop before finishing all phases on KYPO, you will receive <strong>0 points</strong>.
                       </div>
                     </div>
                     <button
