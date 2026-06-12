@@ -285,6 +285,30 @@ patch_secret_string_key() {
   kubectl -n "${namespace}" patch secret "${secret_name}" --type merge -p "${payload}" >/dev/null
 }
 
+patch_redis_acl_file_secret() {
+  local ns="$1"
+
+  if ! kubectl -n "${ns}" get secret redis-acl-file >/dev/null 2>&1; then
+    echo "    redis-acl-file secret not found in ${ns}; skipping ACL file patch"
+    return 0
+  fi
+
+  local new_usersacl
+  new_usersacl="user default on >${REDIS_ROOT_PASSWORD_NEW} ~* &* +@all
+user svc_admin_mvc on >${ADMIN_REDIS_PASSWORD} ~* &* +ping +echo +select +get +set +setex +del +unlink +exists +expire +ttl +pttl +persist +incr +decr +scan +keys +hget +hset +hmget +mget +hmset +hdel +publish +subscribe +psubscribe +unsubscribe +punsubscribe
+user svc_gateway on >${GATEWAY_REDIS_PASSWORD} ~fctf:gateway:* &* +ping +echo +select +get +set +time +exists +expire +del +incr +decr +hget +hset +hmget +hmset +eval +evalsha
+user svc_contestant_be on >${CONTESTANT_BE_REDIS_PASSWORD} ~submission_cooldown_* ~attempt_count_* ~deploy_challenge_* ~active_deploys_team_* ~auth:user:* ~challenge:* ~hint:* ~kpm_check_* ~fctf:contestant:* &* +ping +echo +select +get +set +setex +del +exists +expire +ttl +pttl +incr +decr +scan +hmget +mget +keys +zadd +zrem +zremrangebyscore +zscore +zcard +eval +evalsha +incrbyfloat
+user svc_deployment_center on >${DEPLOYMENT_CENTER_REDIS_PASSWORD} ~deploy_challenge_* ~active_deploys_team_* &* +ping +echo +select +get +set +setex +del +exists +expire +ttl +incr +decr +scan +keys +zadd +zrem +zremrangebyscore +zscore +zcard +eval +evalsha
+user svc_deployment_consumer on >${DEPLOYMENT_CONSUMER_REDIS_PASSWORD} ~deploy_challenge_* ~active_deploys_team_* &* +ping +echo +select +get +set +setex +del +exists +expire +ttl +incr +decr +scan +keys +zadd +zrem +zremrangebyscore +zscore +zcard +eval +evalsha
+user svc_deployment_listener on >${DEPLOYMENT_LISTENER_REDIS_PASSWORD} ~deploy_challenge_* ~active_deploys_team_* &* +ping +echo +select +get +set +setex +del +exists +expire +ttl +incr +decr +scan +keys +zadd +zrem +zremrangebyscore +zscore +zcard +eval +evalsha"
+
+  local acl_b64
+  acl_b64="$(printf '%s' "${new_usersacl}" | base64 -w0)"
+  kubectl -n "${ns}" patch secret redis-acl-file --type='json' \
+    -p="[{\"op\":\"replace\",\"path\":\"/data/usersacl\",\"value\":\"${acl_b64}\"}]" >/dev/null
+  echo "    patched ${ns}/redis-acl-file:usersacl"
+}
+
 strip_yaml_quotes() {
   local value="$1"
   if [[ "${value}" =~ ^\".*\"$ || "${value}" =~ ^\'.*\'$ ]]; then
@@ -1217,6 +1241,7 @@ restart_redis_workload() {
   patch_secret_string_key "${ns}" "redis-acl-users-secret" "svc_deployment_center" "${DEPLOYMENT_CENTER_REDIS_PASSWORD}"
   patch_secret_string_key "${ns}" "redis-acl-users-secret" "svc_deployment_listener" "${DEPLOYMENT_LISTENER_REDIS_PASSWORD}"
   patch_secret_string_key "${ns}" "redis-acl-users-secret" "svc_deployment_consumer" "${DEPLOYMENT_CONSUMER_REDIS_PASSWORD}"
+  patch_redis_acl_file_secret "${ns}"
 
   if kubectl -n "${ns}" get secret redis >/dev/null 2>&1; then
     patch_secret_string_key "${ns}" "redis" "redis-password" "${REDIS_ROOT_PASSWORD_NEW}"
