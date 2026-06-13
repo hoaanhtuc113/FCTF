@@ -1,0 +1,14 @@
+# Normalize line endings to LF on checkout for all text files
+* text=auto eol=lf
+
+# Shell scripts must always be LF
+*.sh text eol=lf
+
+# Dockerfiles must always be LF
+Dockerfile text eol=lf
+*.dockerfile text eol=lf
+
+# Windows-specific files keep CRLF
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
