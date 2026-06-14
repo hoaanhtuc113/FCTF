@@ -1102,8 +1102,6 @@ class Solves(Submissions):
         Submissions.team_id,
     )
 
-    value = db.Column(db.Integer, nullable=True)
-
     user = db.relationship("Users", foreign_keys="Solves.user_id", lazy="select")
     team = db.relationship("Teams", foreign_keys="Solves.team_id", lazy="select")
     challenge = db.relationship(

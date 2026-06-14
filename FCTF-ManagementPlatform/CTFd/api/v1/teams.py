@@ -173,19 +173,27 @@ class TeamList(Resource):
 
         # ── Tạo Keycloak account cho team trên KYPO ──────────────────────
         team = response.data
+        kypo_warning = None
         try:
             kypo_info = create_kypo_user(team.id, team.name)
             kypo_account = KypoTeamAccount(
                 team_id=team.id,
                 kypo_user_id=kypo_info["kypo_user_id"],
                 kypo_username=kypo_info["kypo_username"],
-                kypo_password=kypo_info["kypo_password"],  # TODO: mã hóa AES khi có key
+                kypo_password=kypo_info["kypo_password"],
             )
             db.session.add(kypo_account)
             db.session.commit()
+        except ValueError as e:
+            # Lỗi nghiệp vụ (vd: user đã tồn tại trên Keycloak)
+            kypo_warning = str(e)
+            _kc_logger.warning("KYPO account warning team %s: %s", team.id, e)
         except Exception as e:
-            _kc_logger.error(f"Failed to create Keycloak account for team {team.id}: {e}")
-            # Không rollback team — chỉ log lỗi, admin có thể tạo lại sau
+            kypo_warning = f"Không thể tạo KYPO account: {e}"
+            _kc_logger.error(
+                "Failed to create Keycloak account for team %s: %s",
+                team.id, e, exc_info=True,
+            )
         # ─────────────────────────────────────────────────────────────────
 
         log_audit(
@@ -210,7 +218,10 @@ class TeamList(Resource):
         clear_standings()
         clear_challenges()
 
-        return {"success": True, "data": response.data}
+        result = {"success": True, "data": response.data}
+        if kypo_warning:
+            result["warning"] = kypo_warning
+        return result
 
 
 @teams_namespace.route("/<int:team_id>")

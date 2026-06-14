@@ -1,4 +1,39 @@
-from pybluemonday import UGCPolicy
+try:
+    from pybluemonday import UGCPolicy
+except ImportError:
+    # Fallback for environments without Go toolchain (dev on Windows)
+    import bleach
+
+    class UGCPolicy:
+        def __init__(self):
+            self._tags = set()
+            self._attrs = {}
+
+        def AllowElements(self, *tags): self._tags.update(tags)
+        def AllowAttrs(self, *attrs):
+            self._pending_attrs = attrs
+            return self
+        def OnElements(self, *tags):
+            for t in tags:
+                self._attrs.setdefault(t, set()).update(self._pending_attrs)
+        def Globally(self):
+            self._attrs['*'] = self._attrs.get('*', set()) | set(self._pending_attrs)
+        def AllowStyling(self): pass
+        def AllowStandardAttributes(self): pass
+        def AllowStandardURLs(self): pass
+        def AllowDataAttributes(self): pass
+        def AllowDataURIImages(self): pass
+        def AllowRelativeURLs(self, v): pass
+        def AllowComments(self): pass
+        def RequireNoFollowOnFullyQualifiedLinks(self, v): pass
+        def RequireNoFollowOnLinks(self, v): pass
+        def RequireNoReferrerOnFullyQualifiedLinks(self, v): pass
+        def RequireNoReferrerOnLinks(self, v): pass
+
+        def sanitize(self, html):
+            global_attrs = list(self._attrs.get('*', []))
+            attrs = {t: list(a) + global_attrs for t, a in self._attrs.items() if t != '*'}
+            return bleach.clean(html or '', tags=list(self._tags), attributes=attrs, strip=True)
 
 # Copied from lxml:
 # https://github.com/lxml/lxml/blob/e986a9cb5d54827c59aefa8803bc90954d67221e/src/lxml/html/defs.py#L38

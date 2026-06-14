@@ -41,4 +41,6 @@ if args.profile:
     print(" * Flask profiling running at http://127.0.0.1:4000/flask-profiler/")
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8000, debug=True)
+    # use_reloader=False: tránh werkzeug chạy 2 process + conflict với gevent
+    # background poller chỉ chạy trong 1 process → không bị race condition
+    app.run(host="0.0.0.0", port=8000, debug=True, use_reloader=False)

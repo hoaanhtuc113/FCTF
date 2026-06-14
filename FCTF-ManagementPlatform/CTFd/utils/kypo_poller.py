@@ -25,13 +25,7 @@ import threading
 import requests
 import urllib3
 
-from CTFd.constants.envvars import (
-    KYPO_BASE_URL,
-    KYPO_CLIENT_ID,
-    KYPO_PASSWORD,
-    KYPO_USERNAME,
-    get_redis_client_kwargs,
-)
+from CTFd.constants.envvars import get_redis_client_kwargs
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -50,13 +44,20 @@ _thread: threading.Thread | None = None
 # ── Keycloak auth ──────────────────────────────────────────────────────────────
 
 def _get_admin_token() -> str:
+    from CTFd.utils.kypo_config import (
+        get_kypo_base_url,
+        get_kypo_client_id,
+        get_kypo_password,
+        get_kypo_username,
+    )
+    base_url = get_kypo_base_url()
     resp = requests.post(
-        f"{KYPO_BASE_URL}/keycloak/realms/CRCZP/protocol/openid-connect/token",
+        f"{base_url}/keycloak/realms/CRCZP/protocol/openid-connect/token",
         data={
             "grant_type": "password",
-            "client_id": KYPO_CLIENT_ID,
-            "username": KYPO_USERNAME,
-            "password": KYPO_PASSWORD,
+            "client_id": get_kypo_client_id(),
+            "username": get_kypo_username(),
+            "password": get_kypo_password(),
         },
         timeout=15,
         verify=False,
@@ -68,9 +69,11 @@ def _get_admin_token() -> str:
 # ── KYPO API ───────────────────────────────────────────────────────────────────
 
 def _service_base(instance_type: str) -> str:
+    from CTFd.utils.kypo_config import get_kypo_base_url
+    base_url = get_kypo_base_url()
     if instance_type == "adaptive":
-        return f"{KYPO_BASE_URL}/adaptive-training/api/v1"
-    return f"{KYPO_BASE_URL}/training/api/v1"
+        return f"{base_url}/adaptive-training/api/v1"
+    return f"{base_url}/training/api/v1"
 
 
 def _fetch_progress(token: str, base: str, instance_id: int) -> dict:
@@ -87,6 +90,42 @@ def _fetch_progress(token: str, base: str, instance_id: int) -> dict:
 
 # ── Score / status ─────────────────────────────────────────────────────────────
 
+def _get_level_score(level: dict) -> int:
+    """
+    Lấy score của 1 level từ events[].actual_score_in_level của LevelCompleted.
+
+    Ưu tiên LevelCompleted event (kể cả khi state=RUNNING do team resume sau
+    khi đã hoàn thành — TrainingRunResumed đặt score=0 và state=RUNNING,
+    che mất điểm thực sự).
+    """
+    events = level.get("events") or []
+
+    # Ưu tiên LevelCompleted event — field "score" trực tiếp có thể bị
+    # TrainingRunResumed đặt về 0, che mất điểm thật trong events.
+    completed = [e for e in events if "LevelCompleted" in (e.get("type") or "")]
+    if completed:
+        return int(completed[-1].get("actual_score_in_level") or 0)
+
+    # Fallback: field score trực tiếp (format mock/cũ không có events)
+    direct = level.get("score")
+    if direct is not None:
+        return int(direct or 0)
+
+    return 0
+
+
+def _level_is_completed(level: dict) -> bool:
+    """
+    Trả về True nếu level đã có LevelCompleted event hoặc state=FINISHED.
+    Handles trường hợp team resume sau khi đã complete → state=RUNNING nhưng
+    thực tế đã xong.
+    """
+    if (level.get("state") or "").upper() == "FINISHED":
+        return True
+    events = level.get("events") or []
+    return any("LevelCompleted" in (e.get("type") or "") for e in events)
+
+
 def _calc_status_and_score(levels: list) -> tuple[str, int]:
     """
     Trả về (status, total_score).
@@ -95,10 +134,11 @@ def _calc_status_and_score(levels: list) -> tuple[str, int]:
     if not levels:
         return "NOT_STARTED", 0
 
-    total = sum(int(lv.get("score") or 0) for lv in levels)
+    total = sum(_get_level_score(lv) for lv in levels)
     states = {(lv.get("state") or "").upper() for lv in levels}
 
-    if all(s == "FINISHED" for s in states):
+    # Coi level là FINISHED nếu có LevelCompleted event (kể cả khi resumed)
+    if all(_level_is_completed(lv) for lv in levels):
         return "FINISHED", total
     if any(s in ("RUNNING", "FINISHED") for s in states):
         return "IN_PROGRESS", total
@@ -110,17 +150,6 @@ def _calc_status_and_score(levels: list) -> tuple[str, int]:
 def _redis_key(challenge_id: int, team_id: int) -> str:
     return f"{_REDIS_KEY_PREFIX}_{challenge_id}_{team_id}"
 
-
-def _is_challenge_running(rc, challenge_id: int, team_id: int) -> bool:
-    """
-    Kiểm tra challenge có đang chạy không bằng cách check key
-    deploy_challenge_{challenge_id}_{team_id} trong Redis.
-    Key này do deployment service quản lý:
-      - Tạo khi challenge start
-      - Xóa khi challenge stop (dù stop từ admin hay contestant)
-    """
-    deploy_key = f"deploy_challenge_{challenge_id}_{team_id}"
-    return bool(rc.exists(deploy_key))
 
 
 def _cache(rc, challenge_id: int, team_id: int, payload: dict):
@@ -185,53 +214,73 @@ def _count_unsolved_teams(challenge_id: int, all_team_ids: list[int]) -> int:
 
 # ── DB: ghi Solve ──────────────────────────────────────────────────────────────
 
+def _clear_scoreboard_cache():
+    """Xóa cache scoreboard sau khi ghi Solve mới."""
+    try:
+        from CTFd.cache import cache
+        from CTFd.utils.scores import get_standings, get_user_standings, get_team_standings
+        cache.delete_memoized(get_standings)
+        cache.delete_memoized(get_user_standings)
+        cache.delete_memoized(get_team_standings)
+        # Xóa cache endpoint scoreboard list
+        cache.clear()
+        log.info("[KYPO Poller] Scoreboard cache cleared.")
+    except Exception as exc:
+        log.warning("[KYPO Poller] Failed to clear cache: %s", exc)
+
+
 def _insert_solve(challenge_id: int, team_id: int, score: int):
     """
-    INSERT submissions + solves cho team đã FINISHED.
-    Chỉ ghi nếu chưa tồn tại (unique constraint bảo vệ duplicate).
+    UPSERT solve dùng raw SQL với ON DUPLICATE KEY UPDATE để tránh race condition
+    khi nhiều poll cycle chạy đồng thời.
     """
-    from CTFd.models import Solves, Teams, db
+    from CTFd.models import db, Teams
 
-    existing = Solves.query.filter_by(
-        challenge_id=challenge_id, team_id=team_id
-    ).first()
-
-    if existing:
-        # Cập nhật score nếu thay đổi
-        if existing.value != score:
-            existing.value = score
-            db.session.commit()
-            log.info(
-                "[KYPO Poller] Updated score challenge=%s team=%s → %s",
-                challenge_id, team_id, score,
-            )
-        return
-
-    team = Teams.query.get(team_id)
-    if team:
-        user_id = team.captain_id or (team.members[0].id if team.members else None)
-    else:
+    try:
+        team = Teams.query.get(team_id)
         user_id = None
+        if team:
+            user_id = getattr(team, 'captain_id', None)
+            if not user_id and hasattr(team, 'members') and team.members:
+                user_id = team.members[0].id
 
-    solve = Solves(
-        challenge_id=challenge_id,
-        team_id=team_id,
-        user_id=user_id,
-        ip="",
-        provided="(kypo)",
-        value=score,
-    )
-    db.session.add(solve)
-    db.session.commit()
-    log.info(
-        "[KYPO Poller] Inserted solve challenge=%s team=%s score=%s",
-        challenge_id, team_id, score,
-    )
+        # Kiểm tra solve đã tồn tại chưa — nếu rồi thì bỏ qua (idempotent)
+        exists = db.session.execute(
+            db.text("SELECT id FROM solves WHERE challenge_id=:cid AND team_id=:tid"),
+            {"cid": challenge_id, "tid": team_id}
+        ).fetchone()
+
+        if exists:
+            return
+
+        # INSERT submissions + solves
+        db.session.execute(
+            db.text("""INSERT INTO submissions
+                       (challenge_id, user_id, team_id, ip, provided, type, date)
+                       VALUES (:cid, :uid, :tid, '', '(kypo)', 'correct', NOW())"""),
+            {"cid": challenge_id, "uid": user_id, "tid": team_id}
+        )
+        sub_id = db.session.execute(db.text("SELECT LAST_INSERT_ID()")).scalar()
+
+        db.session.execute(
+            db.text("""INSERT IGNORE INTO solves (id, challenge_id, user_id, team_id)
+                       VALUES (:id, :cid, :uid, :tid)"""),
+            {"id": sub_id, "cid": challenge_id, "uid": user_id, "tid": team_id}
+        )
+        db.session.commit()
+        log.info("[KYPO Poller] Inserted solve challenge=%s team=%s score=%s",
+                 challenge_id, team_id, score)
+        _clear_scoreboard_cache()
+
+    except Exception as exc:
+        db.session.rollback()
+        log.error("[KYPO Poller] DB error challenge=%s team=%s: %s",
+                  challenge_id, team_id, exc)
 
 
 # ── Core sync per instance ─────────────────────────────────────────────────────
 
-def _sync_instance(cfg, token: str, rc, username_to_team: dict, now_iso: str):
+def _sync_instance(cfg, token: str, rc, username_to_team: dict, safe_first_name_to_team: dict, now_iso: str):
     """
     Xử lý 1 KypoChallengeConfig:
       - Lấy danh sách teams liên quan (có KypoTeamAccount)
@@ -240,16 +289,10 @@ def _sync_instance(cfg, token: str, rc, username_to_team: dict, now_iso: str):
     """
     from CTFd.models import db
 
-    all_team_ids = list(username_to_team.values())
-
-    # ── Skip nếu tất cả teams đã solve ────────────────────────────────────────
-    unsolved = _count_unsolved_teams(cfg.challenge_id, all_team_ids)
-    if unsolved == 0:
-        log.debug(
-            "[KYPO Poller] challenge=%s — tất cả teams đã solve, skip.",
-            cfg.challenge_id,
-        )
-        return
+    log.debug(
+        "[KYPO Poller] challenge=%s instance=%s — polling...",
+        cfg.challenge_id, cfg.kypo_instance_id,
+    )
 
     # ── Gọi KYPO ──────────────────────────────────────────────────────────────
     base = _service_base(cfg.kypo_instance_type or "linear")
@@ -261,25 +304,50 @@ def _sync_instance(cfg, token: str, rc, username_to_team: dict, now_iso: str):
         )
         return
 
+    participants = data.get("progress", [])
+    log.info(
+        "[KYPO Poller] instance=%s trả về %d participant(s).",
+        cfg.kypo_instance_id, len(participants),
+    )
+
     # ── Xử lý từng participant ─────────────────────────────────────────────────
-    for participant in data.get("progress", []):
+    for participant in participants:
         kypo_username = participant.get("name", "")
         training_run_id = participant.get("training_run_id")
         levels = participant.get("levels", [])
 
+        # Format 1 & 2: map trực tiếp (exact + lowercase)
         team_id = username_to_team.get(kypo_username)
         if team_id is None:
-            continue  # username không map được → bỏ qua
+            team_id = username_to_team.get(kypo_username.lower())
 
-        # Skip nếu challenge không còn running (team đã stop)
-        if not _is_challenge_running(rc, cfg.challenge_id, team_id):
-            log.debug(
-                "[KYPO Poller] challenge=%s team=%s không còn running, skip.",
-                cfg.challenge_id, team_id,
+        # Format 3 fallback: KYPO trả về "{firstName} FCTF Team"
+        # nhưng tên team trong DB đã thay đổi → dùng safe_name từ kypo_username
+        if team_id is None and kypo_username.lower().endswith(" fctf team"):
+            first_name = kypo_username[: -len(" FCTF Team")].strip()
+            safe_first = "".join(
+                c if c.isalnum() else "_" for c in first_name.lower()
+            )[:20]
+            team_id = safe_first_name_to_team.get(safe_first)
+            if team_id is not None:
+                log.info(
+                    "[KYPO Poller] instance=%s — '%s' mapped via safe_name fallback → team_id=%s.",
+                    cfg.kypo_instance_id, kypo_username, team_id,
+                )
+
+        if team_id is None:
+            log.warning(
+                "[KYPO Poller] instance=%s — không map được participant '%s'. "
+                "Kiểm tra KypoTeamAccount hoặc tên Keycloak (firstName) có khớp với tên team FCTF không.",
+                cfg.kypo_instance_id, kypo_username,
             )
             continue
 
         status, score = _calc_status_and_score(levels)
+        log.info(
+            "[KYPO Poller] instance=%s participant='%s' team_id=%s → status=%s score=%s",
+            cfg.kypo_instance_id, kypo_username, team_id, status, score,
+        )
 
         # Cache vào Redis (luôn cập nhật kể cả IN_PROGRESS)
         _cache(rc, cfg.challenge_id, team_id, {
@@ -294,7 +362,7 @@ def _sync_instance(cfg, token: str, rc, username_to_team: dict, now_iso: str):
             "last_synced": now_iso,
         })
 
-        # Ghi Solve chỉ khi FINISHED
+        # Ghi Solve chỉ khi FINISHED (ALL-OR-NOTHING, nhất quán với KypoScoreLockService)
         if status == "FINISHED":
             try:
                 _insert_solve(cfg.challenge_id, team_id, score)
@@ -313,17 +381,66 @@ def _run_poll_cycle(app):
     from CTFd.models import KypoChallengeConfig, KypoTeamAccount
 
     with app.app_context():
+        # Reset session + dispose pool để force fresh connection, tránh
+        # MySQL REPEATABLE READ giữ snapshot cũ không thấy team mới tạo.
+        from CTFd.models import db
+        try:
+            db.session.close()
+        except Exception:
+            pass
+        db.session.remove()
+        try:
+            # Expire tất cả objects trong identity map
+            db.session.expire_all()
+        except Exception:
+            pass
+
         configs = KypoChallengeConfig.query.all()
         if not configs:
             return
 
         # Build username → team_id index
+        # KYPO trả về `name` = "firstName lastName" = "{team_name} FCTF Team"
+        # kypo_username = "fctf_{safe_name}_{team_id}" (safe_name = tên lúc tạo account)
+        from CTFd.models import Teams
         accounts = KypoTeamAccount.query.all()
-        username_to_team: dict[str, int] = {
-            acc.kypo_username: acc.team_id for acc in accounts
-        }
+        username_to_team: dict[str, int] = {}
+        # safe_first_name → team_id: dùng để fallback khi tên team trong DB thay đổi
+        safe_first_name_to_team: dict[str, int] = {}
+
+        for acc in accounts:
+            # Format 1: kypo_username chính xác (vd: fctf_team23_3)
+            username_to_team[acc.kypo_username] = acc.team_id
+            username_to_team[acc.kypo_username.lower()] = acc.team_id
+
+            # Format 2: display name dùng tên team HIỆN TẠI trong DB
+            team = Teams.query.get(acc.team_id)
+            if team:
+                display_name = f"{team.name} FCTF Team"
+                username_to_team[display_name] = acc.team_id
+                username_to_team[display_name.lower()] = acc.team_id
+            else:
+                log.warning(
+                    "[KYPO Poller] KypoTeamAccount team_id=%s không tồn tại trong DB.",
+                    acc.team_id,
+                )
+
+            # Format 3 (fallback): trích safe_name từ kypo_username
+            # kypo_username = "fctf_{safe_name}_{team_id}" → lấy phần giữa
+            parts = acc.kypo_username.split("_")
+            if len(parts) >= 3 and parts[0] == "fctf":
+                safe_first = "_".join(parts[1:-1])
+                safe_first_name_to_team[safe_first] = acc.team_id
+
         if not username_to_team:
+            log.warning("[KYPO Poller] Không có KypoTeamAccount nào — bỏ qua cycle.")
             return
+
+        log.info(
+            "[KYPO Poller] Mapping: %d KypoTeamAccount(s) → %d unique team(s).",
+            len(accounts),
+            len({v for v in username_to_team.values()}),
+        )
 
         # Lấy token một lần dùng cho tất cả instance
         try:
@@ -342,7 +459,7 @@ def _run_poll_cycle(app):
 
         for cfg in configs:
             try:
-                _sync_instance(cfg, token, rc, username_to_team, now_iso)
+                _sync_instance(cfg, token, rc, username_to_team, safe_first_name_to_team, now_iso)
             except Exception as exc:
                 log.error(
                     "[KYPO Poller] Unhandled error challenge=%s: %s",
@@ -350,6 +467,8 @@ def _run_poll_cycle(app):
                 )
 
         log.info("[KYPO Poller] Cycle done. %d config(s).", len(configs))
+        # Luôn xóa cache sau mỗi cycle để scoreboard hiện team mới ngay
+        _clear_scoreboard_cache()
 
 
 # ── Public: manual trigger (dùng cho API endpoint) ────────────────────────────
@@ -362,29 +481,53 @@ def run_poll_cycle_now(app):
 # ── Thread loop ────────────────────────────────────────────────────────────────
 
 def _loop(app):
+    # Dùng time.sleep thật từ stdlib gốc, tránh gevent patch
+    try:
+        from gevent.monkey import get_original
+        _sleep = get_original("time", "sleep")
+    except Exception:
+        import time as _t
+        _sleep = _t.sleep
+
     log.info("[KYPO Poller] Started. Interval=%ds", POLL_INTERVAL)
     while not _stop_event.is_set():
         try:
             _run_poll_cycle(app)
         except Exception as exc:
             log.error("[KYPO Poller] Loop error: %s", exc, exc_info=True)
-        _stop_event.wait(POLL_INTERVAL)
+        _sleep(POLL_INTERVAL)
     log.info("[KYPO Poller] Stopped.")
 
 
 def start_poller(app):
-    """Khởi động daemon thread. Gọi 1 lần duy nhất khi app start."""
+    """Khởi động daemon thread. Gọi 1 lần duy nhất khi app start.
+
+    Dùng OS thread thật (bypass gevent monkey-patch) để poller chạy
+    độc lập, không phụ thuộc vào gevent hub của Flask server.
+    """
     global _thread
     if _thread and _thread.is_alive():
         return
     _stop_event.clear()
-    _thread = threading.Thread(
+
+    # Lấy threading.Thread gốc trước khi gevent patch, tránh greenlet
+    try:
+        from gevent.monkey import get_original
+        RealThread = get_original("threading", "Thread")
+    except Exception:
+        RealThread = threading.Thread
+
+    _thread = RealThread(
         target=_loop,
         args=(app,),
         name="kypo-poller",
         daemon=True,
     )
     _thread.start()
+    import logging
+    logging.getLogger(__name__).info(
+        "[KYPO Poller] Thread started (type=%s)", type(_thread).__name__
+    )
 
 
 def stop_poller():

@@ -32,6 +32,15 @@ builder.Services.AddControllers(options =>
     options.Filters.Add<GlobalExceptionFilter>();
 });
 builder.Services.AddHttpClient();
+
+// HttpClient cho KYPO — bỏ qua SSL certificate (KYPO dùng self-signed)
+builder.Services.AddHttpClient("kypo", client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(15);
+}).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+{
+    ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+});
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
@@ -74,8 +83,10 @@ builder.Services.AddScoped<IConfigService, ConfigService>();
 builder.Services.AddMemoryCache();
 builder.Services.AddOptions();
 
-// Init env config for ContestantBE
-new ContestantBEConfigHelper().InitConfig();
+// Init config từ bảng config (DB), fallback về ENV
+new ContestantBEConfigHelper().InitConfig(connectionString!);
+
+// KypoPollingConfig.Init() removed — config is now read dynamically from DB via IKypoConfigProvider
 
 builder.Services.AddStackExchangeRedisCache(options =>
 {
@@ -104,6 +115,12 @@ builder.Services.AddScoped<IChallengeService, ChallengeService>();
 builder.Services.AddScoped<IFileService, FileService>();
 builder.Services.AddScoped<IActionLogsServices, ActionLogsServices>();
 builder.Services.AddScoped<IUserContext, UserContext>();
+
+// KYPO — chốt điểm all-or-nothing (Stop / hết giờ)
+builder.Services.AddSingleton<IKypoConfigProvider, KypoConfigProvider>();
+builder.Services.AddSingleton<KypoApiClient>();
+builder.Services.AddScoped<KypoScoreLockService>();
+builder.Services.AddHostedService<KypoTimeoutWatcher>();
 // DI services from ResourceShared
 builder.Services.AddResourceShared();
 
