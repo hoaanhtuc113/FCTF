@@ -24,6 +24,7 @@ namespace ResourceShared.DTOs.Challenge
         // name of the challenge referenced by next_id, for UI convenience
         public string? next_name { get; set; }
         public bool solve_by_myteam { get; set; }
+        public bool kypo_submitted { get; set; }
         public List<object> files { get; set; } = new();
         public bool is_captain { get; set; }
         public bool captain_only_start { get; set; }

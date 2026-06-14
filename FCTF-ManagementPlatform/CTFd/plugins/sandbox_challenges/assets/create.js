@@ -43,51 +43,8 @@ CTFd.plugin.run((_CTFd) => {
         el("kypo-instance-type").value = opt ? (opt.dataset.instanceType || "linear") : "";
     }
 
-    // ── Fetch score from KYPO for the selected instance ───────────────────
-    function fetchScore(instanceId, instanceType, definitionId) {
-        var scoreInput = el("kypo-score-input");
-        var badge = el("kypo-score-badge");
-        var loadingEl = el("kypo-details-loading");
-        var errorEl = el("kypo-details-error");
-
-        addClass("kypo-details-error", "d-none");
-        removeClass("kypo-details-loading", "d-none");
-        scoreInput.value = "";
-        scoreInput.placeholder = "Loading from KYPO…";
-        addClass("kypo-score-badge", "d-none");
-
-        var url = "/api/v1/kypo/instances/" + instanceId +
-                  "/details?instance_type=" + instanceType;
-        if (definitionId) {
-            url += "&definition_id=" + definitionId;
-        }
-
-        fetch(url, {
-            method: "GET",
-            credentials: "same-origin",
-            headers: { "Accept": "application/json", "CSRF-Token": _CTFd.csrftoken },
-        })
-            .then(function (r) { return r.json(); })
-            .then(function (data) {
-                addClass("kypo-details-loading", "d-none");
-
-                if (data.success && data.data && data.data.max_score !== undefined) {
-                    scoreInput.value = data.data.max_score;
-                    scoreInput.placeholder = "";
-                    removeClass("kypo-score-badge", "d-none");
-                } else {
-                    scoreInput.placeholder = "Could not load — try again";
-                    removeClass("kypo-details-error", "d-none");
-                    console.error("[KYPO] Details error:", data.error || "(unknown)");
-                }
-            })
-            .catch(function (err) {
-                addClass("kypo-details-loading", "d-none");
-                scoreInput.placeholder = "Could not load — try again";
-                removeClass("kypo-details-error", "d-none");
-                console.error("[KYPO] Fetch error:", err);
-            });
-    }
+    // Điểm KHÔNG lấy từ KYPO nữa — admin tự nhập trong ô Score.
+    // Chọn instance chỉ để lưu metadata (kypo_instance_id, access_token, type).
 
     // ── Populate the instance dropdown ────────────────────────────────────
     function loadInstances() {
@@ -125,12 +82,8 @@ CTFd.plugin.run((_CTFd) => {
                             syncHiddenFields(null);
                             return;
                         }
+                        // Chỉ lưu metadata instance — KHÔNG fetch điểm từ KYPO
                         syncHiddenFields(opt);
-                        fetchScore(
-                            opt.value,
-                            opt.dataset.instanceType || "linear",
-                            opt.dataset.definitionId || ""
-                        );
                     });
                 } else {
                     removeClass("kypo-instance-error", "d-none");

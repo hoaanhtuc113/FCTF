@@ -63,11 +63,13 @@ public class ActionLogsServices : IActionLogsServices
 
     public async Task<ActionLogsDTO> SaveActionLogs(ActionLogsReq req, int userId)
     {
-        var topic_name = await _context.Challenges
-            .AsNoTracking()
-            .Where(c => c.Id == req.ChallengeId)
-            .Select(c => c.Category)
-            .FirstOrDefaultAsync();
+        var topic_name = req.ChallengeId.HasValue
+            ? await _context.Challenges
+                .AsNoTracking()
+                .Where(c => c.Id == req.ChallengeId.Value)
+                .Select(c => c.Category)
+                .FirstOrDefaultAsync()
+            : null;
 
         var log = new ActionLog
         {

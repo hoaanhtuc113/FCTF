@@ -95,6 +95,17 @@ namespace ResourceShared.Utils
         {
             return UserMode()?.ToString() == Enums.Mode.Team;
         }
+
+        /// <summary>
+        /// Read config: DB config table first, fallback to ENV var, then default.
+        /// </summary>
+        public string GetDbOrEnvConfig(string dbKey, string envKey, string defaultValue = "")
+        {
+            var dbVal = GetConfig<string>(dbKey);
+            if (!string.IsNullOrWhiteSpace(dbVal)) return dbVal;
+            var envVal = Environment.GetEnvironmentVariable(envKey);
+            return string.IsNullOrWhiteSpace(envVal) ? defaultValue : envVal;
+        }
     }
 
 }
