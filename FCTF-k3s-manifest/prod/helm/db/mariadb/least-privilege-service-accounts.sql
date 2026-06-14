@@ -52,6 +52,7 @@ GRANT SELECT ON ctfd.tracking TO 'contestant_be'@'%';
 GRANT INSERT ON ctfd.tracking TO 'contestant_be'@'%';
 GRANT UPDATE ON ctfd.tracking TO 'contestant_be'@'%';
 GRANT SELECT ON ctfd.challenge_start_tracking TO 'contestant_be'@'%';
+GRANT SELECT ON ctfd.kypo_challenge_configs TO 'contestant_be'@'%';
 
 -- DeploymentCenter
 GRANT SELECT ON ctfd.users TO 'deployment_center'@'%';
