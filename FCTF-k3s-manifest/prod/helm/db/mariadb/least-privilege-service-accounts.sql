@@ -32,7 +32,7 @@ GRANT SELECT ON ctfd.achievements TO 'contestant_be'@'%';
 GRANT SELECT, INSERT ON ctfd.unlocks TO 'contestant_be'@'%';
 GRANT SELECT, INSERT ON ctfd.action_logs TO 'contestant_be'@'%';
 GRANT SELECT, INSERT, DELETE ON ctfd.tickets TO 'contestant_be'@'%';
-GRANT SELECT, DELETE ON ctfd.tokens TO 'contestant_be'@'%';
+GRANT SELECT, INSERT, UPDATE, DELETE ON ctfd.tokens TO 'contestant_be'@'%';
 GRANT SELECT, INSERT, UPDATE ON ctfd.tracking TO 'contestant_be'@'%';
 GRANT SELECT, INSERT, UPDATE ON ctfd.challenge_start_tracking TO 'contestant_be'@'%';
 GRANT SELECT ON ctfd.topics TO 'contestant_be'@'%';
