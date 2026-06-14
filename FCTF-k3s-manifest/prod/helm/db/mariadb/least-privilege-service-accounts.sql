@@ -52,7 +52,20 @@ GRANT SELECT ON ctfd.tracking TO 'contestant_be'@'%';
 GRANT INSERT ON ctfd.tracking TO 'contestant_be'@'%';
 GRANT UPDATE ON ctfd.tracking TO 'contestant_be'@'%';
 GRANT SELECT ON ctfd.challenge_start_tracking TO 'contestant_be'@'%';
+GRANT INSERT ON ctfd.challenge_start_tracking TO 'contestant_be'@'%';
+GRANT UPDATE ON ctfd.challenge_start_tracking TO 'contestant_be'@'%';
 GRANT SELECT ON ctfd.kypo_challenge_configs TO 'contestant_be'@'%';
+GRANT SELECT ON ctfd.kypo_team_accounts TO 'contestant_be'@'%';
+GRANT SELECT ON ctfd.achievements TO 'contestant_be'@'%';
+GRANT SELECT ON ctfd.award_badges TO 'contestant_be'@'%';
+GRANT SELECT ON ctfd.alembic_version TO 'contestant_be'@'%';
+GRANT SELECT ON ctfd.challenge_topics TO 'contestant_be'@'%';
+GRANT SELECT ON ctfd.comments TO 'contestant_be'@'%';
+GRANT SELECT ON ctfd.deploy_histories TO 'contestant_be'@'%';
+GRANT SELECT ON ctfd.multiple_choice_challenge TO 'contestant_be'@'%';
+GRANT SELECT ON ctfd.notifications TO 'contestant_be'@'%';
+GRANT SELECT ON ctfd.tags TO 'contestant_be'@'%';
+GRANT SELECT ON ctfd.topics TO 'contestant_be'@'%';
 
 -- DeploymentCenter
 GRANT SELECT ON ctfd.users TO 'deployment_center'@'%';
