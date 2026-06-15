@@ -21,7 +21,7 @@ public interface IDeployService
 {
     Task<ChallengeDeployResponeDTO> Start(ChallengeStartStopReqDTO challengeStartReq);
     Task<ChallengeDeployResponeDTO> Stop(ChallengeStartStopReqDTO challengeStartReq);
-    Task<BaseResponseDTO> StopAll();
+    Task<BaseResponseDTO> StopAll(int contestId = 0);
     Task<ChallengeDeployResponeDTO> StatusCheck(ChallengCheckStatusReqDTO statusReq);
     Task<BaseResponseDTO> HandleMessageFromArgo(WorkflowStatusDTO message);
     Task<BaseResponseDTO<DeploymentLogsDTO>> GetDeploymentLogs(string workflowName);
@@ -310,24 +310,51 @@ public class DeployService : IDeployService
     }
 
 
-    public async Task<BaseResponseDTO> StopAll()
+    public async Task<BaseResponseDTO> StopAll(int contestId = 0)
     {
-        await Console.Out.WriteLineAsync("Stopping all challenges...");
+        await Console.Out.WriteLineAsync($"Stopping all challenges{(contestId > 0 ? $" for contest {contestId}" : "")}...");
         try
         {
-            // Use K8s API to delete all challenge namespaces by label selector
-            var (successCount, failCount, errors) = await _k8SHealthService.DeleteAllChallengeNamespaces("ctf/kind=challenge");
+            HashSet<int>? challengeIdFilter = null;
 
-            // Clear all cache entries
-            // Clear the entire pods list
-            await _redisHelper.RemoveCacheByPattern("deploy_challenge_*");
-            await _redisHelper.RemoveCacheByPattern("active_deploys_team_*");
-
-            var message = $"Stopped {successCount} challenge namespace(s) successfully.";
-            if (failCount > 0)
+            if (contestId > 0)
             {
-                message += $" {failCount} failed. Errors: {string.Join("; ", errors)}";
+                var ids = await _dbContext.Challenges
+                    .Where(c => c.ContestId == contestId)
+                    .Select(c => c.Id)
+                    .ToListAsync();
+
+                if (ids.Count == 0)
+                {
+                    return new BaseResponseDTO
+                    {
+                        Success = true,
+                        Message = $"No challenges found for contest {contestId}.",
+                        HttpStatusCode = HttpStatusCode.OK
+                    };
+                }
+
+                challengeIdFilter = new HashSet<int>(ids);
             }
+
+            var (successCount, failCount, errors) = await _k8SHealthService.DeleteAllChallengeNamespaces("ctf/kind=challenge", challengeIdFilter);
+
+            // Clear Redis cache scoped to the affected challenges only
+            if (challengeIdFilter != null)
+            {
+                foreach (var cid in challengeIdFilter)
+                    await _redisHelper.RemoveCacheByPattern($"deploy_challenge_{cid}_*");
+            }
+            else
+            {
+                await _redisHelper.RemoveCacheByPattern("deploy_challenge_*");
+                await _redisHelper.RemoveCacheByPattern("active_deploys_team_*");
+            }
+
+            var scope = contestId > 0 ? $" for contest {contestId}" : "";
+            var message = $"Stopped {successCount} challenge namespace(s){scope} successfully.";
+            if (failCount > 0)
+                message += $" {failCount} failed. Errors: {string.Join("; ", errors)}";
 
             return new BaseResponseDTO
             {

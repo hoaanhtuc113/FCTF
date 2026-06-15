@@ -25,7 +25,8 @@ public interface IK8sService
     Task<bool> DeleteNamespace(string namespaceName);
 
     Task<(int successCount, int failCount, List<string> errors)> DeleteAllChallengeNamespaces(
-        string labelSelector = "ctf/kind=challenge");
+        string labelSelector = "ctf/kind=challenge",
+        HashSet<int>? challengeIdFilter = null);
 
     Task<ChallengeDeployResponeDTO?> HandleChallengeRunning(
         int challengeId,
@@ -85,9 +86,11 @@ public class K8sService : IK8sService
         }
     }
 
-    public async Task<(int successCount, int failCount, List<string> errors)> DeleteAllChallengeNamespaces(string labelSelector = "ctf/kind=challenge")
+    public async Task<(int successCount, int failCount, List<string> errors)> DeleteAllChallengeNamespaces(
+        string labelSelector = "ctf/kind=challenge",
+        HashSet<int>? challengeIdFilter = null)
     {
-        _logger.LogDebug("Deleting all namespaces with label", new { labelSelector });
+        _logger.LogDebug("Deleting all namespaces with label", new { labelSelector, filtered = challengeIdFilter != null });
 
         int successCount = 0;
         int failCount = 0;
@@ -110,6 +113,21 @@ public class K8sService : IK8sService
             foreach (var ns in namespaces.Items)
             {
                 var namespaceName = ns.Metadata.Name;
+
+                // If a contest filter is specified, only delete namespaces belonging to that contest's challenges
+                if (challengeIdFilter != null)
+                {
+                    try
+                    {
+                        var (_, challengeId) = ChallengeHelper.ParseDeploymentAppName(namespaceName);
+                        if (!challengeIdFilter.Contains(challengeId))
+                            continue;
+                    }
+                    catch
+                    {
+                        continue;
+                    }
+                }
                 try
                 {
                     await _kubernetes.CoreV1.DeleteNamespaceAsync(namespaceName,

@@ -100,7 +100,7 @@ public class ChallengeController : ControllerBase
             });
         }
         await Console.Out.WriteLineAsync($"[Stop All] Account {user.Name} stop all challenge");
-        var response = await _deployService.StopAll();
+        var response = await _deployService.StopAll(challengeStopReq.contestId ?? 0);
         return response.HttpStatusCode switch
         {
             HttpStatusCode.OK => Ok(response),

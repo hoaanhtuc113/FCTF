@@ -218,8 +218,10 @@ def stop_all_challenges():
     if user.type == "user":
         return jsonify({"error": "Permission denied"}), 400
 
+    contest_id = request.args.get("contest_id", type=int)
+
     try:
-        result = force_stop_all(user_id=user_id)
+        result = force_stop_all(user_id=user_id, contest_id=contest_id)
         if isinstance(result, dict):
             return jsonify(result), 200
         return jsonify({"success": True}), 200
