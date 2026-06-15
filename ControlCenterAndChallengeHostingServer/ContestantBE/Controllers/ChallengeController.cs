@@ -582,7 +582,7 @@ public class ChallengeController : BaseController
                 await _actionLogsServices.SaveActionLogs(new ActionLogsReq
                 {
                     ActionType = 3, // CORRECT_FLAG
-                    ActionDetail = $"Nộp cờ đúng cho thử thách {challenge.Name}",
+                    ActionDetail = $"Submitted correct flag for challenge {challenge.Name}",
                     ChallengeId = challenge.Id,
                 }, user.Id);
             }
@@ -684,7 +684,7 @@ public class ChallengeController : BaseController
             await _actionLogsServices.SaveActionLogs(new ActionLogsReq
             {
                 ActionType = 4, // INCORRECT_FLAG
-                ActionDetail = $"Nộp cờ sai cho thử thách {challenge.Name}",
+                ActionDetail = $"Submitted incorrect flag for challenge {challenge.Name}",
                 ChallengeId = challenge.Id,
             }, user.Id);
         }
@@ -797,7 +797,7 @@ public class ChallengeController : BaseController
         {
             var (accessToken, refreshToken, idToken, sessionState, expiresIn) = tokenResult.Value;
 
-            // Tạo training run cho team (idempotent — trả run cũ nếu đã có)
+            // Create training run for team (idempotent — returns existing run if already created)
             var kypoAccessToken = kypoConfig?.KypoAccessToken;
             await GetOrCreateTrainingRunAsync(accessToken, kypoAccessToken, baseUrl);
 
@@ -822,7 +822,7 @@ public class ChallengeController : BaseController
         bridgeUrl = $"{baseUrl}/run";
     }
 
-    // Kiểm tra nếu session đã tồn tại trong Redis
+    // Check if session already exists in Redis
     var sandboxCacheKey = ChallengeHelper.GetCacheKey(challenge.Id, user.TeamId.Value);
     if (await _redisHelper.KeyExistsAsync(sandboxCacheKey))
     {
@@ -842,14 +842,14 @@ public class ChallengeController : BaseController
         }
     }
 
-    // Tính thời gian kết thúc từ time_limit (đơn vị: phút)
+    // Calculate end time from time_limit (unit: minutes)
     long timeFinished = 0;
     TimeSpan? cacheTtl = null;
     if (challenge.TimeLimit.HasValue && challenge.TimeLimit.Value > 0)
     {
         long timeLimitSeconds = challenge.TimeLimit.Value * 60L;
         timeFinished = DateTimeOffset.UtcNow.ToUnixTimeSeconds() + timeLimitSeconds;
-        cacheTtl = TimeSpan.FromSeconds(timeLimitSeconds + 120); // buffer 2 phút
+        cacheTtl = TimeSpan.FromSeconds(timeLimitSeconds + 120); // 2-minute buffer
     }
 
     var sandboxCacheDto = new ChallengeDeploymentCacheDTO
@@ -864,8 +864,8 @@ public class ChallengeController : BaseController
     };
     await _redisHelper.SetCacheAsync(sandboxCacheKey, sandboxCacheDto, cacheTtl);
 
-    // Ghi challenge_start_tracking làm nguồn started_at cho trigger "hết giờ".
-    // Chỉ ghi nếu chưa có phiên đang mở (stopped_at == null) cho team+challenge.
+    // Record challenge_start_tracking as the started_at source for the "time expired" trigger.
+    // Only write if no open session (stopped_at == null) exists for this team+challenge.
     try
     {
         var hasOpenTracking = await _context.ChallengeStartTrackings
@@ -888,7 +888,21 @@ public class ChallengeController : BaseController
     }
     catch (Exception ex)
     {
-        await Console.Error.WriteLineAsync($"[KYPO] Ghi challenge_start_tracking lỗi: {ex.Message}");
+        await Console.Error.WriteLineAsync($"[KYPO] Failed to write challenge_start_tracking: {ex.Message}");
+    }
+
+    try
+    {
+        await _actionLogsServices.SaveActionLogs(new ActionLogsReq
+        {
+            ActionType = 6, // START_SANDBOX
+            ActionDetail = $"Started KYPO challenge {challenge.Name}",
+            ChallengeId = challenge.Id,
+        }, user.Id);
+    }
+    catch (Exception ex)
+    {
+        await Console.Error.WriteLineAsync($"[ActionLog] Failed to save START_SANDBOX log for challenge {challenge.Id}: {ex.Message}");
     }
 
     return Ok(new ChallengeDeployResponeDTO
@@ -1074,7 +1088,7 @@ public class ChallengeController : BaseController
             var response = await _challengeServices.ChallengeStart(challenge, user);
             if (response.status != (int)HttpStatusCode.OK)
             {
-                // >>> ROLLBACK: Xóa ngay slot vừa chiếm trong Redis <<<
+                // >>> ROLLBACK: Immediately remove the slot just claimed in Redis <<<
                 await Console.Error.WriteLineAsync($"[Rollback] Team {user.TeamId} start challenge failed: {response.message}.");
                 await _redisHelper.AtomicRemoveDeploymentZSet(teamIdStr, deploymentKey, challengeIdStr);
             }
@@ -1086,7 +1100,7 @@ public class ChallengeController : BaseController
                     await _actionLogsServices.SaveActionLogs(new ActionLogsReq
                     {
                         ActionType = isSandboxChallenge ? 6 : 2, // 6=START_SANDBOX, 2=START_CHALLENGE
-                        ActionDetail = $"Khởi động thử thách {challenge.Name}",
+                        ActionDetail = $"Started challenge {challenge.Name}",
                         ChallengeId = challenge.Id,
                     }, user.Id);
                 }
@@ -1142,7 +1156,7 @@ public class ChallengeController : BaseController
         if (!await _redisHelper.KeyExistsAsync(cache_key))
             return BadRequest(new { error = "Challenge not started or already stopped, no active cache found." });
 
-        // Sandbox/KYPO challenge: xóa Redis key + chốt điểm KYPO
+        // Sandbox/KYPO challenge: remove Redis key + lock KYPO score
         bool isSandboxChallenge = string.Equals(challenge.Type, "sandbox", StringComparison.OrdinalIgnoreCase);
         bool isKypoChallenge = await _context.KypoChallengeConfigs
             .AsNoTracking()
@@ -1152,7 +1166,7 @@ public class ChallengeController : BaseController
         {
             var teamId = user.TeamId.Value;
 
-            // Đánh dấu phiên đã dừng (stopped_at) — ngừng đếm giờ
+            // Mark session as stopped (stopped_at) — stop counting time
             var openTrackings = await _context.ChallengeStartTrackings
                 .Where(t => t.ChallengeId == challenge.Id
                          && t.TeamId == teamId
@@ -1161,7 +1175,8 @@ public class ChallengeController : BaseController
             foreach (var t in openTrackings) t.StoppedAt = DateTime.UtcNow;
             if (openTrackings.Count > 0) await _context.SaveChangesAsync();
 
-            // Chốt điểm ngay trong request — chờ kết quả để trả về frontend luôn
+            await _redisHelper.RemoveCacheAsync(cache_key);
+
             bool kypeSolved = false;
             if (isKypoChallenge)
             {
@@ -1171,18 +1186,16 @@ public class ChallengeController : BaseController
                 }
                 catch (Exception ex)
                 {
-                    await Console.Error.WriteLineAsync($"[KYPO] Chốt điểm lỗi: {ex.Message}");
+                    await Console.Error.WriteLineAsync($"[KYPO] Score lock error challenge={challenge.Id} team={teamId}: {ex.Message}");
                 }
             }
-
-            await _redisHelper.RemoveCacheAsync(cache_key);
 
             try
             {
                 await _actionLogsServices.SaveActionLogs(new ActionLogsReq
                 {
                     ActionType = 7, // STOP_SANDBOX / SUBMIT_KYPO
-                    ActionDetail = $"Nộp thử thách sandbox {challenge.Name}",
+                    ActionDetail = $"Submitted sandbox challenge {challenge.Name}",
                     ChallengeId = challenge.Id,
                 }, user.Id);
             }
@@ -1196,7 +1209,7 @@ public class ChallengeController : BaseController
                 status = (int)HttpStatusCode.OK,
                 success = true,
                 message = isKypoChallenge
-                    ? (kypeSolved ? "Hoàn thành! Điểm đã được ghi nhận." : "Sandbox session ended.")
+                    ? (kypeSolved ? "Completed! Score has been recorded." : "Sandbox session ended.")
                     : "Sandbox session ended.",
             });
         }
@@ -1214,7 +1227,7 @@ public class ChallengeController : BaseController
                     await _actionLogsServices.SaveActionLogs(new ActionLogsReq
                     {
                         ActionType = 7, // STOP_SANDBOX
-                        ActionDetail = $"Dừng thử thách sandbox {challenge.Name}",
+                        ActionDetail = $"Stopped sandbox challenge {challenge.Name}",
                         ChallengeId = challenge.Id,
                     }, user.Id);
                 }
