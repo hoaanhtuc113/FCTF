@@ -212,6 +212,8 @@ namespace ResourceShared.Utils
             var startChallengeTemplate = Environment.GetEnvironmentVariable("START_CHALLENGE_TEMPLATE")
                 ?? throw new InvalidOperationException("Missing START_CHALLENGE_TEMPLATE");
 
+            var labelTeamId = teamId == -2 ? "shared" : teamId <= 0 ? "0" : teamId.ToString();
+
             var parameters = new List<string>
             {
                 $"CHALLENGE_NAME={deploymentAppName}",
@@ -225,7 +227,10 @@ namespace ResourceShared.Utils
                 $"HARDEN_CONTAINER={harden_container.ToString().ToLower()}",
                 $"IS_TEMPORARY={isTemp.ToString().ToLower()}",
                 $"CHALLENGE_TIMEOUT={challenge.TimeLimit++}m",
-                $"POW_DIFFICULTY_SECONDS={pow_difficulty}"
+                $"POW_DIFFICULTY_SECONDS={pow_difficulty}",
+                $"CONTEST_ID={challenge.ContestId}",
+                $"CHALLENGE_ID={challenge.Id}",
+                $"TEAM_ID={labelTeamId}",
             };
 
             if (!string.IsNullOrEmpty(flagValue))
