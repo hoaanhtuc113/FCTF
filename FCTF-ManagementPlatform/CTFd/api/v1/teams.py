@@ -391,6 +391,50 @@ class TeamPublic(Resource):
         return {"success": True}
 
 
+@teams_namespace.route("/<int:team_id>/kypo-account")
+@teams_namespace.param("team_id", "Team ID")
+class TeamKypoAccount(Resource):
+    method_decorators = [admins_only]
+
+    def post(self, team_id):
+        """Create a KYPO account for a team that doesn't have one yet."""
+        team = Teams.query.filter_by(id=team_id).first_or_404()
+
+        existing = KypoTeamAccount.query.filter_by(team_id=team_id).first()
+        if existing:
+            return {"success": False, "message": "Team already has a KYPO account"}, 400
+
+        try:
+            kypo_info = create_kypo_user(team.id, team.name)
+            kypo_account = KypoTeamAccount(
+                team_id=team.id,
+                kypo_user_id=kypo_info["kypo_user_id"],
+                kypo_username=kypo_info["kypo_username"],
+                kypo_password=kypo_info["kypo_password"],
+            )
+            db.session.add(kypo_account)
+            db.session.commit()
+        except Exception as e:
+            _kc_logger.error("Failed to create KYPO account for team %s: %s", team_id, e, exc_info=True)
+            return {"success": False, "message": f"Failed to create KYPO account: {e}"}, 500
+
+        log_audit(
+            action="kypo_account_create",
+            data={"team_id": team_id, "kypo_username": kypo_info["kypo_username"]},
+        )
+        created_at = kypo_account.created_at.strftime("%Y-%m-%d %H:%M:%S") if kypo_account.created_at else ""
+        db.session.close()
+        return {
+            "success": True,
+            "data": {
+                "kypo_user_id": kypo_info["kypo_user_id"],
+                "kypo_username": kypo_info["kypo_username"],
+                "kypo_password": kypo_info["kypo_password"],
+                "created_at": created_at,
+            },
+        }
+
+
 @teams_namespace.route("/me")
 @teams_namespace.param("team_id", "Current Team")
 class TeamPrivate(Resource):
