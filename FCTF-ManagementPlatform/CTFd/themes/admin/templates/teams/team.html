@@ -398,9 +398,60 @@
 						readonly>
 				</div>
 				{% else %}
-				<div class="text-center text-muted py-4">
-					<i class="fas fa-exclamation-circle fa-3x mb-3 d-block"></i>
-					<p>No KYPO account found for this team.</p>
+				<div id="kypo-modal-missing">
+					<div class="text-center text-muted py-4">
+						<i class="fas fa-exclamation-circle fa-3x mb-3 d-block"></i>
+						<p>No KYPO account found for this team.</p>
+						<button class="btn btn-primary mt-1" id="btn-create-kypo" onclick="createKypoAccount({{ team.id }})">
+							<i class="fas fa-plus-circle mr-1"></i> Create KYPO Account
+						</button>
+					</div>
+				</div>
+				<div id="kypo-modal-created" class="d-none">
+					<div class="form-group">
+						<label class="font-weight-bold">KYPO User ID</label>
+						<div class="input-group">
+							<input type="text" class="form-control" id="kypo-new-user-id" readonly>
+							<div class="input-group-append">
+								<button class="btn btn-outline-secondary" type="button"
+									onclick="copyToClipboard(document.getElementById('kypo-new-user-id').value, this)">
+									<i class="fas fa-clipboard"></i>
+								</button>
+							</div>
+						</div>
+					</div>
+					<div class="form-group">
+						<label class="font-weight-bold">Username</label>
+						<div class="input-group">
+							<input type="text" class="form-control" id="kypo-new-username" readonly>
+							<div class="input-group-append">
+								<button class="btn btn-outline-secondary" type="button"
+									onclick="copyToClipboard(document.getElementById('kypo-new-username').value, this)">
+									<i class="fas fa-clipboard"></i>
+								</button>
+							</div>
+						</div>
+					</div>
+					<div class="form-group">
+						<label class="font-weight-bold">Password</label>
+						<div class="input-group">
+							<input type="password" class="form-control" id="kypo-new-password" readonly>
+							<div class="input-group-append">
+								<button class="btn btn-outline-secondary" type="button"
+									onclick="toggleNewKypoPassword(this)">
+									<i class="fas fa-eye"></i>
+								</button>
+								<button class="btn btn-outline-secondary" type="button"
+									onclick="copyToClipboard(document.getElementById('kypo-new-password').value, this)">
+									<i class="fas fa-clipboard"></i>
+								</button>
+							</div>
+						</div>
+					</div>
+					<div class="form-group">
+						<label class="font-weight-bold">Created At</label>
+						<input type="text" class="form-control" id="kypo-new-created-at" readonly>
+					</div>
 				</div>
 				{% endif %}
 			</div>
@@ -599,8 +650,6 @@
 		<a class="nav-item nav-link" id="nav-missing-tab" data-toggle="tab" href="#nav-missing" role="tab"
 			aria-controls="nav-missing" aria-selected="false">Missing</a>
 
-		<a class="nav-item nav-link" id="nav-kypo-tab" data-toggle="tab" href="#nav-kypo" role="tab"
-			aria-controls="nav-kypo" aria-selected="false">KYPO Account</a>
 	</nav>
 
 	<div class="tab-content min-vh-50 pb-5" id="nav-tabContent">
@@ -857,59 +906,6 @@
 				</div>
 			</div>
 		</div>
-		<div class="tab-pane fade" id="nav-kypo" role="tabpanel" aria-labelledby="nav-kypo-tab">
-			<h3 class="text-center pt-5 d-block">KYPO Account</h3>
-			<div class="row justify-content-center pt-3">
-				<div class="col-md-6">
-					{% if kypo_account %}
-					<div class="card">
-						<div class="card-header">
-							<h5><i class="fas fa-key mr-2"></i>KYPO Credentials</h5>
-						</div>
-						<div class="card-body">
-							<div class="form-group">
-								<label class="font-weight-bold">KYPO User ID</label>
-								<input type="text" class="form-control" value="{{ kypo_account.kypo_user_id }}" readonly>
-							</div>
-							<div class="form-group">
-								<label class="font-weight-bold">Username</label>
-								<input type="text" class="form-control" value="{{ kypo_account.kypo_username }}" readonly>
-							</div>
-							<div class="form-group">
-								<label class="font-weight-bold">Password</label>
-								<div class="input-group">
-									<input type="password" class="form-control" id="kypo-password-field"
-										value="{{ kypo_account.kypo_password }}" readonly>
-									<div class="input-group-append">
-										<button class="btn btn-outline-secondary" type="button"
-											onclick="toggleKypoPassword(this)">
-											<i class="fas fa-eye"></i>
-										</button>
-										<button class="btn btn-outline-secondary" type="button"
-											onclick="copyKypoPassword('{{ kypo_account.kypo_password }}')"
-											data-toggle="tooltip" title="Copy password">
-											<i class="fas fa-clipboard"></i>
-										</button>
-									</div>
-								</div>
-							</div>
-							<div class="form-group">
-								<label class="font-weight-bold">Created At</label>
-								<input type="text" class="form-control"
-									value="{{ kypo_account.created_at.strftime('%Y-%m-%d %H:%M:%S') if kypo_account.created_at else '' }}"
-									readonly>
-							</div>
-						</div>
-					</div>
-					{% else %}
-					<div class="text-center text-muted py-5">
-						<i class="fas fa-exclamation-circle fa-3x mb-3"></i>
-						<p>No KYPO account found for this team.</p>
-					</div>
-					{% endif %}
-				</div>
-			</div>
-		</div>
 	</div>
 
 	<div class="row min-vh-25 pt-5">
@@ -924,7 +920,7 @@
 {% endblock %}
 
 {% block scripts %}
-
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <script>
 	var TEAM_ID = {{ team.id }};
@@ -954,6 +950,68 @@
 			icon.classList.replace('fa-clipboard', 'fa-check');
 			setTimeout(function() { icon.classList.replace('fa-check', 'fa-clipboard'); }, 1500);
 		});
+	}
+
+	function createKypoAccount(teamId) {
+		var btn = document.getElementById('btn-create-kypo');
+		btn.disabled = true;
+		btn.innerHTML = '<span class="spinner-border spinner-border-sm mr-1" role="status" aria-hidden="true"></span> Creating...';
+
+		fetch('/api/v1/teams/' + teamId + '/kypo-account', {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+				'CSRF-Token': init.csrfNonce,
+			},
+		})
+		.then(function(resp) { return resp.json(); })
+		.then(function(data) {
+			if (data.success) {
+				document.getElementById('kypo-new-user-id').value = data.data.kypo_user_id;
+				document.getElementById('kypo-new-username').value = data.data.kypo_username;
+				document.getElementById('kypo-new-password').value = data.data.kypo_password;
+				document.getElementById('kypo-new-created-at').value = data.data.created_at;
+				document.getElementById('kypo-modal-missing').classList.add('d-none');
+				document.getElementById('kypo-modal-created').classList.remove('d-none');
+				Swal.fire({
+					icon: 'success',
+					title: 'Success',
+					text: 'KYPO account created successfully!',
+					confirmButtonColor: '#28a745',
+				});
+			} else {
+				btn.disabled = false;
+				btn.innerHTML = '<i class="fas fa-plus-circle mr-1"></i> Create KYPO Account';
+				Swal.fire({
+					icon: 'error',
+					title: 'Error',
+					text: data.message || 'Failed to create KYPO account.',
+					confirmButtonColor: '#dc3545',
+				});
+			}
+		})
+		.catch(function(err) {
+			btn.disabled = false;
+			btn.innerHTML = '<i class="fas fa-plus-circle mr-1"></i> Create KYPO Account';
+			Swal.fire({
+				icon: 'error',
+				title: 'Connection Error',
+				text: String(err),
+				confirmButtonColor: '#dc3545',
+			});
+		});
+	}
+
+	function toggleNewKypoPassword(btn) {
+		var field = document.getElementById('kypo-new-password');
+		var icon = btn.querySelector('i');
+		if (field.type === 'password') {
+			field.type = 'text';
+			icon.classList.replace('fa-eye', 'fa-eye-slash');
+		} else {
+			field.type = 'password';
+			icon.classList.replace('fa-eye-slash', 'fa-eye');
+		}
 	}
 </script>
 {% endblock %}
