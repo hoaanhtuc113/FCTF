@@ -50,9 +50,18 @@ CTFd.plugin.run((_CTFd) => {
     function loadInstances() {
         var loading = el("kypo-instance-loading");
         var select = el("kypo-instance-select");
-        var errorEl = el("kypo-instance-error");
+        var refreshContainer = el("kypo-refresh-container");
 
         if (!loading || !select) return;
+
+        // Reset UI state before (re)loading
+        loading.style.display = "";
+        addClass("kypo-instance-error", "d-none");
+        if (refreshContainer) refreshContainer.style.display = "none";
+
+        // Clear previous options except placeholder
+        while (select.options.length > 1) select.remove(1);
+        syncHiddenFields(null);
 
         fetch("/api/v1/kypo/instances", {
             method: "GET",
@@ -62,6 +71,7 @@ CTFd.plugin.run((_CTFd) => {
             .then(function (r) { return r.json(); })
             .then(function (data) {
                 loading.style.display = "none";
+                if (refreshContainer) refreshContainer.style.display = "flex";
 
                 if (data.success && data.data && data.data.length > 0) {
                     data.data.forEach(function (inst) {
@@ -74,17 +84,18 @@ CTFd.plugin.run((_CTFd) => {
                         select.appendChild(opt);
                     });
 
-                    select.style.display = "block";
-
-                    select.addEventListener("change", function () {
-                        var opt = this.options[this.selectedIndex];
-                        if (!opt || opt.value === "") {
-                            syncHiddenFields(null);
-                            return;
-                        }
-                        // Chỉ lưu metadata instance — KHÔNG fetch điểm từ KYPO
-                        syncHiddenFields(opt);
-                    });
+                    if (!select._changeListenerAdded) {
+                        select.addEventListener("change", function () {
+                            var opt = this.options[this.selectedIndex];
+                            if (!opt || opt.value === "") {
+                                syncHiddenFields(null);
+                                return;
+                            }
+                            // Chỉ lưu metadata instance — KHÔNG fetch điểm từ KYPO
+                            syncHiddenFields(opt);
+                        });
+                        select._changeListenerAdded = true;
+                    }
                 } else {
                     removeClass("kypo-instance-error", "d-none");
                 }
@@ -95,10 +106,14 @@ CTFd.plugin.run((_CTFd) => {
             })
             .catch(function (err) {
                 if (loading) loading.style.display = "none";
+                if (refreshContainer) refreshContainer.style.display = "flex";
                 removeClass("kypo-instance-error", "d-none");
                 console.error("[KYPO] Failed to fetch instances:", err);
             });
     }
+
+    var refreshBtn = el("kypo-refresh-btn");
+    if (refreshBtn) refreshBtn.addEventListener("click", loadInstances);
 
     loadInstances();
 });
