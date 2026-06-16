@@ -82,10 +82,15 @@
         <span class="ml-2 text-muted small">Connecting to KYPO and loading instances&hellip;</span>
     </div>
 
-    <select class="form-control custom-select" name="kypo_instance_select"
-            id="kypo-instance-select" style="display:none;" required>
-        <option value="">— Select a KYPO instance —</option>
-    </select>
+    <div id="kypo-refresh-container" style="display:none; align-items:center; gap:8px;">
+        <select class="form-control custom-select" name="kypo_instance_select"
+                id="kypo-instance-select" required>
+            <option value="">— Select a KYPO instance —</option>
+        </select>
+        <button type="button" id="kypo-refresh-btn" class="btn btn-outline-secondary btn-sm flex-shrink-0" title="Refresh instances">
+            <i class="fas fa-sync-alt"></i>
+        </button>
+    </div>
 
     <div id="kypo-instance-error" class="alert alert-warning mt-2 d-none" role="alert">
         <i class="fas fa-exclamation-triangle mr-1"></i>
