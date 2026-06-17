@@ -128,28 +128,46 @@ public class K8sService : IK8sService
                         continue;
                     }
                 }
-                try
+                bool deleted = false;
+                string? lastError = null;
+                Exception? lastEx = null;
+                for (int attempt = 1; attempt <= 3 && !deleted; attempt++)
                 {
-                    await _kubernetes.CoreV1.DeleteNamespaceAsync(namespaceName,
-                        gracePeriodSeconds: 0,
-                        propagationPolicy: "Background");
+                    try
+                    {
+                        await _kubernetes.CoreV1.DeleteNamespaceAsync(namespaceName,
+                            gracePeriodSeconds: 0,
+                            propagationPolicy: "Background");
+                        deleted = true;
+                    }
+                    catch (k8s.Autorest.HttpOperationException ex) when ((int)ex.Response.StatusCode == 404)
+                    {
+                        deleted = true;
+                    }
+                    catch (k8s.Autorest.HttpOperationException ex)
+                    {
+                        lastError = $"Failed to delete namespace '{namespaceName}': {ex.Response.Content}";
+                        lastEx = ex;
+                        if (attempt < 3) await Task.Delay(attempt * 1000);
+                    }
+                    catch (Exception ex)
+                    {
+                        lastError = $"Error deleting namespace '{namespaceName}': {ex.Message}";
+                        lastEx = ex;
+                        if (attempt < 3) await Task.Delay(attempt * 1000);
+                    }
+                }
 
+                if (deleted)
+                {
                     successCount++;
                     _logger.LogDebug("Successfully deleted namespace", new { namespaceName });
                 }
-                catch (k8s.Autorest.HttpOperationException ex)
+                else
                 {
                     failCount++;
-                    var error = $"Failed to delete namespace '{namespaceName}': {ex.Response.Content}";
-                    errors.Add(error);
-                    _logger.LogError(ex, data: new { namespaceName, responseContent = ex.Response.Content, errorType = "DeleteNamespaceHttpError" });
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, data: new { namespaceName, errorType = "DeleteNamespaceException" });
-                    failCount++;
-                    var error = $"Error deleting namespace '{namespaceName}': {ex.Message}";
-                    errors.Add(error);
+                    errors.Add(lastError!);
+                    _logger.LogError(lastEx!, data: new { namespaceName, errorType = "DeleteNamespaceRetryExhausted", lastError });
                 }
             }
 

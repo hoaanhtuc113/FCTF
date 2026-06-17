@@ -354,7 +354,13 @@ public class DeployService : IDeployService
             var scope = contestId > 0 ? $" for contest {contestId}" : "";
             var message = $"Stopped {successCount} challenge namespace(s){scope} successfully.";
             if (failCount > 0)
+            {
                 message += $" {failCount} failed. Errors: {string.Join("; ", errors)}";
+                var scopeDesc = contestId > 0 ? $"contest {contestId}" : "all contests";
+                await Console.Error.WriteLineAsync(
+                    $"[WARNING] StopAll partial failure for {scopeDesc}: {failCount} namespace(s) could not be deleted after retries. " +
+                    $"Retry the stop-all operation or delete manually. Errors: {string.Join("; ", errors)}");
+            }
 
             return new BaseResponseDTO
             {

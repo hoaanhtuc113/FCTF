@@ -30,13 +30,15 @@ def stop_contest_instances(app, contest_id):
         1. Find all deploy-required challenges in the contest
         2. Scan Redis for live instances of each challenge
         3. call force_stop() per instance (deployment service handles K8s + Redis cleanup)
+
+    Returns (total_stopped, total_failed).
     """
     from CTFd.utils.connector.multiservice_connector import force_stop
 
     with app.app_context():
         challenge_ids = _get_challenge_ids_for_contest(contest_id)
         if not challenge_ids:
-            return
+            return 0, 0
 
         total_stopped = 0
         total_failed = 0
@@ -78,6 +80,7 @@ def stop_contest_instances(app, contest_id):
                     print(f"[contest_cleanup] Failed to stop challenge={challenge_id} team={team_id}: {exc}")
 
         print(f"[contest_cleanup] contest={contest_id} done — stopped={total_stopped} failed={total_failed}")
+        return total_stopped, total_failed
 
 
 def _check_and_cleanup_ended_contests(app):
@@ -98,10 +101,19 @@ def _check_and_cleanup_ended_contests(app):
         for contest in ended:
             print(f"[contest_cleanup] Contest '{contest.name}' (id={contest.id}) ended at {contest.end_time} — triggering cleanup")
             try:
-                stop_contest_instances(app, contest.id)
-                contest.cleanup_triggered_at = now
-                db.session.commit()
-                print(f"[contest_cleanup] Contest {contest.id} cleanup complete")
+                stopped, failed = stop_contest_instances(app, contest.id)
+                if failed > 0:
+                    import sys
+                    print(
+                        f"[WARNING] contest_cleanup: contest {contest.id} partial failure — "
+                        f"stopped={stopped} failed={failed}. "
+                        f"cleanup_triggered_at NOT set; next cycle will retry.",
+                        file=sys.stderr,
+                    )
+                else:
+                    contest.cleanup_triggered_at = now
+                    db.session.commit()
+                    print(f"[contest_cleanup] Contest {contest.id} cleanup complete")
             except Exception as exc:
                 db.session.rollback()
                 print(f"[contest_cleanup] Error during cleanup for contest {contest.id}: {exc}")
