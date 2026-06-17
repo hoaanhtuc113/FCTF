@@ -219,7 +219,16 @@ public class ChallengesInformerService
         var uid = pod.Metadata.Uid ?? "";
 
         // Get cache
-        var (teamId, challengeId) = ChallengeHelper.ParseDeploymentAppName(ns);
+        int teamId, challengeId;
+        try
+        {
+            (teamId, challengeId) = ChallengeHelper.ParseDeploymentAppName(ns);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, data: new { ns, podName, eventType = eventType.ToString(), errorType = "MalformedNamespaceName" });
+            return;
+        }
         var key = ChallengeHelper.GetCacheKey(challengeId, teamId);
         var cache = await _redisHelper.GetFromCacheAsync<ChallengeDeploymentCacheDTO>(key);
         // pod deleted
@@ -369,8 +378,14 @@ public class ChallengesInformerService
                 _logger.LogDebug(
                     $"[Reconcile] Fixing orphaned: ns={tracking.Label}, challengeId={tracking.ChallengeId}, teamId={tracking.TeamId}");
 
-                // Fix DB
                 tracking.StoppedAt = DateTime.UtcNow;
+
+                // Clean Redis so missed Deleted events don't leave stale cache entries
+                var cacheKey = ChallengeHelper.GetCacheKey(tracking.ChallengeId, tracking.TeamId ?? -1);
+                await _redisHelper.AtomicRemoveDeploymentZSet(
+                    (tracking.TeamId ?? -1).ToString(),
+                    cacheKey,
+                    tracking.ChallengeId.ToString());
             }
 
             await dbContext.SaveChangesAsync();
