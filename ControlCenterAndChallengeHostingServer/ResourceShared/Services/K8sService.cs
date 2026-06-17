@@ -267,8 +267,9 @@ public class K8sService : IK8sService
             using var scope = _scopeFactory.CreateScope();
             var dbContext = scope.ServiceProvider.GetService<AppDbContext>() ?? throw new Exception("dbcontext null");
             var challenge = await dbContext.Challenges.AsNoTracking()
-                .Select(c => new { c.Id, c.TimeLimit })
-                .FirstOrDefaultAsync(c => c.Id == challengeId);
+                .Where(c => c.Id == challengeId)
+                .Select(c => new { c.Id, c.TimeLimit, ContestEndTime = c.Contest.EndTime })
+                .FirstOrDefaultAsync();
 
             if (challenge == null)
                 return new ChallengeDeployResponeDTO
@@ -314,6 +315,13 @@ public class K8sService : IK8sService
                         });
                     }
                 }
+            }
+
+            if (challenge.ContestEndTime.HasValue)
+            {
+                long contestEndUnix = new DateTimeOffset(challenge.ContestEndTime.Value, TimeSpan.Zero).ToUnixTimeSeconds();
+                if (finalUnixFinished > contestEndUnix)
+                    finalUnixFinished = contestEndUnix;
             }
 
             var expiryOffset = DateTimeOffset.FromUnixTimeSeconds(finalUnixFinished);
