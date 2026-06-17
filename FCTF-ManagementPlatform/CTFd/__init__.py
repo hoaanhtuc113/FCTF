@@ -534,10 +534,6 @@ def create_app(config="CTFd.config.Config"):
         # Enable CORS for the separate Vite frontend
         CORS(app, supports_credentials=True)
 
-        # Auto-cleanup: stop K8s instances when a contest ends
-        from CTFd.utils.contest_cleanup import start_contest_cleanup_scheduler
-        start_contest_cleanup_scheduler(app)
-
         return app
 
 

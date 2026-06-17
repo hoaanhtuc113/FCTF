@@ -429,6 +429,7 @@ public partial class AppDbContext : DbContext
             entity.Property(e => e.LimitChallenges).HasColumnType("int(11)").HasColumnName("limit_challenges");
             entity.Property(e => e.CreatedAt).HasMaxLength(6).HasColumnName("created_at");
             entity.Property(e => e.UpdatedAt).HasMaxLength(6).HasColumnName("updated_at");
+            entity.Property(e => e.CleanupTriggeredAt).HasMaxLength(6).HasColumnName("cleanup_triggered_at").IsRequired(false);
 
             entity.HasOne(d => d.Owner).WithMany()
                 .HasForeignKey(d => d.OwnerId)

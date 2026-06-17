@@ -52,6 +52,8 @@ public partial class Contest
 
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
+    public DateTime? CleanupTriggeredAt { get; set; }
+
     public virtual User? Owner { get; set; }
 
     public virtual ICollection<Challenge> Challenges { get; set; } = new List<Challenge>();
