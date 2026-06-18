@@ -17,7 +17,7 @@ from CTFd.cache import (
     clear_user_session,
 )
 from CTFd.constants import RawEnum
-from CTFd.models import Awards, Challenges, Submissions, Teams, Tokens, Unlocks, Users, db
+from CTFd.models import Awards, Challenges, KypoTeamAccount, Submissions, Teams, Tokens, Unlocks, Users, db
 from CTFd.schemas.awards import AwardSchema
 from CTFd.schemas.submissions import SubmissionSchema
 from CTFd.schemas.teams import TeamSchema
@@ -31,6 +31,10 @@ from CTFd.utils.decorators.visibility import (
 )
 from CTFd.utils.helpers.models import build_model_filters
 from CTFd.utils.logging.audit_logger import log_audit
+from CTFd.utils.keycloak_service import create_kypo_user, delete_kypo_user
+import logging as _logging
+
+_kc_logger = _logging.getLogger(__name__)
 from CTFd.utils.user import get_current_team, get_current_user_type, is_admin
 
 teams_namespace = Namespace("teams", description="Endpoint to retrieve Teams")
@@ -167,6 +171,31 @@ class TeamList(Resource):
         db.session.add(response.data)
         db.session.commit()
 
+        # ── Tạo Keycloak account cho team trên KYPO ──────────────────────
+        team = response.data
+        kypo_warning = None
+        try:
+            kypo_info = create_kypo_user(team.id, team.name)
+            kypo_account = KypoTeamAccount(
+                team_id=team.id,
+                kypo_user_id=kypo_info["kypo_user_id"],
+                kypo_username=kypo_info["kypo_username"],
+                kypo_password=kypo_info["kypo_password"],
+            )
+            db.session.add(kypo_account)
+            db.session.commit()
+        except ValueError as e:
+            # Lỗi nghiệp vụ (vd: user đã tồn tại trên Keycloak)
+            kypo_warning = str(e)
+            _kc_logger.warning("KYPO account warning team %s: %s", team.id, e)
+        except Exception as e:
+            kypo_warning = f"Không thể tạo KYPO account: {e}"
+            _kc_logger.error(
+                "Failed to create Keycloak account for team %s: %s",
+                team.id, e, exc_info=True,
+            )
+        # ─────────────────────────────────────────────────────────────────
+
         log_audit(
             action="team_create",
             data={
@@ -189,7 +218,10 @@ class TeamList(Resource):
         clear_standings()
         clear_challenges()
 
-        return {"success": True, "data": response.data}
+        result = {"success": True, "data": response.data}
+        if kypo_warning:
+            result["warning"] = kypo_warning
+        return result
 
 
 @teams_namespace.route("/<int:team_id>")
@@ -331,6 +363,16 @@ class TeamPublic(Resource):
             member.team_id = None
             clear_user_session(user_id=member.id)
 
+        # ── Xóa Keycloak account của team trên KYPO ──────────────────────
+        try:
+            kypo_account = KypoTeamAccount.query.filter_by(team_id=team.id).first()
+            if kypo_account:
+                delete_kypo_user(kypo_account.kypo_user_id)
+                db.session.delete(kypo_account)
+        except Exception as e:
+            _kc_logger.error(f"Failed to delete Keycloak account for team {team.id}: {e}")
+        # ─────────────────────────────────────────────────────────────────
+
         db.session.delete(team)
         db.session.commit()
 
@@ -347,6 +389,50 @@ class TeamPublic(Resource):
         db.session.close()
 
         return {"success": True}
+
+
+@teams_namespace.route("/<int:team_id>/kypo-account")
+@teams_namespace.param("team_id", "Team ID")
+class TeamKypoAccount(Resource):
+    method_decorators = [admins_only]
+
+    def post(self, team_id):
+        """Create a KYPO account for a team that doesn't have one yet."""
+        team = Teams.query.filter_by(id=team_id).first_or_404()
+
+        existing = KypoTeamAccount.query.filter_by(team_id=team_id).first()
+        if existing:
+            return {"success": False, "message": "Team already has a KYPO account"}, 400
+
+        try:
+            kypo_info = create_kypo_user(team.id, team.name)
+            kypo_account = KypoTeamAccount(
+                team_id=team.id,
+                kypo_user_id=kypo_info["kypo_user_id"],
+                kypo_username=kypo_info["kypo_username"],
+                kypo_password=kypo_info["kypo_password"],
+            )
+            db.session.add(kypo_account)
+            db.session.commit()
+        except Exception as e:
+            _kc_logger.error("Failed to create KYPO account for team %s: %s", team_id, e, exc_info=True)
+            return {"success": False, "message": f"Failed to create KYPO account: {e}"}, 500
+
+        log_audit(
+            action="kypo_account_create",
+            data={"team_id": team_id, "kypo_username": kypo_info["kypo_username"]},
+        )
+        created_at = kypo_account.created_at.strftime("%Y-%m-%d %H:%M:%S") if kypo_account.created_at else ""
+        db.session.close()
+        return {
+            "success": True,
+            "data": {
+                "kypo_user_id": kypo_info["kypo_user_id"],
+                "kypo_username": kypo_info["kypo_username"],
+                "kypo_password": kypo_info["kypo_password"],
+                "created_at": created_at,
+            },
+        }
 
 
 @teams_namespace.route("/me")

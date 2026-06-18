@@ -1379,3 +1379,30 @@ class AdminAuditLog(db.Model):
             f"<AdminAuditLog id={self.id} action={self.action!r} "
             f"actor_id={self.actor_id}>"
         )
+
+
+class KypoTeamAccount(db.Model):
+    __tablename__ = "kypo_team_accounts"
+
+    id           = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    team_id      = db.Column(db.Integer, db.ForeignKey("teams.id", ondelete="CASCADE"), nullable=False, unique=True)
+    kypo_user_id = db.Column(db.String(64), nullable=False)
+    kypo_username = db.Column(db.String(128), nullable=False)
+    kypo_password = db.Column(db.String(255), nullable=False)
+    created_at   = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+
+    team = db.relationship("Teams", foreign_keys=[team_id], lazy="select")
+
+
+class KypoChallengeConfig(db.Model):
+    __tablename__ = "kypo_challenge_configs"
+
+    id                 = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    challenge_id       = db.Column(db.Integer, db.ForeignKey("challenges.id", ondelete="CASCADE"), nullable=False, unique=True)
+    kypo_instance_id   = db.Column(db.Integer, nullable=False)
+    kypo_access_token  = db.Column(db.String(64), nullable=False)
+    kypo_instance_type = db.Column(db.String(32), default="linear")
+    kypo_base_url      = db.Column(db.String(255), nullable=True)
+    created_at         = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+
+    challenge = db.relationship("Challenges", foreign_keys=[challenge_id], lazy="select")

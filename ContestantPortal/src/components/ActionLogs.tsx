@@ -14,18 +14,14 @@ export function ActionLogs() {
   const { theme } = useTheme();
   const [logs, setLogs] = useState<ActionLog[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [searchQuery, setSearchQuery] = useState('');
   const [actionTypeFilter, setActionTypeFilter] = useState<number | 'all'>('all');
   const [topicFilter, setTopicFilter] = useState<string>('all');
 
-  useEffect(() => {
-    fetchActionLogs();
-  }, []);
-
-  const fetchActionLogs = async () => {
-    setLoading(true);
+  const doFetch = async () => {
     try {
       const response = await actionLogService.getTeamActionLogs();
       if (response.success && response.data) {
@@ -33,10 +29,21 @@ export function ActionLogs() {
       }
     } catch (error) {
       console.error('Error fetching action logs:', error);
-    } finally {
-      setLoading(false);
     }
   };
+
+  const fetchActionLogs = async (isManual = false) => {
+    if (isManual) setRefreshing(true);
+    await doFetch();
+    if (isManual) setRefreshing(false);
+  };
+
+  useEffect(() => {
+    setLoading(true);
+    doFetch().finally(() => setLoading(false));
+    const interval = setInterval(doFetch, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Get unique topics for filter
   const uniqueTopics = useMemo(() => {
@@ -129,6 +136,16 @@ export function ActionLogs() {
           ? 'bg-yellow-900/50 text-yellow-300 border-yellow-700'
           : 'bg-yellow-100 text-yellow-700 border-yellow-300';
         break;
+      case 6: // Start Sandbox
+        colorClass = theme === 'dark'
+          ? 'bg-purple-900/50 text-purple-300 border-purple-700'
+          : 'bg-purple-100 text-purple-700 border-purple-300';
+        break;
+      case 7: // Stop Sandbox
+        colorClass = theme === 'dark'
+          ? 'bg-orange-900/50 text-orange-300 border-orange-700'
+          : 'bg-orange-100 text-orange-700 border-orange-300';
+        break;
       default:
         colorClass = theme === 'dark'
           ? 'bg-gray-800 text-gray-300 border-gray-700'
@@ -173,12 +190,27 @@ export function ActionLogs() {
   return (
     <div className="min-h-[70vh]">
       {/* Header */}
-      <div className="mb-6">
+      <div className="mb-6 flex items-center justify-between">
         <h1 className={`text-2xl font-bold font-mono ${
           theme === 'dark' ? 'text-orange-400' : 'text-orange-600'
         }`}>
           [TEAM_ACTION_LOGS]
         </h1>
+        <button
+          onClick={() => fetchActionLogs(true)}
+          disabled={loading || refreshing}
+          className={`px-3 py-1 rounded border text-xs font-mono transition-colors ${
+            loading
+              ? theme === 'dark'
+                ? 'border-gray-700 text-gray-500 cursor-not-allowed'
+                : 'border-gray-200 text-gray-400 cursor-not-allowed'
+              : theme === 'dark'
+                ? 'border-orange-700 text-orange-400 hover:bg-orange-900/30'
+                : 'border-orange-400 text-orange-600 hover:bg-orange-50'
+          }`}
+        >
+          {refreshing ? '[...]' : '[↻ Refresh]'}
+        </button>
       </div>
 
       {/* Filters */}
@@ -221,6 +253,8 @@ export function ActionLogs() {
               <option value={3}>Correct Flag</option>
               <option value={4}>Incorrect Flag</option>
               <option value={5}>Unlock Hint</option>
+              <option value={6}>Start Sandbox</option>
+              <option value={7}>Stop Sandbox</option>
             </select>
           </div>
 

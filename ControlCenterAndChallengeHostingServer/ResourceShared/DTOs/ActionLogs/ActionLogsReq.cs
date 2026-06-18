@@ -20,9 +20,7 @@ namespace ResourceShared.DTOs.ActionLogs
         [JsonPropertyName("actionDetail")]
         public string ActionDetail { get; set; } = string.Empty;
 
-        [Required(ErrorMessage = "ChallengeId is required")]
-        [Range(1, int.MaxValue, ErrorMessage = "ChallengeId must be greater than 0")]
         [JsonPropertyName("challenge_id")]
-        public int ChallengeId { get; set; }
+        public int? ChallengeId { get; set; }
     }
 }

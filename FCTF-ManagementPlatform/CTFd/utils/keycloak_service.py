@@ -1,0 +1,209 @@
+"""
+keycloak_service.py
+Quản lý Keycloak accounts cho FCTF teams.
+Dùng master admin token để tạo/xóa user trong realm CRCZP.
+"""
+import logging
+import secrets
+import string
+import time
+
+import requests
+
+from CTFd.utils.kypo_config import (
+    get_kypo_admin_password,
+    get_kypo_admin_username,
+    get_kypo_keycloak_url,
+    get_kypo_realm,
+    get_kypo_verify_ssl,
+)
+
+logger = logging.getLogger(__name__)
+
+# Cache token để tránh lấy lại liên tục
+_token_cache: dict = {"token": None, "expires_at": 0}
+
+
+def _get_admin_token(force_refresh: bool = False) -> str:
+    """Lấy master admin token, cache lại trong 240s (token sống 300s)."""
+    now = time.time()
+    if not force_refresh and _token_cache["token"] and now < _token_cache["expires_at"]:
+        return _token_cache["token"]
+
+    url = f"{get_kypo_keycloak_url()}/realms/master/protocol/openid-connect/token"
+    resp = requests.post(
+        url,
+        data={
+            "grant_type": "password",
+            "client_id":  "admin-cli",
+            "username":   get_kypo_admin_username(),
+            "password":   get_kypo_admin_password(),
+        },
+        verify=get_kypo_verify_ssl(),
+        timeout=10,
+    )
+    resp.raise_for_status()
+    data = resp.json()
+    _token_cache["token"] = data["access_token"]
+    _token_cache["expires_at"] = now + 240
+    return _token_cache["token"]
+
+
+def _invalidate_token_cache():
+    _token_cache["token"] = None
+    _token_cache["expires_at"] = 0
+
+
+def _generate_password(length: int = 16) -> str:
+    """Generate password ngẫu nhiên đủ mạnh."""
+    alphabet = string.ascii_letters + string.digits + "!@#$%^&*"
+    while True:
+        pwd = "".join(secrets.choice(alphabet) for _ in range(length))
+        # Đảm bảo có ít nhất 1 chữ hoa, 1 số, 1 ký tự đặc biệt
+        if (any(c.isupper() for c in pwd)
+                and any(c.isdigit() for c in pwd)
+                and any(c in "!@#$%^&*" for c in pwd)):
+            return pwd
+
+
+def _do_create_kypo_user(token: str, team_id: int, team_name: str, username: str, password: str) -> str:
+    """Gọi Keycloak API tạo user, trả về kypo_user_id. Raise HTTPError nếu thất bại."""
+    url = f"{get_kypo_keycloak_url()}/admin/realms/{get_kypo_realm()}/users"
+    resp = requests.post(
+        url,
+        json={
+            "username":      username,
+            "enabled":       True,
+            "firstName":     team_name,
+            "lastName":      "FCTF Team",
+            "email":         f"{username}@fctf.local",
+            "emailVerified": True,
+            "credentials": [
+                {"type": "password", "value": password, "temporary": False}
+            ],
+        },
+        headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+        verify=get_kypo_verify_ssl(),
+        timeout=10,
+    )
+
+    if resp.status_code == 409:
+        logger.warning(f"Keycloak user '{username}' already exists, reusing and resetting password.")
+        r2 = requests.get(
+            f"{get_kypo_keycloak_url()}/admin/realms/{get_kypo_realm()}/users?username={username}&exact=true",
+            headers={"Authorization": f"Bearer {token}"},
+            verify=get_kypo_verify_ssl(),
+            timeout=10,
+        )
+        r2.raise_for_status()
+        users = r2.json()
+        if not users:
+            raise ValueError(f"Keycloak user '{username}' conflict (409) but UUID not found.")
+        kypo_user_id = users[0]["id"]
+        requests.put(
+            f"{get_kypo_keycloak_url()}/admin/realms/{get_kypo_realm()}/users/{kypo_user_id}/reset-password",
+            json={"type": "password", "value": password, "temporary": False},
+            headers={"Authorization": f"Bearer {token}"},
+            verify=get_kypo_verify_ssl(),
+            timeout=10,
+        ).raise_for_status()
+        logger.info(f"Reused Keycloak user: {username} (id={kypo_user_id}) for team {team_id}")
+        return kypo_user_id
+
+    resp.raise_for_status()
+    location = resp.headers.get("Location", "")
+    kypo_user_id = location.rstrip("/").split("/")[-1]
+    logger.info(f"Created Keycloak user: {username} (id={kypo_user_id}) for team {team_id}")
+    return kypo_user_id
+
+
+def create_kypo_user(team_id: int, team_name: str) -> dict:
+    """
+    Tạo Keycloak user cho team.
+
+    Returns:
+        {
+            "kypo_user_id": "uuid",
+            "kypo_username": "fctf_team_25",
+            "kypo_password": "plaintext password (chỉ trả về 1 lần)"
+        }
+
+    Raises:
+        requests.HTTPError nếu gọi API thất bại
+    """
+    safe_name = "".join(c if c.isalnum() else "_" for c in team_name.lower())[:20]
+    username  = f"fctf_{safe_name}_{team_id}"
+    password  = _generate_password()
+
+    token = _get_admin_token()
+    try:
+        kypo_user_id = _do_create_kypo_user(token, team_id, team_name, username, password)
+    except requests.HTTPError as e:
+        if e.response is not None and e.response.status_code == 401:
+            # Token stale — xóa cache, lấy token mới và thử lại 1 lần
+            logger.warning("Keycloak token expired (401), refreshing and retrying...")
+            _invalidate_token_cache()
+            token = _get_admin_token(force_refresh=True)
+            kypo_user_id = _do_create_kypo_user(token, team_id, team_name, username, password)
+        else:
+            raise
+
+    return {
+        "kypo_user_id": kypo_user_id,
+        "kypo_username": username,
+        "kypo_password": password,
+    }
+
+
+def _call_with_token_retry(fn):
+    """Gọi fn(token), nếu 401 thì refresh token và thử lại 1 lần."""
+    token = _get_admin_token()
+    try:
+        return fn(token)
+    except requests.HTTPError as e:
+        if e.response is not None and e.response.status_code == 401:
+            logger.warning("Keycloak token expired (401), refreshing and retrying...")
+            _invalidate_token_cache()
+            token = _get_admin_token(force_refresh=True)
+            return fn(token)
+        raise
+
+
+def delete_kypo_user(kypo_user_id: str) -> bool:
+    """Xóa Keycloak user theo UUID. Trả về True nếu thành công hoặc không tồn tại."""
+    def _delete(token):
+        url  = f"{get_kypo_keycloak_url()}/admin/realms/{get_kypo_realm()}/users/{kypo_user_id}"
+        resp = requests.delete(
+            url,
+            headers={"Authorization": f"Bearer {token}"},
+            verify=get_kypo_verify_ssl(),
+            timeout=10,
+        )
+        if resp.status_code == 404:
+            logger.warning(f"Keycloak user {kypo_user_id} not found (already deleted?)")
+            return True
+        resp.raise_for_status()
+        logger.info(f"Deleted Keycloak user: {kypo_user_id}")
+        return True
+
+    return _call_with_token_retry(_delete)
+
+
+def reset_kypo_password(kypo_user_id: str) -> str:
+    """Đổi password của Keycloak user, trả về password mới."""
+    new_pass = _generate_password()
+
+    def _reset(token):
+        url  = f"{get_kypo_keycloak_url()}/admin/realms/{get_kypo_realm()}/users/{kypo_user_id}/reset-password"
+        resp = requests.put(
+            url,
+            json={"type": "password", "value": new_pass, "temporary": False},
+            headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+            verify=get_kypo_verify_ssl(),
+            timeout=10,
+        )
+        resp.raise_for_status()
+        logger.info(f"Reset password for Keycloak user: {kypo_user_id}")
+        return new_pass
+
+    return _call_with_token_retry(_reset)
