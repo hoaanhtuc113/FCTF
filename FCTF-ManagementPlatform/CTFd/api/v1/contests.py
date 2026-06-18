@@ -69,11 +69,14 @@ def _validate_times(start_time, end_time, freeze_scoreboard_at):
     """
     errors = {}
 
+    if not start_time:
+        errors.setdefault("start_time", []).append("Start time is required.")
+    if not end_time:
+        errors.setdefault("end_time", []).append("End time is required.")
+
     if start_time and end_time:
         if end_time <= start_time:
-            errors.setdefault("end_time", []).append(
-                "End time must be after start time."
-            )
+            errors.setdefault("end_time", []).append("End time must be after start time.")
 
     if freeze_scoreboard_at:
         if start_time and freeze_scoreboard_at < start_time:
@@ -151,9 +154,23 @@ class ContestList(Resource):
                 "errors": {"slug": [f"Slug '{slug}' is already used by another contest."]},
             }, 400
 
-        start_time = _parse_datetime(data.get("start_time"))
-        end_time = _parse_datetime(data.get("end_time"))
-        freeze_scoreboard_at = _parse_datetime(data.get("freeze_scoreboard_at"))
+        raw_start = data.get("start_time")
+        raw_end = data.get("end_time")
+        raw_freeze = data.get("freeze_scoreboard_at")
+
+        parse_errors = {}
+        start_time = _parse_datetime(raw_start)
+        end_time = _parse_datetime(raw_end)
+        freeze_scoreboard_at = _parse_datetime(raw_freeze)
+
+        if raw_start and start_time is None:
+            parse_errors.setdefault("start_time", []).append("Invalid date format.")
+        if raw_end and end_time is None:
+            parse_errors.setdefault("end_time", []).append("Invalid date format.")
+        if raw_freeze and freeze_scoreboard_at is None:
+            parse_errors.setdefault("freeze_scoreboard_at", []).append("Invalid date format.")
+        if parse_errors:
+            return {"success": False, "errors": parse_errors}, 400
 
         time_errors = _validate_times(start_time, end_time, freeze_scoreboard_at)
         if time_errors:
@@ -249,9 +266,17 @@ class ContestDetail(Resource):
                 val = data[f]
                 setattr(contest, f, int(val) if val not in (None, "", 0) else None)
 
+        parse_errors = {}
         for f in dt_fields:
             if f in data:
-                setattr(contest, f, _parse_datetime(data[f]))
+                raw = data[f]
+                parsed = _parse_datetime(raw)
+                if raw and parsed is None:
+                    parse_errors.setdefault(f, []).append("Invalid date format.")
+                else:
+                    setattr(contest, f, parsed)
+        if parse_errors:
+            return {"success": False, "errors": parse_errors}, 400
 
         # Validate time constraints after applying all changes
         time_errors = _validate_times(
