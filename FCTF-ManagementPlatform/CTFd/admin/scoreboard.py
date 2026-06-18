@@ -94,9 +94,12 @@ def scoreboard_listing():
     team_scores = defaultdict(lambda: defaultdict(int))
 
     for solve in solves:
-        if solve.team_id is None or solve.challenge is None or solve.challenge.value is None:
+        if solve.team_id is None or solve.challenge is None:
             continue
-        team_scores[solve.challenge_id][solve.team_id] += solve.challenge.value
+        point = solve.challenge.value
+        if point is None:
+            continue
+        team_scores[solve.challenge_id][solve.team_id] += point
 
     for award in awards:
         if award.team_id is None or award.value is None:

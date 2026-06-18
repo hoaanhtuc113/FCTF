@@ -48,3 +48,16 @@ UPLOAD_PROVIDER = os.environ.get("UPLOAD_PROVIDER", "filesystem")
 # Docker Registry Configuration
 IMAGE_REPO = os.environ.get("IMAGE_REPO", "my-docker-repo")
 DOCKER_USERNAME = os.environ.get("DOCKER_USERNAME", "username")
+
+# KYPO Cyber Range Integration
+KYPO_BASE_URL = os.environ.get("KYPO_BASE_URL", "https://vuontre.iahn.hanoi.vn")
+KYPO_USERNAME = os.environ.get("KYPO_USERNAME", "crczp-admin")
+KYPO_PASSWORD = os.environ.get("KYPO_PASSWORD", "CAUehoz449aGNy")
+KYPO_CLIENT_ID = os.environ.get("KYPO_CLIENT_ID", "CRCZP-Client")
+
+# Keycloak Admin (dùng để tạo/xóa user cho team qua Keycloak master realm)
+KYPO_KEYCLOAK_URL   = os.environ.get("KYPO_KEYCLOAK_URL",   "https://vuontre.iahn.hanoi.vn/keycloak")
+KYPO_REALM          = os.environ.get("KYPO_REALM",          "CRCZP")
+KYPO_ADMIN_USERNAME = os.environ.get("KYPO_ADMIN_USERNAME", "admin")
+KYPO_ADMIN_PASSWORD = os.environ.get("KYPO_ADMIN_PASSWORD", "f3RvfeblN9Wq6Mgmkg0e")
+KYPO_VERIFY_SSL     = os.environ.get("KYPO_VERIFY_SSL",     "false").lower() != "false"

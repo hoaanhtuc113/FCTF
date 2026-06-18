@@ -27,6 +27,8 @@ public class ChallengeController : BaseController
     private readonly RedisLockHelper _redisLockHelper;
     private readonly AppLogger _userBehaviorLogger;
     private readonly IActionLogsServices _actionLogsServices;
+    private readonly KypoScoreLockService _scoreLockService;
+    private readonly IServiceScopeFactory _scopeFactory;
 
     public ChallengeController(
         IUserContext userContext,
@@ -37,7 +39,9 @@ public class ChallengeController : BaseController
         RedisHelper redisHelper,
         RedisLockHelper redisLockHelper,
         AppLogger userBehaviorLogger,
-        IActionLogsServices actionLogsServices) : base(userContext)
+        IActionLogsServices actionLogsServices,
+        KypoScoreLockService scoreLockService,
+        IServiceScopeFactory scopeFactory) : base(userContext)
     {
         _context = context;
         _configHelper = configHelper;
@@ -47,6 +51,8 @@ public class ChallengeController : BaseController
         _redisLockHelper = redisLockHelper;
         _userBehaviorLogger = userBehaviorLogger;
         _actionLogsServices = actionLogsServices;
+        _scoreLockService = scoreLockService;
+        _scopeFactory = scopeFactory;
     }
 
     private static bool IsDuplicateKey(DbUpdateException ex)
@@ -576,7 +582,7 @@ public class ChallengeController : BaseController
                 await _actionLogsServices.SaveActionLogs(new ActionLogsReq
                 {
                     ActionType = 3, // CORRECT_FLAG
-                    ActionDetail = $"Nộp cờ đúng cho thử thách {challenge.Name}",
+                    ActionDetail = $"Submitted correct flag for challenge {challenge.Name}",
                     ChallengeId = challenge.Id,
                 }, user.Id);
             }
@@ -678,7 +684,7 @@ public class ChallengeController : BaseController
             await _actionLogsServices.SaveActionLogs(new ActionLogsReq
             {
                 ActionType = 4, // INCORRECT_FLAG
-                ActionDetail = $"Nộp cờ sai cho thử thách {challenge.Name}",
+                ActionDetail = $"Submitted incorrect flag for challenge {challenge.Name}",
                 ChallengeId = challenge.Id,
             }, user.Id);
         }
@@ -760,6 +766,154 @@ public class ChallengeController : BaseController
             .FirstOrDefaultAsync(c => c.Id == challengeStartReq.challengeId);
 
         if (challenge == null) return NotFound(new { error = "Challenge not found" });
+
+        // Check if this is a KYPO/sandbox challenge — detected by type OR by explicit kypo_challenge_configs entry
+        bool isSandbox = string.Equals(challenge.Type, "sandbox", StringComparison.OrdinalIgnoreCase);
+        var kypoConfig = await _context.KypoChallengeConfigs
+            .AsNoTracking()
+            .FirstOrDefaultAsync(k => k.ChallengeId == challenge.Id);
+
+        if (isSandbox || kypoConfig != null)
+{
+    if (challenge.State == ChallengeState.HIDDEN)
+        return BadRequest(new { error = "This challenge is not available." });
+
+    await Console.Out.WriteLineAsync($"[KYPO] User {userId} : Team {user.TeamId} : Challenge {challenge.Name} → redirect to KYPO");
+
+    var kypoAccount = await _context.KypoTeamAccounts
+        .AsNoTracking()
+        .FirstOrDefaultAsync(k => k.TeamId == user.TeamId.Value);
+
+    var baseUrl = !string.IsNullOrEmpty(kypoConfig?.KypoBaseUrl)
+        ? kypoConfig!.KypoBaseUrl!.TrimEnd('/')
+        : "https://vuontre.iahn.hanoi.vn";
+
+    string bridgeUrl;
+
+    if (kypoAccount?.KypoUsername != null && kypoAccount?.KypoPassword != null)
+    {
+        var tokenResult = await GetKeycloakTokenAsync(kypoAccount.KypoUsername, kypoAccount.KypoPassword);
+        if (tokenResult != null)
+        {
+            var (accessToken, refreshToken, idToken, sessionState, expiresIn) = tokenResult.Value;
+
+            // Create training run for team (idempotent — returns existing run if already created)
+            var kypoAccessToken = kypoConfig?.KypoAccessToken;
+            await GetOrCreateTrainingRunAsync(accessToken, kypoAccessToken, baseUrl);
+
+            var redirectTo = !string.IsNullOrEmpty(kypoAccessToken)
+                ? $"/run/linear/{kypoAccessToken}/access"
+                : "/run";
+
+            bridgeUrl = $"{baseUrl}/bridge.html#access_token={Uri.EscapeDataString(accessToken)}" +
+                        $"&refresh_token={Uri.EscapeDataString(refreshToken)}" +
+                        $"&id_token={Uri.EscapeDataString(idToken)}" +
+                        $"&session_state={Uri.EscapeDataString(sessionState)}" +
+                        $"&expires_in={expiresIn}" +
+                        $"&redirect_to={Uri.EscapeDataString(redirectTo)}";
+        }
+        else
+        {
+            bridgeUrl = $"{baseUrl}/run";
+        }
+    }
+    else
+    {
+        bridgeUrl = $"{baseUrl}/run";
+    }
+
+    // Check if session already exists in Redis
+    var sandboxCacheKey = ChallengeHelper.GetCacheKey(challenge.Id, user.TeamId.Value);
+    if (await _redisHelper.KeyExistsAsync(sandboxCacheKey))
+    {
+        var existingCache = await _redisHelper.GetFromCacheAsync<ChallengeDeploymentCacheDTO>(sandboxCacheKey);
+        if (existingCache != null)
+        {
+            long nowSec = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            long remainSec = existingCache.time_finished > 0 ? Math.Max(0, existingCache.time_finished - nowSec) : 0;
+            return Ok(new ChallengeDeployResponeDTO
+            {
+                status = (int)HttpStatusCode.OK,
+                success = true,
+                challenge_type = "kypo",
+                challenge_url = existingCache.challenge_url,
+                time_limit = (int)(remainSec / 60),
+            });
+        }
+    }
+
+    // Calculate end time from time_limit (unit: minutes)
+    long timeFinished = 0;
+    TimeSpan? cacheTtl = null;
+    if (challenge.TimeLimit.HasValue && challenge.TimeLimit.Value > 0)
+    {
+        long timeLimitSeconds = challenge.TimeLimit.Value * 60L;
+        timeFinished = DateTimeOffset.UtcNow.ToUnixTimeSeconds() + timeLimitSeconds;
+        cacheTtl = TimeSpan.FromSeconds(timeLimitSeconds + 120); // 2-minute buffer
+    }
+
+    var sandboxCacheDto = new ChallengeDeploymentCacheDTO
+    {
+        challenge_id = challenge.Id,
+        team_id = user.TeamId.Value,
+        user_id = user.Id,
+        challenge_url = bridgeUrl,
+        time_finished = timeFinished,
+        status = DeploymentStatus.RUNING,
+        ready = true,
+    };
+    await _redisHelper.SetCacheAsync(sandboxCacheKey, sandboxCacheDto, cacheTtl);
+
+    // Record challenge_start_tracking as the started_at source for the "time expired" trigger.
+    // Only write if no open session (stopped_at == null) exists for this team+challenge.
+    try
+    {
+        var hasOpenTracking = await _context.ChallengeStartTrackings
+            .AnyAsync(t => t.ChallengeId == challenge.Id
+                        && t.TeamId == user.TeamId.Value
+                        && t.StoppedAt == null);
+
+        if (!hasOpenTracking)
+        {
+            _context.ChallengeStartTrackings.Add(new ChallengeStartTracking
+            {
+                UserId      = user.Id,
+                TeamId      = user.TeamId.Value,
+                ChallengeId = challenge.Id,
+                StartedAt   = DateTime.UtcNow,
+                Label       = "kypo",
+            });
+            await _context.SaveChangesAsync();
+        }
+    }
+    catch (Exception ex)
+    {
+        await Console.Error.WriteLineAsync($"[KYPO] Failed to write challenge_start_tracking: {ex.Message}");
+    }
+
+    try
+    {
+        await _actionLogsServices.SaveActionLogs(new ActionLogsReq
+        {
+            ActionType = 6, // START_SANDBOX
+            ActionDetail = $"Started KYPO challenge {challenge.Name}",
+            ChallengeId = challenge.Id,
+        }, user.Id);
+    }
+    catch (Exception ex)
+    {
+        await Console.Error.WriteLineAsync($"[ActionLog] Failed to save START_SANDBOX log for challenge {challenge.Id}: {ex.Message}");
+    }
+
+    return Ok(new ChallengeDeployResponeDTO
+    {
+        status = (int)HttpStatusCode.OK,
+        success = true,
+        challenge_type = "kypo",
+        challenge_url = bridgeUrl,
+    });
+}
+
         if (!challenge.RequireDeploy) return BadRequest(new { error = "This challenge does not require deploy" });
         if (challenge.State == ChallengeState.HIDDEN || _configHelper.IsHiddenCategory(challenge.Category) || challenge.SharedInstant == true) return BadRequest(new { error = "This challenge is not available for deployment" });
 
@@ -934,7 +1088,7 @@ public class ChallengeController : BaseController
             var response = await _challengeServices.ChallengeStart(challenge, user);
             if (response.status != (int)HttpStatusCode.OK)
             {
-                // >>> ROLLBACK: Xóa ngay slot vừa chiếm trong Redis <<<
+                // >>> ROLLBACK: Immediately remove the slot just claimed in Redis <<<
                 await Console.Error.WriteLineAsync($"[Rollback] Team {user.TeamId} start challenge failed: {response.message}.");
                 await _redisHelper.AtomicRemoveDeploymentZSet(teamIdStr, deploymentKey, challengeIdStr);
             }
@@ -942,16 +1096,17 @@ public class ChallengeController : BaseController
             {
                 try
                 {
+                    bool isSandboxChallenge = string.Equals(challenge.Type, "sandbox", StringComparison.OrdinalIgnoreCase);
                     await _actionLogsServices.SaveActionLogs(new ActionLogsReq
                     {
-                        ActionType = 2, // START_CHALLENGE
-                        ActionDetail = $"Khởi động thử thách {challenge.Name}",
+                        ActionType = isSandboxChallenge ? 6 : 2, // 6=START_SANDBOX, 2=START_CHALLENGE
+                        ActionDetail = $"Started challenge {challenge.Name}",
                         ChallengeId = challenge.Id,
                     }, user.Id);
                 }
                 catch (Exception ex)
                 {
-                    await Console.Error.WriteLineAsync($"[ActionLog] Failed to save START_CHALLENGE log for challenge {challenge.Id}: {ex.Message}");
+                    await Console.Error.WriteLineAsync($"[ActionLog] Failed to save START log for challenge {challenge.Id}: {ex.Message}");
                 }
             }
             return response.status switch
@@ -1001,11 +1156,87 @@ public class ChallengeController : BaseController
         if (!await _redisHelper.KeyExistsAsync(cache_key))
             return BadRequest(new { error = "Challenge not started or already stopped, no active cache found." });
 
+        // Sandbox/KYPO challenge: remove Redis key + lock KYPO score
+        bool isSandboxChallenge = string.Equals(challenge.Type, "sandbox", StringComparison.OrdinalIgnoreCase);
+        bool isKypoChallenge = await _context.KypoChallengeConfigs
+            .AsNoTracking()
+            .AnyAsync(k => k.ChallengeId == challenge.Id);
+
+        if (isSandboxChallenge || isKypoChallenge)
+        {
+            var teamId = user.TeamId.Value;
+
+            // Mark session as stopped (stopped_at) — stop counting time
+            var openTrackings = await _context.ChallengeStartTrackings
+                .Where(t => t.ChallengeId == challenge.Id
+                         && t.TeamId == teamId
+                         && t.StoppedAt == null)
+                .ToListAsync();
+            foreach (var t in openTrackings) t.StoppedAt = DateTime.UtcNow;
+            if (openTrackings.Count > 0) await _context.SaveChangesAsync();
+
+            await _redisHelper.RemoveCacheAsync(cache_key);
+
+            bool kypeSolved = false;
+            if (isKypoChallenge)
+            {
+                try
+                {
+                    kypeSolved = await _scoreLockService.LockScoreAsync(challenge.Id, teamId);
+                }
+                catch (Exception ex)
+                {
+                    await Console.Error.WriteLineAsync($"[KYPO] Score lock error challenge={challenge.Id} team={teamId}: {ex.Message}");
+                }
+            }
+
+            try
+            {
+                await _actionLogsServices.SaveActionLogs(new ActionLogsReq
+                {
+                    ActionType = 7, // STOP_SANDBOX / SUBMIT_KYPO
+                    ActionDetail = $"Submitted sandbox challenge {challenge.Name}",
+                    ChallengeId = challenge.Id,
+                }, user.Id);
+            }
+            catch (Exception ex)
+            {
+                await Console.Error.WriteLineAsync($"[ActionLog] Failed to save SUBMIT_SANDBOX log: {ex.Message}");
+            }
+
+            return Ok(new ChallengeDeployResponeDTO
+            {
+                status = (int)HttpStatusCode.OK,
+                success = true,
+                message = isKypoChallenge
+                    ? (kypeSolved ? "Completed! Score has been recorded." : "Sandbox session ended.")
+                    : "Sandbox session ended.",
+            });
+        }
+
         try
         {
             await Console.Out.WriteLineAsync($"[Requesst Stop Challenge] User {userId} : Team {user.TeamId} : Challenge {challenge.Name}");
 
             var response = await _challengeServices.ForceStopChallenge(challenge.Id, user);
+
+            if (response.status == (int)HttpStatusCode.OK)
+            {
+                try
+                {
+                    await _actionLogsServices.SaveActionLogs(new ActionLogsReq
+                    {
+                        ActionType = 7, // STOP_SANDBOX
+                        ActionDetail = $"Stopped sandbox challenge {challenge.Name}",
+                        ChallengeId = challenge.Id,
+                    }, user.Id);
+                }
+                catch (Exception ex)
+                {
+                    await Console.Error.WriteLineAsync($"[ActionLog] Failed to save STOP_SANDBOX log: {ex.Message}");
+                }
+            }
+
             return response.status switch
             {
                 (int)HttpStatusCode.OK => Ok(response),
@@ -1080,4 +1311,64 @@ public class ChallengeController : BaseController
             _ => StatusCode((int)response.status, response)
         };
     }
+
+    private async Task<(string AccessToken, string RefreshToken, string IdToken, string SessionState, int ExpiresIn)?> GetKeycloakTokenAsync(string username, string password)
+{
+    var handler = new HttpClientHandler
+    {
+        ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+    };
+    using var client = new HttpClient(handler);
+
+    var keycloakTokenUrl = "https://vuontre.iahn.hanoi.vn/keycloak/realms/CRCZP/protocol/openid-connect/token";
+
+    var body = new FormUrlEncodedContent(new Dictionary<string, string>
+    {
+        { "grant_type", "password" },
+        { "client_id", "CRCZP-Client" },
+        { "username", username },
+        { "password", password },
+        { "scope", "openid email profile offline_access" },
+    });
+
+    var response = await client.PostAsync(keycloakTokenUrl, body);
+    if (!response.IsSuccessStatusCode) return null;
+
+    var json = await response.Content.ReadAsStringAsync();
+    using var doc = System.Text.Json.JsonDocument.Parse(json);
+    var root = doc.RootElement;
+
+    return (
+        root.GetProperty("access_token").GetString()!,
+        root.TryGetProperty("refresh_token", out var rt) ? rt.GetString()! : "",
+        root.TryGetProperty("id_token", out var it) ? it.GetString()! : "",
+        root.TryGetProperty("session_state", out var ss) ? ss.GetString()! : "",
+        root.TryGetProperty("expires_in", out var exp) ? exp.GetInt32() : 300
+    );
+}
+
+private async Task GetOrCreateTrainingRunAsync(string teamKeycloakToken, string? kypoAccessToken, string baseUrl)
+{
+    if (string.IsNullOrEmpty(kypoAccessToken)) return;
+
+    try
+    {
+        var handler = new HttpClientHandler
+        {
+            ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+        };
+        using var client = new HttpClient(handler);
+        client.DefaultRequestHeaders.Authorization =
+            new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", teamKeycloakToken);
+
+        var url = $"{baseUrl}/training/api/v1/training-runs?accessToken={kypoAccessToken}";
+        var response = await client.PostAsync(url, null);
+        var json = await response.Content.ReadAsStringAsync();
+        await Console.Out.WriteLineAsync($"[KYPO] TrainingRun created/resumed: {json[..Math.Min(200, json.Length)]}");
+    }
+    catch (Exception ex)
+    {
+        await Console.Error.WriteLineAsync($"[KYPO] GetOrCreateTrainingRun failed: {ex.Message}");
+    }
+}
 }
