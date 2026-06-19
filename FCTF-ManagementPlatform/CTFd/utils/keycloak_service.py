@@ -30,14 +30,26 @@ def _get_admin_token(force_refresh: bool = False) -> str:
     if not force_refresh and _token_cache["token"] and now < _token_cache["expires_at"]:
         return _token_cache["token"]
 
-    url = f"{get_kypo_keycloak_url()}/realms/master/protocol/openid-connect/token"
+    keycloak_url = get_kypo_keycloak_url()
+    admin_user   = get_kypo_admin_username()
+    admin_pass   = get_kypo_admin_password()
+
+    if not keycloak_url or not admin_user or not admin_pass:
+        raise ValueError(
+            f"[Keycloak] Missing config: keycloak_url={keycloak_url!r}, "
+            f"admin_user={admin_user!r}, admin_pass={'***' if admin_pass else None!r}. "
+            "Set kypo_keycloak_url / kypo_admin_username / kypo_admin_password in CTFd admin config."
+        )
+
+    url = f"{keycloak_url}/realms/master/protocol/openid-connect/token"
+    logger.debug("[Keycloak] Fetching admin token from %s as user=%r", url, admin_user)
     resp = requests.post(
         url,
         data={
             "grant_type": "password",
             "client_id":  "admin-cli",
-            "username":   get_kypo_admin_username(),
-            "password":   get_kypo_admin_password(),
+            "username":   admin_user,
+            "password":   admin_pass,
         },
         verify=get_kypo_verify_ssl(),
         timeout=10,
@@ -46,6 +58,7 @@ def _get_admin_token(force_refresh: bool = False) -> str:
     data = resp.json()
     _token_cache["token"] = data["access_token"]
     _token_cache["expires_at"] = now + 240
+    logger.debug("[Keycloak] Admin token refreshed (expires in 240s)")
     return _token_cache["token"]
 
 
@@ -69,23 +82,37 @@ def _generate_password(length: int = 16) -> str:
 def _do_create_kypo_user(token: str, team_id: int, team_name: str, username: str, password: str) -> str:
     """Gọi Keycloak API tạo user, trả về kypo_user_id. Raise HTTPError nếu thất bại."""
     url = f"{get_kypo_keycloak_url()}/admin/realms/{get_kypo_realm()}/users"
+    payload = {
+        "username":      username,
+        "enabled":       True,
+        "firstName":     team_name,
+        "lastName":      "FCTF Team",
+        "email":         f"{username}@fctf.local",
+        "emailVerified": True,
+        "credentials": [
+            {"type": "password", "value": password, "temporary": False}
+        ],
+    }
     resp = requests.post(
         url,
-        json={
-            "username":      username,
-            "enabled":       True,
-            "firstName":     team_name,
-            "lastName":      "FCTF Team",
-            "email":         f"{username}@fctf.local",
-            "emailVerified": True,
-            "credentials": [
-                {"type": "password", "value": password, "temporary": False}
-            ],
-        },
+        json=payload,
         headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
         verify=get_kypo_verify_ssl(),
         timeout=10,
     )
+
+    # Token expired or not yet replicated across Keycloak nodes — wait 1s then retry
+    if resp.status_code == 401:
+        logger.warning("[Keycloak] 401 on create-user, refreshing token and retrying in 1s...")
+        time.sleep(1)
+        token = _get_admin_token(force_refresh=True)
+        resp = requests.post(
+            url,
+            json=payload,
+            headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+            verify=get_kypo_verify_ssl(),
+            timeout=10,
+        )
 
     if resp.status_code == 409:
         logger.warning(f"Keycloak user '{username}' already exists, reusing and resetting password.")
