@@ -23,6 +23,19 @@ public class KypoApiClient
     private DateTime _kcAdminTokenExpiry = DateTime.MinValue;
     private readonly SemaphoreSlim _kcTokenLock = new(1, 1);
 
+    // ── Level count cache: instanceId → count (never changes, cache forever) ──
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<int, int> _levelCountCache = new();
+
+    // ── Progress cache: instanceId → (expiry, data) — TTL 20s ────────────────
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<int, (DateTime Expiry, List<KypoProgressEntry> Data)> _progressCache = new();
+    private static readonly TimeSpan ProgressCacheTtl = TimeSpan.FromSeconds(15);
+
+    // ── Participant caches (Singleton → persist across all requests) ──────────
+    // runId → sub (email), sub → keycloakUserId, runId → teamId
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<int, string>    _runSubCache      = new();
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, string> _subKeycloakCache = new();
+    public  readonly System.Collections.Concurrent.ConcurrentDictionary<int, int>       RunTeamCache      = new();
+
     public KypoApiClient(IHttpClientFactory httpClientFactory, ILogger<KypoApiClient> logger, IKypoConfigProvider kypoConfig)
     {
         _httpClientFactory = httpClientFactory;
@@ -78,11 +91,108 @@ public class KypoApiClient
     }
 
     // ─────────────────────────────────────────────────────────
+    // Training instance detail — returns expected level count
+    // Used to guard against KYPO only returning started levels
+    // ─────────────────────────────────────────────────────────
+    public async Task<int> GetTrainingDefinitionLevelCountAsync(
+        string baseUrl, string instanceType, int instanceId)
+    {
+        if (_levelCountCache.TryGetValue(instanceId, out var cached) && cached > 0)
+            return cached;
+
+        var token   = await GetAdminTokenAsync(baseUrl);
+        var service = instanceType == "adaptive" ? "adaptive-training" : "training";
+        var url     = $"{baseUrl.TrimEnd('/')}/{service}/api/v1/training-instances/{instanceId}";
+
+        var client = _httpClientFactory.CreateClient("kypo");
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var resp = await client.GetAsync(url);
+        if (!resp.IsSuccessStatusCode)
+            return 0;
+
+        var json = await resp.Content.ReadAsStringAsync();
+        _logger.LogInformation("[KYPO LEVEL COUNT] instance={Id} raw JSON (first 500 chars): {Json}",
+            instanceId, json.Length > 500 ? json[..500] : json);
+        var doc  = JsonDocument.Parse(json);
+        var root = doc.RootElement;
+
+        // Try: training_definition.levels[]
+        foreach (var defKey in new[] { "training_definition", "trainingDefinition" })
+        {
+            if (root.TryGetProperty(defKey, out var def))
+            {
+                foreach (var lvlKey in new[] { "levels", "phases" })
+                {
+                    if (def.TryGetProperty(lvlKey, out var lvls)
+                        && lvls.ValueKind == JsonValueKind.Array)
+                    {
+                        var count = lvls.GetArrayLength();
+                        _levelCountCache[instanceId] = count;
+                        return count;
+                    }
+                }
+            }
+        }
+
+        // Try: level_count or levelCount at root
+        foreach (var countKey in new[] { "level_count", "levelCount" })
+        {
+            if (root.TryGetProperty(countKey, out var cnt)
+                && cnt.ValueKind == JsonValueKind.Number)
+            {
+                var count = cnt.GetInt32();
+                _levelCountCache[instanceId] = count;
+                return count;
+            }
+        }
+
+        // If training definition levels not embedded, fetch separately
+        int? defId = null;
+        foreach (var idKey in new[] { "training_definition_id", "trainingDefinitionId" })
+        {
+            if (root.TryGetProperty(idKey, out var idEl)
+                && idEl.ValueKind == JsonValueKind.Number)
+            {
+                defId = idEl.GetInt32();
+                break;
+            }
+        }
+
+        if (defId.HasValue)
+        {
+            var defUrl = $"{baseUrl.TrimEnd('/')}/{service}/api/v1/training-definitions/{defId}";
+            var defResp = await client.GetAsync(defUrl);
+            if (defResp.IsSuccessStatusCode)
+            {
+                var defJson = await defResp.Content.ReadAsStringAsync();
+                var defDoc  = JsonDocument.Parse(defJson);
+                foreach (var lvlKey in new[] { "levels", "phases" })
+                {
+                    if (defDoc.RootElement.TryGetProperty(lvlKey, out var lvls)
+                        && lvls.ValueKind == JsonValueKind.Array)
+                    {
+                        var count = lvls.GetArrayLength();
+                        _levelCountCache[instanceId] = count;
+                        return count;
+                    }
+                }
+            }
+        }
+
+        _logger.LogWarning("[KYPO LEVEL COUNT] instance={Id}: could not parse level count from JSON — guard will be skipped", instanceId);
+        return 0;  // Unknown — caller treats 0 as "no constraint"
+    }
+
+    // ─────────────────────────────────────────────────────────
     // Progress API — returns progress list for all participants
     // ─────────────────────────────────────────────────────────
     public async Task<List<KypoProgressEntry>> GetInstanceProgressAsync(
         string baseUrl, string instanceType, int instanceId)
     {
+        if (_progressCache.TryGetValue(instanceId, out var hit) && DateTime.UtcNow < hit.Expiry)
+            return hit.Data;
+
         var token   = await GetAdminTokenAsync(baseUrl);
         var service = instanceType == "adaptive" ? "adaptive-training" : "training";
         var url     = $"{baseUrl.TrimEnd('/')}/{service}/api/v1/visualizations/training-instances/{instanceId}/progress";
@@ -108,12 +218,19 @@ public class KypoApiClient
         var results = new List<KypoProgressEntry>();
 
         if (!doc.RootElement.TryGetProperty("progress", out var progressArr))
+        {
+            _progressCache[instanceId] = (DateTime.UtcNow + ProgressCacheTtl, results);
             return results;
+        }
 
         foreach (var entry in progressArr.EnumerateArray())
         {
-            var name   = entry.GetProperty("name").GetString() ?? "";
-            var runId  = entry.TryGetProperty("training_run_id", out var rid) ? rid.GetInt32() : 0;
+            var name   = entry.TryGetProperty("name", out var nameEl) ? nameEl.GetString() ?? "" : "";
+            var runId  = entry.TryGetProperty("training_run_id",  out var rid)  ? rid.GetInt32()
+                       : entry.TryGetProperty("trainingRunId",    out var rid2) ? rid2.GetInt32()
+                       : entry.TryGetProperty("id",               out var rid3) ? rid3.GetInt32()
+                       : 0;
+            _logger.LogDebug("[KYPO PROGRESS] instance={Id} entry: name={Name} runId={RunId}", instanceId, name, runId);
             var levels = new List<KypoLevelProgress>();
 
             if (entry.TryGetProperty("levels", out var levelsArr))
@@ -126,6 +243,7 @@ public class KypoApiClient
                         State       = lv.TryGetProperty("state", out var st) ? st.GetString()! : "",
                         Score       = ExtractLevelScore(lv),
                         IsCompleted = IsLevelCompleted(lv),
+                        CompletedAt = ExtractCompletionTime(lv),
                     });
                 }
             }
@@ -140,6 +258,7 @@ public class KypoApiClient
             });
         }
 
+        _progressCache[instanceId] = (DateTime.UtcNow + ProgressCacheTtl, results);
         return results;
     }
 
@@ -188,6 +307,40 @@ public class KypoApiClient
             }
         }
         return false;
+    }
+
+    /// <summary>
+    /// Returns the timestamp of the most recent LevelCompleted event, or null if unavailable.
+    /// Tries common KYPO event timestamp field names.
+    /// </summary>
+    private static DateTime? ExtractCompletionTime(JsonElement level)
+    {
+        if (!level.TryGetProperty("events", out var events)
+            || events.ValueKind != JsonValueKind.Array)
+            return null;
+
+        DateTime? latest = null;
+        foreach (var ev in events.EnumerateArray())
+        {
+            var type = ev.TryGetProperty("type", out var t) ? t.GetString() ?? "" : "";
+            if (!type.Contains("LevelCompleted"))
+                continue;
+
+            // Try common KYPO timestamp field names
+            foreach (var field in new[] { "occurred_at", "timestamp", "created_at", "happened_at", "event_time" })
+            {
+                if (!ev.TryGetProperty(field, out var ts)) continue;
+                string? raw = ts.ValueKind == JsonValueKind.String ? ts.GetString() : null;
+                if (raw == null) continue;
+                if (DateTime.TryParse(raw, null,
+                        System.Globalization.DateTimeStyles.RoundtripKind, out var dt))
+                {
+                    if (latest == null || dt > latest) latest = dt;
+                    break;
+                }
+            }
+        }
+        return latest;
     }
 
     // ─────────────────────────────────────────────────────────
@@ -240,6 +393,9 @@ public class KypoApiClient
     public async Task<string?> GetParticipantSubAsync(
         string baseUrl, string instanceType, int trainingRunId)
     {
+        if (_runSubCache.TryGetValue(trainingRunId, out var cachedSub))
+            return cachedSub;
+
         var token   = await GetAdminTokenAsync(baseUrl);
         var service = instanceType == "adaptive" ? "adaptive-training" : "training";
         var url     = $"{baseUrl.TrimEnd('/')}/{service}/api/v1/training-runs/{trainingRunId}/participant";
@@ -255,9 +411,9 @@ public class KypoApiClient
             var json = await resp.Content.ReadAsStringAsync();
             var doc  = JsonDocument.Parse(json);
 
-            return doc.RootElement.TryGetProperty("sub", out var sub)
-                ? sub.GetString()
-                : null;
+            var sub = doc.RootElement.TryGetProperty("sub", out var s) ? s.GetString() : null;
+            if (sub != null) _runSubCache[trainingRunId] = sub;
+            return sub;
         }
         catch (Exception e)
         {
@@ -272,6 +428,9 @@ public class KypoApiClient
     // ─────────────────────────────────────────────────────────
     public async Task<string?> GetKeycloakUserIdBySubAsync(string baseUrl, string sub)
     {
+        if (_subKeycloakCache.TryGetValue(sub, out var cachedId))
+            return cachedId;
+
         var token = await GetKeycloakAdminTokenAsync(baseUrl);
         var url   = $"{baseUrl.TrimEnd('/')}/keycloak/admin/realms/CRCZP/users?email={Uri.EscapeDataString(sub)}";
 
@@ -298,9 +457,9 @@ public class KypoApiClient
             if (users.GetArrayLength() == 0) return null;
 
             // Return UUID (id field) — immutable, more reliable than username
-            return users[0].TryGetProperty("id", out var id)
-                ? id.GetString()
-                : null;
+            var keycloakId = users[0].TryGetProperty("id", out var id) ? id.GetString() : null;
+            if (keycloakId != null) _subKeycloakCache[sub] = keycloakId;
+            return keycloakId;
         }
         catch (Exception e)
         {
@@ -374,8 +533,10 @@ public class KypoProgressEntry
 
 public class KypoLevelProgress
 {
-    public int    Id          { get; set; }
-    public string State       { get; set; } = "";
-    public int    Score       { get; set; }
-    public bool   IsCompleted { get; set; }
+    public int       Id          { get; set; }
+    public string    State       { get; set; } = "";
+    public int       Score       { get; set; }
+    public bool      IsCompleted { get; set; }
+    /// <summary>Timestamp of the LevelCompleted event (null if KYPO doesn't provide one).</summary>
+    public DateTime? CompletedAt { get; set; }
 }
