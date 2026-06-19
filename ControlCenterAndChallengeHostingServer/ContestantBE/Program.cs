@@ -121,6 +121,7 @@ builder.Services.AddSingleton<IKypoConfigProvider, KypoConfigProvider>();
 builder.Services.AddSingleton<KypoApiClient>();
 builder.Services.AddScoped<KypoScoreLockService>();
 builder.Services.AddHostedService<KypoTimeoutWatcher>();
+builder.Services.AddHostedService<KypyCacheWarmupService>();
 // DI services from ResourceShared
 builder.Services.AddResourceShared();
 

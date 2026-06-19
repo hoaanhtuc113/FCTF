@@ -1166,35 +1166,82 @@ public class ChallengeController : BaseController
         {
             var teamId = user.TeamId.Value;
 
-            // Mark session as stopped (stopped_at) — stop counting time
-            var openTrackings = await _context.ChallengeStartTrackings
-                .Where(t => t.ChallengeId == challenge.Id
-                         && t.TeamId == teamId
-                         && t.StoppedAt == null)
-                .ToListAsync();
-            foreach (var t in openTrackings) t.StoppedAt = DateTime.UtcNow;
-            if (openTrackings.Count > 0) await _context.SaveChangesAsync();
-
-            await _redisHelper.RemoveCacheAsync(cache_key);
-
-            bool kypeSolved = false;
+            // For KYPO challenges: call LockScoreAsync FIRST.
+            // If KYPO API is unreachable (ApiError), do NOT close the session — let team retry.
             if (isKypoChallenge)
             {
+                KypoLockResult lockResult;
                 try
                 {
-                    kypeSolved = await _scoreLockService.LockScoreAsync(challenge.Id, teamId);
+                    lockResult = await _scoreLockService.LockScoreAsync(challenge.Id, teamId);
                 }
                 catch (Exception ex)
                 {
                     await Console.Error.WriteLineAsync($"[KYPO] Score lock error challenge={challenge.Id} team={teamId}: {ex.Message}");
+                    lockResult = KypoLockResult.ApiError;
                 }
+
+                if (lockResult == KypoLockResult.ApiError)
+                {
+                    // Session stays open — team can click Stop again to retry
+                    return StatusCode((int)HttpStatusCode.ServiceUnavailable, new ChallengeDeployResponeDTO
+                    {
+                        status  = (int)HttpStatusCode.ServiceUnavailable,
+                        success = false,
+                        message = "Cannot connect to KYPO. Please try again.",
+                    });
+                }
+
+                // Score locked (or team not done) — now close the session
+                var openTrackings = await _context.ChallengeStartTrackings
+                    .Where(t => t.ChallengeId == challenge.Id
+                             && t.TeamId == teamId
+                             && t.StoppedAt == null)
+                    .ToListAsync();
+                foreach (var t in openTrackings) t.StoppedAt = DateTime.UtcNow;
+                if (openTrackings.Count > 0) await _context.SaveChangesAsync();
+
+                await _redisHelper.RemoveCacheAsync(cache_key);
+
+                try
+                {
+                    await _actionLogsServices.SaveActionLogs(new ActionLogsReq
+                    {
+                        ActionType = 7,
+                        ActionDetail = $"Submitted sandbox challenge {challenge.Name}",
+                        ChallengeId = challenge.Id,
+                    }, user.Id);
+                }
+                catch (Exception ex)
+                {
+                    await Console.Error.WriteLineAsync($"[ActionLog] Failed to save SUBMIT_SANDBOX log: {ex.Message}");
+                }
+
+                var solved = lockResult == KypoLockResult.Solved || lockResult == KypoLockResult.AlreadySolved;
+                return Ok(new ChallengeDeployResponeDTO
+                {
+                    status  = (int)HttpStatusCode.OK,
+                    success = true,
+                    message = solved ? "Completed! Score has been recorded." : "Sandbox session ended.",
+                });
             }
+
+            // Non-KYPO sandbox: close session immediately
+            var sandboxTrackings = await _context.ChallengeStartTrackings
+                .Where(t => t.ChallengeId == challenge.Id
+                         && t.TeamId == teamId
+                         && t.StoppedAt == null)
+                .ToListAsync();
+            foreach (var t in sandboxTrackings) t.StoppedAt = DateTime.UtcNow;
+            if (sandboxTrackings.Count > 0) await _context.SaveChangesAsync();
+
+            await _redisHelper.RemoveCacheAsync(cache_key);
 
             try
             {
                 await _actionLogsServices.SaveActionLogs(new ActionLogsReq
                 {
-                    ActionType = 7, // STOP_SANDBOX / SUBMIT_KYPO
+                    ActionType = 7,
                     ActionDetail = $"Submitted sandbox challenge {challenge.Name}",
                     ChallengeId = challenge.Id,
                 }, user.Id);
@@ -1206,11 +1253,9 @@ public class ChallengeController : BaseController
 
             return Ok(new ChallengeDeployResponeDTO
             {
-                status = (int)HttpStatusCode.OK,
+                status  = (int)HttpStatusCode.OK,
                 success = true,
-                message = isKypoChallenge
-                    ? (kypeSolved ? "Completed! Score has been recorded." : "Sandbox session ended.")
-                    : "Sandbox session ended.",
+                message = "Sandbox session ended.",
             });
         }
 
