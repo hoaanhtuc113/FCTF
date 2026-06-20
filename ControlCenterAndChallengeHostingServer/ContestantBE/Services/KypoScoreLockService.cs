@@ -14,6 +14,7 @@ namespace ContestantBE.Services;
 ///   - Points come from FCTF (challenges.value), NOT from KYPO score.
 ///   - All phases completed → insert solve; score = challenges.value.
 ///   - Any phase incomplete → no solve, 0 points.
+///   - KYPO API unreachable → ApiError (caller should allow team to retry).
 /// </summary>
 public class KypoScoreLockService
 {
@@ -33,9 +34,9 @@ public class KypoScoreLockService
 
     /// <summary>
     /// Locks score for one team on one KYPO challenge.
-    /// Returns true if a solve was just inserted (all phases completed).
+    /// Returns KypoLockResult — caller must treat ApiError as retryable (do NOT close session).
     /// </summary>
-    public async Task<bool> LockScoreAsync(int challengeId, int teamId)
+    public async Task<KypoLockResult> LockScoreAsync(int challengeId, int teamId)
     {
         // [1] Load KYPO config for this challenge
         var config = await _db.KypoChallengeConfigs
@@ -44,7 +45,7 @@ public class KypoScoreLockService
         if (config == null)
         {
             _logger.LogDebug("[KYPO LOCK] Challenge {ChallengeId} is not a KYPO challenge", challengeId);
-            return false;
+            return KypoLockResult.NotDone;
         }
 
         // [2] Already solved? Skip to avoid duplicate entries
@@ -53,14 +54,14 @@ public class KypoScoreLockService
         if (alreadySolved)
         {
             _logger.LogDebug("[KYPO LOCK] Team {TeamId} already has a solve for challenge {ChallengeId}", teamId, challengeId);
-            return false;
+            return KypoLockResult.AlreadySolved;
         }
 
         var baseUrl = config.KypoBaseUrl ?? "";
         if (string.IsNullOrWhiteSpace(baseUrl))
         {
             _logger.LogWarning("[KYPO LOCK] Challenge {ChallengeId}: KypoBaseUrl is empty", challengeId);
-            return false;
+            return KypoLockResult.NotDone;
         }
 
         // [3] Fetch progress for all participants in this instance (single API call)
@@ -73,7 +74,7 @@ public class KypoScoreLockService
         catch (Exception ex)
         {
             _logger.LogError(ex, "[KYPO LOCK] Progress API failed for instance {InstanceId}", config.KypoInstanceId);
-            return false;
+            return KypoLockResult.ApiError;
         }
 
         // [4] Map participants to team IDs in parallel.
@@ -87,18 +88,34 @@ public class KypoScoreLockService
         var mappingTasks = progressList
             .Select(async entry =>
             {
-                // Cache hit — skip API calls
-                if (_runTeamCache.TryGetValue(entry.RunId, out var cachedId))
+                // Cache hit — only use cache when RunId > 0 to prevent collision across entries sharing RunId=0
+                if (entry.RunId > 0 && _runTeamCache.TryGetValue(entry.RunId, out var cachedId))
                     return (Entry: entry, TeamId: (int?)cachedId);
 
-                var sub = await _kypoClient.GetParticipantSubAsync(
-                    baseUrl, config.KypoInstanceType, entry.RunId);
-                if (string.IsNullOrEmpty(sub))
+                if (entry.RunId <= 0)
+                {
+                    _logger.LogWarning("[KYPO LOCK] Entry name={Name} has RunId=0 — training_run_id missing or field name mismatch in KYPO response",
+                        entry.Name);
                     return (Entry: entry, TeamId: (int?)null);
+                }
 
-                var keycloakUserId = await _kypoClient.GetKeycloakUserIdBySubAsync(baseUrl, sub);
-                if (string.IsNullOrEmpty(keycloakUserId))
+                string? sub;
+                string? keycloakUserId;
+                try
+                {
+                    sub = await _kypoClient.GetParticipantSubAsync(
+                        baseUrl, config.KypoInstanceType, entry.RunId);
+                    if (string.IsNullOrEmpty(sub))
+                        return (Entry: entry, TeamId: (int?)null);
+
+                    keycloakUserId = await _kypoClient.GetKeycloakUserIdBySubAsync(baseUrl, sub);
+                    if (string.IsNullOrEmpty(keycloakUserId))
+                        return (Entry: entry, TeamId: (int?)null);
+                }
+                catch
+                {
                     return (Entry: entry, TeamId: (int?)null);
+                }
 
                 // In-memory lookup — no DB access in parallel task
                 keycloakIdToTeam.TryGetValue(keycloakUserId, out var tid);
@@ -107,28 +124,63 @@ public class KypoScoreLockService
             })
             .ToList();
 
-        var mappings  = await Task.WhenAll(mappingTasks);
-        var teamEntry = mappings.FirstOrDefault(m => m.TeamId == teamId).Entry;
+        var mappings = await Task.WhenAll(mappingTasks);
+
+        // A team may have MULTIPLE training runs on the same instance (e.g. from previous challenges
+        // that reused the same KYPO instance). Pick the run with the highest RunId (newest session).
+        // This avoids accidentally picking an old incomplete run from a previous challenge.
+        var teamEntry = mappings
+            .Where(m => m.TeamId == teamId && m.Entry != null)
+            .OrderByDescending(m => m.Entry!.RunId)
+            .Select(m => m.Entry)
+            .FirstOrDefault();
 
         if (teamEntry == null)
         {
             _logger.LogDebug("[KYPO LOCK] No progress entry found for team {TeamId} in instance {InstanceId}",
                 teamId, config.KypoInstanceId);
-            return false;
+            return KypoLockResult.NotDone;
         }
+
+        _logger.LogInformation("[KYPO LOCK] Team {TeamId}: selected runId={RunId} (newest among {Total} run(s) for this team)",
+            teamId, teamEntry.RunId, mappings.Count(m => m.TeamId == teamId));
 
         // [5] ALL-OR-NOTHING: every phase must be IsCompleted.
         // Do NOT check Score > 0 — access/info levels have max_score=0 and will always be Score=0.
         // IsCompleted handles TrainingRunResumed (state=RUNNING but LevelCompleted event exists).
+        //
+        // IMPORTANT: KYPO only returns levels that have been STARTED — not all levels.
+        // A team that completed phase 1 of 3 would show Levels=[phase1:done] → All()=true incorrectly.
+        // Guard: compare returned level count against expected count from training definition.
+        int expectedLevelCount = 0;
+        try
+        {
+            expectedLevelCount = await _kypoClient.GetTrainingDefinitionLevelCountAsync(
+                baseUrl, config.KypoInstanceType, config.KypoInstanceId);
+            _logger.LogInformation(
+                "[KYPO LOCK] Team {TeamId} challenge {ChallengeId}: returned={Returned} level(s), expected={Expected}",
+                teamId, challengeId, teamEntry.Levels.Count, expectedLevelCount);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex,
+                "[KYPO LOCK] Could not fetch expected level count for instance {InstanceId} — skipping count guard",
+                config.KypoInstanceId);
+        }
+
+        var levelCountOk = expectedLevelCount <= 0 || teamEntry.Levels.Count >= expectedLevelCount;
         var allDone = teamEntry.Levels.Count > 0
-            && teamEntry.Levels.All(l => l.IsCompleted);
+            && teamEntry.Levels.All(l => l.IsCompleted)
+            && levelCountOk;
 
         if (!allDone)
         {
             _logger.LogInformation(
-                "[KYPO LOCK] Team {TeamId} challenge {ChallengeId}: not all phases done → 0 points",
-                teamId, challengeId);
-            return false;
+                "[KYPO LOCK] Team {TeamId} challenge {ChallengeId}: not all phases done " +
+                "(returned={Returned}, expected={Expected}, allCompleted={AllCompleted}, countOk={CountOk}) → 0 points",
+                teamId, challengeId, teamEntry.Levels.Count, expectedLevelCount,
+                teamEntry.Levels.Count > 0 && teamEntry.Levels.All(l => l.IsCompleted), levelCountOk);
+            return KypoLockResult.NotDone;
         }
 
         // [6] Resolve user_id = team captain (or first member)
@@ -136,25 +188,30 @@ public class KypoScoreLockService
         if (userId == null)
         {
             _logger.LogWarning("[KYPO LOCK] Team {TeamId} has no users, skipping", teamId);
-            return false;
+            return KypoLockResult.NotDone;
         }
 
         // [7] Insert solve — points come from challenges.value at display time
-        await InsertSolveAsync(challengeId, userId.Value, teamId);
+        try
+        {
+            await InsertSolveAsync(challengeId, userId.Value, teamId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[KYPO LOCK] Failed to insert solve for challenge={ChallengeId} team={TeamId}", challengeId, teamId);
+            return KypoLockResult.ApiError;
+        }
 
         _logger.LogInformation(
             "[KYPO LOCK] SOLVED challenge={ChallengeId} team={TeamId} user={UserId}",
             challengeId, teamId, userId);
 
-        return true;
+        return KypoLockResult.Solved;
     }
 
     // ─────────────────────────────────────────────────────────
     // Helpers
     // ─────────────────────────────────────────────────────────
-
-    // GetTeamIdByTrainingRunAsync removed — logic inlined into LockScoreAsync step [4]
-    // to avoid concurrent DbContext access when tasks run in parallel via Task.WhenAll.
 
     private async Task<int?> GetTeamCaptainAsync(int teamId)
     {
