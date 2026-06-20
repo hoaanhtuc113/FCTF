@@ -92,10 +92,10 @@ public class KypoTimeoutWatcher : BackgroundService
             // Chốt điểm (all-or-nothing, điểm từ challenges.value)
             try
             {
-                var locked = await lockService.LockScoreAsync(s.ChallengeId, s.TeamId);
+                var result = await lockService.LockScoreAsync(s.ChallengeId, s.TeamId);
                 _logger.LogInformation(
                     "[KYPO TIMEOUT] Hết giờ challenge={ChallengeId} team={TeamId} → {Result}",
-                    s.ChallengeId, s.TeamId, locked ? "GHI ĐIỂM" : "0 điểm");
+                    s.ChallengeId, s.TeamId, result);
             }
             catch (Exception ex)
             {
