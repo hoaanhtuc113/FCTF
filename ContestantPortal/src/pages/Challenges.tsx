@@ -2339,11 +2339,36 @@ function ChallengeDetailPanel({
 
     setIsStopping(true);
     try {
-      await fetchWithAuth(API_ENDPOINTS.CHALLENGES.STOP, {
+      const response = await fetchWithAuth(API_ENDPOINTS.CHALLENGES.STOP, {
         method: 'POST',
         body: JSON.stringify({ challengeId: challenge.id })
-      }).catch(() => { });
-    } finally {
+      });
+
+      if (response.status === 503) {
+        // KYPO server unreachable — session stays open, team can retry
+        Swal.fire({
+          html: `
+            <div class="font-mono text-left text-sm">
+              <div class="text-yellow-400 mb-2">[!] KYPO Connection Failed</div>
+              <div class="text-gray-400 mb-2">> Challenge: ${challenge.name}</div>
+              <div class="text-gray-400 mb-3">> KYPO system is temporarily unavailable.</div>
+              <div class="text-green-400 text-xs">> Your session is still active. Please try again later.</div>
+            </div>
+          `,
+          icon: 'warning',
+          iconColor: '#fbbf24',
+          confirmButtonText: 'OK, try again later',
+          background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+          color: theme === 'dark' ? '#fbbf24' : '#000000',
+          customClass: {
+            popup: 'rounded-lg border border-yellow-500/30',
+            confirmButton: 'bg-yellow-500 hover:bg-yellow-600 text-black font-mono px-4 py-2 rounded',
+          },
+        });
+        return;
+      }
+
+      // Success — close session on frontend
       setIsChallengeStarted(false);
       setUrl(null);
       setKypoInfo(null);
@@ -2356,8 +2381,6 @@ function ChallengeDetailPanel({
       endTimeRef.current = null;
       localStorage.removeItem(`timer_endtime_${challenge.id}`);
       challengeTimerService.stopTimer(challenge.id);
-
-      setIsStopping(false);
 
       if (onFlagSuccess) {
         await onFlagSuccess();
@@ -2382,6 +2405,27 @@ function ChallengeDetailPanel({
           confirmButton: 'bg-green-600 hover:bg-green-700 text-white font-mono px-4 py-2 rounded',
         },
       });
+    } catch (error) {
+      console.error('Stop KYPO challenge error:', error);
+      Swal.fire({
+        html: `
+          <div class="font-mono text-left text-sm">
+            <div class="text-red-400 mb-2">[!] Connection Error</div>
+            <div class="text-gray-400">> Failed to reach server. Please try again.</div>
+          </div>
+        `,
+        icon: 'error',
+        iconColor: '#ef4444',
+        confirmButtonText: 'OK',
+        background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+        color: theme === 'dark' ? '#ef4444' : '#000000',
+        customClass: {
+          popup: 'rounded-lg border border-red-500/30',
+          confirmButton: 'bg-red-500 hover:bg-red-600 text-white font-mono px-4 py-2 rounded',
+        },
+      });
+    } finally {
+      setIsStopping(false);
     }
   };
 
@@ -2686,7 +2730,28 @@ function ChallengeDetailPanel({
       });
       const data = await response.json();
 
-      if (data.success) {
+      if (response.status === 503) {
+        // KYPO server unreachable — session stays open, team can retry
+        Swal.fire({
+          html: `
+            <div class="font-mono text-left text-sm">
+              <div class="text-yellow-400 mb-2">[!] KYPO Connection Failed</div>
+              <div class="text-gray-400 mb-2">> Challenge: ${challenge.name}</div>
+              <div class="text-gray-400 mb-3">> KYPO system is temporarily unavailable.</div>
+              <div class="text-green-400 text-xs">> Your session is still active. Please try again later.</div>
+            </div>
+          `,
+          icon: 'warning',
+          iconColor: '#fbbf24',
+          confirmButtonText: 'OK, try again later',
+          background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+          color: theme === 'dark' ? '#fbbf24' : '#000000',
+          customClass: {
+            popup: 'rounded-lg border border-yellow-500/30',
+            confirmButton: 'bg-yellow-500 hover:bg-yellow-600 text-black font-mono px-4 py-2 rounded',
+          },
+        });
+      } else if (data.success) {
         setIsChallengeStarted(false);
         setUrl(null);
         setTimeRemaining(null);
