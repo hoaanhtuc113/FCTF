@@ -243,7 +243,6 @@
 	}
 </style>
 {% endblock %}
-
 {% block contest_content %}
 <div class="team-detail-page">
 	<div id="team-info-edit-modal" class="modal fade">
@@ -987,53 +986,53 @@
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken },
 		})
-		.then(function(r) {
-			var ct = r.headers.get('Content-Type') || '';
-			if (!ct.includes('application/json')) {
-				var hint = r.status === 403
-					? 'CSRF token invalid — refresh the page (F5) and retry.'
-					: r.status === 404
-						? 'API endpoint not found — please restart the server.'
-						: 'Server returned HTTP ' + r.status + ' — check server logs.';
-				throw new Error(hint);
-			}
-			return r.json();
-		})
-		.then(function(data) {
-			if (data.success) {
-				Swal.fire({
-					icon: 'success',
-					title: 'KYPO Account Created',
-					text: 'The KYPO account has been created successfully.',
-					confirmButtonColor: '#ff6b35',
-					timer: 2000,
-					timerProgressBar: true,
-					showConfirmButton: false,
-					allowOutsideClick: false,
-				}).then(function() {
-					location.reload();
-				});
-			} else {
+			.then(function (r) {
+				var ct = r.headers.get('Content-Type') || '';
+				if (!ct.includes('application/json')) {
+					var hint = r.status === 403
+						? 'CSRF token invalid — refresh the page (F5) and retry.'
+						: r.status === 404
+							? 'API endpoint not found — please restart the server.'
+							: 'Server returned HTTP ' + r.status + ' — check server logs.';
+					throw new Error(hint);
+				}
+				return r.json();
+			})
+			.then(function (data) {
+				if (data.success) {
+					Swal.fire({
+						icon: 'success',
+						title: 'KYPO Account Created',
+						text: 'The KYPO account has been created successfully.',
+						confirmButtonColor: '#ff6b35',
+						timer: 2000,
+						timerProgressBar: true,
+						showConfirmButton: false,
+						allowOutsideClick: false,
+					}).then(function () {
+						location.reload();
+					});
+				} else {
+					btn.disabled = false;
+					btn.innerHTML = '<i class="fas fa-plus mr-2"></i>Create KYPO Account';
+					Swal.fire({
+						icon: 'error',
+						title: 'Failed',
+						text: data.message || 'Failed to create KYPO account.',
+						confirmButtonColor: '#ff6b35',
+					});
+				}
+			})
+			.catch(function (err) {
 				btn.disabled = false;
 				btn.innerHTML = '<i class="fas fa-plus mr-2"></i>Create KYPO Account';
 				Swal.fire({
 					icon: 'error',
-					title: 'Failed',
-					text: data.message || 'Failed to create KYPO account.',
+					title: 'Error',
+					text: err.message,
 					confirmButtonColor: '#ff6b35',
 				});
-			}
-		})
-		.catch(function(err) {
-			btn.disabled = false;
-			btn.innerHTML = '<i class="fas fa-plus mr-2"></i>Create KYPO Account';
-			Swal.fire({
-				icon: 'error',
-				title: 'Error',
-				text: err.message,
-				confirmButtonColor: '#ff6b35',
 			});
-		});
 	}
 
 	function buildCredentialField(label, value) {
@@ -1060,7 +1059,7 @@
 	}
 
 	function escapeHtml(str) {
-		return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+		return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 	}
 </script>
 {% endblock %}
