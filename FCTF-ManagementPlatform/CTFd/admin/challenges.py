@@ -18,7 +18,7 @@ from flask import (
 from werkzeug.utils import secure_filename
 
 from CTFd.admin import admin
-from CTFd.models import Challenges, DeployedChallenge, ChallengeVersion, Flags, Solves, Users, Tags, db
+from CTFd.models import Challenges, ChallengeStartTracking, DeployedChallenge, ChallengeVersion, Flags, Solves, Users, Tags, db
 from CTFd.plugins.challenges import CHALLENGE_CLASSES, get_chal_class, BaseChallenge
 from CTFd.schemas.tags import TagSchema
 from CTFd.utils.decorators import (
@@ -146,6 +146,24 @@ def challenges_listing():
 
 
 
+import logging as _logging
+_log = _logging.getLogger(__name__)
+
+
+def _sandbox_has_active_redis_session(challenge_id: int) -> bool:
+    """Check Redis for any active deploy_challenge_{id}_* key written by ContestantBE."""
+    try:
+        import redis as _redis
+        redis_url = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
+        rc = _redis.from_url(redis_url, decode_responses=True)
+        keys = rc.keys(f"deploy_challenge_{challenge_id}_*")
+        _log.warning("[has_started] Redis keys for challenge %s: %s", challenge_id, keys)
+        return bool(keys)
+    except Exception as e:
+        _log.warning("[has_started] Redis check failed for challenge %s: %s", challenge_id, e)
+        return False
+
+
 @admin.route("/admin/challenges/<int:challenge_id>")
 @admin_or_challenge_writer_only_or_jury
 def challenges_detail(challenge_id):
@@ -189,10 +207,21 @@ def challenges_detail(challenge_id):
     
     ctf_is_active = ctftime()
 
+    _db_tracking = ChallengeStartTracking.query.filter_by(
+        challenge_id=challenge.id, stopped_at=None
+    ).first()
+    print(f"[DEBUG has_started] challenge_id={challenge.id} type={challenge.type} db_tracking={_db_tracking}", flush=True)
+    has_started_teams = (
+        _db_tracking is not None
+        or (challenge.type == "sandbox" and _sandbox_has_active_redis_session(challenge.id))
+    )
+    print(f"[DEBUG has_started] final has_started_teams={has_started_teams}", flush=True)
+
     update_j2 = render_template(
-        challenge_class.templates["update"].lstrip("/"), 
+        challenge_class.templates["update"].lstrip("/"),
         challenge=challenge,
-        ctf_is_active=ctf_is_active
+        ctf_is_active=ctf_is_active,
+        has_started_teams=has_started_teams,
     )
 
     update_script = url_for(

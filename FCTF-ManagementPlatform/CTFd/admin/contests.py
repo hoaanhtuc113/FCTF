@@ -1,5 +1,6 @@
 import csv
 import datetime
+import os
 import re
 from io import BytesIO, StringIO
 
@@ -1096,10 +1097,31 @@ def contest_challenge_detail(contest_id, challenge_id):
         abort(500, f"Challenge type ({challenge.type}) is not installed.")
 
     ctf_is_active = ctftime()
+
+    _db_tracking = ChallengeStartTracking.query.filter_by(
+        challenge_id=challenge.id, stopped_at=None
+    ).first()
+    print(f"[DEBUG has_started] challenge_id={challenge.id} type={challenge.type} db_tracking={_db_tracking}", flush=True)
+
+    _redis_active = False
+    if challenge.type == "sandbox":
+        try:
+            import redis as _redis
+            _rc = _redis.from_url(os.environ.get("REDIS_URL", "redis://localhost:6379/0"), decode_responses=True)
+            _keys = _rc.keys(f"deploy_challenge_{challenge.id}_*")
+            print(f"[DEBUG has_started] Redis keys for challenge {challenge.id}: {_keys}", flush=True)
+            _redis_active = bool(_keys)
+        except Exception as e:
+            print(f"[DEBUG has_started] Redis check failed: {e}", flush=True)
+
+    has_started_teams = _db_tracking is not None or _redis_active
+    print(f"[DEBUG has_started] final has_started_teams={has_started_teams}", flush=True)
+
     update_j2 = render_template(
         challenge_class.templates["update"].lstrip("/"),
         challenge=challenge,
         ctf_is_active=ctf_is_active,
+        has_started_teams=has_started_teams,
     )
     update_script = url_for("views.static_html", route=challenge_class.scripts["update"].lstrip("/"))
 
