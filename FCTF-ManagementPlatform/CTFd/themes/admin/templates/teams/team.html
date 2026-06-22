@@ -1,6 +1,8 @@
 {% extends "admin/contests/contest_base.html" %}
 
 {% block contest_stylesheets %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
 <style>
 	/* Clean Team Detail Page Styles - Same as User Detail */
 	.team-detail-page .jumbotron {
@@ -197,6 +199,48 @@
 		transform: translateY(-2px);
 		box-shadow: 0 4px 8px rgba(255, 107, 53, 0.3);
 	}
+
+	.form-container {
+		background: #ffffff;
+		padding: 2.5rem;
+		border-radius: 8px;
+		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+		border: 1px solid #e8e8e8;
+	}
+
+	.form-container .form-control {
+		border: 1px solid #dee2e6;
+		border-radius: 6px;
+		padding: 0.6rem 0.75rem;
+		transition: all 0.2s ease;
+	}
+
+	.form-container .form-control:focus {
+		border-color: #ff6b35;
+		box-shadow: 0 0 0 0.2rem rgba(255, 107, 53, 0.15);
+	}
+
+	.form-container label {
+		color: #495057;
+		font-weight: 500;
+		margin-bottom: 0.5rem;
+	}
+
+	.form-container .btn-primary {
+		background-color: #ff6b35;
+		border-color: #ff6b35;
+		transition: all 0.2s ease;
+		width: 100%;
+		padding: 0.65rem;
+		font-weight: 600;
+	}
+
+	.form-container .btn-primary:hover {
+		background-color: #e85d2a;
+		border-color: #e85d2a;
+		transform: translateY(-2px);
+		box-shadow: 0 4px 8px rgba(255, 107, 53, 0.3);
+	}
 </style>
 {% endblock %}
 
@@ -348,7 +392,7 @@
 						<span aria-hidden="true">&times;</span>
 					</button>
 				</div>
-				<div class="modal-body">
+				<div class="modal-body" id="kypo-modal-body">
 					{% if kypo_account %}
 					<div class="form-group">
 						<label class="font-weight-bold">KYPO User ID</label>
@@ -380,8 +424,7 @@
 							<input type="password" class="form-control" id="kypo-modal-password"
 								value="{{ kypo_account.kypo_password }}" readonly>
 							<div class="input-group-append">
-								<button class="btn btn-outline-secondary" type="button"
-									onclick="toggleKypoPassword()">
+								<button class="btn btn-outline-secondary" type="button" onclick="toggleKypoPassword()">
 									<i class="fas fa-eye" id="kypo-eye-icon"></i>
 								</button>
 								<button class="btn btn-outline-secondary" type="button"
@@ -391,16 +434,21 @@
 							</div>
 						</div>
 					</div>
-					<div class="form-group">
+					<div class="form-group mb-0">
 						<label class="font-weight-bold">Created At</label>
 						<input type="text" class="form-control"
 							value="{{ kypo_account.created_at.strftime('%Y-%m-%d %H:%M:%S') if kypo_account.created_at else '' }}"
 							readonly>
 					</div>
 					{% else %}
-					<div class="text-center text-muted py-4">
-						<i class="fas fa-exclamation-circle fa-3x mb-3 d-block"></i>
-						<p>No KYPO account found for this team.</p>
+					<div id="kypo-no-account">
+						<div class="text-center text-muted py-3">
+							<i class="fas fa-exclamation-circle fa-3x mb-3 d-block"></i>
+							<p class="mb-3">No KYPO account found for this team.</p>
+						</div>
+						<button id="kypo-create-btn" class="btn btn-primary w-100" onclick="createKypoAccount()">
+							<i class="fas fa-plus mr-2"></i>Create KYPO Account
+						</button>
 					</div>
 					{% endif %}
 				</div>
@@ -605,9 +653,6 @@
 
 			<a class="nav-item nav-link" id="nav-missing-tab" data-toggle="tab" href="#nav-missing" role="tab"
 				aria-controls="nav-missing" aria-selected="false">Missing</a>
-
-			<a class="nav-item nav-link" id="nav-kypo-tab" data-toggle="tab" href="#nav-kypo" role="tab"
-				aria-controls="nav-kypo" aria-selected="false">KYPO Account</a>
 		</nav>
 
 		<div class="tab-content min-vh-50 pb-5" id="nav-tabContent">
@@ -871,67 +916,14 @@
 				</div>
 			</div>
 
-		<div class="tab-pane fade" id="nav-kypo" role="tabpanel" aria-labelledby="nav-kypo-tab">
-			<h3 class="text-center pt-5 d-block">KYPO Account</h3>
-			<div class="row justify-content-center pt-3">
-				<div class="col-md-6">
-					{% if kypo_account %}
-					<div class="card">
-						<div class="card-header">
-							<h5><i class="fas fa-key mr-2"></i>KYPO Credentials</h5>
-						</div>
-						<div class="card-body">
-							<div class="form-group">
-								<label class="font-weight-bold">KYPO User ID</label>
-								<input type="text" class="form-control" value="{{ kypo_account.kypo_user_id }}" readonly>
-							</div>
-							<div class="form-group">
-								<label class="font-weight-bold">Username</label>
-								<input type="text" class="form-control" value="{{ kypo_account.kypo_username }}" readonly>
-							</div>
-							<div class="form-group">
-								<label class="font-weight-bold">Password</label>
-								<div class="input-group">
-									<input type="password" class="form-control" id="kypo-password-field"
-										value="{{ kypo_account.kypo_password }}" readonly>
-									<div class="input-group-append">
-										<button class="btn btn-outline-secondary" type="button"
-											onclick="toggleKypoPassword(this)">
-											<i class="fas fa-eye"></i>
-										</button>
-										<button class="btn btn-outline-secondary" type="button"
-											onclick="copyKypoPassword('{{ kypo_account.kypo_password }}')"
-											data-toggle="tooltip" title="Copy password">
-											<i class="fas fa-clipboard"></i>
-										</button>
-									</div>
-								</div>
-							</div>
-							<div class="form-group">
-								<label class="font-weight-bold">Created At</label>
-								<input type="text" class="form-control"
-									value="{{ kypo_account.created_at.strftime('%Y-%m-%d %H:%M:%S') if kypo_account.created_at else '' }}"
-									readonly>
-							</div>
-						</div>
-					</div>
-					{% else %}
-					<div class="text-center text-muted py-5">
-						<i class="fas fa-exclamation-circle fa-3x mb-3"></i>
-						<p>No KYPO account found for this team.</p>
-					</div>
-					{% endif %}
+		</div>{# /tab-content #}
+
+		<div class="row min-vh-25 pt-5">
+			<div class="col-md-10 offset-md-1">
+				<div id="comment-box">
 				</div>
 			</div>
 		</div>
-		</div>{# /tab-content #}
-
-	<div class="row min-vh-25 pt-5">
-		<div class="col-md-10 offset-md-1">
-			<div id="comment-box">
-			</div>
-		</div>
-	</div>
 	</div>
 </div>
 
@@ -962,12 +954,113 @@
 		}
 	}
 
+	function toggleKypoPasswordTab(btn) {
+		var field = document.getElementById('kypo-password-field');
+		var icon = btn.querySelector('i');
+		if (field.type === 'password') {
+			field.type = 'text';
+			icon.classList.replace('fa-eye', 'fa-eye-slash');
+		} else {
+			field.type = 'password';
+			icon.classList.replace('fa-eye-slash', 'fa-eye');
+		}
+	}
+
 	function copyToClipboard(text, btn) {
-		navigator.clipboard.writeText(text).then(function() {
+		navigator.clipboard.writeText(text).then(function () {
 			var icon = btn.querySelector('i');
 			icon.classList.replace('fa-clipboard', 'fa-check');
-			setTimeout(function() { icon.classList.replace('fa-check', 'fa-clipboard'); }, 1500);
+			setTimeout(function () { icon.classList.replace('fa-check', 'fa-clipboard'); }, 1500);
 		});
+	}
+
+	function createKypoAccount() {
+		var btn = document.getElementById('kypo-create-btn');
+		btn.disabled = true;
+		btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Creating...';
+
+		var csrfToken = (typeof init !== 'undefined' && init.csrfNonce)
+			? init.csrfNonce
+			: (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
+
+		fetch('/api/v1/teams/' + TEAM_ID + '/kypo', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken },
+		})
+		.then(function(r) {
+			var ct = r.headers.get('Content-Type') || '';
+			if (!ct.includes('application/json')) {
+				var hint = r.status === 403
+					? 'CSRF token invalid — refresh the page (F5) and retry.'
+					: r.status === 404
+						? 'API endpoint not found — please restart the server.'
+						: 'Server returned HTTP ' + r.status + ' — check server logs.';
+				throw new Error(hint);
+			}
+			return r.json();
+		})
+		.then(function(data) {
+			if (data.success) {
+				Swal.fire({
+					icon: 'success',
+					title: 'KYPO Account Created',
+					text: 'The KYPO account has been created successfully.',
+					confirmButtonColor: '#ff6b35',
+					timer: 2000,
+					timerProgressBar: true,
+					showConfirmButton: false,
+					allowOutsideClick: false,
+				}).then(function() {
+					location.reload();
+				});
+			} else {
+				btn.disabled = false;
+				btn.innerHTML = '<i class="fas fa-plus mr-2"></i>Create KYPO Account';
+				Swal.fire({
+					icon: 'error',
+					title: 'Failed',
+					text: data.message || 'Failed to create KYPO account.',
+					confirmButtonColor: '#ff6b35',
+				});
+			}
+		})
+		.catch(function(err) {
+			btn.disabled = false;
+			btn.innerHTML = '<i class="fas fa-plus mr-2"></i>Create KYPO Account';
+			Swal.fire({
+				icon: 'error',
+				title: 'Error',
+				text: err.message,
+				confirmButtonColor: '#ff6b35',
+			});
+		});
+	}
+
+	function buildCredentialField(label, value) {
+		var escaped = escapeHtml(value);
+		return '<div class="form-group"><label class="font-weight-bold">' + label + '</label>' +
+			'<div class="input-group"><input type="text" class="form-control" value="' + escaped + '" readonly>' +
+			'<div class="input-group-append"><button class="btn btn-outline-secondary" type="button" onclick="copyToClipboard(\'' + escaped + '\', this)"><i class="fas fa-clipboard"></i></button></div>' +
+			'</div></div>';
+	}
+
+	function buildPasswordField(label, value) {
+		var escaped = escapeHtml(value);
+		return '<div class="form-group"><label class="font-weight-bold">' + label + '</label>' +
+			'<div class="input-group"><input type="password" class="form-control" id="kypo-modal-password" value="' + escaped + '" readonly>' +
+			'<div class="input-group-append">' +
+			'<button class="btn btn-outline-secondary" type="button" onclick="toggleKypoPassword()"><i class="fas fa-eye" id="kypo-eye-icon"></i></button>' +
+			'<button class="btn btn-outline-secondary" type="button" onclick="copyToClipboard(\'' + escaped + '\', this)"><i class="fas fa-clipboard"></i></button>' +
+			'</div></div></div>';
+	}
+
+	function buildReadonlyField(label, value) {
+		return '<div class="form-group mb-0"><label class="font-weight-bold">' + label + '</label>' +
+			'<input type="text" class="form-control" value="' + escapeHtml(value) + '" readonly></div>';
+	}
+
+	function escapeHtml(str) {
+		return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 	}
 </script>
 {% endblock %}

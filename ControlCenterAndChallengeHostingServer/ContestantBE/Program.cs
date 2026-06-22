@@ -113,7 +113,8 @@ builder.Services.AddHttpClient("kypo")
     .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
     {
         ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
-    });
+    })
+    .ConfigureHttpClient(c => c.Timeout = TimeSpan.FromSeconds(15));
 // DI services from ResourceShared
 builder.Services.AddResourceShared();
 
