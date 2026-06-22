@@ -1178,13 +1178,27 @@ public class ChallengeController : BaseController
 
         if (challenge == null) return BadRequest(new { error = "Challenge not found" });
         var cache_key = ChallengeHelper.GetCacheKey(challenge.Id, teamId.Value);
-
-        if (!await _redisHelper.KeyExistsAsync(cache_key))
-            return BadRequest(new { error = "Challenge not started or already stopped, no active cache found." });
+        bool cacheExists = await _redisHelper.KeyExistsAsync(cache_key);
 
         // ── KYPO/Sandbox: xóa Redis key + chốt điểm ────────────────────────────────
         bool isSandboxStop = string.Equals(challenge.Type, "sandbox", StringComparison.OrdinalIgnoreCase);
         var kypoConfigStop = await GetKypoChallengeConfigRawAsync(challenge.Id);
+
+        // Chốt điểm KYPO luôn luôn — bất kể Redis cache còn hay hết hạn
+        // Phải gọi TRƯỚC khi kiểm tra cache để tránh mất điểm khi cache expire
+        if (kypoConfigStop != null)
+        {
+            try { await _scoreLockService.LockScoreAsync(challenge.Id, teamId.Value); }
+            catch (Exception ex)
+            {
+                await Console.Error.WriteLineAsync($"[KYPO] Score lock error on submit: {ex.Message}");
+                // Clear EF change tracker để entity lỗi không poison SaveChangesAsync phía sau
+                _context.ChangeTracker.Clear();
+            }
+        }
+
+        if (!cacheExists)
+            return BadRequest(new { error = "Challenge not started or already stopped, no active cache found." });
 
         if (isSandboxStop || kypoConfigStop != null)
         {
@@ -1196,19 +1210,6 @@ public class ChallengeController : BaseController
                 .ToListAsync();
             foreach (var t in openTrackings) t.StoppedAt = DateTime.UtcNow;
             if (openTrackings.Count > 0) await _context.SaveChangesAsync();
-
-            // Chốt điểm all-or-nothing
-            if (kypoConfigStop != null)
-            {
-                try
-                {
-                    await _scoreLockService.LockScoreAsync(challenge.Id, teamId.Value);
-                }
-                catch (Exception ex)
-                {
-                    await Console.Error.WriteLineAsync($"[KYPO] Chốt điểm khi stop lỗi: {ex.Message}");
-                }
-            }
 
             await _redisHelper.RemoveCacheAsync(cache_key);
             return Ok(new ChallengeDeployResponeDTO
@@ -1294,7 +1295,12 @@ public class ChallengeController : BaseController
                 if (kypoConfig != null)
                 {
                     try { await _scoreLockService.LockScoreAsync(challenge.Id, teamId.Value); }
-                    catch (Exception ex) { await Console.Error.WriteLineAsync($"[KYPO] Score lock error on submit: {ex.Message}"); }
+                    catch (Exception ex)
+                    {
+                        await Console.Error.WriteLineAsync($"[KYPO] Score lock error on submit: {ex.Message}");
+                        // Clear EF change tracker để entity lỗi không poison SaveChangesAsync phía sau
+                        _context.ChangeTracker.Clear();
+                    }
                 }
 
                 await _redisHelper.RemoveCacheAsync(cache_key);

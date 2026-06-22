@@ -1999,7 +1999,7 @@ def contest_create_team(contest_id):
 
     kypo_error = None
     try:
-        kypo_creds = create_kypo_user(team.id, team.name)
+        kypo_creds = create_kypo_user(team.id, team.name, contest_id=contest_id)
         kypo_account = KypoTeamAccount(
             team_id=team.id,
             kypo_user_id=kypo_creds["kypo_user_id"],
@@ -2130,8 +2130,20 @@ def contest_member_ids(contest_id):
 @admin.route("/admin/contests/<int:contest_id>/teams/<int:team_id>/delete", methods=["POST"])
 @admins_only
 def contest_delete_team(contest_id, team_id):
+    import logging
+    from CTFd.models import KypoTeamAccount
+    from CTFd.utils.keycloak_service import delete_kypo_user
+
+    logger = logging.getLogger(__name__)
     contest = Contests.query.filter_by(id=contest_id).first_or_404()
     team = Teams.query.filter_by(id=team_id, contest_id=contest_id).first_or_404()
+
+    kypo_account = KypoTeamAccount.query.filter_by(team_id=team.id).first()
+    if kypo_account:
+        try:
+            delete_kypo_user(kypo_account.kypo_user_id)
+        except Exception as exc:
+            logger.error("Failed to delete Keycloak user for team %s: %s", team.id, exc)
 
     if contest.user_mode == "users":
         # In user mode each team represents exactly one user, so deleting the
