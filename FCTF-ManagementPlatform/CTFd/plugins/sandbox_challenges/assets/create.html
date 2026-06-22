@@ -1,12 +1,8 @@
 {% extends "admin/challenges/create.html" %}
 
 {% block header %}
-<div class="alert alert-info d-flex align-items-center" role="alert">
-    <i class="fas fa-shield-alt mr-2"></i>
-    <div>
-        <strong>Sandbox Challenge</strong> &mdash; Attack-Defense challenge powered by the KYPO Cyber Range platform.
-        Chọn KYPO instance và tự nhập điểm (Score). Điểm chỉ được cộng khi team hoàn thành tất cả phase.
-    </div>
+<div class="alert alert-secondary" role="alert">
+    Sandbox challenges are powered by the KYPO Cyber Range platform. Select an instance and set the score manually.
 </div>
 {% endblock %}
 
@@ -14,7 +10,7 @@
 <div class="form-group">
     <label>
         Files
-        <small class="form-text text-muted">Attach supporting files for contestants</small>
+        <small class="form-text text-muted">Select PDF file as a description (Maximum 5MB)</small>
     </label>
     <input class="form-control-file" type="file" name="file" id="file-upload" />
     <input type="hidden" name="file_upload" value="description" />
@@ -36,8 +32,7 @@
             Duration for this sandbox session. Use -1 for unlimited.
         </small>
     </label>
-    <input type="number" class="form-control" name="time_limit" min="-1" value="60"
-           placeholder="Enter value" required>
+    <input type="number" class="form-control" name="time_limit" min="-1" value="60" placeholder="Enter value" required>
 </div>
 {% endblock %}
 
@@ -54,11 +49,11 @@
     <label>
         Score / Points:<br>
         <small class="form-text text-muted">
-            Điểm thưởng khi hoàn thành tất cả phase (do admin đặt — KHÔNG lấy từ KYPO).
+            Points awarded when all phases are completed (set by admin — NOT taken from KYPO).
         </small>
     </label>
-    <input type="number" class="form-control" name="value" id="kypo-score-input"
-           min="0" value="100" placeholder="Nhập điểm cho challenge" required>
+    <input type="number" class="form-control" name="value" id="kypo-score-input" min="0" value="100"
+        placeholder="Enter score for this challenge" required>
 </div>
 {% endblock %}
 
@@ -82,14 +77,19 @@
         <span class="ml-2 text-muted small">Connecting to KYPO and loading instances&hellip;</span>
     </div>
 
-    <select class="form-control custom-select" name="kypo_instance_select"
-            id="kypo-instance-select" style="display:none;">
-        <option value="">— Select a KYPO instance —</option>
-    </select>
+    <div id="kypo-refresh-container" style="display:none; align-items:center; gap:8px;">
+        <select class="form-control custom-select" name="kypo_instance_select" id="kypo-instance-select" required>
+            <option value="">— Select a KYPO instance —</option>
+        </select>
+        <button type="button" id="kypo-refresh-btn" class="btn btn-outline-secondary btn-sm flex-shrink-0"
+            title="Refresh instances">
+            <i class="fas fa-sync-alt"></i>
+        </button>
+    </div>
 
-    <div id="kypo-instance-error" class="alert alert-info mt-2 d-none" role="alert">
-        <i class="fas fa-info-circle mr-1"></i>
-        KYPO không khả dụng. Bạn vẫn có thể tạo challenge và liên kết KYPO instance sau.
+    <div id="kypo-instance-error" class="alert alert-warning mt-2 d-none" role="alert">
+        <i class="fas fa-exclamation-triangle mr-1"></i>
+        Could not load instances from KYPO. Check server connectivity and credentials.
     </div>
 </div>
 
@@ -109,12 +109,12 @@
 {% block footer %}
 {{ super() }}
 <script>
-(function () {
-    /* Hide the max_attempts visible input injected by the base template */
-    document.querySelectorAll('.chal-attempts').forEach(function (el) {
-        var wrapper = el.closest('.form-group');
-        if (wrapper) wrapper.style.display = 'none';
-    });
-})();
+    (function () {
+        /* Hide the max_attempts visible input injected by the base template */
+        document.querySelectorAll('.chal-attempts').forEach(function (el) {
+            var wrapper = el.closest('.form-group');
+            if (wrapper) wrapper.style.display = 'none';
+        });
+    })();
 </script>
 {% endblock %}
