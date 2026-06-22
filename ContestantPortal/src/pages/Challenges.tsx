@@ -74,6 +74,7 @@ interface Challenge {
   next_name?: string | null;
   connection_protocol?: 'http' | 'tcp' | string | null;
   kypo_submitted?: boolean;
+  is_submitted?: boolean;
 }
 
 interface PrerequisiteChallenge {

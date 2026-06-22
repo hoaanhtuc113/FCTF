@@ -7,6 +7,12 @@
         <strong>Sandbox Challenge</strong> &mdash; Attack-Defense challenge powered by the KYPO Cyber Range platform.
     </div>
 </div>
+{% if has_started_teams %}
+<div class="alert alert-warning mb-3" role="alert">
+    <i class="fas fa-lock mr-2"></i>
+    <strong>Read-only</strong> &mdash; One or more teams have already started this challenge. Editing is disabled until all teams finish.
+</div>
+{% endif %}
 {% endblock %}
 
 {% block value %}
@@ -14,12 +20,12 @@
     <label>
         Score / Points:<br>
         <small class="form-text text-muted">
-            Điểm thưởng khi hoàn thành tất cả phase (do admin đặt — KHÔNG lấy từ KYPO).
+            Points awarded when all phases are completed (set by admin — NOT taken from KYPO).
         </small>
     </label>
-    <input type="number" class="form-control chal-value" name="value"
-           id="kypo-score-input-update"
-           value="{{ challenge.value if challenge.value else 0 }}" min="0" required>
+    <input type="number" class="form-control chal-value" name="value" id="kypo-score-input-update"
+        value="{{ challenge.value if challenge.value else 0 }}" min="0" required
+        {% if has_started_teams %}readonly disabled{% endif %}>
 </div>
 
 {# ── Current KYPO instance (server-rendered from DB) ─────────────────── #}
@@ -38,7 +44,8 @@
         <div class="row mt-1">
             <div class="col-sm-4 text-muted small">Type</div>
             <div class="col-sm-8 small">
-                <span class="badge badge-{{ 'primary' if challenge.kypo_config.kypo_instance_type == 'linear' else 'warning' }}">
+                <span
+                    class="badge badge-{{ 'primary' if challenge.kypo_config.kypo_instance_type == 'linear' else 'warning' }}">
                     {{ challenge.kypo_config.kypo_instance_type | upper }}
                 </span>
             </div>
@@ -55,7 +62,8 @@
 </div>
 {% endif %}
 
-{# ── Change KYPO instance ─────────────────────────────────────────────── #}
+{% if not has_started_teams %}
+{# ── Change KYPO instance — only shown when editable ──────────────────── #}
 <div class="form-group">
     <label>
         Change KYPO Instance:<br>
@@ -69,13 +77,12 @@
         <span class="ml-2 text-muted small">Loading KYPO instances&hellip;</span>
     </div>
 
-    {# No default placeholder — the current instance will be auto-selected by JS #}
     <select class="form-control custom-select" id="kypo-instance-select-update" style="display:none;">
     </select>
 
-    <div id="kypo-instance-error-update" class="alert alert-info mt-2 d-none" role="alert">
-        <i class="fas fa-info-circle mr-1"></i>
-        KYPO không khả dụng. Cấu hình hiện tại sẽ được giữ nguyên khi lưu.
+    <div id="kypo-instance-error-update" class="alert alert-warning mt-2 d-none" role="alert">
+        <i class="fas fa-exclamation-triangle mr-1"></i>
+        Could not load instances from KYPO. Current config will remain unchanged on save.
     </div>
 </div>
 
@@ -87,18 +94,19 @@
     <i class="fas fa-exclamation-triangle mr-1"></i>
     Could not retrieve score for this instance — the current score is kept.
 </div>
+{% endif %}
 
 {# Hidden KYPO fields — pre-populated from DB, updated by inline JS on instance change #}
 <input type="hidden" name="kypo_instance_id" id="kypo-instance-id-update"
-       value="{{ challenge.kypo_config.kypo_instance_id if challenge.kypo_config else '' }}">
+    value="{{ challenge.kypo_config.kypo_instance_id if challenge.kypo_config else '' }}">
 <input type="hidden" name="kypo_access_token" id="kypo-access-token-update"
-       value="{{ challenge.kypo_config.kypo_access_token if challenge.kypo_config else '' }}">
+    value="{{ challenge.kypo_config.kypo_access_token if challenge.kypo_config else '' }}">
 <input type="hidden" name="kypo_instance_type" id="kypo-instance-type-update"
-       value="{{ challenge.kypo_config.kypo_instance_type if challenge.kypo_config else 'linear' }}">
+    value="{{ challenge.kypo_config.kypo_instance_type if challenge.kypo_config else 'linear' }}">
 <input type="hidden" name="kypo_base_url" id="kypo-base-url-update"
-       value="{{ challenge.kypo_config.kypo_base_url if challenge.kypo_config else 'https://vuontre.iahn.hanoi.vn' }}">
+    value="{{ challenge.kypo_config.kypo_base_url if challenge.kypo_config else 'https://vuontre.iahn.hanoi.vn' }}">
 <input type="hidden" id="kypo-current-instance-id"
-       value="{{ challenge.kypo_config.kypo_instance_id if challenge.kypo_config else '' }}">
+    value="{{ challenge.kypo_config.kypo_instance_id if challenge.kypo_config else '' }}">
 {% endblock %}
 
 {% block time_limit %}
@@ -110,7 +118,8 @@
         </small>
     </label>
     <input type="number" class="form-control chal-time-limit" min="-1" name="time_limit"
-           value="{{ challenge.time_limit }}" required>
+        value="{{ challenge.time_limit }}" required
+        {% if has_started_teams %}readonly disabled{% endif %}>
 </div>
 {% endblock %}
 
@@ -124,82 +133,106 @@
 {% block latest_build %}
 {% endblock %}
 
+{% block submit %}
+{% if has_started_teams %}
+<div class="form-group">
+    <button class="btn btn-secondary float-right" type="button" disabled>
+        <i class="fas fa-lock mr-1"></i> Read-only (teams started)
+    </button>
+</div>
+{% else %}
+<div>
+    <div class="form-group">
+        <button class="btn btn-primary btn-outlined float-right" type="submit">
+            Update
+        </button>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
 {% block footer %}
 {{ super() }}
 <script>
-{# Inline JS — runs immediately as part of the server-rendered update template.
-   No external file loading needed, so this always executes regardless of
-   how the parent page loads scripts. #}
-(function () {
-    function elU(id) { return document.getElementById(id); }
-    function addClassU(id, cls) { var e = elU(id); if (e) e.classList.add(cls); }
-    function removeClassU(id, cls) { var e = elU(id); if (e) e.classList.remove(cls); }
+    {# Inline JS — runs immediately as part of the server-rendered update template.
+       No external file loading needed, so this always executes regardless of
+       how the parent page loads scripts. #}
+    {% if not has_started_teams %}
+    (function () {
+        function elU(id) { return document.getElementById(id); }
+        function removeClassU(id, cls) { var e = elU(id); if (e) e.classList.remove(cls); }
 
-    function syncHidden(opt) {
-        if (!opt || !opt.value) return;
-        var idEl  = elU("kypo-instance-id-update");
-        var tokEl = elU("kypo-access-token-update");
-        var typEl = elU("kypo-instance-type-update");
-        if (idEl)  idEl.value  = opt.value;
-        if (tokEl) tokEl.value = opt.dataset.accessToken || "";
-        if (typEl) typEl.value = opt.dataset.instanceType || "linear";
-    }
+        function syncHidden(opt) {
+            if (!opt || !opt.value) return;
+            var idEl = elU("kypo-instance-id-update");
+            var tokEl = elU("kypo-access-token-update");
+            var typEl = elU("kypo-instance-type-update");
+            if (idEl) idEl.value = opt.value;
+            if (tokEl) tokEl.value = opt.dataset.accessToken || "";
+            if (typEl) typEl.value = opt.dataset.instanceType || "linear";
+        }
 
-    function loadInstances() {
-        var loading = elU("kypo-instance-loading-update");
-        var select  = elU("kypo-instance-select-update");
-        if (!loading || !select) return;
+        function loadInstances() {
+            var loading = elU("kypo-instance-loading-update");
+            var select = elU("kypo-instance-select-update");
+            if (!loading || !select) return;
 
-        var currentId = (elU("kypo-current-instance-id") || {}).value || "";
+            var currentId = (elU("kypo-current-instance-id") || {}).value || "";
 
-        fetch("/api/v1/kypo/instances", { method: "GET", credentials: "same-origin" })
-            .then(function (r) { return r.json(); })
-            .then(function (data) {
-                loading.style.display = "none";
+            fetch("/api/v1/kypo/instances", { method: "GET", credentials: "same-origin" })
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    loading.style.display = "none";
 
-                if (!data.success || !data.data || !data.data.length) {
-                    removeClassU("kypo-instance-error-update", "d-none");
-                    return;
-                }
-
-                data.data.forEach(function (inst) {
-                    var opt = document.createElement("option");
-                    opt.value = inst.id;
-                    opt.textContent = "[" + inst.instance_type.toUpperCase() + "] " + inst.title;
-                    opt.dataset.accessToken  = inst.access_token || "";
-                    opt.dataset.instanceType = inst.instance_type || "linear";
-                    opt.dataset.definitionId = inst.training_definition_id || "";
-
-                    // Auto-select the instance that is currently linked to this challenge
-                    if (String(inst.id) === String(currentId)) {
-                        opt.selected = true;
+                    if (!data.success || !data.data || !data.data.length) {
+                        removeClassU("kypo-instance-error-update", "d-none");
+                        return;
                     }
 
-                    select.appendChild(opt);
-                });
+                    data.data.forEach(function (inst) {
+                        var opt = document.createElement("option");
+                        opt.value = inst.id;
+                        opt.textContent = "[" + inst.instance_type.toUpperCase() + "] " + inst.title;
+                        opt.dataset.accessToken = inst.access_token || "";
+                        opt.dataset.instanceType = inst.instance_type || "linear";
+                        opt.dataset.definitionId = inst.training_definition_id || "";
 
-                select.style.display = "block";
-                select.addEventListener("change", function () {
-                    var opt = this.options[this.selectedIndex];
-                    if (!opt || !opt.value) return;
-                    // Chỉ cập nhật metadata instance — KHÔNG fetch điểm từ KYPO
-                    syncHidden(opt);
-                });
-            })
-            .catch(function () {
-                loading.style.display = "none";
-                removeClassU("kypo-instance-error-update", "d-none");
-            });
-    }
+                        // Auto-select the instance that is currently linked to this challenge
+                        if (String(inst.id) === String(currentId)) {
+                            opt.selected = true;
+                        }
 
-    /* Run after the DOM is ready. The template is injected via innerHTML /
-       {{ update_template | safe }}, so DOMContentLoaded may have already
-       fired. Use a small timeout to ensure elements are in the DOM. */
-    if (document.readyState === "loading") {
-        document.addEventListener("DOMContentLoaded", loadInstances);
-    } else {
-        setTimeout(loadInstances, 0);
-    }
-})();
+                        select.appendChild(opt);
+                    });
+
+                    select.style.display = "block";
+                    select.addEventListener("change", function () {
+                        var opt = this.options[this.selectedIndex];
+                        if (!opt || !opt.value) return;
+                        syncHidden(opt);
+                    });
+                })
+                .catch(function () {
+                    loading.style.display = "none";
+                    removeClassU("kypo-instance-error-update", "d-none");
+                });
+        }
+
+        if (document.readyState === "loading") {
+            document.addEventListener("DOMContentLoaded", loadInstances);
+        } else {
+            setTimeout(loadInstances, 0);
+        }
+    })();
+    {% else %}
+    (function lockForm() {
+        var container = document.getElementById("challenge-update-container");
+        if (!container) return;
+        container.querySelectorAll("input:not([type='hidden']), textarea, select").forEach(function (el) {
+            el.setAttribute("disabled", "disabled");
+            el.setAttribute("readonly", "readonly");
+        });
+    })();
+    {% endif %}
 </script>
 {% endblock %}
