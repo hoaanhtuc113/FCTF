@@ -600,7 +600,7 @@ public class ChallengeController : BaseController
                 await _actionLogsServices.SaveActionLogs(new ActionLogsReq
                 {
                     ActionType = 3, // CORRECT_FLAG
-                    ActionDetail = $"Nộp cờ đúng cho thử thách {challenge.Name}",
+                    ActionDetail = $"Correct flag submitted for challenge \"{challenge.Name}\"",
                     ChallengeId = challenge.Id,
                 }, user.Id);
             }
@@ -705,7 +705,7 @@ public class ChallengeController : BaseController
             await _actionLogsServices.SaveActionLogs(new ActionLogsReq
             {
                 ActionType = 4, // INCORRECT_FLAG
-                ActionDetail = $"Nộp cờ sai cho thử thách {challenge.Name}",
+                ActionDetail = $"Incorrect flag submitted for challenge \"{challenge.Name}\"",
                 ChallengeId = challenge.Id,
             }, user.Id);
         }
@@ -912,6 +912,20 @@ public class ChallengeController : BaseController
             catch (Exception ex)
             {
                 await Console.Error.WriteLineAsync($"[KYPO] Ghi challenge_start_tracking lỗi: {ex.Message}");
+            }
+
+            try
+            {
+                await _actionLogsServices.SaveActionLogs(new ActionLogsReq
+                {
+                    ActionType = 2, // START_CHALLENGE
+                    ActionDetail = $"Started KYPO sandbox challenge \"{challenge.Name}\"",
+                    ChallengeId = challenge.Id,
+                }, user.Id);
+            }
+            catch (Exception ex)
+            {
+                await Console.Error.WriteLineAsync($"[ActionLog] Failed to save START_CHALLENGE log for KYPO challenge {challenge.Id}: {ex.Message}");
             }
 
             return Ok(new
@@ -1124,7 +1138,7 @@ public class ChallengeController : BaseController
                     await _actionLogsServices.SaveActionLogs(new ActionLogsReq
                     {
                         ActionType = 2, // START_CHALLENGE
-                        ActionDetail = $"Khởi động thử thách {challenge.Name}",
+                        ActionDetail = $"Started challenge \"{challenge.Name}\"",
                         ChallengeId = challenge.Id,
                     }, user.Id);
                 }
@@ -1202,14 +1216,59 @@ public class ChallengeController : BaseController
 
         if (isSandboxStop || kypoConfigStop != null)
         {
-            // Đánh dấu phiên đã dừng
-            var openTrackings = await _context.ChallengeStartTrackings
+            // KYPO: chốt điểm TRƯỚC khi đóng session
+            // Nếu API lỗi → giữ session mở để team retry
+            if (kypoConfigStop != null)
+            {
+                KypoLockResult lockResult;
+                try
+                {
+                    lockResult = await _scoreLockService.LockScoreAsync(challenge.Id, teamId.Value);
+                }
+                catch (Exception ex)
+                {
+                    await Console.Error.WriteLineAsync($"[KYPO] Chốt điểm khi stop lỗi: {ex.Message}");
+                    lockResult = KypoLockResult.ApiError;
+                }
+
+                if (lockResult == KypoLockResult.ApiError)
+                {
+                    return StatusCode((int)HttpStatusCode.ServiceUnavailable, new ChallengeDeployResponeDTO
+                    {
+                        status  = (int)HttpStatusCode.ServiceUnavailable,
+                        success = false,
+                        message = "Cannot connect to KYPO. Please try again.",
+                    });
+                }
+
+                // Đóng session sau khi đã chốt điểm thành công
+                var openTrackings = await _context.ChallengeStartTrackings
+                    .Where(t => t.ChallengeId == challenge.Id
+                             && t.TeamId == teamId.Value
+                             && t.StoppedAt == null)
+                    .ToListAsync();
+                foreach (var t in openTrackings) t.StoppedAt = DateTime.UtcNow;
+                if (openTrackings.Count > 0) await _context.SaveChangesAsync();
+
+                await _redisHelper.RemoveCacheAsync(cache_key);
+
+                var solved = lockResult == KypoLockResult.Solved || lockResult == KypoLockResult.AlreadySolved;
+                return Ok(new ChallengeDeployResponeDTO
+                {
+                    status  = (int)HttpStatusCode.OK,
+                    success = true,
+                    message = solved ? "Completed! Score has been recorded." : "Sandbox session ended.",
+                });
+            }
+
+            // Sandbox thuần (không phải KYPO): đóng session ngay
+            var sandboxTrackings = await _context.ChallengeStartTrackings
                 .Where(t => t.ChallengeId == challenge.Id
                          && t.TeamId == teamId.Value
                          && t.StoppedAt == null)
                 .ToListAsync();
-            foreach (var t in openTrackings) t.StoppedAt = DateTime.UtcNow;
-            if (openTrackings.Count > 0) await _context.SaveChangesAsync();
+            foreach (var t in sandboxTrackings) t.StoppedAt = DateTime.UtcNow;
+            if (sandboxTrackings.Count > 0) await _context.SaveChangesAsync();
 
             await _redisHelper.RemoveCacheAsync(cache_key);
             return Ok(new ChallengeDeployResponeDTO
@@ -1334,8 +1393,8 @@ public class ChallengeController : BaseController
         {
             await _actionLogsServices.SaveActionLogs(new ActionLogsReq
             {
-                ActionType = 5, // SUBMIT_CHALLENGE
-                ActionDetail = $"Nộp bài thử thách {challenge.Name}",
+                ActionType = 6, // SUBMIT_CHALLENGE
+                ActionDetail = $"Submitted KYPO sandbox challenge \"{challenge.Name}\"",
                 ChallengeId = challenge.Id,
             }, user.Id);
         }
@@ -1462,7 +1521,7 @@ public class ChallengeController : BaseController
         var rows = await _context.Database
             .SqlQueryRaw<KypoTeamAccount>(
                 "SELECT id, team_id, kypo_user_id, kypo_username, kypo_password " +
-                "FROM kypo_team_accounts WHERE team_id = {0} LIMIT 1",
+                "FROM kypo_team_accounts WHERE team_id = {0} ORDER BY id DESC LIMIT 1",
                 teamId)
             .ToListAsync();
         return rows.FirstOrDefault();

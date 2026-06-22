@@ -1,6 +1,9 @@
+import logging
 from typing import List
 
 from flask import abort, request, session
+
+logger = logging.getLogger(__name__)
 from flask_restx import Namespace, Resource
 from sqlalchemy import or_
 
@@ -14,6 +17,7 @@ from CTFd.cache import clear_auth_cache, clear_challenges, clear_standings, clea
 from CTFd.constants import RawEnum
 from CTFd.models import (
     Awards,
+    ContestParticipant,
     Solves,
     Submissions,
     Tracking,
@@ -223,7 +227,7 @@ class UserList(Resource):
         # Handle team creation if contest_id is provided
         contest_id = req.get("contest_id")
         if contest_id:
-            from CTFd.models import Teams
+            from CTFd.models import Teams, KypoTeamAccount
             from CTFd.utils.crypto import hash_password
             raw_pw = req.get("password") or "changeme"
             team = Teams(
@@ -235,9 +239,24 @@ class UserList(Resource):
             )
             db.session.add(team)
             db.session.commit()
-            
+
             team.members.append(response.data)
             db.session.commit()
+
+            try:
+                from CTFd.utils.keycloak_service import create_kypo_user
+                kypo_creds = create_kypo_user(team.id, team.name)
+                kypo_account = KypoTeamAccount(
+                    team_id=team.id,
+                    kypo_user_id=kypo_creds["kypo_user_id"],
+                    kypo_username=kypo_creds["kypo_username"],
+                    kypo_password=kypo_creds["kypo_password"],
+                )
+                db.session.add(kypo_account)
+                db.session.commit()
+                logger.info("Created KYPO account for team %s (id=%s)", team.name, team.id)
+            except Exception as exc:
+                logger.error("Failed to create KYPO account for team %s: %s", team.id, exc, exc_info=True)
 
         log_audit(
             action="user_create",
@@ -384,6 +403,19 @@ class UserPublic(Resource):
         if user_id == session["id"]:
             return (
                 {"success": False, "errors": {"id": "You cannot delete yourself"}},
+                400,
+            )
+
+        # Không cho xóa user đang tham gia contest
+        contest_count = ContestParticipant.query.filter_by(user_id=user_id).count()
+        if contest_count > 0:
+            return (
+                {
+                    "success": False,
+                    "errors": {
+                        "id": f"Cannot delete user because they are a participant in {contest_count} contest(s). Remove them from all contests first."
+                    },
+                },
                 400,
             )
 

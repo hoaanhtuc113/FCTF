@@ -1295,6 +1295,8 @@ function ChallengeListItem({
   );
 }
 
+const KYPO_MAX_ACCESSES = 10;
+
 // Challenge Detail Panel Component
 function ChallengeDetailPanel({
   challenge,
@@ -1322,7 +1324,7 @@ function ChallengeDetailPanel({
   const [url, setUrl] = useState<string | null>(null);
   const [kypoInfo, setKypoInfo] = useState<{ username: string; password: string; access_token: string; portalUrl: string } | null>(() => {
     try {
-      const saved = localStorage.getItem(`kypo_${challenge.id}`);
+      const saved = localStorage.getItem(`kypo_${contestId}_${challenge.id}`);
       return saved ? JSON.parse(saved) : null;
     } catch {
       return null;
@@ -1427,10 +1429,10 @@ function ChallengeDetailPanel({
 
     // Restore KYPO info when switching between challenges
     try {
-      const saved = localStorage.getItem(`kypo_${challenge.id}`);
+      const saved = localStorage.getItem(`kypo_${contestId}_${challenge.id}`);
       setKypoInfo(saved ? JSON.parse(saved) : null);
     } catch {
-      localStorage.removeItem(`kypo_${challenge.id}`);
+      localStorage.removeItem(`kypo_${contestId}_${challenge.id}`);
       setKypoInfo(null);
     }
 
@@ -1491,7 +1493,7 @@ function ChallengeDetailPanel({
 
   // Persist KYPO info to localStorage whenever it changes
   useEffect(() => {
-    const kypoKey = `kypo_${challenge.id}`;
+    const kypoKey = `kypo_${contestId}_${challenge.id}`;
     if (kypoInfo) {
       localStorage.setItem(kypoKey, JSON.stringify(kypoInfo));
     } else {
@@ -1627,7 +1629,7 @@ function ChallengeDetailPanel({
             setKypoInfo(null);
             challengeTimerService.stopTimer(challenge.id);
             localStorage.removeItem(`timer_endtime_${challenge.id}`);
-            localStorage.removeItem(`kypo_${challenge.id}`);
+            localStorage.removeItem(`kypo_${contestId}_${challenge.id}`);
             endTimeRef.current = null;
 
             Swal.fire({
@@ -1788,7 +1790,7 @@ function ChallengeDetailPanel({
             setTimeRemaining(null);
             setKypoInfo(null);
             localStorage.removeItem(`timer_endtime_${challenge.id}`);
-            localStorage.removeItem(`kypo_${challenge.id}`);
+            localStorage.removeItem(`kypo_${contestId}_${challenge.id}`);
             autoStopChallengeOnTimeout();
             return;
           }
@@ -2090,6 +2092,7 @@ function ChallengeDetailPanel({
         setKypoInfo(newKypoInfo);
         setIsChallengeStarted(true);
         setUrl(data.challenge_url);
+        actionLogService.logAction(actionType.START_CHALLENGE, `Started KYPO sandbox challenge "${challenge.name}"`, challenge.id);
 
         // Start timer if challenge has a time limit
         if (challenge.time_limit && challenge.time_limit > 0) {
@@ -2117,6 +2120,11 @@ function ChallengeDetailPanel({
               ${credLines}
               <div class="${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'} text-xs">> Click "Enter Challenge" to open KYPO in a new tab.</div>
               <div class="${theme === 'dark' ? 'text-yellow-400' : 'text-yellow-600'} text-xs">> Timer has started.</div>
+              <hr style="border-color: ${theme === 'dark' ? '#374151' : '#d1d5db'}; margin: 6px 0;" />
+              <div class="${theme === 'dark' ? 'text-red-400' : 'text-red-600'} text-xs font-bold">> [!] IMPORTANT NOTICE</div>
+              <div class="${theme === 'dark' ? 'text-red-300' : 'text-red-700'} text-xs">> You are allowed to access this sandbox <strong>${KYPO_MAX_ACCESSES} times</strong> only.</div>
+              <div class="${theme === 'dark' ? 'text-red-300' : 'text-red-700'} text-xs">> Each time you open or reload the sandbox page counts as 1 access.</div>
+              <div class="${theme === 'dark' ? 'text-orange-400' : 'text-orange-600'} text-xs">> Use your accesses wisely. Once the limit is reached, access will be denied.</div>
             </div>
           `,
           icon: 'success',
@@ -2134,6 +2142,7 @@ function ChallengeDetailPanel({
         });
 
         if (result.isConfirmed) {
+          actionLogService.logAction(actionType.ACCESS_CHALLENGE, `Entered KYPO portal for "${challenge.name}"`, challenge.id);
           window.open(data.challenge_url, '_blank', 'noopener,noreferrer');
         }
 
@@ -2143,7 +2152,7 @@ function ChallengeDetailPanel({
       // Case 1: URL is ready immediately
       if (response.status === 200 && data.success === true && data.challenge_url != null) {
         const safeChallengeUrl = escapeHtml(String(data.challenge_url).trim());
-        actionLogService.logAction(actionType.START_CHALLENGE, `Bắt đầu thử thách ${challenge.name}`, challenge.id);
+        actionLogService.logAction(actionType.START_CHALLENGE, `Started challenge "${challenge.name}"`, challenge.id);
         setIsDeploymentInProgress(true);
         // Save deployment state AFTER successful response
         localStorage.setItem(deploymentKey, JSON.stringify({
@@ -2196,7 +2205,7 @@ function ChallengeDetailPanel({
       }
       // Case 2: Success but URL is null - deploying, need to wait
       else if (response.status === 200 && data.success === true && data.challenge_url == null) {
-        actionLogService.logAction(actionType.START_CHALLENGE, `Bắt đầu thử thách ${challenge.name}`, challenge.id);
+        actionLogService.logAction(actionType.START_CHALLENGE, `Started challenge "${challenge.name}"`, challenge.id);
         setIsDeploymentInProgress(true);
         // Save deployment state AFTER successful response
         localStorage.setItem(deploymentKey, JSON.stringify({
@@ -2363,6 +2372,7 @@ function ChallengeDetailPanel({
     }
 
     // Lock immediately on success
+    actionLogService.logAction(actionType.ACCESS_CHALLENGE, `Submitted KYPO sandbox challenge "${challenge.name}"`, challenge.id);
     setIsLocallySubmitted(true);
     setIsChallengeStarted(false);
     setUrl(null);
@@ -2692,7 +2702,28 @@ function ChallengeDetailPanel({
       });
       const data = await response.json();
 
-      if (data.success) {
+      if (response.status === 503) {
+        // KYPO server unreachable — session stays open, team can retry
+        Swal.fire({
+          html: `
+            <div class="font-mono text-left text-sm">
+              <div class="text-yellow-400 mb-2">[!] KYPO Connection Failed</div>
+              <div class="text-gray-400 mb-2">> Challenge: ${challenge.name}</div>
+              <div class="text-gray-400 mb-3">> KYPO system is temporarily unavailable.</div>
+              <div class="text-green-400 text-xs">> Your session is still active. Please try again later.</div>
+            </div>
+          `,
+          icon: 'warning',
+          iconColor: '#fbbf24',
+          confirmButtonText: 'OK, try again later',
+          background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+          color: theme === 'dark' ? '#fbbf24' : '#000000',
+          customClass: {
+            popup: 'rounded-lg border border-yellow-500/30',
+            confirmButton: 'bg-yellow-500 hover:bg-yellow-600 text-black font-mono px-4 py-2 rounded',
+          },
+        });
+      } else if (data.success) {
         // Lock immediately — don't wait for refresh
         setIsLocallySubmitted(true);
         setIsChallengeStarted(false);
@@ -2835,6 +2866,7 @@ function ChallengeDetailPanel({
       const data = await response.json();
 
       if (data?.data?.status === 'correct') {
+        actionLogService.logAction(actionType.CORRECT_FLAG, `Correct flag submitted for "${challenge.name}"`, challenge.id);
         await Swal.fire({
           html: `
             <div class="font-mono text-left text-sm">
@@ -2887,6 +2919,7 @@ function ChallengeDetailPanel({
           }
         }
       } else if (data?.data?.status === 'incorrect') {
+        actionLogService.logAction(actionType.INCORRECT_FLAG, `Incorrect flag submitted for "${challenge.name}"`, challenge.id);
         const attemptsLeft = challenge.max_attempts > 0
           ? challenge.max_attempts - (challenge.attemps || 0) - 1
           : '∞';
@@ -4255,9 +4288,19 @@ function ChallengeDetailPanel({
                   </div>
                 ) : isChallengeStarted ? (
                   <>
+                    {/* Sandbox access notice */}
+                    <div className={`text-xs font-mono rounded p-2 mb-1 ${theme === 'dark' ? 'bg-gray-900 border border-yellow-700/40' : 'bg-yellow-50 border border-yellow-300'}`}>
+                      <div className={`${theme === 'dark' ? 'text-yellow-400' : 'text-yellow-700'} font-bold mb-0.5`}>[!] Sandbox Access Notice</div>
+                      <div className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                        You are allowed to access this sandbox <strong>{KYPO_MAX_ACCESSES} times</strong> only. Each time you open or reload the sandbox page counts as 1 access.
+                      </div>
+                    </div>
                     {/* Enter Challenge button — directly opens KYPO portal */}
                     <button
-                      onClick={() => window.open(kypoInfo?.portalUrl || url || '', '_blank', 'noopener,noreferrer')}
+                      onClick={() => {
+                        actionLogService.logAction(actionType.ACCESS_CHALLENGE, `Entered KYPO portal for "${challenge.name}"`, challenge.id);
+                        window.open(kypoInfo?.portalUrl || url || '', '_blank', 'noopener,noreferrer');
+                      }}
                       style={{
                         fontFamily: 'monospace',
                         fontSize: '13px',
@@ -4301,36 +4344,29 @@ function ChallengeDetailPanel({
                   </>
                 ) : (
                   <>
-                    {/* KYPO submission guide — shown before starting */}
-                    <div className={`rounded border p-3 text-xs font-mono space-y-2 ${theme === 'dark'
-                      ? 'bg-blue-950/40 border-blue-500/30'
-                      : 'bg-blue-50 border-blue-200'
-                    }`}>
-                      <div className="flex gap-2 items-start">
-                        <span className="shrink-0">ℹ️</span>
-                        <div>
-                          <div className={`font-semibold mb-0.5 ${theme === 'dark' ? 'text-blue-300' : 'text-blue-700'}`}>
-                            How to submit:
-                          </div>
-                          <div className={theme === 'dark' ? 'text-blue-400/80' : 'text-blue-600'}>
-                            Complete <span className="font-bold">ALL phases</span> on the KYPO portal, then click{' '}
-                            <span className="font-bold">&quot;Submit&quot;</span> to submit your result.
-                          </div>
-                        </div>
+                    {/* Pre-start instructions panel */}
+                    <div style={{
+                      fontFamily: 'monospace',
+                      fontSize: '12px',
+                      border: `1px solid ${theme === 'dark' ? '#f59e0b' : '#d97706'}`,
+                      borderRadius: '4px',
+                      padding: '10px 14px',
+                      backgroundColor: theme === 'dark' ? 'rgba(245, 158, 11, 0.07)' : 'rgba(245, 158, 11, 0.05)',
+                      lineHeight: '1.7',
+                      marginBottom: '6px',
+                    }}>
+                      <div style={{ color: '#f59e0b', fontWeight: 'bold', marginBottom: '6px' }}>[!] Instructions</div>
+                      <div style={{ color: theme === 'dark' ? '#ca8a04' : '#92400e', marginBottom: '4px' }}>1. Click <strong>Enter Challenge</strong> to open the KYPO portal.</div>
+                      <div style={{ color: theme === 'dark' ? '#ca8a04' : '#92400e', marginBottom: '8px' }}>2. Complete <strong>ALL phases</strong> on KYPO, then return here and click <strong>[✓] Submit</strong> to submit your result.</div>
+                      <div style={{ color: theme === 'dark' ? '#9ca3af' : '#6b7280', marginBottom: '4px' }}>
+                        You are allowed to access this sandbox <strong>{KYPO_MAX_ACCESSES} times</strong> only. Each reload counts as 1 access.
                       </div>
-                      <div className={`h-px ${theme === 'dark' ? 'bg-blue-500/20' : 'bg-blue-200'}`} />
-                      <div className="flex gap-2 items-start">
-                        <span className="shrink-0">⚠️</span>
-                        <div>
-                          <div className={`font-semibold mb-0.5 ${theme === 'dark' ? 'text-orange-400' : 'text-orange-600'}`}>
-                            Warning:
-                          </div>
-                          <div className={theme === 'dark' ? 'text-orange-400/80' : 'text-orange-600'}>
-                            If you click <span className="font-bold">&quot;Submit&quot;</span> before finishing{' '}
-                            <span className="font-bold">ALL phases</span> on KYPO, you will receive{' '}
-                            <span className="font-bold">0 points</span>.
-                          </div>
-                        </div>
+                      <div style={{
+                        borderTop: `1px solid ${theme === 'dark' ? 'rgba(245,158,11,0.3)' : 'rgba(217,119,6,0.3)'}`,
+                        paddingTop: '7px',
+                        color: '#ef4444',
+                      }}>
+                        <strong>[⚠] Warning:</strong> If you submit before finishing all phases on KYPO, you will receive <strong>0 points</strong>.
                       </div>
                     </div>
                     <button

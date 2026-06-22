@@ -78,3 +78,14 @@ def get_kypo_verify_ssl() -> bool:
     if isinstance(val, bool):
         return val
     return str(val).lower() not in ("false", "0", "")
+
+
+def seed_kypo_configs_from_env() -> None:
+    """Seed DB với giá trị từ env var nếu chưa có. Gọi 1 lần khi app khởi động."""
+    from CTFd.utils import get_config, set_config
+
+    defaults = {k: v for k, v in _ENV_DEFAULTS.items() if v is not None and v != ""}
+    for key, value in defaults.items():
+        if get_config(key) is None:
+            set_config(key, str(value))
+            log.info("[kypo_config] Seeded DB key=%s from ENV", key)

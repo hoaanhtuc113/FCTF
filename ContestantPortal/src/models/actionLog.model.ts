@@ -20,6 +20,7 @@ export const ACTION_TYPE_LABELS: Record<number, string> = {
   3: 'Correct Flag',
   4: 'Incorrect Flag',
   5: 'Unlock Hint',
+  6: 'Submit Challenge',
 };
 
 export const ACTION_TYPE_COLORS: Record<number, string> = {
@@ -28,4 +29,5 @@ export const ACTION_TYPE_COLORS: Record<number, string> = {
   3: 'bg-emerald-100 text-emerald-800',
   4: 'bg-red-100 text-red-800',
   5: 'bg-yellow-100 text-yellow-800',
+  6: 'bg-purple-100 text-purple-800',
 };

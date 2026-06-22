@@ -125,7 +125,7 @@ public class HintController : BaseController
                 await _actionLogsServices.SaveActionLogs(new ActionLogsReq
                 {
                     ActionType = 5, // UNLOCK_HINT
-                    ActionDetail = $"Mở khóa trợ giúp cho thử thách {target.Challenge.Name}",
+                    ActionDetail = $"Unlocked hint for challenge \"{target.Challenge.Name}\"",
                     ChallengeId = target.Challenge.Id,
                 }, userId);
             }

@@ -4,7 +4,7 @@ import "../compat/json";
 import "../compat/format";
 import CTFd from "../compat/CTFd";
 import { htmlEntities } from "@ctfdio/ctfd-js/utils/html";
-import { ezQuery, ezBadge } from "../compat/ezq";
+import { ezQuery, ezAlert, ezBadge } from "../compat/ezq";
 import { createGraph, updateGraph } from "../compat/graphs";
 import Vue from "vue";
 import CommentBox from "../components/comments/CommentBox.vue";
@@ -141,6 +141,18 @@ function deleteUser(event) {
         .then(function (response) {
           if (response.success) {
             window.location = CTFd.config.urlRoot + "/admin/users";
+          } else {
+            // Lấy message lỗi từ response
+            let errorMsg = "Could not delete user.";
+            if (response.errors) {
+              const msgs = Object.values(response.errors);
+              if (msgs.length > 0) errorMsg = msgs[0];
+            }
+            ezAlert({
+              title: "Cannot Delete User",
+              body: errorMsg,
+              button: "OK",
+            });
           }
         });
     },

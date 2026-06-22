@@ -282,6 +282,44 @@ def _insert_solve(challenge_id: int, team_id: int, score: int):
                  challenge_id, team_id, score)
         _clear_scoreboard_cache()
 
+        # Ghi ActionLog SUBMIT_CHALLENGE (type=6) cho từng thành viên team
+        try:
+            from CTFd.models import ActionLogs, Teams, Challenges
+            from CTFd.utils.action_logs import get_topic_name
+            import datetime as _dt
+
+            team = Teams.query.get(team_id)
+            challenge = Challenges.query.get(challenge_id)
+            topic_name = get_topic_name(challenge_id)
+            detail = f"Submitted KYPO sandbox challenge: {challenge.name if challenge else challenge_id} (score={score})"
+
+            if team and hasattr(team, 'members'):
+                members = team.members
+            elif team:
+                from CTFd.models import UserTeamMember
+                members = db.session.query(UserTeamMember).filter_by(team_id=team_id).all()
+            else:
+                members = []
+
+            user_ids = [m.user_id for m in members] if members else []
+            if not user_ids and team and getattr(team, 'captain_id', None):
+                user_ids = [team.captain_id]
+
+            for uid in user_ids:
+                action_log = ActionLogs(
+                    user_id=uid,
+                    date=_dt.datetime.utcnow(),
+                    type=6,  # SUBMIT_CHALLENGE
+                    detail=detail,
+                    topic_name=topic_name,
+                )
+                db.session.add(action_log)
+            db.session.commit()
+            log.info("[KYPO Poller] ActionLog written for challenge=%s team=%s", challenge_id, team_id)
+        except Exception as exc:
+            db.session.rollback()
+            log.warning("[KYPO Poller] Failed to write ActionLog: %s", exc)
+
     except Exception as exc:
         db.session.rollback()
         # 1020 "Record has changed" — xảy ra khi 2 cycle chạy đồng thời,

@@ -75,8 +75,8 @@ builder.Services.AddScoped<IConfigService, ConfigService>();
 builder.Services.AddMemoryCache();
 builder.Services.AddOptions();
 
-// Init env config for ContestantBE
-new ContestantBEConfigHelper().InitConfig();
+// Init config từ bảng config (DB), fallback về ENV
+new ContestantBEConfigHelper().InitConfig(connectionString!);
 
 builder.Services.AddStackExchangeRedisCache(options =>
 {
@@ -109,6 +109,7 @@ builder.Services.AddSingleton<KypoService>();
 builder.Services.AddSingleton<KypoApiClient>();
 builder.Services.AddScoped<KypoScoreLockService>();
 builder.Services.AddHostedService<KypoTimeoutWatcher>();
+builder.Services.AddHostedService<KypyCacheWarmupService>();
 builder.Services.AddHttpClient("kypo")
     .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
     {
