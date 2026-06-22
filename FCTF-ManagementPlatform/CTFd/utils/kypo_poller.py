@@ -228,12 +228,12 @@ def _clear_scoreboard_cache():
         log.warning("[KYPO Poller] Failed to clear cache: %s", exc)
 
 
-def _insert_solve(challenge_id: int, team_id: int, score: int):
+def _insert_solve(challenge_id: int, team_id: int):
     """
-    UPSERT solve dùng raw SQL với ON DUPLICATE KEY UPDATE để tránh race condition
-    khi nhiều poll cycle chạy đồng thời.
+    Ghi solve với điểm = challenges.value (All-or-Nothing).
+    Chỉ gọi khi team đã FINISHED toàn bộ phases.
     """
-    from CTFd.models import db, Teams
+    from CTFd.models import db, Teams, Challenges
 
     try:
         team = Teams.query.get(team_id)
@@ -242,6 +242,10 @@ def _insert_solve(challenge_id: int, team_id: int, score: int):
             user_id = getattr(team, 'captain_id', None)
             if not user_id and hasattr(team, 'members') and team.members:
                 user_id = team.members[0].id
+
+        # Lấy điểm từ challenges.value
+        challenge = Challenges.query.get(challenge_id)
+        score = challenge.value if challenge else 0
 
         # Kiểm tra solve đã tồn tại chưa
         result = db.session.execute(
@@ -430,10 +434,11 @@ def _sync_instance(cfg, token: str, rc, username_to_team: dict, safe_first_name_
             "last_synced": now_iso,
         })
 
-        # Ghi Solve khi có điểm > 0 (kể cả IN_PROGRESS để lấy điểm partial)
-        if score > 0:
+        # All-or-Nothing: chỉ ghi Solve khi FINISHED (làm xong hết)
+        # Điểm = challenges.value (full điểm), không dùng điểm partial từ KYPO
+        if status == "FINISHED":
             try:
-                _insert_solve(cfg.challenge_id, team_id, score)
+                _insert_solve(cfg.challenge_id, team_id)
             except Exception as exc:
                 db.session.rollback()
                 log.error(

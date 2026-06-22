@@ -215,6 +215,13 @@ public class ChallengeService : IChallengeService
             next_id = challenge.NextId,
             next_name = nextName,
             solve_by_myteam = solve_id != null ? true : false,
+            kypo_submitted = solve_id == null
+                && string.Equals(challenge.Type, "sandbox", StringComparison.OrdinalIgnoreCase)
+                && teamId.HasValue
+                && await _dbContext.ChallengeStartTrackings
+                    .AnyAsync(t => t.ChallengeId == challenge.Id
+                                && t.TeamId == teamId.Value
+                                && t.StoppedAt != null),
             files = files,
             is_captain = user.Id == userTeam?.CaptainUserId,
             captain_only_start = captainOnlyStart,
@@ -322,6 +329,16 @@ public class ChallengeService : IChallengeService
                     .ToHashSet()
                 : [];
 
+        var stoppedChallengeIds = team_id.HasValue
+                ? (await _dbContext.ChallengeStartTrackings
+                    .AsNoTracking()
+                    .Where(t => t.TeamId == team_id.Value && t.StoppedAt != null)
+                    .Select(t => t.ChallengeId)
+                    .Distinct()
+                    .ToListAsync())
+                    .ToHashSet()
+                : [];
+
         var allChallengeIds = (await _dbContext.Challenges
             .AsNoTracking()
             .Where(c => c.ContestId == contestId)
@@ -371,6 +388,9 @@ public class ChallengeService : IChallengeService
                 type = challenge.Type,
                 requirements = requirementsObj,
                 solve_by_myteam = solvedChallengeIds.Contains(challenge.Id),
+                kypo_submitted = !solvedChallengeIds.Contains(challenge.Id)
+                    && string.Equals(challenge.Type, "sandbox", StringComparison.OrdinalIgnoreCase)
+                    && stoppedChallengeIds.Contains(challenge.Id),
                 pod_status = podStatus,
                 difficulty = difficultyVisible ? challenge.Difficulty : null,
             });

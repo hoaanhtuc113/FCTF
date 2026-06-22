@@ -36,8 +36,7 @@ CTFd.plugin.run((_CTFd) => {
 
     // ── DOM helpers ────────────────────────────────────────────────────────
     function el(id) { return document.getElementById(id); }
-    function addClass(id, cls) { var e = el(id); if (e) e.classList.add(cls); }
-    function removeClass(id, cls) { var e = el(id); if (e) e.classList.remove(cls); }
+function removeClass(id, cls) { var e = el(id); if (e) e.classList.remove(cls); }
 
     // ── Sync hidden KYPO metadata fields ──────────────────────────────────
     function syncHiddenFields(opt) {
@@ -53,9 +52,17 @@ CTFd.plugin.run((_CTFd) => {
     function loadInstances() {
         var loading = el("kypo-instance-loading");
         var select = el("kypo-instance-select");
+        var group = el("kypo-refresh-container");
         var errorEl = el("kypo-instance-error");
 
         if (!loading || !select) return;
+
+        // Reset state
+        select.innerHTML = '<option value="">— Select a KYPO instance —</option>';
+        if (group) group.style.display = "none";
+        if (errorEl) errorEl.classList.add("d-none");
+        loading.style.display = "";
+        syncHiddenFields(null);
 
         fetch("/api/v1/kypo/instances", {
             method: "GET",
@@ -77,7 +84,7 @@ CTFd.plugin.run((_CTFd) => {
                         select.appendChild(opt);
                     });
 
-                    select.style.display = "block";
+                    if (group) group.style.display = "flex";
 
                     select.addEventListener("change", function () {
                         var opt = this.options[this.selectedIndex];
@@ -104,4 +111,17 @@ CTFd.plugin.run((_CTFd) => {
     }
 
     loadInstances();
+
+    // ── Refresh button ────────────────────────────────────────────────────
+    var refreshBtn = el("kypo-refresh-btn");
+    if (refreshBtn) {
+        refreshBtn.addEventListener("click", function () {
+            var icon = this.querySelector("i");
+            if (icon) icon.classList.add("fa-spin");
+            loadInstances();
+            setTimeout(function () {
+                if (icon) icon.classList.remove("fa-spin");
+            }, 800);
+        });
+    }
 });

@@ -91,17 +91,22 @@ public class KypoScoreLockService
             try
             {
                 var sub = await _kypoClient.GetParticipantSubAsync(baseUrl, instanceType, entry.RunId);
+                _logger.LogInformation("[KYPO LOCK] RunId={RunId} name='{Name}' → sub={Sub}",
+                    entry.RunId, entry.Name, sub ?? "null");
                 if (string.IsNullOrEmpty(sub)) return (Entry: entry, TeamId: (int?)null);
 
                 var kcId = await _kypoClient.GetKeycloakUserIdBySubAsync(baseUrl, sub);
+                _logger.LogInformation("[KYPO LOCK] sub={Sub} → kcId={KcId}", sub, kcId ?? "null");
                 if (string.IsNullOrEmpty(kcId)) return (Entry: entry, TeamId: (int?)null);
 
                 keycloakIdToTeam.TryGetValue(kcId, out var tid);
+                _logger.LogInformation("[KYPO LOCK] kcId={KcId} → teamId={TeamId}", kcId, tid);
                 if (tid != 0) _kypoClient.RunTeamCache.TryAdd(entry.RunId, tid);
                 return (Entry: entry, TeamId: tid == 0 ? (int?)null : tid);
             }
-            catch
+            catch (Exception ex)
             {
+                _logger.LogWarning("[KYPO LOCK] Mapping failed for RunId={RunId}: {Msg}", entry.RunId, ex.Message);
                 return (Entry: entry, TeamId: (int?)null);
             }
         }).ToList();

@@ -124,9 +124,10 @@ public class KypoApiClient
                 {
                     levels.Add(new KypoLevelProgress
                     {
-                        Id    = lv.TryGetProperty("id",    out var id) ? id.GetInt32()   : 0,
-                        State = lv.TryGetProperty("state", out var st) ? st.GetString()! : "",
-                        Score = ExtractLevelScore(lv),
+                        Id          = lv.TryGetProperty("id",    out var id) ? id.GetInt32()   : 0,
+                        State       = lv.TryGetProperty("state", out var st) ? st.GetString()! : "",
+                        Score       = ExtractLevelScore(lv),
+                        IsCompleted = IsLevelCompleted(lv),
                     });
                 }
             }
@@ -371,6 +372,28 @@ public class KypoApiClient
         finally { _kcTokenLock.Release(); }
     }
 
+    /// <summary>
+    /// Returns true if a level is completed: state=FINISHED or a LevelCompleted event exists.
+    /// Handles TrainingRunResumed which resets state=RUNNING after the level was already finished.
+    /// </summary>
+    private static bool IsLevelCompleted(JsonElement level)
+    {
+        var state = level.TryGetProperty("state", out var st) ? st.GetString() ?? "" : "";
+        if (state.Equals("FINISHED", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (level.TryGetProperty("events", out var events) && events.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var ev in events.EnumerateArray())
+            {
+                var type = ev.TryGetProperty("type", out var t) ? t.GetString() ?? "" : "";
+                if (type.Contains("LevelCompleted"))
+                    return true;
+            }
+        }
+        return false;
+    }
+
     private static int ExtractLevelScore(JsonElement level)
     {
         if (!level.TryGetProperty("events", out var events) || events.ValueKind != JsonValueKind.Array)
@@ -402,8 +425,8 @@ public class KypoProgressEntry
 
 public class KypoLevelProgress
 {
-    public int    Id    { get; set; }
-    public string State { get; set; } = "";
-    public int    Score { get; set; }
-    public bool   IsCompleted => State == "FINISHED";
+    public int    Id          { get; set; }
+    public string State       { get; set; } = "";
+    public int    Score       { get; set; }
+    public bool   IsCompleted { get; set; }
 }

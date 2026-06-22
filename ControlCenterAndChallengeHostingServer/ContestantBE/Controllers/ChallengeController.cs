@@ -1403,10 +1403,15 @@ public class ChallengeController : BaseController
             await Console.Error.WriteLineAsync($"[ActionLog] Failed to save SUBMIT_CHALLENGE log: {ex.Message}");
         }
 
-        return Ok(new ChallengeDeployResponeDTO
+        // Check if team solved after locking
+        bool isSolved = await _context.Solves
+            .AnyAsync(s => s.ChallengeId == challenge.Id && s.TeamId == teamId.Value);
+
+        return Ok(new
         {
             status = (int)HttpStatusCode.OK,
             success = true,
+            solved = isSolved,
             message = "Challenge submitted and permanently locked.",
         });
     }

@@ -75,19 +75,25 @@ def _generate_password(length: int = 16) -> str:
             return pwd
 
 
-def create_kypo_user(team_id: int, team_name: str) -> dict:
+def create_kypo_user(team_id: int, team_name: str, contest_id: int = None) -> dict:
     """
     Tạo Keycloak user cho team.
+
+    Username format:
+        - Lần thử 1: fctf_c{contest_id}_{safe_name}_{team_id}   (hoặc bỏ c{contest_id} nếu None)
+        - Lần thử 2+: thêm random suffix 4 hex để tránh 409 conflict khi nhiều
+          instance FCTF chia sẻ cùng Keycloak (team_id local có thể trùng nhau).
 
     Returns:
         {
             "kypo_user_id": "uuid",
-            "kypo_username": "fctf_team_25",
+            "kypo_username": "fctf_c3_hust_team_42",
             "kypo_password": "plaintext password (chỉ trả về 1 lần)"
         }
 
     Raises:
         requests.HTTPError nếu gọi API thất bại
+        RuntimeError nếu không tạo được username unique sau 5 lần thử
     """
     from CTFd.utils.kypo_config import get_kypo_config, get_kypo_verify_ssl
 
@@ -96,27 +102,70 @@ def create_kypo_user(team_id: int, team_name: str) -> dict:
     verify_ssl = get_kypo_verify_ssl()
     keycloak_url = get_kypo_config("kypo_keycloak_url")
 
-    safe_name = "".join(c if c.isalnum() else "_" for c in team_name.lower())[:20]
-    username  = f"fctf_{safe_name}_{team_id}"
-    password  = _generate_password()
+    safe_name = "".join(c if c.isalnum() else "_" for c in team_name.lower())[:12]
+    if contest_id is not None:
+        base_username = f"fctf_c{contest_id}_{safe_name}_{team_id}"
+    else:
+        base_username = f"fctf_{safe_name}_{team_id}"
 
+    password = _generate_password()
     url = f"{keycloak_url}/admin/realms/{realm}/users"
-    resp = requests.post(
-        url,
-        json={
-            "username":      username,
-            "enabled":       True,
-            "firstName":     team_name,
-            "lastName":      "FCTF Team",
-            "email":         f"{username}@fctf.local",
-            "emailVerified": True,
-            "credentials": [
-                {"type": "password", "value": password, "temporary": False}
-            ],
-        },
-        headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
-        verify=verify_ssl,
-        timeout=10,
+
+    for attempt in range(5):
+        username = base_username if attempt == 0 else f"{base_username}_{secrets.token_hex(4)}"
+
+        resp = requests.post(
+            url,
+            json={
+                "username":      username,
+                "enabled":       True,
+                "firstName":     team_name,
+                "lastName":      "FCTF Team",
+                "email":         f"{username}@fctf.local",
+                "emailVerified": True,
+                "credentials": [
+                    {"type": "password", "value": password, "temporary": False}
+                ],
+            },
+            headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+            verify=verify_ssl,
+            timeout=10,
+        )
+
+        if resp.status_code == 409:
+            logger.warning(
+                "Keycloak username '%s' already exists (attempt %d/5), retrying with suffix",
+                username, attempt + 1,
+            )
+            continue
+
+        if not resp.ok:
+            logger.error(
+                "Keycloak create user failed: status=%s body=%s",
+                resp.status_code, resp.text[:500],
+            )
+            resp.raise_for_status()
+
+        # Success
+        location     = resp.headers.get("Location", "")
+        kypo_user_id = location.rstrip("/").split("/")[-1]
+
+        if not kypo_user_id:
+            raise RuntimeError(
+                f"Keycloak returned status {resp.status_code} but no Location header. "
+                f"Headers: {dict(resp.headers)}"
+            )
+
+        logger.info("Created Keycloak user: %s (id=%s) for team %s", username, kypo_user_id, team_id)
+        return {
+            "kypo_user_id":  kypo_user_id,
+            "kypo_username": username,
+            "kypo_password": password,
+        }
+
+    raise RuntimeError(
+        f"Cannot create unique Keycloak username for team '{team_name}' (team_id={team_id}) "
+        f"after 5 attempts. Last conflict on: '{username}'"
     )
 
     if resp.status_code == 409:
@@ -174,7 +223,6 @@ def create_kypo_user(team_id: int, team_name: str) -> dict:
         "kypo_username": username,
         "kypo_password": password,
     }
-
 
 def delete_kypo_user(kypo_user_id: str) -> bool:
     """

@@ -56,6 +56,32 @@
     .password-toggle-btn:hover {
         color: var(--primary-orange, #e67e22);
     }
+
+    /* Time picker */
+    .time-tabs { display: flex; border-bottom: 1px solid var(--border-light); margin-bottom: 1.25rem; }
+    .time-tab {
+        padding: 0.38rem 1rem; font-size: 0.82rem; font-weight: 600;
+        color: var(--text-medium); cursor: pointer; border: none; background: none;
+        border-bottom: 2px solid transparent; margin-bottom: -1px; transition: color 0.12s;
+    }
+    .time-tab:hover { color: var(--primary-orange); }
+    .time-tab.active { color: var(--primary-orange); border-bottom-color: var(--primary-orange); }
+
+    .time-fields { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: flex-end; margin-bottom: 1rem; }
+    .time-field-grp { display: flex; flex-direction: column; }
+    .time-field-grp label { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; color: var(--text-light); margin-bottom: 0.18rem; }
+    .time-field-grp input { width: 68px; text-align: center; }
+    .time-field-grp.f-year input { width: 86px; }
+
+    .time-preview {
+        background: #f8f9fa; border: 1px solid var(--border-light);
+        border-radius: 4px; padding: 0.4rem 0.7rem; font-size: 0.79rem;
+        color: var(--text-medium); margin-bottom: 0.4rem;
+    }
+    .time-preview label { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; color: var(--text-light); display: block; margin-bottom: 0.05rem; }
+
+    .time-utc-row { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.6rem; }
+    .time-utc-row label { font-size: 0.74rem; font-weight: 600; text-transform: uppercase; color: var(--text-medium); white-space: nowrap; }
 </style>
 {% endblock %}
 
@@ -133,29 +159,60 @@
         <!-- Schedule -->
         <div class="form-section">
             <div class="form-section-title"><i class="bx bx-calendar"></i> Schedule</div>
-            <div class="row">
-                <div class="col-md-4">
-                    <div class="form-group">
-                        <label class="form-label-sm">Start Time</label>
-                        <input type="datetime-local" id="contest-start" name="start_time"
-                               class="clean-form-control w-100">
+            <div class="panel-desc" style="font-size:0.8rem;color:var(--text-light);margin-bottom:1rem;">
+                Set the contest start, end, and scoreboard freeze times. All times are entered in the selected timezone and stored as UTC.
+            </div>
+
+            <div class="form-group mb-3">
+                <label class="form-label-sm">Timezone</label>
+                <select id="sched-tz" class="clean-form-control" style="max-width:380px;"></select>
+            </div>
+
+            <div class="time-tabs">
+                <button type="button" class="time-tab active" data-target="start">Start Time</button>
+                <button type="button" class="time-tab" data-target="end">End Time</button>
+                <button type="button" class="time-tab" data-target="freeze">Freeze Scoreboard</button>
+            </div>
+
+            {% for tname, tdesc in [
+                ('start',  'The time when the competition begins. Challenges unlock and submissions open.'),
+                ('end',    'The time when the competition ends. Submissions will be locked.'),
+                ('freeze', 'Scoreboard freezes at this time. Submissions still accepted but scores hidden.')
+            ] %}
+            <div id="time-panel-{{ tname }}" class="time-panel" {% if not loop.first %}style="display:none"{% endif %}>
+                <p style="font-size:0.78rem;color:var(--text-light);margin-bottom:0.85rem;">{{ tdesc }}</p>
+                <div class="time-fields">
+                    <div class="time-field-grp"><label>Month</label>
+                        <input type="number" class="clean-form-control" id="{{ tname }}-month" min="1" max="12" placeholder="MM">
+                    </div>
+                    <div class="time-field-grp"><label>Day</label>
+                        <input type="number" class="clean-form-control" id="{{ tname }}-day" min="1" max="31" placeholder="DD">
+                    </div>
+                    <div class="time-field-grp f-year"><label>Year</label>
+                        <input type="number" class="clean-form-control" id="{{ tname }}-year" min="2020" max="2100" placeholder="YYYY">
+                    </div>
+                    <div class="time-field-grp"><label>Hour</label>
+                        <input type="number" class="clean-form-control" id="{{ tname }}-hour" min="0" max="23" placeholder="HH">
+                    </div>
+                    <div class="time-field-grp"><label>Minute</label>
+                        <input type="number" class="clean-form-control" id="{{ tname }}-minute" min="0" max="59" placeholder="MM">
+                    </div>
+                    <div style="align-self:flex-end;padding-bottom:1px;">
+                        <button type="button" class="clean-btn" onclick="clearTime('{{ tname }}')" style="font-size:0.74rem;padding:0.28rem 0.6rem;">
+                            <i class="bx bx-x"></i> Clear
+                        </button>
                     </div>
                 </div>
-                <div class="col-md-4">
-                    <div class="form-group">
-                        <label class="form-label-sm">End Time</label>
-                        <input type="datetime-local" id="contest-end" name="end_time"
-                               class="clean-form-control w-100">
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="form-group">
-                        <label class="form-label-sm">Freeze Scoreboard At</label>
-                        <input type="datetime-local" id="contest-freeze" name="freeze_scoreboard_at"
-                               class="clean-form-control w-100">
-                    </div>
+                <div class="time-preview"><label>Local Time</label><span id="{{ tname }}-local-preview">—</span></div>
+                <div class="time-preview"><label>Timezone Time</label><span id="{{ tname }}-tz-preview">—</span></div>
+                <div class="time-utc-row">
+                    <label>UTC Timestamp</label>
+                    <input type="number" class="clean-form-control" id="{{ tname }}-utc-ts" style="width:175px;" placeholder="—" readonly>
                 </div>
             </div>
+            {% endfor %}
+
+            <hr style="border:none;border-top:1px solid var(--border-light);margin:1.25rem 0;">
             <div class="form-group">
                 <div class="custom-control custom-switch">
                     <input type="checkbox" class="custom-control-input" id="view-after-ctf" name="view_after_ctf">
@@ -221,7 +278,7 @@
                 </div>
                 <div class="col-md-3">
                     <div class="form-group">
-                        <label class="form-label-sm">Concurrent Challenge Limit <span class="text-muted">(0 = unlimited)</span></label>
+                        <label class="form-label-sm">Concurrent Challenge Limit</label>
                         <input type="number" class="clean-form-control w-100" name="limit_challenges" min="0" placeholder="0 (unlimited)">
                     </div>
                 </div>
@@ -268,42 +325,22 @@
 
 {% block scripts %}
 <script>
-function togglePassword(inputId, btn) {
-    var input = document.getElementById(inputId);
-    var icon = btn.querySelector('i');
-    if (input.type === 'password') {
-        input.type = 'text';
-        icon.className = 'bx bx-show';
-    } else {
-        input.type = 'password';
-        icon.className = 'bx bx-hide';
-    }
-}
-
-function validateContestTimes(startVal, endVal, freezeVal) {
-    const start  = startVal  ? new Date(startVal)  : null;
-    const end    = endVal    ? new Date(endVal)    : null;
-    const freeze = freezeVal ? new Date(freezeVal) : null;
-
-    if (start && end && end <= start) {
-        return 'End time must be after start time.';
-    }
-    if (freeze && start && freeze < start) {
-        return 'Freeze scoreboard time must be on or after start time.';
-    }
-    if (freeze && end && freeze > end) {
-        return 'Freeze scoreboard time must be on or before end time.';
-    }
-    return null;
-}
-
 (function () {
-    const nonce = init.csrfNonce;
+    var nonce   = init.csrfNonce;
+    var localTZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-    // User mode → toggle team size visibility
-    const userModeSelect = document.getElementById('contest-user-mode');
-    const teamSizeGroup  = document.getElementById('team-size-group');
-    const teamSizeInput  = document.getElementById('team-size-input');
+    // ── Password toggle ───────────────────────────────────────────────────────
+    window.togglePassword = function (inputId, btn) {
+        var input = document.getElementById(inputId);
+        var icon  = btn.querySelector('i');
+        input.type     = input.type === 'password' ? 'text' : 'password';
+        icon.className = input.type === 'password' ? 'bx bx-hide' : 'bx bx-show';
+    };
+
+    // ── User mode ─────────────────────────────────────────────────────────────
+    var userModeSelect = document.getElementById('contest-user-mode');
+    var teamSizeGroup  = document.getElementById('team-size-group');
+    var teamSizeInput  = document.getElementById('team-size-input');
 
     function applyUserModeUI(mode) {
         if (mode === 'users') {
@@ -314,87 +351,216 @@ function validateContestTimes(startVal, endVal, freezeVal) {
             if (teamSizeInput.value === '1') teamSizeInput.value = '';
         }
     }
+    userModeSelect.addEventListener('change', function () { applyUserModeUI(this.value); });
+    applyUserModeUI(userModeSelect.value);
 
-    userModeSelect.addEventListener('change', function () {
-        applyUserModeUI(this.value);
-    });
-    applyUserModeUI(userModeSelect.value); // apply on load
-
-    // Auto-generate slug from name
-    const nameInput = document.getElementById('contest-name');
-    const slugInput = document.getElementById('contest-slug');
-    let slugManuallyEdited = false;
+    // ── Slug auto-fill ────────────────────────────────────────────────────────
+    var nameInput = document.getElementById('contest-name');
+    var slugInput = document.getElementById('contest-slug');
+    var slugManuallyEdited = false;
 
     slugInput.addEventListener('input', function () {
         slugManuallyEdited = slugInput.value.trim() !== '';
     });
-
     nameInput.addEventListener('input', function () {
         if (!slugManuallyEdited) {
             slugInput.value = nameInput.value
-                .toLowerCase()
-                .trim()
+                .toLowerCase().trim()
                 .replace(/[^\w\s-]/g, '')
                 .replace(/[\s_-]+/g, '-')
                 .replace(/^-+|-+$/g, '');
         }
     });
 
-    // Form submit
+    // ── Time picker ───────────────────────────────────────────────────────────
+    var tzSelect = document.getElementById('sched-tz');
+
+    // Populate timezone list
+    var tzList;
+    try { tzList = Intl.supportedValuesOf('timeZone'); }
+    catch (e) { tzList = ['UTC','Asia/Ho_Chi_Minh','Asia/Bangkok','Asia/Singapore','Asia/Tokyo','America/New_York','America/Los_Angeles','Europe/London','Europe/Paris','Australia/Sydney']; }
+    tzList.forEach(function (tz) {
+        var opt = document.createElement('option');
+        opt.value = tz;
+        opt.textContent = tz.replace(/_/g, ' ');
+        if (tz === localTZ) opt.selected = true;
+        tzSelect.appendChild(opt);
+    });
+
+    function inputToUTC(year, month, day, hour, minute, tz) {
+        if (!year || !month || !day) return null;
+        var h = parseInt(hour) || 0;
+        var m = parseInt(minute) || 0;
+        // Build ISO string as if it were local time in chosen timezone,
+        // then use the browser to find the UTC equivalent via a known trick:
+        // format a UTC epoch in the target timezone and compute the offset.
+        try {
+            // Step 1: create a candidate UTC date assuming the input is UTC
+            var candidate = new Date(Date.UTC(year, month - 1, day, h, m, 0));
+            // Step 2: format that UTC time AS IF it were displayed in target tz
+            var fmt = new Intl.DateTimeFormat('en-CA', {
+                timeZone: tz,
+                year: 'numeric', month: '2-digit', day: '2-digit',
+                hour: '2-digit', minute: '2-digit', second: '2-digit',
+                hour12: false
+            });
+            var parts = {};
+            fmt.formatToParts(candidate).forEach(function (p) { parts[p.type] = p.value; });
+            var ph = parseInt(parts.hour); if (ph === 24) ph = 0;
+            // Step 3: that display time is offset from UTC by (candidate_utc - displayed_as_utc)
+            var displayed = new Date(Date.UTC(
+                parseInt(parts.year), parseInt(parts.month) - 1, parseInt(parts.day),
+                ph, parseInt(parts.minute), parseInt(parts.second)
+            ));
+            var offsetMs = candidate.getTime() - displayed.getTime();
+            // Step 4: actual UTC = input (treated as tz-local) minus offset
+            return new Date(candidate.getTime() + offsetMs);
+        } catch (e) { return null; }
+    }
+
+    function utcToISO(d) {
+        function pad(n) { return String(n).padStart(2, '0'); }
+        return d.getUTCFullYear() + '-' + pad(d.getUTCMonth() + 1) + '-' + pad(d.getUTCDate())
+             + 'T' + pad(d.getUTCHours()) + ':' + pad(d.getUTCMinutes()) + ':00';
+    }
+
+    function formatPreview(utcDate, tz) {
+        try {
+            return new Intl.DateTimeFormat('en-US', {
+                timeZone: tz, weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+                hour: 'numeric', minute: '2-digit', second: '2-digit', timeZoneName: 'long'
+            }).format(utcDate);
+        } catch (e) { return '—'; }
+    }
+
+    function getTimeUTC(name) {
+        var tz = tzSelect.value;
+        var y  = parseInt(document.getElementById(name + '-year').value);
+        var mo = parseInt(document.getElementById(name + '-month').value);
+        var d  = parseInt(document.getElementById(name + '-day').value);
+        var h  = parseInt(document.getElementById(name + '-hour').value) || 0;
+        var mi = parseInt(document.getElementById(name + '-minute').value) || 0;
+        if (!y || !mo || !d) return null;
+        return inputToUTC(y, mo, d, h, mi, tz);
+    }
+
+    function updatePreviews(name) {
+        var utc = getTimeUTC(name);
+        var tz  = tzSelect.value;
+        if (utc && !isNaN(utc.getTime())) {
+            document.getElementById(name + '-local-preview').textContent = formatPreview(utc, localTZ);
+            document.getElementById(name + '-tz-preview').textContent    = formatPreview(utc, tz);
+            document.getElementById(name + '-utc-ts').value = Math.floor(utc.getTime() / 1000);
+        } else {
+            document.getElementById(name + '-local-preview').textContent = '—';
+            document.getElementById(name + '-tz-preview').textContent    = '—';
+            document.getElementById(name + '-utc-ts').value = '';
+        }
+    }
+
+    window.clearTime = function (name) {
+        ['month','day','year','hour','minute'].forEach(function (f) {
+            document.getElementById(name + '-' + f).value = '';
+        });
+        updatePreviews(name);
+    };
+
+    ['start','end','freeze'].forEach(function (name) {
+        ['month','day','year','hour','minute'].forEach(function (field) {
+            document.getElementById(name + '-' + field).addEventListener('input', function () { updatePreviews(name); });
+        });
+    });
+
+    tzSelect.addEventListener('change', function () {
+        ['start','end','freeze'].forEach(function (name) { updatePreviews(name); });
+    });
+
+    // Time tabs
+    document.querySelectorAll('.time-tab').forEach(function (tab) {
+        tab.addEventListener('click', function () {
+            document.querySelectorAll('.time-tab').forEach(function (t) { t.classList.remove('active'); });
+            document.querySelectorAll('.time-panel').forEach(function (p) { p.style.display = 'none'; });
+            this.classList.add('active');
+            document.getElementById('time-panel-' + this.dataset.target).style.display = '';
+        });
+    });
+
+    // ── Form submit ───────────────────────────────────────────────────────────
     document.getElementById('new-contest-form').addEventListener('submit', function (e) {
         e.preventDefault();
 
-        const btn = document.getElementById('submit-btn');
+        var btn = document.getElementById('submit-btn');
         btn.disabled = true;
         btn.innerHTML = '<i class="bx bx-loader-alt bx-spin"></i> Creating…';
 
-        const form = e.target;
-        const data = {
-            name: form.name.value.trim(),
-            slug: form.slug.value.trim() || null,
-            description: form.description.value.trim(),
-            access_password: form.access_password.value.trim() || null,
-            user_mode: form.user_mode.value,
-            state: form.state.value,
-            start_time: form.start_time.value || null,
-            end_time: form.end_time.value || null,
-            freeze_scoreboard_at: form.freeze_scoreboard_at.value || null,
-            view_after_ctf: form.view_after_ctf.checked,
+        var form = e.target;
 
-            score_visibility: form.score_visibility.value,
-            team_size: form.user_mode.value === 'users' ? 1 : (form.team_size.value ? parseInt(form.team_size.value) : null),
-            incorrect_submissions_per_min: form.incorrect_submissions_per_min.value
-                ? parseInt(form.incorrect_submissions_per_min.value) : null,
-            captain_only_start_challenge: form.captain_only_start_challenge.checked,
-            captain_only_submit_challenge: form.captain_only_submit_challenge.checked,
-            team_disbanding: form.team_disbanding.checked,
-            allow_name_change: form.allow_name_change.checked,
-            challenge_difficulty_visibility: form.challenge_difficulty_visibility.value,
-            limit_challenges: form.limit_challenges.value ? parseInt(form.limit_challenges.value) : null,
-        };
+        var startUTC  = getTimeUTC('start');
+        var endUTC    = getTimeUTC('end');
+        var freezeUTC = getTimeUTC('freeze');
 
-        if (!data.name) {
+        if (!form.name.value.trim()) {
             alert('Contest name is required.');
             btn.disabled = false;
             btn.innerHTML = '<i class="bx bx-save"></i> Create Contest';
             return;
         }
-
-        // Validate time constraints
-        const timeErr = validateContestTimes(data.start_time, data.end_time, data.freeze_scoreboard_at);
-        if (timeErr) {
-            alert(timeErr);
+        if (!startUTC) {
+            alert('Start time is required.');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bx bx-save"></i> Create Contest';
+            return;
+        }
+        if (!endUTC) {
+            alert('End time is required.');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bx bx-save"></i> Create Contest';
+            return;
+        }
+        if (startUTC && endUTC && endUTC <= startUTC) {
+            alert('End time must be after start time.');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bx bx-save"></i> Create Contest';
+            return;
+        }
+        if (freezeUTC && startUTC && freezeUTC < startUTC) {
+            alert('Freeze scoreboard time must be on or after start time.');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bx bx-save"></i> Create Contest';
+            return;
+        }
+        if (freezeUTC && endUTC && freezeUTC > endUTC) {
+            alert('Freeze scoreboard time must be on or before end time.');
             btn.disabled = false;
             btn.innerHTML = '<i class="bx bx-save"></i> Create Contest';
             return;
         }
 
+        var data = {
+            name:             form.name.value.trim(),
+            slug:             form.slug.value.trim() || null,
+            description:      form.description.value.trim(),
+            access_password:  form.access_password.value.trim() || null,
+            user_mode:        form.user_mode.value,
+            state:            form.state.value,
+            start_time:           startUTC  ? utcToISO(startUTC)  : null,
+            end_time:             endUTC    ? utcToISO(endUTC)    : null,
+            freeze_scoreboard_at: freezeUTC ? utcToISO(freezeUTC) : null,
+            view_after_ctf: form.view_after_ctf.checked,
+            score_visibility: form.score_visibility.value,
+            team_size: form.user_mode.value === 'users' ? 1 : (form.team_size.value ? parseInt(form.team_size.value) : null),
+            incorrect_submissions_per_min: form.incorrect_submissions_per_min.value ? parseInt(form.incorrect_submissions_per_min.value) : null,
+            captain_only_start_challenge:  form.captain_only_start_challenge.checked,
+            captain_only_submit_challenge: form.captain_only_submit_challenge.checked,
+            team_disbanding:   form.team_disbanding.checked,
+            allow_name_change: form.allow_name_change.checked,
+            challenge_difficulty_visibility: form.challenge_difficulty_visibility.value,
+            limit_challenges: form.limit_challenges.value ? parseInt(form.limit_challenges.value) : null,
+        };
+
         fetch('/api/v1/contests', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'CSRF-Token': nonce,
-            },
+            headers: { 'Content-Type': 'application/json', 'CSRF-Token': nonce },
             body: JSON.stringify(data),
         })
         .then(function (res) { return res.json(); })
@@ -402,8 +568,8 @@ function validateContestTimes(startVal, endVal, freezeVal) {
             if (json.success) {
                 window.location.href = '/admin/contests';
             } else {
-                const errors = json.errors || {};
-                const msg = Object.values(errors).flat().join('\n') || 'Failed to create contest.';
+                var errors = json.errors || {};
+                var msg = Object.values(errors).flat().join('\n') || 'Failed to create contest.';
                 alert(msg);
                 btn.disabled = false;
                 btn.innerHTML = '<i class="bx bx-save"></i> Create Contest';

@@ -62,12 +62,18 @@ def _parse_datetime(value):
     return None
 
 
-def _validate_times(start_time, end_time, freeze_scoreboard_at):
+def _validate_times(start_time, end_time, freeze_scoreboard_at, require_times=False):
     """
     Validate contest time constraints.
     Returns a dict of field -> [error messages], empty dict if all valid.
     """
     errors = {}
+
+    if require_times:
+        if not start_time:
+            errors.setdefault("start_time", []).append("Start time is required.")
+        if not end_time:
+            errors.setdefault("end_time", []).append("End time is required.")
 
     if start_time and end_time:
         if end_time <= start_time:
@@ -155,7 +161,7 @@ class ContestList(Resource):
         end_time = _parse_datetime(data.get("end_time"))
         freeze_scoreboard_at = _parse_datetime(data.get("freeze_scoreboard_at"))
 
-        time_errors = _validate_times(start_time, end_time, freeze_scoreboard_at)
+        time_errors = _validate_times(start_time, end_time, freeze_scoreboard_at, require_times=True)
         if time_errors:
             return {"success": False, "errors": time_errors}, 400
 

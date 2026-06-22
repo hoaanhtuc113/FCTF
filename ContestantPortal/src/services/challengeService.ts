@@ -1,7 +1,17 @@
 import { fetchWithAuth } from './api';
 import { API_ENDPOINTS } from '../config/endpoints';
+import { contestService } from './contestService';
+import type { ContestAccess } from './contestService';
+
+export type { ContestAccessReason } from './contestService';
 
 class ChallengeService {
+  async getContestAccess(): Promise<ContestAccess> {
+    const activeContest = contestService.getActiveContest();
+    const contestId = activeContest?.id ?? 0;
+    return contestService.getContestAccess(contestId);
+  }
+
   async getCategories(): Promise<any[]> {
     try {
       const response = await fetchWithAuth(API_ENDPOINTS.CHALLENGES.BY_TOPIC);

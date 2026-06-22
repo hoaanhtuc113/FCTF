@@ -174,7 +174,7 @@ class TeamList(Resource):
         team = response.data
         kypo_error = None
         try:
-            kypo_creds = create_kypo_user(team.id, team.name)
+            kypo_creds = create_kypo_user(team.id, team.name, contest_id=team.contest_id)
             kypo_account = KypoTeamAccount(
                 team_id=team.id,
                 kypo_user_id=kypo_creds["kypo_user_id"],
@@ -333,9 +333,11 @@ class TeamPublic(Resource):
         responses={200: ("Success", "APISimpleSuccessResponse")},
     )
     def delete(self, team_id):
+        from CTFd.utils.keycloak_service import delete_kypo_user
+
         team = Teams.query.filter_by(id=team_id).first_or_404()
         team_id = team.id
-        
+
         # Store team info before deletion for audit
         team_info = {
             "team_id": team.id,
@@ -350,6 +352,13 @@ class TeamPublic(Resource):
             "banned": team.banned,
             "captain_id": team.captain_id,
         }
+
+        kypo_account = KypoTeamAccount.query.filter_by(team_id=team.id).first()
+        if kypo_account:
+            try:
+                delete_kypo_user(kypo_account.kypo_user_id)
+            except Exception as exc:
+                logger.error("Failed to delete Keycloak user for team %s: %s", team.id, exc)
 
         for member in team.members:
             clear_user_session(user_id=member.id)
@@ -370,6 +379,48 @@ class TeamPublic(Resource):
         db.session.close()
 
         return {"success": True}
+
+
+@teams_namespace.route("/<int:team_id>/kypo")
+@teams_namespace.param("team_id", "Team ID")
+class TeamKypo(Resource):
+    @admins_only
+    def post(self, team_id):
+        from CTFd.utils.keycloak_service import create_kypo_user
+
+        team = Teams.query.filter_by(id=team_id).first_or_404()
+
+        existing = KypoTeamAccount.query.filter_by(team_id=team_id).first()
+        if existing:
+            return {"success": False, "message": "KYPO account already exists for this team."}, 400
+
+        try:
+            kypo_creds = create_kypo_user(team.id, team.name, contest_id=team.contest_id)
+            kypo_account = KypoTeamAccount(
+                team_id=team.id,
+                kypo_user_id=kypo_creds["kypo_user_id"],
+                kypo_username=kypo_creds["kypo_username"],
+                kypo_password=kypo_creds["kypo_password"],
+            )
+            db.session.add(kypo_account)
+            db.session.commit()
+            logger.info("Created KYPO account for team %s (id=%s) via admin API", team.name, team.id)
+        except Exception as exc:
+            logger.error("Failed to create KYPO account for team %s: %s", team.id, exc, exc_info=True)
+            db.session.close()
+            return {"success": False, "message": str(exc)}, 500
+
+        created_at_str = kypo_account.created_at.strftime("%Y-%m-%d %H:%M:%S") if kypo_account.created_at else ""
+        db.session.close()
+        return {
+            "success": True,
+            "data": {
+                "kypo_user_id": kypo_creds["kypo_user_id"],
+                "kypo_username": kypo_creds["kypo_username"],
+                "kypo_password": kypo_creds["kypo_password"],
+                "created_at": created_at_str,
+            },
+        }
 
 
 @teams_namespace.route("/me")
