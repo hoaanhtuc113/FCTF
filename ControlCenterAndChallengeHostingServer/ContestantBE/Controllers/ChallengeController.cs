@@ -799,7 +799,7 @@ public class ChallengeController : BaseController
 
             // Create training run for team (idempotent — returns existing run if already created)
             var kypoAccessToken = kypoConfig?.KypoAccessToken;
-            var instanceType = kypoConfig?.kypo_instance_type ?? "linear";
+            var instanceType = kypoConfig?.KypoInstanceType ?? "linear";
             await GetOrCreateTrainingRunAsync(accessToken, kypoAccessToken, baseUrl, instanceType);
 
 
