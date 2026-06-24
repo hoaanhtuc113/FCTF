@@ -80,7 +80,7 @@ class SandboxChallengeClass(BaseChallenge):
         # Remove KYPO-specific fields before passing to the Challenges model
         kypo_instance_id = data.pop("kypo_instance_id", None)
         kypo_access_token = data.pop("kypo_access_token", None)
-        kypo_instance_type = data.pop("kypo_instance_type", "linear")
+        kypo_instance_type = data.pop("kypo_instance_type", None)
         kypo_base_url = data.pop("kypo_base_url", "https://vuontre.iahn.hanoi.vn")
 
         # Remove deploy-related and form-meta fields not relevant to sandbox

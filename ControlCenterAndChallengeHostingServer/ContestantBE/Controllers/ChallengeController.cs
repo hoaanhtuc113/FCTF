@@ -799,10 +799,12 @@ public class ChallengeController : BaseController
 
             // Create training run for team (idempotent — returns existing run if already created)
             var kypoAccessToken = kypoConfig?.KypoAccessToken;
-            await GetOrCreateTrainingRunAsync(accessToken, kypoAccessToken, baseUrl);
+            var instanceType = kypoConfig?.kypo_instance_type ?? "linear";
+            await GetOrCreateTrainingRunAsync(accessToken, kypoAccessToken, baseUrl, instanceType);
+
 
             var redirectTo = !string.IsNullOrEmpty(kypoAccessToken)
-                ? $"/run/linear/{kypoAccessToken}/access"
+                ? $"/run/{instanceType}/{kypoAccessToken}/access"
                 : "/run";
 
             bridgeUrl = $"{baseUrl}/bridge.html#access_token={Uri.EscapeDataString(accessToken)}" +
@@ -1392,7 +1394,7 @@ public class ChallengeController : BaseController
     );
 }
 
-private async Task GetOrCreateTrainingRunAsync(string teamKeycloakToken, string? kypoAccessToken, string baseUrl)
+private async Task GetOrCreateTrainingRunAsync(string teamKeycloakToken, string? kypoAccessToken, string baseUrl, string instanceType = "linear")
 {
     if (string.IsNullOrEmpty(kypoAccessToken)) return;
 
@@ -1406,7 +1408,10 @@ private async Task GetOrCreateTrainingRunAsync(string teamKeycloakToken, string?
         client.DefaultRequestHeaders.Authorization =
             new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", teamKeycloakToken);
 
-        var url = $"{baseUrl}/training/api/v1/training-runs?accessToken={kypoAccessToken}";
+        var apiBase = string.Equals(instanceType, "adaptive", StringComparison.OrdinalIgnoreCase)
+                ? "adaptive-training/api/v1"
+                : "training/api/v1";
+        var url = $"{baseUrl}/{apiBase}/training-runs?accessToken={kypoAccessToken}";
         var response = await client.PostAsync(url, null);
         var json = await response.Content.ReadAsStringAsync();
         await Console.Out.WriteLineAsync($"[KYPO] TrainingRun created/resumed: {json[..Math.Min(200, json.Length)]}");
