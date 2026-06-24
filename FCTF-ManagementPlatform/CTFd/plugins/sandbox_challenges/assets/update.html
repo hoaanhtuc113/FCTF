@@ -169,7 +169,7 @@
             var typEl = elU("kypo-instance-type-update");
             if (idEl) idEl.value = opt.value;
             if (tokEl) tokEl.value = opt.dataset.accessToken || "";
-            if (typEl) typEl.value = opt.dataset.instanceType || "linear";
+            if (typEl) typEl.value = opt.dataset.instanceType || "";
         }
 
         function loadInstances() {
@@ -194,7 +194,7 @@
                         opt.value = inst.id;
                         opt.textContent = "[" + inst.instance_type.toUpperCase() + "] " + inst.title;
                         opt.dataset.accessToken = inst.access_token || "";
-                        opt.dataset.instanceType = inst.instance_type || "linear";
+                        opt.dataset.instanceType = inst.instance_type || "";
                         opt.dataset.definitionId = inst.training_definition_id || "";
 
                         // Auto-select the instance that is currently linked to this challenge
