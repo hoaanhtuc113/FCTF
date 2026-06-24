@@ -14,7 +14,7 @@ CTFd.plugin.run((_CTFd) => {
         .on('show.bs.modal.sandbox', function (e) {
             // Check if this page is currently rendering a sandbox create form
             var typeInput = document.getElementById('chaltype') ||
-                            document.querySelector('#create-chal-entry-div input[name="type"]');
+                document.querySelector('#create-chal-entry-div input[name="type"]');
             if (!typeInput || typeInput.value !== 'sandbox') return;
 
             // Prevent Bootstrap from showing the modal
@@ -40,7 +40,7 @@ CTFd.plugin.run((_CTFd) => {
     function syncHiddenFields(opt) {
         el("kypo-instance-id").value = opt ? opt.value : "";
         el("kypo-access-token").value = opt ? (opt.dataset.accessToken || "") : "";
-        el("kypo-instance-type").value = opt ? (opt.dataset.instanceType || "linear") : "";
+        el("kypo-instance-type").value = opt ? (opt.dataset.instanceType || "") : "";
     }
 
     // Điểm KHÔNG lấy từ KYPO nữa — admin tự nhập trong ô Score.
@@ -79,7 +79,7 @@ CTFd.plugin.run((_CTFd) => {
                         opt.value = inst.id;
                         opt.textContent = "[" + inst.instance_type.toUpperCase() + "] " + inst.title;
                         opt.dataset.accessToken = inst.access_token || "";
-                        opt.dataset.instanceType = inst.instance_type || "linear";
+                        opt.dataset.instanceType = inst.instance_type || "";
                         opt.dataset.definitionId = inst.training_definition_id || "";
                         select.appendChild(opt);
                     });
