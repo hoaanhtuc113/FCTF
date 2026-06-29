@@ -24,8 +24,6 @@ const files = {
         formData.append(key, value);
       }
 
-      // Hiển thị thông báo đang tải lên
-
       $.ajax({
         url: CTFd.config.urlRoot + "/api/v1/files",
         data: formData,
@@ -50,7 +48,26 @@ const files = {
         },
         error: function (jqXHR, textStatus, errorThrown) {
           console.error("Error during file upload:", textStatus, errorThrown);
-          alert("Error during file upload: " + textStatus + " " + errorThrown);
+          let errorMsg = "Error during file upload: " + textStatus + " " + errorThrown;
+          try {
+            if (jqXHR.responseJSON && jqXHR.responseJSON.errors) {
+              const errors = jqXHR.responseJSON.errors;
+              if (typeof errors === "string") {
+                errorMsg = errors;
+              } else if (typeof errors === "object") {
+                const messages = [];
+                for (let key in errors) {
+                  messages.push(errors[key].join(", "));
+                }
+                if (messages.length > 0) {
+                  errorMsg = messages.join("\\n");
+                }
+              }
+            }
+          } catch (e) {
+            console.error("Error parsing responseJSON", e);
+          }
+          alert(errorMsg);
           reject(new Error("File upload failed: " + jqXHR.statusText));
         },
       });
