@@ -68,7 +68,7 @@ const files = {
             console.error("Error parsing responseJSON", e);
           }
           alert(errorMsg);
-          reject(new Error("File upload failed: " + jqXHR.statusText));
+          reject(new Error(errorMsg));
         },
       });
     });
