@@ -823,10 +823,11 @@ public class ChallengeController : BaseController
                     var (accessToken, refreshToken, idToken, sessionState, expiresIn) = tokenResult.Value;
 
                     var kypoAccessToken = kypoConfig?.kypo_access_token;
-                    await GetOrCreateTrainingRunAsync(accessToken, kypoAccessToken, baseUrl);
+                    var instanceType = kypoConfig?.kypo_instance_type ?? "linear";
+                    await GetOrCreateTrainingRunAsync(accessToken, kypoAccessToken, baseUrl, instanceType);
 
                     var redirectTo = !string.IsNullOrEmpty(kypoAccessToken)
-                        ? $"/run/linear/{kypoAccessToken}/access"
+                        ? $"/run/{instanceType}/{kypoAccessToken}/access"
                         : "/run";
 
                     bridgeUrl = $"{baseUrl}/bridge.html#access_token={Uri.EscapeDataString(accessToken)}" +
@@ -1574,7 +1575,7 @@ public class ChallengeController : BaseController
 
     /// <summary>Tạo training run cho team (idempotent).</summary>
     private async Task GetOrCreateTrainingRunAsync(
-        string teamToken, string? kypoAccessToken, string baseUrl)
+        string teamToken, string? kypoAccessToken, string baseUrl, string instanceType = "linear")
     {
         if (string.IsNullOrEmpty(kypoAccessToken)) return;
         try
@@ -1588,7 +1589,10 @@ public class ChallengeController : BaseController
             client.DefaultRequestHeaders.Authorization =
                 new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", teamToken);
 
-            var url = $"{baseUrl}/training/api/v1/training-runs?accessToken={kypoAccessToken}";
+            var apiBase = string.Equals(instanceType, "adaptive", StringComparison.OrdinalIgnoreCase)
+                ? "adaptive-training/api/v1"
+                : "training/api/v1";
+            var url = $"{baseUrl}/{apiBase}/training-runs?accessToken={kypoAccessToken}";
             var resp = await client.PostAsync(url, null);
             var json = await resp.Content.ReadAsStringAsync();
             await Console.Out.WriteLineAsync(
