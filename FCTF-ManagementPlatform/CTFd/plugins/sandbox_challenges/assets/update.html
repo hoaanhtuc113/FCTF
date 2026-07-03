@@ -190,6 +190,7 @@
                     }
 
                     data.data.forEach(function (inst) {
+                        if ((inst.instance_type || "linear") === "adaptive") return;
                         var opt = document.createElement("option");
                         opt.value = inst.id;
                         opt.textContent = "[" + inst.instance_type.toUpperCase() + "] " + inst.title;

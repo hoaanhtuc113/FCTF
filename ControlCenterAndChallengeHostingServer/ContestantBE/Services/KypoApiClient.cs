@@ -118,7 +118,12 @@ public class KypoApiClient
             var runId  = entry.TryGetProperty("training_run_id", out var rid) ? rid.GetInt32() : 0;
             var levels = new List<KypoLevelProgress>();
 
-            if (entry.TryGetProperty("levels", out var levelsArr))
+            JsonElement levelsArr;
+            bool hasLevels = instanceType == "adaptive"
+                ? (entry.TryGetProperty("phases",     out levelsArr) || entry.TryGetProperty("phase",      out levelsArr) || entry.TryGetProperty("phase_type", out levelsArr))
+                : (entry.TryGetProperty("levels",     out levelsArr) || entry.TryGetProperty("level",      out levelsArr) || entry.TryGetProperty("level_type", out levelsArr));
+
+            if (hasLevels && levelsArr.ValueKind == JsonValueKind.Array)
             {
                 foreach (var lv in levelsArr.EnumerateArray())
                 {

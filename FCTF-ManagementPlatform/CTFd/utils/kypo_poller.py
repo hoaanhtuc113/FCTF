@@ -386,7 +386,13 @@ def _sync_instance(cfg, token: str, rc, username_to_team: dict, safe_first_name_
     for participant in participants:
         kypo_username = participant.get("name", "")
         training_run_id = participant.get("training_run_id")
-        levels = participant.get("levels", [])
+        instance_type = cfg.kypo_instance_type or "linear"
+        if instance_type == "adaptive":
+            levels = (participant.get("phases") or participant.get("phase")
+                      or participant.get("phase_type") or [])
+        else:
+            levels = (participant.get("levels") or participant.get("level")
+                      or participant.get("level_type") or [])
 
         # Format 1 & 2: map trực tiếp (exact + lowercase)
         team_id = username_to_team.get(kypo_username)

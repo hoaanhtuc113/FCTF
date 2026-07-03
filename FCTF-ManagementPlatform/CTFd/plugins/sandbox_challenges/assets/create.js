@@ -75,6 +75,7 @@ function removeClass(id, cls) { var e = el(id); if (e) e.classList.remove(cls); 
 
                 if (data.success && data.data && data.data.length > 0) {
                     data.data.forEach(function (inst) {
+                        if ((inst.instance_type || "linear") === "adaptive") return;
                         var opt = document.createElement("option");
                         opt.value = inst.id;
                         opt.textContent = "[" + inst.instance_type.toUpperCase() + "] " + inst.title;
