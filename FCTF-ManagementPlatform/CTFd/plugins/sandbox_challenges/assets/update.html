@@ -154,10 +154,9 @@
 {% block footer %}
 {{ super() }}
 <script>
-    {# Inline JS — runs immediately as part of the server - rendered update template.
+    {# Inline JS — runs immediately as part of the server-rendered update template.
        No external file loading needed, so this always executes regardless of
-       how the parent page loads scripts. #
-    }
+       how the parent page loads scripts. #}
     {% if not has_started_teams %}
     (function () {
         function elU(id) { return document.getElementById(id); }
