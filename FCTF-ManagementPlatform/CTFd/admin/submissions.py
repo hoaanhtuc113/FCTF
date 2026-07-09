@@ -136,21 +136,27 @@ def submissions_listing(submission_type):
 @admins_only
 def resync_dynamic_challenges():
     """
-    Recalculate values for all dynamic challenges.
-    This endpoint triggers DynamicValueChallenge.calculate_value() for each dynamic challenge.
+    Recalculate values for dynamic challenges.
+    Accepts optional contest_id in JSON body to scope to a specific contest.
     """
     try:
-        # Import here to avoid circular import issues
         from CTFd.plugins.dynamic_challenges import DynamicChallenge, DynamicValueChallenge
         from CTFd.cache import clear_challenges, clear_standings
+
+        req_json = request.get_json(silent=True) or {}
+        contest_id = req_json.get("contest_id")
+
+        query = DynamicChallenge.query
+        if contest_id:
+            query = query.filter(DynamicChallenge.contest_id == int(contest_id))
+
+        dynamic_challenges = query.all()
         
-        # Get all dynamic challenges
-        dynamic_challenges = DynamicChallenge.query.all()
-        
+        scope = f"contest {contest_id}" if contest_id else "all contests"
         if not dynamic_challenges:
             return jsonify({
                 "success": True,
-                "message": "No dynamic challenges found to resync",
+                "message": f"No dynamic challenges found in {scope}",
                 "count": 0
             })
         
@@ -173,7 +179,7 @@ def resync_dynamic_challenges():
         
         return jsonify({
             "success": True,
-            "message": f"Successfully resynced {resync_count} dynamic challenge(s)",
+            "message": f"Successfully resynced {resync_count} dynamic challenge(s) in {scope}",
             "count": resync_count
         })
         

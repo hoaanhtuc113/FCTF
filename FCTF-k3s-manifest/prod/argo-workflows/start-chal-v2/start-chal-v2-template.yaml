@@ -35,6 +35,12 @@ spec:
         value: "15m"
       - name: CHALLENGE_FLAG
         value: ""
+      - name: CONTEST_ID
+        value: "0"
+      - name: CHALLENGE_ID
+        value: "0"
+      - name: TEAM_ID
+        value: "0"
 
   templates:
     - name: main
@@ -67,6 +73,12 @@ spec:
                   value: "{{workflow.parameters.CHALLENGE_TIMEOUT}}"
                 - name: CHALLENGE_FLAG
                   value: "{{workflow.parameters.CHALLENGE_FLAG}}"
+                - name: CONTEST_ID
+                  value: "{{workflow.parameters.CONTEST_ID}}"
+                - name: CHALLENGE_ID
+                  value: "{{workflow.parameters.CHALLENGE_ID}}"
+                - name: TEAM_ID
+                  value: "{{workflow.parameters.TEAM_ID}}"
 
     - name: deploy-challenge-v2
       inputs:
@@ -83,6 +95,9 @@ spec:
           - name: IS_TEMPORARY
           - name: CHALLENGE_TIMEOUT
           - name: CHALLENGE_FLAG
+          - name: CONTEST_ID
+          - name: CHALLENGE_ID
+          - name: TEAM_ID
       priorityClassName: lowest
       activeDeadlineSeconds: 120
       timeout: "120s"
@@ -132,6 +147,9 @@ spec:
             export IS_TEMPORARY="{{inputs.parameters.IS_TEMPORARY}}"
             export CHALLENGE_TIMEOUT="{{inputs.parameters.CHALLENGE_TIMEOUT}}"
             export CHALLENGE_FLAG="{{inputs.parameters.CHALLENGE_FLAG}}"
+            export CONTEST_ID="{{inputs.parameters.CONTEST_ID}}"
+            export CHALLENGE_ID="{{inputs.parameters.CHALLENGE_ID}}"
+            export TEAM_ID="{{inputs.parameters.TEAM_ID}}"
 
             if [ "{{inputs.parameters.USE_GVISOR}}" = "true" ]; then
               export RUNTIME_CLASS_NAME_LINE="runtimeClassName: gvisor"

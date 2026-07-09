@@ -1,6 +1,7 @@
 {% extends "admin/management_hub_base.html" %}
 
 {% block stylesheets %}
+{% set _contest_role = get_user_role_in_contest(contest.id) %}
 <style>
     /* ── Back link ─────────────────────────────────────────────── */
     .cs-back {
@@ -160,7 +161,7 @@
     }
 </style>
 {% block contest_stylesheets %}{% endblock %}
-{% if is_jury() %}
+{% if _contest_role == 'jury' %}
 <style>
 /* Jury read-only: hide all data-mutation buttons */
 #challenges-delete-button, #sb-delete-btn,
@@ -181,7 +182,7 @@ button[onclick="stopAllContest()"],
 }
 </style>
 {% endif %}
-{% if is_challenge_writer() %}
+{% if _contest_role == 'challenge_writer' %}
 <style>
 /* Challenge writer: hide everything except challenge CRUD */
 #btn-create-user, #btn-add-existing-user,
@@ -208,6 +209,7 @@ button[onclick="stopAllContest()"],
 Override the entire sidebar block with contest-scoped navigation
 ══════════════════════════════════════════════════════════════════ #}
 {% block sidebar %}
+{% set _contest_role = get_user_role_in_contest(contest.id) %}
 <nav id="sidebar" class="d-flex flex-column">
 
     {# ── Logo ── #}
@@ -239,7 +241,7 @@ Override the entire sidebar block with contest-scoped navigation
         <i class="bx bx-book"></i> Challenges
     </a>
 
-    {% if not is_challenge_writer() %}
+    {% if _contest_role != 'challenge_writer' %}
     <a href="{{ url_for('admin.contest_users', contest_id=contest.id) }}"
         class="nav-link {% if request.endpoint in ['admin.contest_users', 'admin.contest_user_detail'] %}active{% endif %}">
         <i class="bx bx-user"></i> Users
@@ -302,7 +304,7 @@ Override the entire sidebar block with contest-scoped navigation
     </a>
     {% endif %}
 
-    {% if not is_jury() and not is_challenge_writer() %}
+    {% if _contest_role not in ('jury', 'challenge_writer') %}
     <a href="{{ url_for('admin.contest_settings', contest_id=contest.id) }}"
         class="nav-link {% if request.endpoint == 'admin.contest_settings' %}active{% endif %}">
         <i class="bx bx-cog"></i> Settings

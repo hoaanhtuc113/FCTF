@@ -25,7 +25,8 @@ public interface IK8sService
     Task<bool> DeleteNamespace(string namespaceName);
 
     Task<(int successCount, int failCount, List<string> errors)> DeleteAllChallengeNamespaces(
-        string labelSelector = "ctf/kind=challenge");
+        string labelSelector = "ctf/kind=challenge",
+        HashSet<int>? challengeIdFilter = null);
 
     Task<ChallengeDeployResponeDTO?> HandleChallengeRunning(
         int challengeId,
@@ -85,9 +86,11 @@ public class K8sService : IK8sService
         }
     }
 
-    public async Task<(int successCount, int failCount, List<string> errors)> DeleteAllChallengeNamespaces(string labelSelector = "ctf/kind=challenge")
+    public async Task<(int successCount, int failCount, List<string> errors)> DeleteAllChallengeNamespaces(
+        string labelSelector = "ctf/kind=challenge",
+        HashSet<int>? challengeIdFilter = null)
     {
-        _logger.LogDebug("Deleting all namespaces with label", new { labelSelector });
+        _logger.LogDebug("Deleting all namespaces with label", new { labelSelector, filtered = challengeIdFilter != null });
 
         int successCount = 0;
         int failCount = 0;
@@ -110,28 +113,61 @@ public class K8sService : IK8sService
             foreach (var ns in namespaces.Items)
             {
                 var namespaceName = ns.Metadata.Name;
-                try
-                {
-                    await _kubernetes.CoreV1.DeleteNamespaceAsync(namespaceName,
-                        gracePeriodSeconds: 0,
-                        propagationPolicy: "Background");
 
+                // If a contest filter is specified, only delete namespaces belonging to that contest's challenges
+                if (challengeIdFilter != null)
+                {
+                    try
+                    {
+                        var (_, challengeId) = ChallengeHelper.ParseDeploymentAppName(namespaceName);
+                        if (!challengeIdFilter.Contains(challengeId))
+                            continue;
+                    }
+                    catch
+                    {
+                        continue;
+                    }
+                }
+                bool deleted = false;
+                string? lastError = null;
+                Exception? lastEx = null;
+                for (int attempt = 1; attempt <= 3 && !deleted; attempt++)
+                {
+                    try
+                    {
+                        await _kubernetes.CoreV1.DeleteNamespaceAsync(namespaceName,
+                            gracePeriodSeconds: 0,
+                            propagationPolicy: "Background");
+                        deleted = true;
+                    }
+                    catch (k8s.Autorest.HttpOperationException ex) when ((int)ex.Response.StatusCode == 404)
+                    {
+                        deleted = true;
+                    }
+                    catch (k8s.Autorest.HttpOperationException ex)
+                    {
+                        lastError = $"Failed to delete namespace '{namespaceName}': {ex.Response.Content}";
+                        lastEx = ex;
+                        if (attempt < 3) await Task.Delay(attempt * 1000);
+                    }
+                    catch (Exception ex)
+                    {
+                        lastError = $"Error deleting namespace '{namespaceName}': {ex.Message}";
+                        lastEx = ex;
+                        if (attempt < 3) await Task.Delay(attempt * 1000);
+                    }
+                }
+
+                if (deleted)
+                {
                     successCount++;
                     _logger.LogDebug("Successfully deleted namespace", new { namespaceName });
                 }
-                catch (k8s.Autorest.HttpOperationException ex)
+                else
                 {
                     failCount++;
-                    var error = $"Failed to delete namespace '{namespaceName}': {ex.Response.Content}";
-                    errors.Add(error);
-                    _logger.LogError(ex, data: new { namespaceName, responseContent = ex.Response.Content, errorType = "DeleteNamespaceHttpError" });
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, data: new { namespaceName, errorType = "DeleteNamespaceException" });
-                    failCount++;
-                    var error = $"Error deleting namespace '{namespaceName}': {ex.Message}";
-                    errors.Add(error);
+                    errors.Add(lastError!);
+                    _logger.LogError(lastEx!, data: new { namespaceName, errorType = "DeleteNamespaceRetryExhausted", lastError });
                 }
             }
 
@@ -249,8 +285,9 @@ public class K8sService : IK8sService
             using var scope = _scopeFactory.CreateScope();
             var dbContext = scope.ServiceProvider.GetService<AppDbContext>() ?? throw new Exception("dbcontext null");
             var challenge = await dbContext.Challenges.AsNoTracking()
-                .Select(c => new { c.Id, c.TimeLimit })
-                .FirstOrDefaultAsync(c => c.Id == challengeId);
+                .Where(c => c.Id == challengeId)
+                .Select(c => new { c.Id, c.TimeLimit, ContestEndTime = c.Contest.EndTime })
+                .FirstOrDefaultAsync();
 
             if (challenge == null)
                 return new ChallengeDeployResponeDTO
@@ -296,6 +333,13 @@ public class K8sService : IK8sService
                         });
                     }
                 }
+            }
+
+            if (challenge.ContestEndTime.HasValue)
+            {
+                long contestEndUnix = new DateTimeOffset(challenge.ContestEndTime.Value, TimeSpan.Zero).ToUnixTimeSeconds();
+                if (finalUnixFinished > contestEndUnix)
+                    finalUnixFinished = contestEndUnix;
             }
 
             var expiryOffset = DateTimeOffset.FromUnixTimeSeconds(finalUnixFinished);

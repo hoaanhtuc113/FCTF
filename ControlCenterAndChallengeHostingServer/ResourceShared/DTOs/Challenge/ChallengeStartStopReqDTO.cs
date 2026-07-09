@@ -19,5 +19,6 @@ namespace ResourceShared.DTOs.Challenge
         /// Injected into the K8s pod as the FLAG environment variable.
         /// </summary>
         public string? flagValue { get; set; }
+        public int? contestId { get; set; }
     }
 }

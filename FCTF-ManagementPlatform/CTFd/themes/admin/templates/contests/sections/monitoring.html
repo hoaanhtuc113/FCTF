@@ -534,7 +534,7 @@ async function stopAllContest() {
     const orig = btn.innerHTML;
     btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Stopping...';
     try {
-        const resp = await CTFd.fetch("/api/challenge/stop-all", { method: "DELETE" });
+        const resp = await CTFd.fetch(`/api/challenge/stop-all?contest_id=${CONTEST_ID}`, { method: "DELETE" });
         if (resp.ok) { alert("All instances stopped."); loadData(); }
         else { const r = await resp.json(); alert("Failed: " + (r.error || "Unknown")); }
     } catch (e) { alert("Error: " + e.message); }
