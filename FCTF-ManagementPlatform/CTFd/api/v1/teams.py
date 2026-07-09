@@ -32,6 +32,7 @@ from CTFd.utils.decorators.visibility import (
 from CTFd.utils.helpers.models import build_model_filters
 from CTFd.utils.logging.audit_logger import log_audit
 from CTFd.utils.keycloak_service import create_kypo_user, delete_kypo_user
+from CTFd.utils.aes_helper import encrypt_kypo_password
 import logging as _logging
 
 _kc_logger = _logging.getLogger(__name__)
@@ -180,7 +181,7 @@ class TeamList(Resource):
                 team_id=team.id,
                 kypo_user_id=kypo_info["kypo_user_id"],
                 kypo_username=kypo_info["kypo_username"],
-                kypo_password=kypo_info["kypo_password"],
+                kypo_password=encrypt_kypo_password(kypo_info["kypo_password"]),
             )
             db.session.add(kypo_account)
             db.session.commit()
@@ -410,7 +411,7 @@ class TeamKypoAccount(Resource):
                 team_id=team.id,
                 kypo_user_id=kypo_info["kypo_user_id"],
                 kypo_username=kypo_info["kypo_username"],
-                kypo_password=kypo_info["kypo_password"],
+                kypo_password=encrypt_kypo_password(kypo_info["kypo_password"]),
             )
             db.session.add(kypo_account)
             db.session.commit()
