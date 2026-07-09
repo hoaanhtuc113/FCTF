@@ -6,6 +6,9 @@ metadata:
     ctf/temporary: "${IS_TEMPORARY}"
     ctf/expireAfter: "${CHALLENGE_TIMEOUT}"
     ctf/kind: "challenge"
+    ctf/contest-id: "${CONTEST_ID}"
+    ctf/challenge-id: "${CHALLENGE_ID}"
+    ctf/team-id: "${TEAM_ID}"
 ---
 apiVersion: v1
 kind: Service
@@ -151,6 +154,9 @@ spec:
       labels:
         app: ${CHALLENGE_NAME}
         ctf/kind: "challenge"
+        ctf/contest-id: "${CONTEST_ID}"
+        ctf/challenge-id: "${CHALLENGE_ID}"
+        ctf/team-id: "${TEAM_ID}"
     spec:
       restartPolicy: Never
       automountServiceAccountToken: false

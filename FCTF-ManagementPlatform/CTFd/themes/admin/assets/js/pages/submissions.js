@@ -175,15 +175,19 @@ function copyFlag(event) {
 }
 
 function resyncDynamicChallenges(_event) {
+  const $button = $("#resync-dynamic-button");
+  const contestId = $button.data("contest-id");
+
   ezQuery({
     title: "Resync Dynamic Challenges",
-    body: "Are you sure you want to recalculate all dynamic challenge values? This will update the point values based on current solve counts.",
+    body: "Are you sure you want to recalculate dynamic challenge values for this contest? This will update the point values based on current solve counts.",
     success: function () {
       // Show loading state
-      const $button = $("#resync-dynamic-button");
       const originalHtml = $button.html();
       $button.prop("disabled", true);
       $button.html('<i class="fas fa-spinner fa-spin"></i>');
+
+      const body = contestId ? JSON.stringify({ contest_id: contestId }) : "{}";
 
       CTFd.fetch("/admin/submissions/resync-dynamic", {
         method: "POST",
@@ -192,6 +196,7 @@ function resyncDynamicChallenges(_event) {
           Accept: "application/json",
           "Content-Type": "application/json",
         },
+        body: body,
       })
         .then((response) => response.json())
         .then((data) => {

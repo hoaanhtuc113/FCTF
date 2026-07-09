@@ -6,6 +6,9 @@ metadata:
     ctf/temporary: "${IS_TEMPORARY}"
     ctf/expireAfter: "${CHALLENGE_TIMEOUT}"
     ctf/kind: "challenge"
+    ctf/contest-id: "${CONTEST_ID}"
+    ctf/challenge-id: "${CHALLENGE_ID}"
+    ctf/team-id: "${TEAM_ID}"
     pod-security.kubernetes.io/enforce: "restricted"
     pod-security.kubernetes.io/enforce-version: "latest"
     pod-security.kubernetes.io/audit: "restricted"
@@ -157,6 +160,9 @@ spec:
       labels:
         app: ${CHALLENGE_NAME}
         ctf/kind: "challenge"
+        ctf/contest-id: "${CONTEST_ID}"
+        ctf/challenge-id: "${CHALLENGE_ID}"
+        ctf/team-id: "${TEAM_ID}"
     spec:
       restartPolicy: Never
       automountServiceAccountToken: false

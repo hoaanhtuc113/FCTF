@@ -39,6 +39,7 @@ from CTFd.utils.user import (
     get_current_user_attrs,
     get_current_user_recent_ips,
     get_ip,
+    get_user_role_in_contest,
     is_admin,
     is_challenge_writer,
     is_jury,
@@ -110,6 +111,7 @@ def init_template_globals(app):
     app.jinja_env.globals.update(is_admin=is_admin)
     app.jinja_env.globals.update(is_challenge_writer=is_challenge_writer)
     app.jinja_env.globals.update(is_jury=is_jury)
+    app.jinja_env.globals.update(get_user_role_in_contest=get_user_role_in_contest)
     app.jinja_env.globals.update(get_current_user_attrs=get_current_user_attrs)
     app.jinja_env.globals.update(get_current_team_attrs=get_current_team_attrs)
     app.jinja_env.globals.update(get_ip=get_ip)

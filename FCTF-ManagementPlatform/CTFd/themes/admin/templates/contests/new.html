@@ -202,6 +202,17 @@
                             <i class="bx bx-x"></i> Clear
                         </button>
                     </div>
+                    <div style="align-self:flex-end;padding-bottom:1px;">
+                        <button type="button" class="clean-btn" onclick="clearTime('{{ tname }}')" style="font-size:0.74rem;padding:0.28rem 0.6rem;">
+                            <i class="bx bx-x"></i> Clear
+                        </button>
+                    </div>
+                </div>
+                <div class="time-preview"><label>Local Time</label><span id="{{ tname }}-local-preview">—</span></div>
+                <div class="time-preview"><label>Timezone Time</label><span id="{{ tname }}-tz-preview">—</span></div>
+                <div class="time-utc-row">
+                    <label>UTC Timestamp</label>
+                    <input type="number" class="clean-form-control" id="{{ tname }}-utc-ts" style="width:175px;" placeholder="—" readonly>
                 </div>
                 <div class="time-preview"><label>Local Time</label><span id="{{ tname }}-local-preview">—</span></div>
                 <div class="time-preview"><label>Timezone Time</label><span id="{{ tname }}-tz-preview">—</span></div>
