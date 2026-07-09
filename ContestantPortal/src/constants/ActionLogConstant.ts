@@ -4,6 +4,7 @@ export const actionType = {
   CORRECT_FLAG: 3,
   INCORRECT_FLAG: 4,
   UNLOCK_HINT: 5,
+  SUBMIT_CHALLENGE: 6,
 } as const;
 
 export type ActionType = typeof actionType[keyof typeof actionType];

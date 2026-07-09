@@ -66,11 +66,29 @@ function deleteSelectedUsers(_event) {
         reqs.push(
           CTFd.fetch(`/api/v1/users/${userID}`, {
             method: "DELETE",
-          })
+          }).then((r) => r.json().then((data) => ({ userID, data })))
         );
       }
-      Promise.all(reqs).then((_responses) => {
-        window.location.reload();
+      Promise.all(reqs).then((results) => {
+        const failed = results.filter((r) => !r.data.success);
+        if (failed.length > 0) {
+          const messages = failed.map((r) => {
+            const msg = r.data.errors
+              ? Object.values(r.data.errors)[0]
+              : "Unknown error";
+            return `• User #${r.userID}: ${msg}`;
+          });
+          ezAlert({
+            title: "Some Users Could Not Be Deleted",
+            body: messages.join("<br>"),
+            button: "OK",
+            success: function () {
+              window.location.reload();
+            },
+          });
+        } else {
+          window.location.reload();
+        }
       });
     },
   });

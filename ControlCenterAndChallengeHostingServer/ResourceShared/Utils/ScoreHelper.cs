@@ -331,6 +331,7 @@ public class ScoreHelper
         int? count, int? bracketId, bool admin, DateTime? freezeUtc, int? contestId)
     {
         // Materialize solve scores per team (explicit JOIN, no navigation inside GroupBy)
+        // Điểm luôn lấy từ challenges.value (FCTF quyết định), không lấy từ KYPO score.
         var solveQuery =
             from solve in _context.Solves
             join challenge in _context.Challenges on solve.ChallengeId equals challenge.Id
@@ -389,12 +390,10 @@ public class ScoreHelper
                 scoreMap[a.TeamId] = (a.Score, a.LastId, a.LastDate);
         }
 
-        var scoredTeamIds = scoreMap.Keys.ToList();
-
-        // Load teams that have scores
-        var teamsQuery = _context.Teams
-            .AsNoTracking()
-            .Where(t => scoredTeamIds.Contains(t.Id));
+        // Load ALL teams in this contest (including those with 0 score)
+        var teamsQuery = _context.Teams.AsNoTracking();
+        if (contestId.HasValue)
+            teamsQuery = teamsQuery.Where(t => t.ContestId == contestId.Value);
 
         if (!admin)
             teamsQuery = teamsQuery.Where(t => !(t.Hidden ?? false) && !(t.Banned ?? false));
@@ -444,6 +443,7 @@ public class ScoreHelper
     private async Task<List<StandingDto>> GetUserStandings(
         int? count, int? bracketId, bool admin, DateTime? freezeUtc, int? contestId)
     {
+        // Điểm luôn lấy từ challenges.value (FCTF quyết định), không lấy từ KYPO score.
         var solveQuery =
             from solve in _context.Solves
             join challenge in _context.Challenges on solve.ChallengeId equals challenge.Id
@@ -500,11 +500,11 @@ public class ScoreHelper
                 scoreMap[a.UserId] = (a.Score, a.LastId, a.LastDate);
         }
 
-        var scoredUserIds = scoreMap.Keys.ToList();
-
-        var usersQuery = _context.Users
-            .AsNoTracking()
-            .Where(u => scoredUserIds.Contains(u.Id));
+        // Load ALL users in this contest (including those with 0 score)
+        var usersQuery = _context.Users.AsNoTracking();
+        if (contestId.HasValue)
+            usersQuery = usersQuery.Where(u =>
+                u.TeamMemberships.Any(m => m.Team.ContestId == contestId.Value));
 
         if (!admin)
             usersQuery = usersQuery.Where(u => !(u.Hidden ?? false) && !(u.Banned ?? false));

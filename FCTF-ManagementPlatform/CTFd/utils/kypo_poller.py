@@ -228,12 +228,12 @@ def _clear_scoreboard_cache():
         log.warning("[KYPO Poller] Failed to clear cache: %s", exc)
 
 
-def _insert_solve(challenge_id: int, team_id: int, score: int):
+def _insert_solve(challenge_id: int, team_id: int):
     """
-    UPSERT solve dùng raw SQL với ON DUPLICATE KEY UPDATE để tránh race condition
-    khi nhiều poll cycle chạy đồng thời.
+    Ghi solve với điểm = challenges.value (All-or-Nothing).
+    Chỉ gọi khi team đã FINISHED toàn bộ phases.
     """
-    from CTFd.models import db, Teams
+    from CTFd.models import db, Teams, Challenges
 
     try:
         team = Teams.query.get(team_id)
@@ -242,6 +242,10 @@ def _insert_solve(challenge_id: int, team_id: int, score: int):
             user_id = getattr(team, 'captain_id', None)
             if not user_id and hasattr(team, 'members') and team.members:
                 user_id = team.members[0].id
+
+        # Lấy điểm từ challenges.value
+        challenge = Challenges.query.get(challenge_id)
+        score = challenge.value if challenge else 0
 
         # Kiểm tra solve đã tồn tại chưa
         result = db.session.execute(
@@ -281,6 +285,44 @@ def _insert_solve(challenge_id: int, team_id: int, score: int):
         log.info("[KYPO Poller] Inserted solve challenge=%s team=%s score=%s",
                  challenge_id, team_id, score)
         _clear_scoreboard_cache()
+
+        # Ghi ActionLog SUBMIT_CHALLENGE (type=6) cho từng thành viên team
+        try:
+            from CTFd.models import ActionLogs, Teams, Challenges
+            from CTFd.utils.action_logs import get_topic_name
+            import datetime as _dt
+
+            team = Teams.query.get(team_id)
+            challenge = Challenges.query.get(challenge_id)
+            topic_name = get_topic_name(challenge_id)
+            detail = f"Submitted KYPO sandbox challenge: {challenge.name if challenge else challenge_id} (score={score})"
+
+            if team and hasattr(team, 'members'):
+                members = team.members
+            elif team:
+                from CTFd.models import UserTeamMember
+                members = db.session.query(UserTeamMember).filter_by(team_id=team_id).all()
+            else:
+                members = []
+
+            user_ids = [m.user_id for m in members] if members else []
+            if not user_ids and team and getattr(team, 'captain_id', None):
+                user_ids = [team.captain_id]
+
+            for uid in user_ids:
+                action_log = ActionLogs(
+                    user_id=uid,
+                    date=_dt.datetime.utcnow(),
+                    type=6,  # SUBMIT_CHALLENGE
+                    detail=detail,
+                    topic_name=topic_name,
+                )
+                db.session.add(action_log)
+            db.session.commit()
+            log.info("[KYPO Poller] ActionLog written for challenge=%s team=%s", challenge_id, team_id)
+        except Exception as exc:
+            db.session.rollback()
+            log.warning("[KYPO Poller] Failed to write ActionLog: %s", exc)
 
     except Exception as exc:
         db.session.rollback()
@@ -344,7 +386,13 @@ def _sync_instance(cfg, token: str, rc, username_to_team: dict, safe_first_name_
     for participant in participants:
         kypo_username = participant.get("name", "")
         training_run_id = participant.get("training_run_id")
-        levels = participant.get("levels", [])
+        instance_type = cfg.kypo_instance_type or "linear"
+        if instance_type == "adaptive":
+            levels = (participant.get("phases") or participant.get("phase")
+                      or participant.get("phase_type") or [])
+        else:
+            levels = (participant.get("levels") or participant.get("level")
+                      or participant.get("level_type") or [])
 
         # Format 1 & 2: map trực tiếp (exact + lowercase)
         team_id = username_to_team.get(kypo_username)
@@ -392,10 +440,11 @@ def _sync_instance(cfg, token: str, rc, username_to_team: dict, safe_first_name_
             "last_synced": now_iso,
         })
 
-        # Ghi Solve khi có điểm > 0 (kể cả IN_PROGRESS để lấy điểm partial)
-        if score > 0:
+        # All-or-Nothing: chỉ ghi Solve khi FINISHED (làm xong hết)
+        # Điểm = challenges.value (full điểm), không dùng điểm partial từ KYPO
+        if status == "FINISHED":
             try:
-                _insert_solve(cfg.challenge_id, team_id, score)
+                _insert_solve(cfg.challenge_id, team_id)
             except Exception as exc:
                 db.session.rollback()
                 log.error(

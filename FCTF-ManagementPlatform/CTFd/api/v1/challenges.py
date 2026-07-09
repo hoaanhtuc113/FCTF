@@ -334,7 +334,7 @@ class ChallengeList(Resource):
         challenge_class = get_chal_class(challenge_type)
         # Pass the server-validated contest_id so create() can merge it into
         # the model data (client cannot spoof this value).
-        challenge = challenge_class.create(request, extra_data={"contest_id": validated_contest_id})
+        challenge = challenge_class.create(request, extra_data={"contest_id": validated_contest_id, "created_by": session["id"]})
 
         req_json = request.get_json() or {}
         image_link_val = req_json.get("image_link")

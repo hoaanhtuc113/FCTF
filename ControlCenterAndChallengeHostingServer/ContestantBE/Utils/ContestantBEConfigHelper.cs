@@ -1,4 +1,4 @@
-﻿namespace ContestantBE.Utils;
+namespace ContestantBE.Utils;
 
 public class ContestantBEConfigHelper
 {
@@ -21,40 +21,34 @@ public class ContestantBEConfigHelper
     // Polling interval cho KypoTimeoutWatcher (giây)
     public static int KypoPollIntervalSeconds = 10;
 
-
     public static bool IsTurnstileEnabled => !string.IsNullOrWhiteSpace(CLOUDFLARE_TURNSTILE_SECRET_KEY);
 
-    public void InitConfig()
+    /// <summary>
+    /// Reads config from DB table first, falls back to ENV variables.
+    /// DB keys match ManagementPlatform config table.
+    /// </summary>
+    public void InitConfig(string dbConnectionString)
     {
-        REDIS_CONNECTION_STRING = GetRequiredEnv("REDIS_CONNECTION");
-        PRIVATE_KEY = GetRequiredEnv("PRIVATE_KEY");
-        DeploymentCenterAPI = GetRequiredEnv("DEPLOYMENT_SERVICE_API");
-        NFS_MOUNT_PATH = GetRequiredEnv("NFS_MOUNT_PATH");
-        CLOUDFLARE_TURNSTILE_SECRET_KEY = GetOptionalEnv("CLOUDFLARE_TURNSTILE_SECRET_KEY")
-            ?? GetOptionalEnv("TURNSTILE_SECRET_KEY")
-            ?? string.Empty;
+        using var db = DbConfigReader.BuildTempContext(dbConnectionString);
 
-        KypoBaseUrl = GetOptionalEnv("KYPO_BASE_URL") ?? KypoBaseUrl;
-        KypoRealm = GetOptionalEnv("KYPO_REALM") ?? KypoRealm;
-        KypoClientId = GetOptionalEnv("KYPO_CLIENT_ID") ?? KypoClientId;
-        KypoAdminUser = GetOptionalEnv("KYPO_ADMIN_USER") ?? "";
-        KypoAdminPass = GetOptionalEnv("KYPO_ADMIN_PASS") ?? "";
-        KypoClientSecret = GetOptionalEnv("KYPO_CLIENT_SECRET") ?? "";
-        KypoKeycloakAdminUser = GetOptionalEnv("KYPO_KEYCLOAK_ADMIN_USER") ?? "admin";
-        KypoKeycloakAdminPass = GetOptionalEnv("KYPO_KEYCLOAK_ADMIN_PASS") ?? "";
-        KypoPollIntervalSeconds = int.TryParse(
-            GetOptionalEnv("KYPO_POLL_INTERVAL_SECONDS"), out var kpi) ? kpi : 10;
-    }
+        REDIS_CONNECTION_STRING         = DbConfigReader.GetRequired(db, "redis_connection",               "REDIS_CONNECTION");
+        PRIVATE_KEY                     = DbConfigReader.GetRequired(db, "private_key",                    "PRIVATE_KEY");
+        DeploymentCenterAPI             = DbConfigReader.GetRequired(db, "deployment_service_api",         "DEPLOYMENT_SERVICE_API");
+        NFS_MOUNT_PATH                  = DbConfigReader.GetRequired(db, "nfs_mount_path",                 "NFS_MOUNT_PATH");
+        CLOUDFLARE_TURNSTILE_SECRET_KEY = DbConfigReader.GetOptional(db, "cloudflare_turnstile_secret_key",
+                                              "CLOUDFLARE_TURNSTILE_SECRET_KEY", "TURNSTILE_SECRET_KEY")
+                                          ?? string.Empty;
 
-    private static string GetRequiredEnv(string key)
-    {
-        return Environment.GetEnvironmentVariable(key)
-            ?? throw new Exception($"Can't read env: {key}");
-    }
+        KypoBaseUrl             = DbConfigReader.GetOptional(db, "kypo_base_url",      "KYPO_BASE_URL")      ?? KypoBaseUrl;
+        KypoRealm               = DbConfigReader.GetOptional(db, "kypo_realm",         "KYPO_REALM")         ?? KypoRealm;
+        KypoClientId            = DbConfigReader.GetOptional(db, "kypo_client_id",     "KYPO_CLIENT_ID")     ?? KypoClientId;
+        KypoClientSecret        = DbConfigReader.GetOptional(db, "kypo_client_secret", "KYPO_CLIENT_SECRET") ?? "";
+        KypoAdminUser           = DbConfigReader.GetOptional(db, "kypo_username",      "KYPO_ADMIN_USER")    ?? "";
+        KypoAdminPass           = DbConfigReader.GetOptional(db, "kypo_password",      "KYPO_ADMIN_PASS")    ?? "";
+        KypoKeycloakAdminUser   = DbConfigReader.GetOptional(db, "kypo_admin_username","KYPO_KEYCLOAK_ADMIN_USER") ?? "admin";
+        KypoKeycloakAdminPass   = DbConfigReader.GetOptional(db, "kypo_admin_password","KYPO_KEYCLOAK_ADMIN_PASS") ?? "";
 
-    private static string? GetOptionalEnv(string key)
-    {
-        var value = Environment.GetEnvironmentVariable(key);
-        return string.IsNullOrWhiteSpace(value) ? null : value;
+        var pollStr = DbConfigReader.GetOptional(db, "kypo_poll_interval_seconds", "KYPO_POLL_INTERVAL_SECONDS");
+        KypoPollIntervalSeconds = int.TryParse(pollStr, out var kpi) ? kpi : 10;
     }
 }

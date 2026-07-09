@@ -2046,6 +2046,7 @@ def contest_create_team(contest_id):
 def contest_team_detail(contest_id, team_id):
     from sqlalchemy import not_
     from CTFd.models import Challenges, Tracking, Solves, Fails, Awards, UserTeamMember, KypoTeamAccount
+    from CTFd.utils.aes_helper import decrypt_kypo_password
 
     contest = Contests.query.filter_by(id=contest_id).first_or_404()
     team = Teams.query.filter_by(id=team_id).first_or_404()
@@ -2056,7 +2057,7 @@ def contest_team_detail(contest_id, team_id):
     # Scope all queries to challenges belonging to this contest
     challenge_ids_subq = db.session.query(Challenges.id).filter(
         Challenges.contest_id == contest_id
-    ).subquery()
+    ).scalar_subquery()
 
     solves = (
         Solves.query
@@ -2114,6 +2115,9 @@ def contest_team_detail(contest_id, team_id):
     )
 
     kypo_account = KypoTeamAccount.query.filter_by(team_id=team_id).first()
+    if kypo_account:
+        db.session.expunge(kypo_account)
+        kypo_account.kypo_password = decrypt_kypo_password(kypo_account.kypo_password)
 
     return render_template(
         "admin/teams/team.html",

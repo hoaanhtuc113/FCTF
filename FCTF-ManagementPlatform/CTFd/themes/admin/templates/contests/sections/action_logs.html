@@ -10,6 +10,7 @@
 	.badge-correct  { background: #d4edda; color: #155724; }
 	.badge-incorrect{ background: #f8d7da; color: #721c24; }
 	.badge-hint     { background: #fff3cd; color: #856404; }
+	.badge-submit   { background: #d6d8f7; color: #2d2f8f; }
 	.badge-unknown  { background: #e2e3e5; color: #383d41; }
 	.cell-truncate  { max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 	.detail-cell    { max-width: 260px; word-break: break-word; font-size: .8rem; }
@@ -21,7 +22,8 @@
 	2: "START_CHALLENGE",
 	3: "CORRECT_FLAG",
 	4: "INCORRECT_FLAG",
-	5: "UNLOCK_HINT"
+	5: "UNLOCK_HINT",
+	6: "SUBMIT_CHALLENGE"
 } %}
 
 {% block contest_content %}
@@ -159,6 +161,8 @@
 						<span class="badge badge-type badge-incorrect">{{ type_label }}</span>
 						{% elif log.type == 5 %}
 						<span class="badge badge-type badge-hint">{{ type_label }}</span>
+						{% elif log.type == 6 %}
+						<span class="badge badge-type badge-submit">{{ type_label }}</span>
 						{% else %}
 						<span class="badge badge-type badge-unknown">{{ log.type }} – {{ type_label }}</span>
 						{% endif %}

@@ -82,28 +82,39 @@ public class KypoTimeoutWatcher : BackgroundService
             var deadline = s.StartedAt.AddMinutes(s.TimeLimit);
             if (deadline > now) continue; // chưa hết giờ
 
-            // Đánh dấu stopped_at để tránh xử lý lại
+            // Chốt điểm TRƯỚC khi đánh dấu stopped_at.
+            // Nếu KYPO API không phản hồi (ApiError), giữ nguyên session để cycle sau retry.
+            KypoLockResult lockResult;
+            try
+            {
+                lockResult = await lockService.LockScoreAsync(s.ChallengeId, s.TeamId);
+                _logger.LogInformation(
+                    "[KYPO TIMEOUT] Hết giờ challenge={ChallengeId} team={TeamId} → {Result}",
+                    s.ChallengeId, s.TeamId, lockResult);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex,
+                    "[KYPO TIMEOUT] Chốt điểm hết giờ lỗi challenge={ChallengeId} team={TeamId} — sẽ retry cycle sau",
+                    s.ChallengeId, s.TeamId);
+                continue; // Không đánh dấu stopped — retry lần sau
+            }
+
+            if (lockResult == KypoLockResult.ApiError)
+            {
+                _logger.LogWarning(
+                    "[KYPO TIMEOUT] ApiError challenge={ChallengeId} team={TeamId} — sẽ retry cycle sau",
+                    s.ChallengeId, s.TeamId);
+                continue; // Không đánh dấu stopped — retry lần sau
+            }
+
+            // Đánh dấu stopped_at sau khi chốt điểm thành công (hoặc NotDone/AlreadySolved)
             var tracking = await db.ChallengeStartTrackings
                 .FirstOrDefaultAsync(x => x.Id == s.Id);
             if (tracking != null && tracking.StoppedAt == null)
             {
                 tracking.StoppedAt = now;
                 await db.SaveChangesAsync();
-            }
-
-            // Chốt điểm (all-or-nothing)
-            try
-            {
-                var locked = await lockService.LockScoreAsync(s.ChallengeId, s.TeamId);
-                _logger.LogInformation(
-                    "[KYPO TIMEOUT] Hết giờ challenge={ChallengeId} team={TeamId} → {Result}",
-                    s.ChallengeId, s.TeamId, locked ? "GHI ĐIỂM" : "0 điểm");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex,
-                    "[KYPO TIMEOUT] Chốt điểm hết giờ lỗi challenge={ChallengeId} team={TeamId}",
-                    s.ChallengeId, s.TeamId);
             }
         }
     }

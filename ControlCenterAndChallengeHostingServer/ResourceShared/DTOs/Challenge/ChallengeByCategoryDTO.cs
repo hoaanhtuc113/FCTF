@@ -21,6 +21,7 @@ namespace ResourceShared.DTOs.Challenge
         public string? type { get; set; }
         public ChallengeRequirementsDTO? requirements { get; set; }
         public bool solve_by_myteam { get; set; }
+        public bool kypo_submitted { get; set; }
         public string? pod_status { get; set; } = null;
         public int? difficulty { get; set; }
         public bool shared_instance { get; set; }

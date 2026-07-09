@@ -23,7 +23,7 @@ _token_cache: dict = {"token": None, "expires_at": 0, "creds_hash": None}
 
 
 def _get_admin_token() -> str:
-    """Lấy master admin token, cache lại trong 240s (token sống 300s)."""
+    """Lấy master admin token, cache lại trong 45s (token sống 60s)."""
     from CTFd.utils.kypo_config import get_kypo_config, get_kypo_verify_ssl
 
     keycloak_url = get_kypo_config("kypo_keycloak_url")
@@ -57,8 +57,9 @@ def _get_admin_token() -> str:
     )
     resp.raise_for_status()
     data = resp.json()
+    expires_in = data.get("expires_in", 60)
     _token_cache["token"]      = data["access_token"]
-    _token_cache["expires_at"] = now + 240
+    _token_cache["expires_at"] = now + max(expires_in - 15, 10)
     _token_cache["creds_hash"] = creds_hash
     return _token_cache["token"]
 
@@ -167,6 +168,61 @@ def create_kypo_user(team_id: int, team_name: str, contest_id: int = None) -> di
         f"after 5 attempts. Last conflict on: '{username}'"
     )
 
+    if resp.status_code == 409:
+        # User đã tồn tại — lấy lại UUID và reset password
+        logger.warning("Keycloak user '%s' already exists, fetching existing user.", username)
+        search_url = f"{keycloak_url}/admin/realms/{realm}/users?username={username}&exact=true"
+        search_resp = requests.get(
+            search_url,
+            headers={"Authorization": f"Bearer {token}"},
+            verify=verify_ssl,
+            timeout=10,
+        )
+        search_resp.raise_for_status()
+        users_found = search_resp.json()
+        if not users_found:
+            raise ValueError(f"Keycloak user '{username}' reported as duplicate but could not be found.")
+        kypo_user_id = users_found[0]["id"]
+
+        # Reset password
+        reset_url = f"{keycloak_url}/admin/realms/{realm}/users/{kypo_user_id}/reset-password"
+        reset_resp = requests.put(
+            reset_url,
+            json={"type": "password", "value": password, "temporary": False},
+            headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+            verify=verify_ssl,
+            timeout=10,
+        )
+        reset_resp.raise_for_status()
+        logger.info("Reused existing Keycloak user: %s (id=%s) for team %s", username, kypo_user_id, team_id)
+        return {
+            "kypo_user_id":  kypo_user_id,
+            "kypo_username": username,
+            "kypo_password": password,
+        }
+
+    if not resp.ok:
+        logger.error(
+            "Keycloak create user failed: status=%s body=%s",
+            resp.status_code, resp.text[:500],
+        )
+        resp.raise_for_status()
+
+    location     = resp.headers.get("Location", "")
+    kypo_user_id = location.rstrip("/").split("/")[-1]
+
+    if not kypo_user_id:
+        raise RuntimeError(
+            f"Keycloak returned status {resp.status_code} but no Location header. "
+            f"Headers: {dict(resp.headers)}"
+        )
+
+    logger.info("Created Keycloak user: %s (id=%s) for team %s", username, kypo_user_id, team_id)
+    return {
+        "kypo_user_id":  kypo_user_id,
+        "kypo_username": username,
+        "kypo_password": password,
+    }
 
 def delete_kypo_user(kypo_user_id: str) -> bool:
     """

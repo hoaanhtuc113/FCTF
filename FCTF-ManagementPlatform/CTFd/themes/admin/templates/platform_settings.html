@@ -39,7 +39,7 @@
                 <div class="form-group mb-2">
                     <label class="form-label"
                         style="font-size: 0.85rem; font-weight: 600; color: var(--text-medium);">Logo</label>
-                    <small class="form-text text-muted d-block mb-2">Logo hiển thị thay cho tên CTF.</small>
+                    <small class="form-text text-muted d-block mb-2">Displayed in place of the CTF name.</small>
                     {% if ctf_logo %}
                     <div class="mb-2">
                         <img id="ctf_logo_preview" src="{{ url_for('views.files', path=ctf_logo) }}" alt="CTF Logo"
@@ -64,7 +64,7 @@
                     <label class="form-label"
                         style="font-size: 0.85rem; font-weight: 600; color: var(--text-medium);">Tab Icon
                         (Favicon)</label>
-                    <small class="form-text text-muted d-block mb-2">Chỉ nhận PNG, kích thước 32×32px.</small>
+                    <small class="form-text text-muted d-block mb-2">PNG only, must be 32×32px.</small>
                     {% if ctf_small_icon %}
                     <div class="mb-2">
                         <img id="ctf_small_icon_preview" src="{{ url_for('views.files', path=ctf_small_icon) }}"
@@ -167,7 +167,7 @@
                     KYPO Cyber Range Integration
                 </h5>
                 <small class="form-text text-muted d-block mb-3">
-                    Cấu hình kết nối tới KYPO Cyber Range. Giá trị để trống sẽ dùng lại environment variable mặc định.
+                    Configure the connection to KYPO Cyber Range. Leave a field blank to fall back to the default environment variable.
                 </small>
 
                 <div class="row">
@@ -262,7 +262,7 @@
                                 <option value="false" {% if kypo_verify_ssl != 'true' %}selected{% endif %}>Disabled</option>
                                 <option value="true"  {% if kypo_verify_ssl == 'true'  %}selected{% endif %}>Enabled</option>
                             </select>
-                            <small class="form-text text-muted mt-1">Tắt khi dùng self-signed certificate.</small>
+                            <small class="form-text text-muted mt-1">Disable when using a self-signed certificate.</small>
                         </div>
                     </div>
                 </div>

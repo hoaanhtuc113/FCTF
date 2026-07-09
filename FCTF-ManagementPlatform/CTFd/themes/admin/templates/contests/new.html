@@ -99,7 +99,7 @@
 </div>
 
 <div class="container">
-    <form id="new-contest-form" autocomplete="off">
+    <form id="new-contest-form" autocomplete="off" novalidate>
 
         <!-- Basic Info -->
         <div class="form-section">
@@ -202,6 +202,17 @@
                             <i class="bx bx-x"></i> Clear
                         </button>
                     </div>
+                    <div style="align-self:flex-end;padding-bottom:1px;">
+                        <button type="button" class="clean-btn" onclick="clearTime('{{ tname }}')" style="font-size:0.74rem;padding:0.28rem 0.6rem;">
+                            <i class="bx bx-x"></i> Clear
+                        </button>
+                    </div>
+                </div>
+                <div class="time-preview"><label>Local Time</label><span id="{{ tname }}-local-preview">—</span></div>
+                <div class="time-preview"><label>Timezone Time</label><span id="{{ tname }}-tz-preview">—</span></div>
+                <div class="time-utc-row">
+                    <label>UTC Timestamp</label>
+                    <input type="number" class="clean-form-control" id="{{ tname }}-utc-ts" style="width:175px;" placeholder="—" readonly>
                 </div>
                 <div class="time-preview"><label>Local Time</label><span id="{{ tname }}-local-preview">—</span></div>
                 <div class="time-preview"><label>Timezone Time</label><span id="{{ tname }}-tz-preview">—</span></div>
@@ -391,17 +402,30 @@
         if (!year || !month || !day) return null;
         var h = parseInt(hour) || 0;
         var m = parseInt(minute) || 0;
-        var naive = new Date(Date.UTC(year, month - 1, day, h, m, 0));
+        // Build ISO string as if it were local time in chosen timezone,
+        // then use the browser to find the UTC equivalent via a known trick:
+        // format a UTC epoch in the target timezone and compute the offset.
         try {
-            var fmt = new Intl.DateTimeFormat('en-US', {
-                timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit',
-                hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
+            // Step 1: create a candidate UTC date assuming the input is UTC
+            var candidate = new Date(Date.UTC(year, month - 1, day, h, m, 0));
+            // Step 2: format that UTC time AS IF it were displayed in target tz
+            var fmt = new Intl.DateTimeFormat('en-CA', {
+                timeZone: tz,
+                year: 'numeric', month: '2-digit', day: '2-digit',
+                hour: '2-digit', minute: '2-digit', second: '2-digit',
+                hour12: false
             });
             var parts = {};
-            fmt.formatToParts(naive).forEach(function (p) { parts[p.type] = p.value; });
+            fmt.formatToParts(candidate).forEach(function (p) { parts[p.type] = p.value; });
             var ph = parseInt(parts.hour); if (ph === 24) ph = 0;
-            var shown = new Date(Date.UTC(parseInt(parts.year), parseInt(parts.month) - 1, parseInt(parts.day), ph, parseInt(parts.minute), parseInt(parts.second)));
-            return new Date(naive.getTime() - (shown.getTime() - naive.getTime()));
+            // Step 3: that display time is offset from UTC by (candidate_utc - displayed_as_utc)
+            var displayed = new Date(Date.UTC(
+                parseInt(parts.year), parseInt(parts.month) - 1, parseInt(parts.day),
+                ph, parseInt(parts.minute), parseInt(parts.second)
+            ));
+            var offsetMs = candidate.getTime() - displayed.getTime();
+            // Step 4: actual UTC = input (treated as tz-local) minus offset
+            return new Date(candidate.getTime() + offsetMs);
         } catch (e) { return null; }
     }
 
@@ -488,6 +512,18 @@
 
         if (!form.name.value.trim()) {
             alert('Contest name is required.');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bx bx-save"></i> Create Contest';
+            return;
+        }
+        if (!startUTC) {
+            alert('Start time is required.');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bx bx-save"></i> Create Contest';
+            return;
+        }
+        if (!endUTC) {
+            alert('End time is required.');
             btn.disabled = false;
             btn.innerHTML = '<i class="bx bx-save"></i> Create Contest';
             return;

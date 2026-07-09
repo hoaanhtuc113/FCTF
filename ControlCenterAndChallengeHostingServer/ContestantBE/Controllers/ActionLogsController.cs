@@ -53,4 +53,12 @@ public class ActionLogsController : BaseController
             data = logs_with_details
         });
     }
+
+    [HttpPost("save-logs")]
+    public async Task<IActionResult> SaveActionLog([FromBody] ActionLogsReq req)
+    {
+        var userId = UserContext.UserId;
+        await _actionLogsServices.SaveActionLogs(req, userId);
+        return Ok(new { success = true });
+    }
 }

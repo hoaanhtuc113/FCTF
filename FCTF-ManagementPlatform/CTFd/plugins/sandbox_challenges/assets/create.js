@@ -42,7 +42,7 @@ function removeClass(id, cls) { var e = el(id); if (e) e.classList.remove(cls); 
     function syncHiddenFields(opt) {
         el("kypo-instance-id").value = opt ? opt.value : "";
         el("kypo-access-token").value = opt ? (opt.dataset.accessToken || "") : "";
-        el("kypo-instance-type").value = opt ? (opt.dataset.instanceType || "linear") : "";
+        el("kypo-instance-type").value = opt ? (opt.dataset.instanceType || "") : "";
     }
 
     // Điểm KHÔNG lấy từ KYPO nữa — admin tự nhập trong ô Score.
@@ -75,11 +75,12 @@ function removeClass(id, cls) { var e = el(id); if (e) e.classList.remove(cls); 
 
                 if (data.success && data.data && data.data.length > 0) {
                     data.data.forEach(function (inst) {
+                        if ((inst.instance_type || "linear") === "adaptive") return;
                         var opt = document.createElement("option");
                         opt.value = inst.id;
                         opt.textContent = "[" + inst.instance_type.toUpperCase() + "] " + inst.title;
                         opt.dataset.accessToken = inst.access_token || "";
-                        opt.dataset.instanceType = inst.instance_type || "linear";
+                        opt.dataset.instanceType = inst.instance_type || "";
                         opt.dataset.definitionId = inst.training_definition_id || "";
                         select.appendChild(opt);
                     });

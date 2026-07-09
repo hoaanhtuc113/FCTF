@@ -600,7 +600,7 @@ public class ChallengeController : BaseController
                 await _actionLogsServices.SaveActionLogs(new ActionLogsReq
                 {
                     ActionType = 3, // CORRECT_FLAG
-                    ActionDetail = $"Nộp cờ đúng cho thử thách {challenge.Name}",
+                    ActionDetail = $"Correct flag submitted for challenge \"{challenge.Name}\"",
                     ChallengeId = challenge.Id,
                 }, user.Id);
             }
@@ -705,7 +705,7 @@ public class ChallengeController : BaseController
             await _actionLogsServices.SaveActionLogs(new ActionLogsReq
             {
                 ActionType = 4, // INCORRECT_FLAG
-                ActionDetail = $"Nộp cờ sai cho thử thách {challenge.Name}",
+                ActionDetail = $"Incorrect flag submitted for challenge \"{challenge.Name}\"",
                 ChallengeId = challenge.Id,
             }, user.Id);
         }
@@ -816,17 +816,18 @@ public class ChallengeController : BaseController
             if (kypoAccount?.kypo_username != null && kypoAccount?.kypo_password != null)
             {
                 var tokenResult = await GetKeycloakTokenAsync(
-                    kypoAccount.kypo_username, kypoAccount.kypo_password, baseUrl);
+                    kypoAccount.kypo_username, AesHelper.Decrypt(kypoAccount.kypo_password), baseUrl);
 
                 if (tokenResult != null)
                 {
                     var (accessToken, refreshToken, idToken, sessionState, expiresIn) = tokenResult.Value;
 
                     var kypoAccessToken = kypoConfig?.kypo_access_token;
-                    await GetOrCreateTrainingRunAsync(accessToken, kypoAccessToken, baseUrl);
+                    var instanceType = kypoConfig?.kypo_instance_type ?? "linear";
+                    await GetOrCreateTrainingRunAsync(accessToken, kypoAccessToken, baseUrl, instanceType);
 
                     var redirectTo = !string.IsNullOrEmpty(kypoAccessToken)
-                        ? $"/run/linear/{kypoAccessToken}/access"
+                        ? $"/run/{instanceType}/{kypoAccessToken}/access"
                         : "/run";
 
                     bridgeUrl = $"{baseUrl}/bridge.html#access_token={Uri.EscapeDataString(accessToken)}" +
@@ -914,6 +915,20 @@ public class ChallengeController : BaseController
                 await Console.Error.WriteLineAsync($"[KYPO] Ghi challenge_start_tracking lỗi: {ex.Message}");
             }
 
+            try
+            {
+                await _actionLogsServices.SaveActionLogs(new ActionLogsReq
+                {
+                    ActionType = 2, // START_CHALLENGE
+                    ActionDetail = $"Started KYPO sandbox challenge \"{challenge.Name}\"",
+                    ChallengeId = challenge.Id,
+                }, user.Id);
+            }
+            catch (Exception ex)
+            {
+                await Console.Error.WriteLineAsync($"[ActionLog] Failed to save START_CHALLENGE log for KYPO challenge {challenge.Id}: {ex.Message}");
+            }
+
             return Ok(new
             {
                 status             = (int)HttpStatusCode.OK,
@@ -921,7 +936,7 @@ public class ChallengeController : BaseController
                 challenge_type     = "kypo",
                 challenge_url      = bridgeUrl,
                 kypo_username      = kypoAccount?.kypo_username ?? "",
-                kypo_password      = kypoAccount?.kypo_password ?? "",
+                kypo_password      = kypoAccount?.kypo_password != null ? AesHelper.Decrypt(kypoAccount.kypo_password) : "",
                 kypo_access_token  = kypoConfig?.kypo_access_token ?? "",
             });
         }
@@ -1124,7 +1139,7 @@ public class ChallengeController : BaseController
                     await _actionLogsServices.SaveActionLogs(new ActionLogsReq
                     {
                         ActionType = 2, // START_CHALLENGE
-                        ActionDetail = $"Khởi động thử thách {challenge.Name}",
+                        ActionDetail = $"Started challenge \"{challenge.Name}\"",
                         ChallengeId = challenge.Id,
                     }, user.Id);
                 }
@@ -1202,14 +1217,59 @@ public class ChallengeController : BaseController
 
         if (isSandboxStop || kypoConfigStop != null)
         {
-            // Đánh dấu phiên đã dừng
-            var openTrackings = await _context.ChallengeStartTrackings
+            // KYPO: chốt điểm TRƯỚC khi đóng session
+            // Nếu API lỗi → giữ session mở để team retry
+            if (kypoConfigStop != null)
+            {
+                KypoLockResult lockResult;
+                try
+                {
+                    lockResult = await _scoreLockService.LockScoreAsync(challenge.Id, teamId.Value);
+                }
+                catch (Exception ex)
+                {
+                    await Console.Error.WriteLineAsync($"[KYPO] Chốt điểm khi stop lỗi: {ex.Message}");
+                    lockResult = KypoLockResult.ApiError;
+                }
+
+                if (lockResult == KypoLockResult.ApiError)
+                {
+                    return StatusCode((int)HttpStatusCode.ServiceUnavailable, new ChallengeDeployResponeDTO
+                    {
+                        status  = (int)HttpStatusCode.ServiceUnavailable,
+                        success = false,
+                        message = "Cannot connect to KYPO. Please try again.",
+                    });
+                }
+
+                // Đóng session sau khi đã chốt điểm thành công
+                var openTrackings = await _context.ChallengeStartTrackings
+                    .Where(t => t.ChallengeId == challenge.Id
+                             && t.TeamId == teamId.Value
+                             && t.StoppedAt == null)
+                    .ToListAsync();
+                foreach (var t in openTrackings) t.StoppedAt = DateTime.UtcNow;
+                if (openTrackings.Count > 0) await _context.SaveChangesAsync();
+
+                await _redisHelper.RemoveCacheAsync(cache_key);
+
+                var solved = lockResult == KypoLockResult.Solved || lockResult == KypoLockResult.AlreadySolved;
+                return Ok(new ChallengeDeployResponeDTO
+                {
+                    status  = (int)HttpStatusCode.OK,
+                    success = true,
+                    message = solved ? "Completed! Score has been recorded." : "Sandbox session ended.",
+                });
+            }
+
+            // Sandbox thuần (không phải KYPO): đóng session ngay
+            var sandboxTrackings = await _context.ChallengeStartTrackings
                 .Where(t => t.ChallengeId == challenge.Id
                          && t.TeamId == teamId.Value
                          && t.StoppedAt == null)
                 .ToListAsync();
-            foreach (var t in openTrackings) t.StoppedAt = DateTime.UtcNow;
-            if (openTrackings.Count > 0) await _context.SaveChangesAsync();
+            foreach (var t in sandboxTrackings) t.StoppedAt = DateTime.UtcNow;
+            if (sandboxTrackings.Count > 0) await _context.SaveChangesAsync();
 
             await _redisHelper.RemoveCacheAsync(cache_key);
             return Ok(new ChallengeDeployResponeDTO
@@ -1334,8 +1394,8 @@ public class ChallengeController : BaseController
         {
             await _actionLogsServices.SaveActionLogs(new ActionLogsReq
             {
-                ActionType = 5, // SUBMIT_CHALLENGE
-                ActionDetail = $"Nộp bài thử thách {challenge.Name}",
+                ActionType = 6, // SUBMIT_CHALLENGE
+                ActionDetail = $"Submitted KYPO sandbox challenge \"{challenge.Name}\"",
                 ChallengeId = challenge.Id,
             }, user.Id);
         }
@@ -1344,10 +1404,15 @@ public class ChallengeController : BaseController
             await Console.Error.WriteLineAsync($"[ActionLog] Failed to save SUBMIT_CHALLENGE log: {ex.Message}");
         }
 
-        return Ok(new ChallengeDeployResponeDTO
+        // Check if team solved after locking
+        bool isSolved = await _context.Solves
+            .AnyAsync(s => s.ChallengeId == challenge.Id && s.TeamId == teamId.Value);
+
+        return Ok(new
         {
             status = (int)HttpStatusCode.OK,
             success = true,
+            solved = isSolved,
             message = "Challenge submitted and permanently locked.",
         });
     }
@@ -1462,7 +1527,7 @@ public class ChallengeController : BaseController
         var rows = await _context.Database
             .SqlQueryRaw<KypoTeamAccount>(
                 "SELECT id, team_id, kypo_user_id, kypo_username, kypo_password " +
-                "FROM kypo_team_accounts WHERE team_id = {0} LIMIT 1",
+                "FROM kypo_team_accounts WHERE team_id = {0} ORDER BY id DESC LIMIT 1",
                 teamId)
             .ToListAsync();
         return rows.FirstOrDefault();
@@ -1510,7 +1575,7 @@ public class ChallengeController : BaseController
 
     /// <summary>Tạo training run cho team (idempotent).</summary>
     private async Task GetOrCreateTrainingRunAsync(
-        string teamToken, string? kypoAccessToken, string baseUrl)
+        string teamToken, string? kypoAccessToken, string baseUrl, string instanceType = "linear")
     {
         if (string.IsNullOrEmpty(kypoAccessToken)) return;
         try
@@ -1524,7 +1589,10 @@ public class ChallengeController : BaseController
             client.DefaultRequestHeaders.Authorization =
                 new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", teamToken);
 
-            var url = $"{baseUrl}/training/api/v1/training-runs?accessToken={kypoAccessToken}";
+            var apiBase = string.Equals(instanceType, "adaptive", StringComparison.OrdinalIgnoreCase)
+                ? "adaptive-training/api/v1"
+                : "training/api/v1";
+            var url = $"{baseUrl}/{apiBase}/training-runs?accessToken={kypoAccessToken}";
             var resp = await client.PostAsync(url, null);
             var json = await resp.Content.ReadAsStringAsync();
             await Console.Out.WriteLineAsync(
