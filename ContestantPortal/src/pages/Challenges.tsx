@@ -2101,13 +2101,6 @@ function ChallengeDetailPanel({
         const timerLine = (challenge.time_limit && challenge.time_limit > 0)
           ? `<div class="${theme === 'dark' ? 'text-orange-400' : 'text-orange-600'} mb-1">> Time limit: <strong>${formatTime(challenge.time_limit * 60)}</strong></div>`
           : '';
-        const credLines = newKypoInfo.access_token
-          ? `<div class="${theme === 'dark' ? 'bg-gray-800 border-gray-600' : 'bg-gray-50 border-gray-300'} rounded border p-3 mb-2">
-              <div class="${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'} text-xs mb-1">Instance Access Token:</div>
-              <div class="${theme === 'dark' ? 'text-orange-300' : 'text-orange-700'} text-xs break-all select-all">${newKypoInfo.access_token}</div>
-            </div>`
-          : '';
-
         const result = await Swal.fire({
           html: `
             <div class="font-mono text-left text-sm">
