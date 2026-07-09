@@ -816,7 +816,7 @@ public class ChallengeController : BaseController
             if (kypoAccount?.kypo_username != null && kypoAccount?.kypo_password != null)
             {
                 var tokenResult = await GetKeycloakTokenAsync(
-                    kypoAccount.kypo_username, kypoAccount.kypo_password, baseUrl);
+                    kypoAccount.kypo_username, AesHelper.Decrypt(kypoAccount.kypo_password), baseUrl);
 
                 if (tokenResult != null)
                 {
@@ -936,7 +936,7 @@ public class ChallengeController : BaseController
                 challenge_type     = "kypo",
                 challenge_url      = bridgeUrl,
                 kypo_username      = kypoAccount?.kypo_username ?? "",
-                kypo_password      = kypoAccount?.kypo_password ?? "",
+                kypo_password      = kypoAccount?.kypo_password != null ? AesHelper.Decrypt(kypoAccount.kypo_password) : "",
                 kypo_access_token  = kypoConfig?.kypo_access_token ?? "",
             });
         }

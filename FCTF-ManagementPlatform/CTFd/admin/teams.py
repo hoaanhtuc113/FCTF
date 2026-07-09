@@ -5,6 +5,7 @@ from sqlalchemy.sql import not_
 
 from CTFd.admin import admin
 from CTFd.models import Brackets, Challenges, Contests, KypoTeamAccount, Teams, Tracking, UserTeamMember, Users, db
+from CTFd.utils.aes_helper import decrypt_kypo_password
 from CTFd.utils.decorators import admin_or_jury, admins_only
 
 
@@ -110,6 +111,9 @@ def teams_detail(team_id):
     )
 
     kypo_account = KypoTeamAccount.query.filter_by(team_id=team_id).first()
+    if kypo_account:
+        db.session.expunge(kypo_account)
+        kypo_account.kypo_password = decrypt_kypo_password(kypo_account.kypo_password)
 
     is_detail = True
 
