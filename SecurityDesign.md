@@ -268,33 +268,57 @@ FCTF không có cơ chế lockout tập trung. Mỗi thành phần có chính s�
 
 ## 4.6 OWASP Top 10 Mitigation Checklist
 
-| Risk | Mitigation |
+Bảng dưới đây ánh xạ tổng quan các cơ chế bảo mật đã được cài đặt thực tế trong hệ thống FCTF để phòng chống các lỗ hổng theo tiêu chuẩn **OWASP Top 10 (2021)**:
+
+| Lỗ hổng OWASP Top 10 | Cơ chế phòng thủ tổng quan |
 | :--- | :--- |
-| **A01 — Broken Access Control** | Auth tại Service layer; Token revocation. **Kiểm soát truy cập mạng qua Zero-Trust NetworkPolicy (Xem 4.13)**. |
-| **A02 — Cryptographic Failures** | Contestant: bcrypt-sha256 v2 + HMAC-SHA256 JWT; Admin: CTFd bcrypt. HTTPS enforced (Xem 4.20). |
-| **A03 — Injection** | Parameterized queries; **Chống Path Traversal bằng canonicalization và NFS Read-Only (Xem 4.17)**; Dynamic Flag Verification (Xem 4.10). |
-| **A05 — Security Misconfiguration** | **Triển khai NSA/CISA K8s Hardening (Xem 4.15)** và **Pod Security Standards (Xem 4.12)**; gVisor sandbox. |
-| **A07 — Auth Failures** | Contestant IP rate limit + CAPTCHA; Stateful JWT revocation (tokenUuid). **Bảo vệ CSRF (Xem 4.18)**. |
-| **A09 — Logging Failures** | Phân quyền tối thiểu và **ghi log truy cập trái phép Database (Xem 4.19)**; **Centralized Logging với Loki (Xem 4.21)**. |
+| **A01:2021 – Broken Access Control** | Xác thực qua Middleware (`[Authorize]`); Cách ly dữ liệu theo `contest_id`; Kiểm soát mạng Zero-Trust bằng NetworkPolicy (Xem 4.12). |
+| **A02:2021 – Cryptographic Failures** | Băm mật khẩu (bcrypt-sha256); Ký JWT bằng HMAC-SHA256; Bắt buộc HTTPS qua Ingress TLS Termination. |
+| **A03:2021 – Injection** | Dùng Parameterized Queries (EF Core / SQLAlchemy); Chống Path Traversal (Canonicalization); Cơ chế Dynamic Flag từ K8s Secrets. |
+| **A04:2021 – Insecure Design** | Áp dụng Rate Limiting đa lớp (Nginx, Gateway, Redis); Phân quyền tối thiểu (Least Privilege) tại Database. |
+| **A05:2021 – Security Misconfiguration** | Hardening K8s theo chuẩn NSA/CISA; Pod Security Standards (Restricted); Cách ly Kernel bằng gVisor. |
+| **A07:2021 – Identification and Authentication Failures** | Stateful JWT Revocation; Giới hạn IP chống Brute Force; Bảo vệ CSRF qua `HttpOnly` và `SameSite=Lax`. |
+| **A09:2021 – Security Logging and Monitoring Failures** | Lưu log tập trung (Loki Stack); Ghi vết hành vi hệ thống (`ActionLogs`, Exception Logging, `DeploymentListener`). |
+| **A10:2021 – Server-Side Request Forgery (SSRF)** | Chặn mọi kết nối Egress ra ngoài từ Challenge Pods bằng `strict-egress` NetworkPolicy (Cấm truy cập Internal IP). |
 
 ---
 
 ## 4.7 Security Filter Chain Configuration
 
-*(Luồng middleware thực tế của ContestantBE trên ASP.NET Core — trích từ `Program.cs`)*
+Hệ thống duy trì hai luồng Security Filter Chain riêng biệt cho Contestant (ASP.NET Core) và Admin (Flask/CTFd).
+
+### 4.7.1 Contestant Backend (ASP.NET Core)
+
+*(Luồng middleware thực tế — trích từ `Program.cs`)*
 
 ```csharp
 app.UseRouting();
 app.UseCors("AllowAll");
-app.UseIpRateLimiting();                          // Redis-based rate limiting theo IP
-app.UseOutputCache();
-app.UseAuthentication();                          // Validate JWT Bearer (HMAC-SHA256, PRIVATE_KEY)
-app.UseAuthorization();                           // Enforce [Authorize] attributes
-app.UseMiddleware<TokenAuthenticationMiddleware>(); // Kiểm tra tokenUuid DB/cache + user status
+app.UseIpRateLimiting();                          // 1. Redis-based rate limiting theo IP
+app.UseOutputCache();                             // 2. Caching chống lạm dụng tải
+app.UseAuthentication();                          // 3. Validate JWT signature (HMAC-SHA256, PRIVATE_KEY)
+app.UseAuthorization();                           // 4. Enforce [Authorize] attributes
+app.UseMiddleware<TokenAuthenticationMiddleware>(); // 5. Kiểm tra tokenUuid (Stateful) + User Banned status
 app.MapControllers();
 ```
 
-**Ghi chú**: CTFd (Admin portal) dùng Flask middleware stack riêng (WSGI), không liên quan đến pipeline này.
+### 4.7.2 Admin Portal (CTFd Flask)
+
+*(Cấu trúc các hooks bảo mật tại `CTFd/utils/initialization/__init__.py` và `CTFd/__init__.py`)*
+
+Admin portal (CTFd) sử dụng kiến trúc WSGI middleware kết hợp với hàng loạt `before_request` hooks để thiết lập các chốt chặn bảo mật tuần tự trước khi request chạm đến Controller:
+
+1. **ProxyFix (Werkzeug)**: Phân giải IP thực của request từ các header `X-Forwarded-*` do Ingress chuyển xuống (`app.wsgi_app = ProxyFix(...)`).
+2. **Import Lock (`needs_setup`)**: Chặn mọi request (trả về 403) nếu hệ thống đang trong trạng thái `import_in_progress` để tránh race condition làm hỏng DB.
+3. **Session Tracking (`tracker`)**: Ghi nhận IP hiện tại của user/admin vào `Tracking` table. Bắt lỗi `OperationalError` để xử lý an toàn các xung đột (deadlocks) ở tầng DB.
+4. **Banned Check (`banned`)**: Chặn ngay ở cổng (trả về 403) nếu user hoặc team đang bị đánh dấu `banned` trong DB.
+5. **Token Verification (`tokens`)**: Xử lý xác thực API phi trạng thái nếu có header `Authorization: Token ...` (thường dùng cho các tích hợp tự động).
+6. **Strict CSRF Protection (`csrf`)**: 
+   - Kiểm tra mã `nonce` ngẫu nhiên sinh ra mỗi phiên đăng nhập trên mọi thao tác state-changing (`POST`, `PUT`, `DELETE`).
+   - Yêu cầu khớp `CSRF-Token` header (nếu là JSON request) hoặc hidden field `nonce` (nếu là Form data). 
+7. **Role Restriction**: 
+   - Hook `_restrict_swagger_to_admins()` khóa hoàn toàn giao diện Swagger UI với người dùng thường.
+   - Decorator `@admins_only` trên tất cả các route Blueprint `/admin` đảm bảo chỉ tài khoản cấp quản trị mới có thể truy xuất.
 
 ---
 
