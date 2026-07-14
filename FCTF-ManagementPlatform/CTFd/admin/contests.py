@@ -1698,6 +1698,148 @@ def contest_create_user(contest_id):
     }, 201
 
 
+def _import_single_user_row_to_contest(contest, row):
+    """
+    Create one brand-new platform user from an imported Excel row and add
+    them to `contest`. Mirrors contest_create_user's insert logic, except
+    team assignment is resolved automatically per row instead of via an
+    explicit create_team flag: an empty `team` means no team, a `team`
+    matching an existing team in this contest joins that team, and any
+    other non-empty value creates a new team on the fly.
+
+    Returns (ok, payload) — payload is the success `data` dict or an
+    `errors` dict. Never raises for expected validation failures, since
+    callers loop over many rows and one bad/duplicate row must not abort
+    the rest of the import.
+    """
+    from CTFd.models import Teams, UserTeamMember, Users
+    from CTFd.utils.crypto import hash_password
+
+    name      = (row.get("username") or row.get("name") or "").strip()
+    email     = (row.get("email") or "").strip()
+    password  = (row.get("password") or "").strip()
+    team_name = (row.get("team") or "").strip()
+    role      = (row.get("role") or "contestant").strip().lower()
+    if role not in ("contestant", "jury", "challenge_writer"):
+        role = "contestant"
+
+    errors = {}
+    if not name:
+        errors["name"] = ["Username is required."]
+    if not email:
+        errors["email"] = ["Email is required."]
+    if not password:
+        errors["password"] = ["Password is required."]
+    if errors:
+        return False, errors
+
+    # Skip rows whose username or email is already registered in the system.
+    if Users.query.filter_by(name=name).first():
+        return False, {"name": ["Username already exists in the system."]}
+    if Users.query.filter_by(email=email).first():
+        return False, {"email": ["Email already exists in the system."]}
+
+    # ── 1. Create the platform user ───────────────────────────────────────────
+    user = Users(
+        name=name,
+        email=email,
+        password=password,   # auto-hashed by @validates
+        type="user",
+        verified=True,        # admin-imported accounts are pre-verified
+    )
+    db.session.add(user)
+    db.session.flush()
+
+    resolved_team_name = None
+
+    # ── 2. Contest-mode-specific team logic ───────────────────────────────────
+    if contest.user_mode == "users":
+        if role == "contestant":
+            # Auto-create solo team named after the user
+            resolved_team_name = user.name
+            team = Teams.query.filter_by(
+                contest_id=contest.id, name=resolved_team_name
+            ).first()
+            if team is None:
+                team = Teams(
+                    name=resolved_team_name,
+                    email=user.email,
+                    password=hash_password("changeme"),
+                    contest_id=contest.id,
+                    captain_user_id=user.id,
+                )
+                db.session.add(team)
+                db.session.flush()
+            team.members.append(user)
+    else:
+        # team mode — empty team column = no team; otherwise join-or-create
+        if team_name and role == "contestant":
+            team = Teams.query.filter_by(contest_id=contest.id, name=team_name).first()
+            if team is None:
+                team = Teams(
+                    name=team_name,
+                    email=user.email,
+                    password=hash_password("changeme"),
+                    contest_id=contest.id,
+                    captain_user_id=user.id,
+                )
+                db.session.add(team)
+                db.session.flush()
+            else:
+                # Enforce team_size limit when joining an existing team
+                if contest.team_size:
+                    current_count = (
+                        db.session.query(db.func.count(UserTeamMember.id))
+                        .filter_by(team_id=team.id)
+                        .scalar()
+                    )
+                    if current_count >= contest.team_size:
+                        return False, {
+                            "team": [
+                                "Team '{}' is full. Teams are limited to {} member{}.".format(
+                                    team_name,
+                                    contest.team_size,
+                                    "" if contest.team_size == 1 else "s",
+                                )
+                            ]
+                        }
+            team.members.append(user)
+            resolved_team_name = team_name
+
+    # ── 3. Insert ContestParticipant ──────────────────────────────────────────
+    cp = ContestParticipant(contest_id=contest.id, user_id=user.id, role=role)
+    db.session.add(cp)
+
+    return True, {
+        "id": user.id,
+        "name": user.name,
+        "email": user.email,
+        "team": resolved_team_name,
+        "role": role,
+    }
+
+
+@admin.route("/admin/contests/<int:contest_id>/import_users", methods=["POST"])
+@admins_only
+def contest_import_users(contest_id):
+    """
+    Import one row (one brand-new user) from an Excel-based bulk import into
+    this contest. The client parses the uploaded .xlsx file and POSTs one
+    row at a time, mirroring the platform-wide CSV importer's per-row
+    request/progress pattern (see users_import_users in admin/users.py).
+    """
+    contest = Contests.query.filter_by(id=contest_id).first_or_404()
+    req = request.get_json(force=True) or {}
+
+    ok, payload = _import_single_user_row_to_contest(contest, req)
+    if not ok:
+        db.session.rollback()
+        return {"success": False, "errors": payload}, 400
+
+    db.session.commit()
+    return {"success": True, "data": payload}, 201
+
+
 @admin.route("/admin/contests/<int:contest_id>/teams_search", methods=["GET"])
 @admins_only
 def contest_teams_search(contest_id):

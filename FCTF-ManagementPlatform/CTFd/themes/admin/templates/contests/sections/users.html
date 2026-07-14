@@ -177,6 +177,9 @@
             <button type="button" class="clean-btn clean-btn-primary" id="btn-create-user">
                 <i class="fas fa-user-plus"></i> Create New User
             </button>
+            <button type="button" class="clean-btn" id="btn-import-contest-users" style="background:#17a2b8;border-color:#17a2b8;color:#fff;">
+                <i class="fas fa-file-import"></i> Import Users
+            </button>
         </div>
         <div class="d-flex align-items-center" style="gap:0.5rem;">
             <button type="button" class="clean-btn"
@@ -595,6 +598,41 @@
                 </button>
             </div>
         </form>
+    </div>
+</div>
+
+<!-- ── Import Users (Excel) modal ─────────────────────────────────────────── -->
+<div class="import-modal-overlay" id="import-contest-users-modal">
+    <div class="import-modal-box">
+        <button class="import-modal-close" id="import-contest-modal-close" title="Close">&times;</button>
+        <h5><i class="fas fa-file-import" style="color:#17a2b8;"></i> Import Users from Excel</h5>
+        <p style="font-size:0.88rem;color:#666;margin-bottom:0.5rem;">
+            Upload an Excel file (.xlsx) with columns: <code>username</code>, <code>email</code>, <code>password</code>.<br>
+            Optional: <code>role</code> (contestant/jury/challenge_writer), <code>team</code>.
+        </p>
+        <p style="font-size:0.8rem;color:#888;margin-bottom:1rem;">
+            Rows whose username or email already exists in the system are skipped and reported as errors.
+            {% if contest.user_mode == "teams" %}Leave <code>team</code> empty for no team; a name matching an existing team joins it, any other name creates a new team.{% endif %}
+        </p>
+        <div class="import-drop-zone" id="import-contest-drop-zone">
+            <input type="file" id="import-contest-file-input" accept=".xlsx,.xls">
+            <i class="fas fa-cloud-upload-alt" style="font-size:2rem;color:#adb5bd;"></i>
+            <div style="margin-top:0.5rem;color:#666;font-size:0.9rem;">Drag &amp; drop Excel file here, or click to browse</div>
+        </div>
+        <div class="import-file-name" id="import-contest-file-name"></div>
+        <div id="import-contest-progress" style="display:none;margin-top:0.75rem;">
+            <div class="progress" style="height:6px;border-radius:4px;">
+                <div class="progress-bar bg-info" id="import-contest-progress-bar" style="width:0%;transition:width 0.3s;"></div>
+            </div>
+            <small id="import-contest-progress-text" style="color:#555;"></small>
+        </div>
+        <div id="import-contest-results" style="display:none;margin-top:0.75rem;max-height:140px;overflow-y:auto;"></div>
+        <div class="d-flex justify-content-end mt-3" style="gap:0.5rem;">
+            <button type="button" class="clean-btn btn-outline-secondary" id="import-contest-cancel">Cancel</button>
+            <button type="button" class="clean-btn" id="import-contest-submit" style="background:#17a2b8;border-color:#17a2b8;color:#fff;" disabled>
+                <i class="fas fa-upload"></i> Import
+            </button>
+        </div>
     </div>
 </div>
 
@@ -1436,6 +1474,174 @@ if (cuForm) {
         });
     });
 }
+
+// ── Import Users (Excel) ────────────────────────────────────────────────────
+(function() {
+    const importModal      = document.getElementById('import-contest-users-modal');
+    if (!importModal) return;
+
+    const importOpenBtn    = document.getElementById('btn-import-contest-users');
+    const importCloseBtn   = document.getElementById('import-contest-modal-close');
+    const importCancelBtn  = document.getElementById('import-contest-cancel');
+    const importSubmitBtn  = document.getElementById('import-contest-submit');
+    const importFileInput  = document.getElementById('import-contest-file-input');
+    const importDropZone   = document.getElementById('import-contest-drop-zone');
+    const importFileName   = document.getElementById('import-contest-file-name');
+    const importProgress   = document.getElementById('import-contest-progress');
+    const importProgressBar= document.getElementById('import-contest-progress-bar');
+    const importProgressText = document.getElementById('import-contest-progress-text');
+    const importResults    = document.getElementById('import-contest-results');
+    let importParsedRows = [];
+    let importHasFailures = false;
+
+    function parseExcel(arrayBuffer) {
+        const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+        return rows.map(function(row) {
+            const obj = {};
+            Object.keys(row).forEach(function(key) {
+                obj[key.trim().toLowerCase()] = String(row[key]).trim();
+            });
+            return obj;
+        }).filter(function(r) { return r.username || r.name || r.email; });
+    }
+
+    function openImportModal() {
+        importModal.classList.add('active');
+        resetImportUI();
+    }
+    function resetImportUI() {
+        importFileInput.value = '';
+        importFileName.textContent = '';
+        importSubmitBtn.disabled = true;
+        importSubmitBtn.style.display = '';
+        importProgress.style.display = 'none';
+        importResults.style.display = 'none';
+        importResults.innerHTML = '';
+        importSubmitBtn.innerHTML = '<i class="fas fa-upload"></i> Import';
+        importParsedRows = [];
+        importHasFailures = false;
+    }
+    function closeImportModal() {
+        importModal.classList.remove('active');
+    }
+
+    function handleImportFile(file) {
+        importFileName.textContent = file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)';
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                importParsedRows = parseExcel(e.target.result);
+            } catch (err) {
+                importParsedRows = [];
+            }
+            if (importParsedRows.length > 0) {
+                importSubmitBtn.disabled = false;
+                importFileName.textContent += ' - ' + importParsedRows.length + ' users found';
+            } else {
+                importSubmitBtn.disabled = true;
+                importFileName.textContent += ' - No valid rows found. Check column headers.';
+            }
+        };
+        reader.readAsArrayBuffer(file);
+    }
+
+    importOpenBtn.addEventListener('click', openImportModal);
+    importCloseBtn.addEventListener('click', closeImportModal);
+    importCancelBtn.addEventListener('click', closeImportModal);
+    importModal.addEventListener('click', function(e) {
+        if (e.target === importModal) closeImportModal();
+    });
+
+    importDropZone.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        importDropZone.classList.add('dragover');
+    });
+    importDropZone.addEventListener('dragleave', function() {
+        importDropZone.classList.remove('dragover');
+    });
+    importDropZone.addEventListener('drop', function(e) {
+        e.preventDefault();
+        importDropZone.classList.remove('dragover');
+        const file = e.dataTransfer.files[0];
+        if (file) handleImportFile(file);
+    });
+    importFileInput.addEventListener('change', function() {
+        if (this.files[0]) handleImportFile(this.files[0]);
+    });
+
+    importSubmitBtn.addEventListener('click', async function() {
+        if (importHasFailures) {
+            // Previous run had errors — let the user pick a new/fixed file and retry.
+            resetImportUI();
+            return;
+        }
+        if (!importParsedRows.length) return;
+        importSubmitBtn.disabled = true;
+        importProgress.style.display = 'block';
+        importResults.style.display = 'block';
+        importResults.innerHTML = '';
+
+        let success = 0;
+        let failed = 0;
+        for (let i = 0; i < importParsedRows.length; i++) {
+            const r = importParsedRows[i];
+            const pct = Math.round(((i + 1) / importParsedRows.length) * 100);
+            importProgressBar.style.width = pct + '%';
+            importProgressText.textContent = 'Processing ' + (i + 1) + ' / ' + importParsedRows.length + '...';
+
+            const payload = {
+                username: r.username || r.name || '',
+                email:    r.email || '',
+                password: r.password || '',
+                role:     (r.role || 'contestant').toLowerCase(),
+                team:     r.team || '',
+            };
+            const label = payload.username || payload.email;
+
+            try {
+                const resp = await fetch('/admin/contests/{{ contest.id }}/import_users', {
+                    method: 'POST',
+                    headers: csrfHeaders(),
+                    body: JSON.stringify(payload)
+                });
+                const data = await resp.json();
+                if (data.success) {
+                    success++;
+                    let msg = 'OK ' + label;
+                    if (data.data && data.data.team) { msg += ' (Team: ' + data.data.team + ')'; }
+                    importResults.innerHTML += '<div style="color:#28a745;font-size:0.82rem;">' + msg + '</div>';
+                } else {
+                    failed++;
+                    const msg = (data.errors && Object.values(data.errors).flat().join(', ')) || 'error';
+                    importResults.innerHTML += '<div style="color:#dc3545;font-size:0.82rem;">FAIL ' + label + ' - ' + msg + '</div>';
+                }
+            } catch (_) {
+                failed++;
+                importResults.innerHTML += '<div style="color:#dc3545;font-size:0.82rem;">FAIL ' + label + ' - network error</div>';
+            }
+            importResults.scrollTop = importResults.scrollHeight;
+        }
+
+        if (failed === 0) {
+            // Everything imported cleanly — close the modal and reload the page.
+            importHasFailures = false;
+            importProgressText.textContent = 'All ' + success + ' user(s) imported successfully!';
+            importSubmitBtn.style.display = 'none';
+            setTimeout(function() {
+                closeImportModal();
+                window.location.reload();
+            }, 1200);
+        } else {
+            // Some rows failed — keep the modal open and let the user fix the file and retry.
+            importHasFailures = true;
+            importProgressText.textContent = 'Done - ' + success + ' imported, ' + failed + ' failed.';
+            importSubmitBtn.disabled = false;
+            importSubmitBtn.innerHTML = '<i class="fas fa-redo"></i> Upload Again';
+        }
+    });
+})();
 
 // ── Export CSV ────────────────────────────────────────────────────────────
 (function () {
