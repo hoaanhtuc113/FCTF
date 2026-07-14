@@ -9,6 +9,7 @@ from flask_restx import Namespace, Resource
 from sqlalchemy import func
 
 from CTFd.models import (
+    Awards,
     Challenges,
     Contests,
     Fails,
@@ -21,6 +22,8 @@ from CTFd.models import (
     Users,
     db,
 )
+from CTFd.schemas.awards import AwardSchema
+from CTFd.schemas.submissions import SubmissionSchema
 from CTFd.utils.decorators import admin_or_challenge_writer_only_or_jury as admins_only
 
 contest_statistics_namespace = Namespace(
@@ -416,4 +419,96 @@ class ContestChallengeAnalytics(Resource):
                 "category_most_solved": category_most_solved,
                 "category_least_solved": category_least_solved,
             },
+        }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# /api/v1/contest_statistics/<contest_id>/users/<user_id>/{solves,fails,awards}
+# Per-user solves/fails/awards scoped to a single contest — used by the
+# "User Statistics" modal on the contest detail page.
+# ─────────────────────────────────────────────────────────────────────────────
+@contest_statistics_namespace.route("/<int:contest_id>/users/<int:user_id>/solves")
+class ContestUserSolves(Resource):
+    method_decorators = [admins_only]
+
+    def get(self, contest_id, user_id):
+        Contests.query.filter_by(id=contest_id).first_or_404()
+        Users.query.filter_by(id=user_id).first_or_404()
+        challenge_ids = _get_contest_challenge_ids(contest_id)
+
+        solves = []
+        if challenge_ids:
+            solves = (
+                Solves.query.filter(
+                    Solves.user_id == user_id,
+                    Solves.challenge_id.in_(challenge_ids),
+                )
+                .order_by(Solves.date.desc())
+                .all()
+            )
+
+        response = SubmissionSchema(view="admin", many=True).dump(solves)
+        if response.errors:
+            return {"success": False, "errors": response.errors}, 400
+
+        return {
+            "success": True,
+            "data": response.data,
+            "meta": {"count": len(response.data)},
+        }
+
+
+@contest_statistics_namespace.route("/<int:contest_id>/users/<int:user_id>/fails")
+class ContestUserFails(Resource):
+    method_decorators = [admins_only]
+
+    def get(self, contest_id, user_id):
+        Contests.query.filter_by(id=contest_id).first_or_404()
+        Users.query.filter_by(id=user_id).first_or_404()
+        challenge_ids = _get_contest_challenge_ids(contest_id)
+
+        fails = []
+        if challenge_ids:
+            fails = (
+                Fails.query.filter(
+                    Fails.user_id == user_id,
+                    Fails.challenge_id.in_(challenge_ids),
+                )
+                .order_by(Fails.date.desc())
+                .all()
+            )
+
+        response = SubmissionSchema(view="admin", many=True).dump(fails)
+        if response.errors:
+            return {"success": False, "errors": response.errors}, 400
+
+        return {
+            "success": True,
+            "data": response.data,
+            "meta": {"count": len(fails)},
+        }
+
+
+@contest_statistics_namespace.route("/<int:contest_id>/users/<int:user_id>/awards")
+class ContestUserAwards(Resource):
+    method_decorators = [admins_only]
+
+    def get(self, contest_id, user_id):
+        Contests.query.filter_by(id=contest_id).first_or_404()
+        Users.query.filter_by(id=user_id).first_or_404()
+
+        awards = (
+            Awards.query.filter_by(user_id=user_id, contest_id=contest_id)
+            .order_by(Awards.date.desc())
+            .all()
+        )
+
+        response = AwardSchema(view="admin", many=True).dump(awards)
+        if response.errors:
+            return {"success": False, "errors": response.errors}, 400
+
+        return {
+            "success": True,
+            "data": response.data,
+            "meta": {"count": len(response.data)},
         }
