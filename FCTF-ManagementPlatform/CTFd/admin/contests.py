@@ -2795,16 +2795,16 @@ def contest_dynamic_reward(contest_id):
 @admins_only
 def contest_verify_access(contest_id):
     """
-    Hiển thị form nhập access_password của contest.
-    Sau khi nhập đúng, lưu contest_id vào session và redirect về trang đích.
+    Show a form to enter the contest's access_password.
+    Once entered correctly, save the contest_id in the session and redirect to the target page.
     """
     contest = Contests.query.filter_by(id=contest_id).first_or_404()
 
-    # Nếu contest không có password thì vào thẳng
+    # If the contest has no password, go straight through
     if not contest.access_password:
         return redirect(url_for("admin.contest_dashboard", contest_id=contest_id))
 
-    # Nếu đã verify rồi (ví dụ user back lại) → vào thẳng
+    # Already verified (e.g. user navigated back) → go straight through
     verified_ids = session.get("verified_contest_ids", [])
     if contest_id in verified_ids:
         next_url = request.args.get("next") or url_for("admin.contest_dashboard", contest_id=contest_id)
@@ -2822,7 +2822,7 @@ def contest_verify_access(contest_id):
                 session.modified = True
             return redirect(next_url)
         else:
-            error = "Mật khẩu không đúng. Vui lòng thử lại."
+            error = "Incorrect password. Please try again."
 
     return render_template(
         "admin/contests/verify_access.html",
