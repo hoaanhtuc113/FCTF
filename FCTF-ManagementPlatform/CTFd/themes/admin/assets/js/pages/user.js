@@ -346,6 +346,12 @@ function solveSelectedMissingChallenges(event) {
   });
 }
 
+function fetchContestUserStat(kind, accountId) {
+  return CTFd.fetch(
+    `/api/v1/contest_statistics/${window.CONTEST_ID}/users/${accountId}/${kind}`,
+  ).then((response) => response.json());
+}
+
 const api_funcs = {
   team: [
     (x) => CTFd.api.get_team_solves({ teamId: x }),
@@ -353,9 +359,18 @@ const api_funcs = {
     (x) => CTFd.api.get_team_awards({ teamId: x }),
   ],
   user: [
-    (x) => CTFd.api.get_user_solves({ userId: x }),
-    (x) => CTFd.api.get_user_fails({ userId: x }),
-    (x) => CTFd.api.get_user_awards({ userId: x }),
+    (x) =>
+      window.CONTEST_ID
+        ? fetchContestUserStat("solves", x)
+        : CTFd.api.get_user_solves({ userId: x }),
+    (x) =>
+      window.CONTEST_ID
+        ? fetchContestUserStat("fails", x)
+        : CTFd.api.get_user_fails({ userId: x }),
+    (x) =>
+      window.CONTEST_ID
+        ? fetchContestUserStat("awards", x)
+        : CTFd.api.get_user_awards({ userId: x }),
   ],
 };
 
@@ -394,6 +409,8 @@ const createGraphs = (type, id, name, account_id) => {
       name,
       account_id,
     );
+  }).catch((error) => {
+    console.error("Failed to load user statistics graphs", error);
   });
 };
 
@@ -432,6 +449,8 @@ const updateGraphs = (type, id, name, account_id) => {
       name,
       account_id,
     );
+  }).catch((error) => {
+    console.error("Failed to load user statistics graphs", error);
   });
 };
 

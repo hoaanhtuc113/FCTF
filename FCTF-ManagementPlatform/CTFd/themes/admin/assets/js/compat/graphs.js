@@ -182,7 +182,9 @@ const graph_configs = {
       const categories = [];
 
       for (let i = 0; i < solves.length; i++) {
-        categories.push(solves[i].challenge.category);
+        if (solves[i].challenge) {
+          categories.push(solves[i].challenge.category);
+        }
       }
 
       const keys = categories.filter((elem, pos) => {
