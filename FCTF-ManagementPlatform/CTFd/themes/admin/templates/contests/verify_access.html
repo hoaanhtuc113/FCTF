@@ -164,10 +164,10 @@
         </div>
 
         <!-- Title -->
-        <div class="verify-title">Xác thực truy cập contest</div>
+        <div class="verify-title">Verify Contest Access</div>
         <div class="verify-subtitle">
-            Contest này được bảo vệ bằng mật khẩu.<br>
-            Nhập đúng mật khẩu để tiếp tục quản lý.
+            This contest is protected by a password.<br>
+            Enter the correct password to continue managing it.
         </div>
 
         <!-- Contest name badge -->
@@ -188,31 +188,31 @@
             <input type="hidden" name="nonce" value="{{ Session.nonce }}">
 
             <div class="form-group mb-0">
-                <label class="form-label-sm">Mật khẩu truy cập</label>
+                <label class="form-label-sm">Access Password</label>
                 <div class="password-wrapper">
                     <input type="password"
                            name="access_password"
                            id="verify-password-input"
                            class="clean-form-control password-field-wrap"
-                           placeholder="Nhập mật khẩu contest..."
+                           placeholder="Enter contest password..."
                            autofocus
                            required>
                     <button type="button"
                             class="password-toggle-btn"
                             onclick="toggleVerifyPassword()"
-                            title="Hiện/ẩn mật khẩu">
+                            title="Show/hide password">
                         <i class="bx bx-hide" id="verify-pw-icon"></i>
                     </button>
                 </div>
             </div>
 
             <button type="submit" class="clean-btn-primary">
-                <i class="bx bx-log-in-circle mr-1"></i> Vào Contest
+                <i class="bx bx-log-in-circle mr-1"></i> Enter Contest
             </button>
         </form>
 
         <a href="{{ url_for('admin.contests_listing') }}" class="back-link">
-            <i class="bx bx-arrow-back mr-1"></i> Quay lại danh sách contests
+            <i class="bx bx-arrow-back mr-1"></i> Back to contests list
         </a>
     </div>
 </div>
@@ -232,7 +232,7 @@ function toggleVerifyPassword() {
     }
 }
 
-// Submit form bằng Enter
+// Submit form on Enter
 document.getElementById('verify-password-input').addEventListener('keydown', function(e) {
     if (e.key === 'Enter') {
         e.preventDefault();

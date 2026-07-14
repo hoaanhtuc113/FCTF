@@ -439,13 +439,17 @@
         <button class="import-modal-close" id="add-existing-modal-close" title="Close">&times;</button>
         <h5><i class="fas fa-user-check" style="color:#17a2b8;"></i> Add Existing User</h5>
         <p style="font-size:0.88rem;color:#666;margin-bottom:1rem;">
-            Enter the username or email of a user already registered in the system to add them to this contest.
+            Enter the username or email of one or more users already registered in the system to add them to this contest.
         </p>
         <form id="contest-add-existing-form">
-            <div class="form-group" style="position:relative;">
-                <label for="ae-username">Username or Email</label>
-                <input type="text" class="clean-form-control w-100" id="ae-username" placeholder="e.g. player1 or player1@gmail.com" required autocomplete="off">
-                <div id="ae-username-suggestions" class="dropdown-menu w-100" style="display:none; position:absolute; z-index:1000; max-height:200px; overflow-y:auto; margin-top:2px;"></div>
+            <div class="form-group">
+                <label for="ae-username">Username(s) or Email(s)</label>
+                <div style="position:relative;">
+                    <input type="text" class="clean-form-control w-100" id="ae-username" placeholder="Type a username/email, press Enter to add another…" autocomplete="off">
+                    <div id="ae-username-suggestions" class="dropdown-menu w-100" style="display:none; position:absolute; top:100%; left:0; z-index:1000; max-height:200px; overflow-y:auto; margin-top:2px;"></div>
+                </div>
+                <div id="ae-username-chips" class="d-flex flex-wrap" style="gap:0.4rem; margin-top:0.5rem;"></div>
+                <small class="form-text text-muted">Press Enter or pick a suggestion to add each user to the list, then submit once.</small>
             </div>
 
             {% if contest.user_mode == "teams" %}
@@ -923,8 +927,37 @@ const aeError       = document.getElementById('ae-error');
 const aeSuccess     = document.getElementById('ae-success');
 const aeSuggestions = document.getElementById('ae-username-suggestions');
 const aeUsernameInput = document.getElementById('ae-username');
+const aeChipsContainer = document.getElementById('ae-username-chips');
 const aeTeamInput   = document.getElementById('ae-team');
 const aeTeamSuggestions = document.getElementById('ae-team-suggestions');
+
+// ── Multi-user chip list ───────────────────────────────────────────────────
+let aeSelectedUsers = [];
+function renderAeChips() {
+    if (!aeChipsContainer) return;
+    aeChipsContainer.innerHTML = '';
+    aeSelectedUsers.forEach(function(name) {
+        const chip = document.createElement('span');
+        chip.className = 'clean-btn btn-outline-secondary';
+        chip.style.cssText = 'display:inline-flex;align-items:center;gap:0.4rem;padding:0.15rem 0.5rem;font-size:0.85rem;border-radius:999px;';
+        chip.textContent = name;
+        const remove = document.createElement('i');
+        remove.className = 'fas fa-times';
+        remove.style.cssText = 'cursor:pointer;opacity:0.6;';
+        remove.addEventListener('click', function() {
+            aeSelectedUsers = aeSelectedUsers.filter(u => u !== name);
+            renderAeChips();
+        });
+        chip.appendChild(remove);
+        aeChipsContainer.appendChild(chip);
+    });
+}
+function addAeChip(name) {
+    name = (name || '').trim();
+    if (!name || aeSelectedUsers.includes(name)) return;
+    aeSelectedUsers.push(name);
+    renderAeChips();
+}
 
 function openAeModal() {
     aeModal.classList.add('active');
@@ -932,6 +965,8 @@ function openAeModal() {
     aeError.style.display = 'none';
     aeSuccess.style.display = 'none';
     aeSuggestions.style.display = 'none';
+    aeSelectedUsers = [];
+    renderAeChips();
     if (aeTeamSuggestions) aeTeamSuggestions.style.display = 'none';
     // Reset team assignment sections for teams mode
     if (CONTEST_USER_MODE === 'teams') {
@@ -1011,9 +1046,12 @@ aeUsernameInput.addEventListener('input', function() {
         })
         .then(res => res.json())
         .then(data => {
-            if (data.success && data.data && data.data.length > 0) {
+            const results = (data.success && data.data)
+                ? data.data.filter(user => !aeSelectedUsers.includes(user.name))
+                : [];
+            if (results.length > 0) {
                 aeSuggestions.innerHTML = '';
-                data.data.slice(0, 10).forEach(user => {
+                results.slice(0, 10).forEach(user => {
                     const a = document.createElement('a');
                     a.className = 'dropdown-item';
                     a.href = '#';
@@ -1024,8 +1062,10 @@ aeUsernameInput.addEventListener('input', function() {
                     a.textContent = text;
                     a.addEventListener('click', function(e) {
                         e.preventDefault();
-                        aeUsernameInput.value = user.name;
+                        addAeChip(user.name);
+                        aeUsernameInput.value = '';
                         aeSuggestions.style.display = 'none';
+                        aeUsernameInput.focus();
                     });
                     aeSuggestions.appendChild(a);
                 });
@@ -1037,6 +1077,16 @@ aeUsernameInput.addEventListener('input', function() {
             aeSuggestions.style.display = 'none';
         });
     }, 300);
+});
+
+// Enter / comma adds the current input value as another user chip
+aeUsernameInput.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' || e.key === ',') {
+        e.preventDefault();
+        addAeChip(this.value);
+        this.value = '';
+        aeSuggestions.style.display = 'none';
+    }
 });
 
 // Team autocomplete logic
@@ -1095,9 +1145,19 @@ if (aeForm) {
         aeError.style.display   = 'none';
         aeSuccess.style.display = 'none';
 
+        // Any text still sitting in the input box counts as one more user
+        addAeChip(aeUsernameInput.value);
+        aeUsernameInput.value = '';
+
+        if (aeSelectedUsers.length === 0) {
+            aeError.textContent = 'Please add at least one username or email.';
+            aeError.style.display = 'block';
+            return;
+        }
+
         const payload = {
-            username: document.getElementById('ae-username').value.trim(),
-            role:     document.getElementById('ae-role').value || 'contestant',
+            usernames: aeSelectedUsers.slice(),
+            role:      document.getElementById('ae-role').value || 'contestant',
         };
 
         // Build team payload depending on contest user mode
@@ -1143,13 +1203,27 @@ if (aeForm) {
         .then(res => res.json())
         .then(data => {
             submitBtn.disabled = false;
-            if (data.success) {
-                const roleLabel = { contestant: 'Contestant', jury: 'Jury', challenge_writer: 'Challenge Writer' }[data.data.role] || data.data.role;
-                let msg = 'User ' + data.data.name + ' added to contest as ' + roleLabel + '!';
-                if (data.data.team) { msg += ' (Team: ' + data.data.team + ')'; }
+            const added  = (data.data && data.data.added) || [];
+            const failed = (data.data && data.data.failed) || [];
+
+            if (data.success && added.length > 0) {
+                const names = added.map(u => u.name).join(', ');
+                let msg = added.length === 1
+                    ? 'User ' + names + ' added to contest!'
+                    : added.length + ' users added to contest: ' + names;
+                if (failed.length > 0) {
+                    msg += '. ' + failed.length + ' failed: ' + failed.map(f =>
+                        f.username + ' (' + Object.values(f.errors || {}).flat().join(', ') + ')'
+                    ).join('; ');
+                }
                 aeSuccess.textContent = msg;
                 aeSuccess.style.display = 'block';
-                setTimeout(() => window.location.reload(), 1000);
+                setTimeout(() => window.location.reload(), 1200);
+            } else if (failed.length > 0) {
+                aeError.textContent = failed.map(f =>
+                    f.username + ': ' + Object.values(f.errors || {}).flat().join(', ')
+                ).join('; ');
+                aeError.style.display = 'block';
             } else {
                 aeError.textContent = (data.errors && Object.values(data.errors).flat().join(', ')) || 'An error occurred';
                 aeError.style.display = 'block';

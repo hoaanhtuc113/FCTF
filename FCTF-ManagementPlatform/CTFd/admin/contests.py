@@ -1326,33 +1326,23 @@ def contest_update_user_role(contest_id, user_id):
     return {"success": True, "data": {"user_id": user_id, "role": role}}, 200
 
 
-@admin.route("/admin/contests/<int:contest_id>/add_existing_user", methods=["POST"])
-@admins_only
-def contest_add_existing_user(contest_id):
+def _add_single_existing_user_to_contest(contest, username_or_email, team_name, create_team, role):
     """
-    Add an existing user from the system into a contest.
+    Resolve one existing system user and add them to `contest` following the
+    same user_mode / team-assignment rules as the single-user endpoint.
 
-    user_mode == "users": auto-creates a solo team for the user (1 user = 1 team).
-    user_mode == "teams": creates a ContestParticipant; optionally assigns to an
-                          existing team (team=<name>, create_team=false) or creates
-                          a new team (team=<name>, create_team=true).
+    Returns (ok, payload) where payload is either the success `data` dict
+    or an `errors` dict (mirrors the shape used by the JSON responses).
+    Raises no exceptions for expected validation failures — callers loop
+    over many users and must not have one bad entry abort the whole batch.
     """
     from CTFd.models import Teams, UserTeamMember, Users
     from CTFd.utils.crypto import hash_password
     from sqlalchemy import or_
 
-    contest = Contests.query.filter_by(id=contest_id).first_or_404()
-    req = request.get_json(force=True) or {}
-
-    username_or_email = (req.get("username") or "").strip()
-    team_name         = (req.get("team") or "").strip()
-    create_team       = bool(req.get("create_team", False))
-    role              = (req.get("role") or "contestant").strip()
-    if role not in ("contestant", "jury", "challenge_writer"):
-        role = "contestant"
-
+    username_or_email = (username_or_email or "").strip()
     if not username_or_email:
-        return {"success": False, "errors": {"username": ["Username or email is required."]}}, 400
+        return False, {"username": ["Username or email is required."]}
 
     # 1. Find the existing user
     user = Users.query.filter(
@@ -1363,7 +1353,7 @@ def contest_add_existing_user(contest_id):
     ).first()
 
     if user is None:
-        return {"success": False, "errors": {"username": ["User not found in system."]}}, 404
+        return False, {"username": ["User not found in system."]}
 
     resolved_team_name = None
 
@@ -1373,10 +1363,10 @@ def contest_add_existing_user(contest_id):
 
         # 2a. Check if user is already a participant in this contest
         existing_cp = ContestParticipant.query.filter_by(
-            contest_id=contest_id, user_id=user.id
+            contest_id=contest.id, user_id=user.id
         ).first()
         if existing_cp:
-            return {"success": False, "errors": {"username": ["User is already in this contest."]}}, 400
+            return False, {"username": ["User is already in this contest."]}
 
         if role == "contestant":
             # Auto-create a solo team named after the user
@@ -1384,7 +1374,7 @@ def contest_add_existing_user(contest_id):
 
             # 4a. Find or create the solo team
             team = Teams.query.filter_by(
-                contest_id=contest_id,
+                contest_id=contest.id,
                 name=resolved_team_name,
             ).first()
 
@@ -1393,7 +1383,7 @@ def contest_add_existing_user(contest_id):
                     name=resolved_team_name,
                     email=user.email,
                     password=hash_password("changeme"),
-                    contest_id=contest_id,
+                    contest_id=contest.id,
                     captain_user_id=user.id,
                 )
                 db.session.add(team)
@@ -1406,29 +1396,32 @@ def contest_add_existing_user(contest_id):
 
         # 2b. Check if user is already a participant in this contest
         existing_cp = ContestParticipant.query.filter_by(
-            contest_id=contest_id, user_id=user.id
+            contest_id=contest.id, user_id=user.id
         ).first()
         if existing_cp:
-            return {"success": False, "errors": {"username": ["User is already in this contest."]}}, 400
+            return False, {"username": ["User is already in this contest."]}
 
         # 3b. Optional team assignment
         if team_name:
             if create_team:
-                if Teams.query.filter_by(contest_id=contest_id, name=team_name).first():
-                    return {"success": False, "errors": {"team": ["A team with this name already exists in this contest."]}}, 400
+                if Teams.query.filter_by(contest_id=contest.id, name=team_name).first():
+                    return False, {"team": ["A team with this name already exists in this contest."]}
                 team = Teams(
                     name=team_name,
                     email=user.email,
                     password=hash_password("changeme"),
-                    contest_id=contest_id,
+                    contest_id=contest.id,
                     captain_user_id=user.id,
                 )
                 db.session.add(team)
                 db.session.flush()
+                # Only the first user in a batch should actually create the
+                # team; subsequent users in the same request must join it.
+                create_team = False
             else:
-                team = Teams.query.filter_by(contest_id=contest_id, name=team_name).first()
+                team = Teams.query.filter_by(contest_id=contest.id, name=team_name).first()
                 if not team:
-                    return {"success": False, "errors": {"team": ["Team not found in this contest."]}}, 404
+                    return False, {"team": ["Team not found in this contest."]}
                 # Check if team already has this user (safety check)
                 already = (
                     db.session.query(UserTeamMember)
@@ -1436,7 +1429,7 @@ def contest_add_existing_user(contest_id):
                     .first()
                 )
                 if already:
-                    return {"success": False, "errors": {"team": ["User is already in this team."]}}, 400
+                    return False, {"team": ["User is already in this team."]}
 
                 # Enforce team_size limit when joining an existing team
                 if contest.team_size:
@@ -1446,46 +1439,116 @@ def contest_add_existing_user(contest_id):
                         .scalar()
                     )
                     if current_count >= contest.team_size:
-                        return (
-                            {
-                                "success": False,
-                                "errors": {
-                                    "team": [
-                                        "Team '{}' is full. Teams are limited to {} member{}.".format(
-                                            team_name,
-                                            contest.team_size,
-                                            "" if contest.team_size == 1 else "s",
-                                        )
-                                    ]
-                                },
-                            },
-                            400,
-                        )
+                        return False, {
+                            "team": [
+                                "Team '{}' is full. Teams are limited to {} member{}.".format(
+                                    team_name,
+                                    contest.team_size,
+                                    "" if contest.team_size == 1 else "s",
+                                )
+                            ]
+                        }
 
             team.members.append(user)
             resolved_team_name = team_name
 
     # Upsert ContestParticipant record with the chosen contest role
     cp = ContestParticipant.query.filter_by(
-        contest_id=contest_id, user_id=user.id
+        contest_id=contest.id, user_id=user.id
     ).first()
     if cp is None:
-        cp = ContestParticipant(contest_id=contest_id, user_id=user.id, role=role)
+        cp = ContestParticipant(contest_id=contest.id, user_id=user.id, role=role)
         db.session.add(cp)
     else:
         cp.role = role
 
+    return True, {
+        "id": user.id,
+        "name": user.name,
+        "email": user.email,
+        "team": resolved_team_name,
+        "role": role,
+    }
+
+
+@admin.route("/admin/contests/<int:contest_id>/add_existing_user", methods=["POST"])
+@admins_only
+def contest_add_existing_user(contest_id):
+    """
+    Add one or more existing users from the system into a contest.
+
+    Accepts either:
+      - {"username": "player1", ...}                 (single user, legacy shape)
+      - {"usernames": ["player1", "player2"], ...}    (bulk add)
+
+    user_mode == "users": auto-creates a solo team for each contestant (1 user = 1 team).
+    user_mode == "teams": creates a ContestParticipant per user; optionally assigns
+                          all of them to an existing team (team=<name>, create_team=false)
+                          or to one newly-created team (team=<name>, create_team=true).
+
+    All users in the request share the same `team` / `create_team` / `role`
+    settings. Each user is resolved independently, so one invalid or
+    already-registered user does not block the rest of the batch. The whole
+    batch is committed together at the end.
+    """
+    contest = Contests.query.filter_by(id=contest_id).first_or_404()
+    req = request.get_json(force=True) or {}
+
+    usernames_list = req.get("usernames")
+    is_bulk = isinstance(usernames_list, list)
+    if not is_bulk:
+        single = (req.get("username") or "").strip()
+        usernames_list = [single] if single else []
+
+    # De-duplicate while preserving order
+    seen = set()
+    usernames_list = [u.strip() for u in usernames_list if isinstance(u, str) and u.strip()]
+    usernames_list = [u for u in usernames_list if not (u in seen or seen.add(u))]
+
+    if not usernames_list:
+        return {"success": False, "errors": {"username": ["Username or email is required."]}}, 400
+
+    team_name   = (req.get("team") or "").strip()
+    create_team = bool(req.get("create_team", False))
+    role        = (req.get("role") or "contestant").strip()
+    if role not in ("contestant", "jury", "challenge_writer"):
+        role = "contestant"
+
+    added = []
+    failed = []
+    for username_or_email in usernames_list:
+        ok, payload = _add_single_existing_user_to_contest(
+            contest, username_or_email, team_name, create_team, role
+        )
+        if ok:
+            added.append(payload)
+            # Once a "create new team" has happened for the first user,
+            # every subsequent user in this batch must join that same team.
+            if create_team:
+                team_name   = payload["team"] or team_name
+                create_team = False
+        else:
+            failed.append({"username": username_or_email, "errors": payload})
+
     db.session.commit()
 
+    # Preserve the original single-user response shape when the caller used
+    # the legacy {"username": ...} form, for backward compatibility.
+    if not is_bulk:
+        if not added:
+            err = failed[0]["errors"] if failed else {"username": ["User not found in system."]}
+            status = 404 if err.get("username") == ["User not found in system."] else 400
+            return {"success": False, "errors": err}, status
+        return {"success": True, "data": added[0]}, 200
+
     return {
-        "success": True,
+        "success": len(added) > 0,
         "data": {
-            "id": user.id,
-            "name": user.name,
-            "email": user.email,
-            "team": resolved_team_name,
-            "role": role,
-        }
+            "added": added,
+            "failed": failed,
+            "added_count": len(added),
+            "failed_count": len(failed),
+        },
     }, 200
 
 
@@ -2732,16 +2795,16 @@ def contest_dynamic_reward(contest_id):
 @admins_only
 def contest_verify_access(contest_id):
     """
-    Hiển thị form nhập access_password của contest.
-    Sau khi nhập đúng, lưu contest_id vào session và redirect về trang đích.
+    Show a form to enter the contest's access_password.
+    Once entered correctly, save the contest_id in the session and redirect to the target page.
     """
     contest = Contests.query.filter_by(id=contest_id).first_or_404()
 
-    # Nếu contest không có password thì vào thẳng
+    # If the contest has no password, go straight through
     if not contest.access_password:
         return redirect(url_for("admin.contest_dashboard", contest_id=contest_id))
 
-    # Nếu đã verify rồi (ví dụ user back lại) → vào thẳng
+    # Already verified (e.g. user navigated back) → go straight through
     verified_ids = session.get("verified_contest_ids", [])
     if contest_id in verified_ids:
         next_url = request.args.get("next") or url_for("admin.contest_dashboard", contest_id=contest_id)
@@ -2759,7 +2822,7 @@ def contest_verify_access(contest_id):
                 session.modified = True
             return redirect(next_url)
         else:
-            error = "Mật khẩu không đúng. Vui lòng thử lại."
+            error = "Incorrect password. Please try again."
 
     return render_template(
         "admin/contests/verify_access.html",
