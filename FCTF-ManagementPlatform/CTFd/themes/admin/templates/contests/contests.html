@@ -17,7 +17,7 @@
 </style>
 {% if is_jury() or is_challenge_writer() %}
 <style>
-#contests-delete-btn, .btn-delete-single { display: none !important; }
+#contests-delete-btn { display: none !important; }
 </style>
 {% endif %}
 {% endblock %}
@@ -210,8 +210,13 @@
                         {% endif %}
                     </td>
                     <td class="text-center" onclick="event.stopPropagation()">
+                        <a href="{{ url_for('admin.contest_dashboard', contest_id=contest.id) }}"
+                           class="clean-btn clean-action-btn-sm" title="View">
+                            <i class="bx bx-show"></i>
+                        </a>
+                        {% if not is_jury() and not is_challenge_writer() %}
                         <a href="{{ url_for('admin.contest_settings', contest_id=contest.id) }}"
-                           class="clean-btn clean-action-btn-sm" title="Edit">
+                           class="clean-btn clean-action-btn-sm ml-1" title="Edit">
                             <i class="bx bx-edit"></i>
                         </a>
                         <button class="clean-btn clean-btn-danger clean-action-btn-sm ml-1 btn-delete-single"
@@ -220,6 +225,7 @@
                                 title="Delete">
                             <i class="bx bx-trash"></i>
                         </button>
+                        {% endif %}
                     </td>
                 </tr>
                 {% else %}

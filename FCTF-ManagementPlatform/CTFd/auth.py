@@ -226,10 +226,7 @@ def login():
                 log("logins", "[{date}] {ip} - {name} logged in", name=user.name)
 
                 db.session.close()
-                if is_admin():
-                    return redirect(url_for("admin.users_listing"))
-                if is_jury() or is_challenge_writer():
-                    # user has jury/challenge_writer role in at least one contest
+                if is_admin() or is_jury() or is_challenge_writer():
                     return redirect(url_for("admin.contests_listing"))
                 return redirect(url_for("views.contests_list"))
 
