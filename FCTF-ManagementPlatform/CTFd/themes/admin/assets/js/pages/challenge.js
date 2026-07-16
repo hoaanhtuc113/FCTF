@@ -604,9 +604,15 @@ $(() => {
                 });
               } else {
                 let body = "";
-                for (const k in response.errors) {
-                  body += response.errors[k].join("\n");
-                  body += "\n";
+                if (response.errors) {
+                  for (const k in response.errors) {
+                    body += response.errors[k].join("\n");
+                    body += "\n";
+                  }
+                } else if (response.error) {
+                  body = response.error;
+                } else {
+                  body = "An unknown error occurred.";
                 }
 
                 ezAlert({

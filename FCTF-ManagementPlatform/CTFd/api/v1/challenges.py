@@ -667,6 +667,16 @@ class Challenge(Resource):
         else:
             return {"success": False, "error": "Unauthorized user type."}, 403
 
+        # Once a team has solved this challenge, hiding it would retroactively
+        # invalidate their solve/scoring experience — block the transition.
+        if data.get("state") == "hidden" and challenge.state != "hidden":
+            has_solve = Solves.query.filter_by(challenge_id=challenge.id).first() is not None
+            if has_solve:
+                return {
+                    "success": False,
+                    "error": "Cannot update: one or more teams have already started this challenge.",
+                }, 403
+
         if scoringType == "standard" and challenge.type == "dynamic":
             # Converting from dynamic to standard
             from sqlalchemy import text
