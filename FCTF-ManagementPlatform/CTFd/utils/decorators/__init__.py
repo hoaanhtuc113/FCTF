@@ -13,6 +13,7 @@ from CTFd.utils.user import (
     get_current_user,
     is_admin,
     is_challenge_writer,
+    is_conductor,
     is_jury,
 )
 
@@ -171,10 +172,7 @@ def jury_only(f):
 def admin_or_challenge_writer_only_or_jury(f):
     @functools.wraps(f)
     def admin_or_challenge_writer_only_wrapper(*args, **kwargs):
-        print("is_jury(): " + str(is_jury()))
-        print("is_challenge_writer(): " + str(is_challenge_writer()))
-        print("is_admin(): " + str(is_admin()))
-        if is_jury() or is_challenge_writer() or is_admin():
+        if is_jury() or is_challenge_writer() or is_admin() or is_conductor():
             return f(*args, **kwargs)
         else:
             if request.content_type == "application/json":
@@ -183,6 +181,20 @@ def admin_or_challenge_writer_only_or_jury(f):
                 return redirect(url_for("auth.login", next=request.full_path))
 
     return admin_or_challenge_writer_only_wrapper
+
+
+def admin_or_conductor_only(f):
+    @functools.wraps(f)
+    def admin_or_conductor_only_wrapper(*args, **kwargs):
+        if is_admin() or is_conductor():
+            return f(*args, **kwargs)
+        else:
+            if request.content_type == "application/json":
+                abort(403)
+            else:
+                return redirect(url_for("auth.login", next=request.full_path))
+
+    return admin_or_conductor_only_wrapper
 def admin_or_challenge_writer_only(f):
     @functools.wraps(f)
     def admin_or_challenge_writer_only_wrapper(*args, **kwargs):

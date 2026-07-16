@@ -92,6 +92,8 @@ def users_listing():
         filters.append(Users.type == "admin")
     elif role_filter == "user":
         filters.append(Users.type == "user")
+    elif role_filter == "conductor":
+        filters.append(Users.type == "conductor")
     elif role_filter == "challenge_writer":
         filters.append(Users.type == "challenge_writer")
     elif role_filter == "jury":

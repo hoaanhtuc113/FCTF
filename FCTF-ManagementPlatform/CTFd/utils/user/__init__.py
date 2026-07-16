@@ -190,6 +190,18 @@ def is_jury():
         user_id=user.id, role="jury"
     ).first() is not None
 
+def is_conductor():
+    """True if the user is a conductor — a platform-level role (Users.type),
+    not a per-contest ContestParticipant role like jury/challenge_writer.
+    Conductors create their own contests and only see contests they own."""
+    if not authed():
+        return False
+    user = get_current_user_attrs()
+    if not user:
+        return False
+    return user.type == "conductor"
+
+
 def is_banned():
     auth_header = request.headers.get('Authorization', None)
     if auth_header and auth_header.startswith('Bearer '):

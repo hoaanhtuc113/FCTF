@@ -193,6 +193,8 @@
         <div class="mb-2 mt-2">
             {% if user.type == 'admin' %}
                 <span class="badge badge-primary">Admin</span>
+            {% elif user.type == 'conductor' %}
+                <span class="badge" style="background-color:#0f5c33;color:#fff;">Conductor</span>
             {% else %}
                 <span class="badge" style="background-color:#6c757d;color:#fff;">User</span>
             {% endif %}
@@ -268,6 +270,8 @@
                     <span class="hub-info-value">
                         {% if user.type == 'admin' %}
                             <span class="badge badge-primary">Admin</span>
+                        {% elif user.type == 'conductor' %}
+                            <span class="badge" style="background-color:#0f5c33;color:#fff;">Conductor</span>
                         {% else %}
                             <span class="badge" style="background-color:#6c757d;color:#fff;">User</span>
                         {% endif %}

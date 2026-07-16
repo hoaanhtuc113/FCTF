@@ -53,48 +53,36 @@ def enforce_jury_cw_contest_scope():
         abort(403)
 
 
-# ─── Contest access-password enforcement ─────────────────────────────────────
+# ─── Conductor per-contest scope enforcement ──────────────────────────────────
 
 @admin.before_request
-def enforce_contest_access_password():
+def enforce_conductor_contest_scope():
     """
-    Trước mỗi request vào admin contest sub-route (trừ verify-access),
-    kiểm tra nếu contest có access_password → yêu cầu admin nhập đúng password
-    trước khi vào. Kết quả được lưu vào session để không hỏi lại.
+    Conductors are a platform-level role (Users.type == 'conductor'), not a
+    ContestParticipant role. They may only access contests they own.
+    Admin bypasses all checks.
     """
-    from CTFd.utils.user import authed, is_admin
+    from CTFd.utils.user import authed, is_admin, is_conductor, get_current_user_attrs
 
-    # Chỉ xử lý khi đã đăng nhập (admin); nếu chưa thì để @admins_only lo
     if not authed():
         return
+    if is_admin():
+        return
+    if not is_conductor():
+        return
 
-    # Match: /admin/contests/<số>  hoặc  /admin/contests/<số>/bất-kỳ
     m = re.match(r'^/admin/contests/(\d+)(?:/|$)', request.path)
     if not m:
         return
 
     contest_id = int(m.group(1))
-
-    # Không chặn chính trang verify-access (tránh vòng lặp redirect)
-    verify_path = f'/admin/contests/{contest_id}/verify-access'
-    if request.path.rstrip('/') == verify_path.rstrip('/'):
-        return
+    user_attrs = get_current_user_attrs()
+    if user_attrs is None:
+        abort(403)
 
     contest = Contests.query.filter_by(id=contest_id).first()
-    if contest is None or not contest.access_password:
-        return  # Không có password → tự do vào
-
-    # Kiểm tra session xem đã verify contest này chưa
-    verified_ids = session.get('verified_contest_ids', [])
-    if contest_id in verified_ids:
-        return  # Đã xác thực trong session này
-
-    # Chuyển đến trang nhập password; lưu URL hiện tại để redirect về sau
-    return redirect(url_for(
-        'admin.contest_verify_access',
-        contest_id=contest_id,
-        next=request.path,
-    ))
+    if contest is None or contest.owner_id != user_attrs.id:
+        abort(403)
 
 
 # ─── helpers cho contest instances ───────────────────────────────────────────
@@ -185,7 +173,7 @@ def _ci_apply_filters(query, team_filter, challenge_filter, start_date, end_date
 @admin.route("/admin/contests")
 @admins_only
 def contests_listing():
-    from CTFd.utils.user import is_admin, get_current_user_attrs
+    from CTFd.utils.user import is_admin, is_conductor, get_current_user_attrs
 
     q = request.args.get("q", "").strip()
     field = request.args.get("field", "name")
@@ -197,19 +185,23 @@ def contests_listing():
 
     filters = []
 
-    # Non-admin: only show contests where they have jury/challenge_writer role
+    # Non-admin: conductors only see contests they own; jury/challenge_writer
+    # only see contests they're assigned to via ContestParticipant.
     if not is_admin():
         user_attrs = get_current_user_attrs()
         if user_attrs:
-            allowed_ids = (
-                db.session.query(ContestParticipant.contest_id)
-                .filter(
-                    ContestParticipant.user_id == user_attrs.id,
-                    ContestParticipant.role.in_(["jury", "challenge_writer"]),
+            if is_conductor():
+                filters.append(Contests.owner_id == user_attrs.id)
+            else:
+                allowed_ids = (
+                    db.session.query(ContestParticipant.contest_id)
+                    .filter(
+                        ContestParticipant.user_id == user_attrs.id,
+                        ContestParticipant.role.in_(["jury", "challenge_writer"]),
+                    )
+                    .scalar_subquery()
                 )
-                .scalar_subquery()
-            )
-            filters.append(Contests.id.in_(allowed_ids))
+                filters.append(Contests.id.in_(allowed_ids))
 
     if q:
         allowed_fields = {"name", "slug", "description"}
@@ -242,6 +234,9 @@ def contests_listing():
         if is_admin():
             for c in contests.items:
                 user_role_map[c.id] = "admin"
+        elif is_conductor():
+            for c in contests.items:
+                user_role_map[c.id] = "conductor"
         else:
             participants = ContestParticipant.query.filter(
                 ContestParticipant.user_id == current_user.id,
@@ -2926,49 +2921,4 @@ def contest_dynamic_reward(contest_id):
         "admin/contests/sections/dynamic_reward.html",
         contest=contest,
         is_detail=is_detail,
-    )
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Contest access-password verify page
-# ─────────────────────────────────────────────────────────────────────────────
-
-@admin.route("/admin/contests/<int:contest_id>/verify-access", methods=["GET", "POST"])
-@admins_only
-def contest_verify_access(contest_id):
-    """
-    Show a form to enter the contest's access_password.
-    Once entered correctly, save the contest_id in the session and redirect to the target page.
-    """
-    contest = Contests.query.filter_by(id=contest_id).first_or_404()
-
-    # If the contest has no password, go straight through
-    if not contest.access_password:
-        return redirect(url_for("admin.contest_dashboard", contest_id=contest_id))
-
-    # Already verified (e.g. user navigated back) → go straight through
-    verified_ids = session.get("verified_contest_ids", [])
-    if contest_id in verified_ids:
-        next_url = request.args.get("next") or url_for("admin.contest_dashboard", contest_id=contest_id)
-        return redirect(next_url)
-
-    error = None
-    next_url = request.args.get("next") or url_for("admin.contest_dashboard", contest_id=contest_id)
-
-    if request.method == "POST":
-        entered = (request.form.get("access_password") or "").strip()
-        if entered == contest.access_password:
-            if contest_id not in verified_ids:
-                verified_ids.append(contest_id)
-                session["verified_contest_ids"] = verified_ids
-                session.modified = True
-            return redirect(next_url)
-        else:
-            error = "Incorrect password. Please try again."
-
-    return render_template(
-        "admin/contests/verify_access.html",
-        contest=contest,
-        next_url=next_url,
-        error=error,
     )

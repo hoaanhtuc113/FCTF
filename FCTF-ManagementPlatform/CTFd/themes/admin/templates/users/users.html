@@ -146,6 +146,7 @@
 						<option value="">All Roles</option>
 						<option value="user" {% if role_filter == 'user' %}selected{% endif %}>User</option>
 						<option value="admin" {% if role_filter == 'admin' %}selected{% endif %}>Admin</option>
+						<option value="conductor" {% if role_filter == 'conductor' %}selected{% endif %}>Conductor</option>
 						<option value="challenge_writer" {% if role_filter == 'challenge_writer' %}selected{% endif %}>Challenge Writer</option>
 						<option value="jury" {% if role_filter == 'jury' %}selected{% endif %}>Jury</option>
 					</select>
@@ -312,6 +313,8 @@
 					<td class="text-center" value="{{ user.type }}">
 						{% if user.type == 'admin' %}
 							<span class="clean-badge clean-badge-primary">Admin</span>
+						{% elif user.type == 'conductor' %}
+							<span class="clean-badge" style="background:#d4f5dd;color:#0f5c33;">Conductor</span>
 						{% elif user.type == 'challenge_writer' %}
 							<span class="clean-badge" style="background:#d1ecf1;color:#0c5460;">Challenge Writer</span>
 						{% elif user.type == 'jury' %}

@@ -43,8 +43,8 @@ class UserSchema(ma.ModelSchema):
         Users,
         "type",
         validate=validate.OneOf(
-            ["user", "admin"],
-            error="User type must be either 'user' or 'admin'. "
+            ["user", "admin", "conductor"],
+            error="User type must be 'user', 'admin', or 'conductor'. "
                   "Contest-level roles (contestant, jury, challenge_writer) "
                   "are assigned per-contest via contest participants.",
         ),

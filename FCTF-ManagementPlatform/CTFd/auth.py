@@ -30,6 +30,7 @@ from CTFd.utils.user import (
     get_current_user_attrs,
     is_admin,
     is_challenge_writer,
+    is_conductor,
     is_jury,
 )
 
@@ -226,7 +227,7 @@ def login():
                 log("logins", "[{date}] {ip} - {name} logged in", name=user.name)
 
                 db.session.close()
-                if is_admin() or is_jury() or is_challenge_writer():
+                if is_admin() or is_jury() or is_challenge_writer() or is_conductor():
                     return redirect(url_for("admin.contests_listing"))
                 return redirect(url_for("views.contests_list"))
 
@@ -248,7 +249,7 @@ def login():
             return render_template("login.html", errors=errors)
     else:
         # If already logged in as staff, redirect to admin
-        if authed() and (is_admin() or is_challenge_writer() or is_jury()):
+        if authed() and (is_admin() or is_challenge_writer() or is_jury() or is_conductor()):
             return redirect(url_for("admin.view"))
         db.session.close()
         return render_template("login.html", errors=errors)

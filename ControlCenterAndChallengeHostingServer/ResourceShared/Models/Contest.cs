@@ -13,8 +13,6 @@ public partial class Contest
 
     public string Slug { get; set; } = null!;
 
-    public string? AccessPassword { get; set; }
-
     public int? OwnerId { get; set; }
 
     public string UserMode { get; set; } = "teams";

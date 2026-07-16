@@ -209,10 +209,10 @@ class UserList(Resource):
     )
     def post(self):
         req = request.get_json()
-        if not req.get("contest_id") and req.get("type") not in (None, "user", "admin"):
+        if not req.get("contest_id") and req.get("type") not in (None, "user", "admin", "conductor"):
             return {
                 "success": False,
-                "errors": {"type": ["Management Hub users can only be created as User or Admin."]},
+                "errors": {"type": ["Management Hub users can only be created as User, Admin, or Conductor."]},
             }, 400
 
         schema = UserSchema("admin")

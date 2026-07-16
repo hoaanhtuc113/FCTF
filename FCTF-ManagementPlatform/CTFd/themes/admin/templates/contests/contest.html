@@ -197,21 +197,6 @@
                             </select>
                         </div>
                     </div>
-                    <div class="col-md-7">
-                        <div class="form-group">
-                            <label class="form-label-sm">Access Password</label>
-                            <div style="position:relative;">
-                                <input type="password" id="a-password" class="clean-form-control w-100"
-                                       value="{{ contest.access_password or '' }}"
-                                       placeholder="Leave blank for open access"
-                                       style="padding-right:2.5rem;" autocomplete="new-password">
-                                <button type="button" class="password-toggle-btn" onclick="togglePassword('a-password', this)">
-                                    <i class="bx bx-hide"></i>
-                                </button>
-                            </div>
-                            <div class="form-hint">Leave blank to allow anyone to join.</div>
-                        </div>
-                    </div>
                 </div>
                 <div class="panel-footer">
                     <button type="button" class="clean-btn clean-btn-primary" onclick="saveSection('access', this)">
@@ -606,14 +591,6 @@
         setTimeout(function () { el.classList.add('d-none'); }, 4500);
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
-    window.togglePassword = function (inputId, btn) {
-        var input = document.getElementById(inputId);
-        var icon  = btn.querySelector('i');
-        input.type      = input.type === 'password' ? 'text' : 'password';
-        icon.className  = input.type === 'password' ? 'bx bx-hide' : 'bx bx-show';
-    };
-
     var modeSelect    = document.getElementById('t-mode');
     var teamSizeGroup = document.getElementById('team-size-group');
     function applyModeUI(v) { teamSizeGroup.style.display = v === 'users' ? 'none' : ''; }
@@ -651,7 +628,7 @@
             if (!name) { showAlert('error', 'Contest name is required.'); return; }
             data = { name: name, slug: document.getElementById('g-slug').value.trim(), description: document.getElementById('g-desc').value.trim() };
         } else if (section === 'access') {
-            data = { state: document.getElementById('a-state').value, access_password: document.getElementById('a-password').value.trim() || null };
+            data = { state: document.getElementById('a-state').value };
         } else if (section === 'schedule') {
             var startUTC  = getTimeUTC('start');
             var endUTC    = getTimeUTC('end');

@@ -1,12 +1,13 @@
 import datetime
 import re
 
-from flask import request
+from flask import abort, request
 from flask_restx import Namespace, Resource
 
 from CTFd.models import ContestParticipant, Contests, Users, db
-from CTFd.utils.decorators import admins_only
+from CTFd.utils.decorators import admin_or_conductor_only, admins_only
 from CTFd.utils.logging.audit_logger import log_audit
+from CTFd.utils.user import get_current_user_attrs, is_admin, is_conductor
 
 contests_namespace = Namespace("contests", description="Endpoint to manage Contests")
 
@@ -98,10 +99,11 @@ def _validate_times(start_time, end_time, freeze_scoreboard_at, require_times=Fa
 
 @contests_namespace.route("")
 class ContestList(Resource):
-    method_decorators = [admins_only]
+    method_decorators = [admin_or_conductor_only]
 
     def get(self):
-        """List all contests with optional filtering."""
+        """List all contests with optional filtering.
+        Conductors only see contests they own; admins see all."""
         q = request.args.get("q", "").strip()
         field = request.args.get("field", "name")
         state = request.args.get("state", "")
@@ -110,6 +112,9 @@ class ContestList(Resource):
         per_page = min(abs(request.args.get("per_page", 20, type=int)), 100)
 
         filters = []
+        if not is_admin() and is_conductor():
+            user_attrs = get_current_user_attrs()
+            filters.append(Contests.owner_id == (user_attrs.id if user_attrs else -1))
         if q:
             allowed = {"name", "slug", "description"}
             if field in allowed and hasattr(Contests, field):
@@ -177,12 +182,19 @@ class ContestList(Resource):
         if time_errors:
             return {"success": False, "errors": time_errors}, 400
 
+        current_user = get_current_user_attrs()
+        # Conductors always own the contests they create; admins may
+        # explicitly assign an owner, defaulting to themselves otherwise.
+        if is_conductor() and not is_admin():
+            owner_id = current_user.id if current_user else None
+        else:
+            owner_id = data.get("owner_id") or (current_user.id if current_user else None)
+
         contest = Contests(
             name=name,
             description=data.get("description") or "",
             slug=slug,
-            access_password=data.get("access_password") or None,
-            owner_id=data.get("owner_id") or None,
+            owner_id=owner_id,
             user_mode=data.get("user_mode") or "teams",
             state=data.get("state") or "hidden",
             start_time=start_time,
@@ -213,22 +225,33 @@ class ContestList(Resource):
 # /api/v1/contests/<id>  — get, update, delete
 # ─────────────────────────────────────────────────────────────────────────────
 
+def _require_owner_or_admin(contest):
+    """Conductors may only touch contests they own; admins bypass this."""
+    if is_admin():
+        return
+    user_attrs = get_current_user_attrs()
+    if user_attrs is None or contest.owner_id != user_attrs.id:
+        abort(403)
+
+
 @contests_namespace.route("/<int:contest_id>")
 class ContestDetail(Resource):
-    method_decorators = [admins_only]
+    method_decorators = [admin_or_conductor_only]
 
     def get(self, contest_id):
         """Get a single contest."""
         contest = Contests.query.filter_by(id=contest_id).first_or_404()
+        _require_owner_or_admin(contest)
         return {"success": True, "data": _contest_to_dict(contest)}
 
     def patch(self, contest_id):
         """Update a contest (partial update)."""
         contest = Contests.query.filter_by(id=contest_id).first_or_404()
+        _require_owner_or_admin(contest)
         data = request.get_json(force=True, silent=True) or {}
 
         str_fields = [
-            "name", "description", "slug", "access_password",
+            "name", "description", "slug",
             "user_mode", "state",
             "score_visibility",
         ]
@@ -237,7 +260,10 @@ class ContestDetail(Resource):
             "captain_only_submit_challenge", "team_disbanding", "allow_name_change",
         ]
         str_fields += ["challenge_difficulty_visibility"]
-        int_fields = ["owner_id", "team_size", "incorrect_submissions_per_min", "limit_challenges"]
+        int_fields = ["team_size", "incorrect_submissions_per_min", "limit_challenges"]
+        if is_admin():
+            # Only admins may reassign contest ownership.
+            int_fields.append("owner_id")
         dt_fields = ["start_time", "end_time", "freeze_scoreboard_at"]
 
         # Validate slug uniqueness before applying changes
@@ -256,7 +282,7 @@ class ContestDetail(Resource):
 
         for f in str_fields:
             if f in data:
-                setattr(contest, f, data[f] or None if f in ("access_password",) else (data[f] or ""))
+                setattr(contest, f, data[f] or "")
 
         for f in bool_fields:
             if f in data:
@@ -299,6 +325,7 @@ class ContestDetail(Resource):
     def delete(self, contest_id):
         """Delete a contest."""
         contest = Contests.query.filter_by(id=contest_id).first_or_404()
+        _require_owner_or_admin(contest)
         name = contest.name
         db.session.delete(contest)
         db.session.commit()

@@ -83,12 +83,12 @@ from CTFd.utils.exports import export_ctf as export_ctf_util
 from CTFd.utils.logging.audit_logger import log_audit
 from CTFd.utils.security.auth import logout_user
 from CTFd.utils.uploads import delete_file
-from CTFd.utils.user import is_admin,is_challenge_writer,is_jury
+from CTFd.utils.user import is_admin,is_challenge_writer,is_conductor,is_jury
 
 
 @admin.route("/admin", methods=["GET"])
 def view():
-    if is_admin() or is_jury() or is_challenge_writer():
+    if is_admin() or is_jury() or is_challenge_writer() or is_conductor():
         return redirect(url_for("admin.contests_listing"))
     return redirect(url_for("auth.login"))
 

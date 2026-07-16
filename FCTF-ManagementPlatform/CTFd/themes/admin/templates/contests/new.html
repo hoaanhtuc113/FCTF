@@ -132,19 +132,6 @@
             <div class="row">
                 <div class="col-md-6">
                     <div class="form-group">
-                        <label class="form-label-sm">Access Password</label>
-                        <div style="position:relative;">
-                            <input type="password" id="contest-password" name="access_password"
-                                   class="clean-form-control w-100" placeholder="Leave blank for open access"
-                                   style="padding-right:2.5rem;" autocomplete="new-password">
-                            <button type="button" class="password-toggle-btn" onclick="togglePassword('contest-password', this)" title="Show/Hide password">
-                                <i class="bx bx-hide"></i>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-6">
-                    <div class="form-group">
                         <label class="form-label-sm">State</label>
                         <select id="contest-state" name="state" class="clean-form-control w-100">
                             <option value="hidden">Hidden</option>
@@ -339,14 +326,6 @@
 (function () {
     var nonce   = init.csrfNonce;
     var localTZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
-
-    // ── Password toggle ───────────────────────────────────────────────────────
-    window.togglePassword = function (inputId, btn) {
-        var input = document.getElementById(inputId);
-        var icon  = btn.querySelector('i');
-        input.type     = input.type === 'password' ? 'text' : 'password';
-        icon.className = input.type === 'password' ? 'bx bx-hide' : 'bx bx-show';
-    };
 
     // ── User mode ─────────────────────────────────────────────────────────────
     var userModeSelect = document.getElementById('contest-user-mode');
@@ -551,7 +530,6 @@
             name:             form.name.value.trim(),
             slug:             form.slug.value.trim() || null,
             description:      form.description.value.trim(),
-            access_password:  form.access_password.value.trim() || null,
             user_mode:        form.user_mode.value,
             state:            form.state.value,
             start_time:           startUTC  ? utcToISO(startUTC)  : null,
