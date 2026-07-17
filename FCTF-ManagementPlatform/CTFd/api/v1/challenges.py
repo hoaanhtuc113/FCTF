@@ -403,6 +403,39 @@ class ChallengeTypes(Resource):
         return {"success": True, "data": response}
 
 
+def _cascade_hide_dependents(challenge):
+    """
+    Hiding a challenge that other challenges list as a prerequisite would
+    leave those dependents permanently unsolvable (the prereq check requires
+    solving a challenge no one can see anymore). Hide the whole dependency
+    chain instead, so viewing a dependent challenge doesn't 403.
+
+    Returns the list of {"id", "name"} dicts for challenges that got hidden
+    as a side effect, so the caller can tell the admin about it.
+    """
+    to_process = [challenge.id]
+    seen = {challenge.id}
+    newly_hidden = []
+
+    while to_process:
+        current_id = to_process.pop()
+        dependents = Challenges.query.filter(
+            Challenges.contest_id == challenge.contest_id,
+            Challenges.state != "hidden",
+        ).all()
+        for dep in dependents:
+            if dep.id in seen:
+                continue
+            prereqs = (dep.requirements or {}).get("prerequisites", [])
+            if current_id in prereqs:
+                dep.state = "hidden"
+                seen.add(dep.id)
+                to_process.append(dep.id)
+                newly_hidden.append({"id": dep.id, "name": dep.name})
+
+    return newly_hidden
+
+
 @challenges_namespace.route("/<challenge_id>")
 class Challenge(Resource):
     @check_challenge_visibility
@@ -669,7 +702,8 @@ class Challenge(Resource):
 
         # Once a team has solved this challenge, hiding it would retroactively
         # invalidate their solve/scoring experience — block the transition.
-        if data.get("state") == "hidden" and challenge.state != "hidden":
+        is_hiding = data.get("state") == "hidden" and challenge.state != "hidden"
+        if is_hiding:
             has_solve = Solves.query.filter_by(challenge_id=challenge.id).first() is not None
             if has_solve:
                 return {
@@ -720,8 +754,14 @@ class Challenge(Resource):
 
         challenge_class = get_chal_class(challenge.type)
         challenge = challenge_class.update(challenge, request)
+
+        cascaded_hidden = []
+        if is_hiding:
+            cascaded_hidden = _cascade_hide_dependents(challenge)
+            db.session.commit()
+
         response = challenge_class.read(challenge)
-        
+
         log_audit(
             action="challenge_update",
             before=before_state,
@@ -764,7 +804,11 @@ class Challenge(Resource):
         clear_standings()
         clear_challenges()
 
-        return {"success": True, "data": response}
+        return {
+            "success": True,
+            "data": response,
+            "cascaded_hidden": cascaded_hidden,
+        }
 
     @admin_or_challenge_writer_only_or_jury
     @challenges_namespace.doc(

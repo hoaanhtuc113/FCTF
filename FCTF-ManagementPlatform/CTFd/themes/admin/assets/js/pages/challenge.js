@@ -598,10 +598,24 @@ $(() => {
                   default:
                     break;
                 }
-                ezToast({
-                  title: "Success",
-                  body: "Your challenge has been updated!",
-                });
+                if (response.cascaded_hidden && response.cascaded_hidden.length > 0) {
+                  const names = response.cascaded_hidden
+                    .map((c) => htmlEntities(c.name))
+                    .join(", ");
+                  ezAlert({
+                    title: "Dependent challenges also hidden",
+                    body:
+                      "This challenge is a prerequisite for other challenges, so the following " +
+                      "were automatically hidden too (otherwise they'd be unsolvable): " +
+                      names,
+                    button: "OK",
+                  });
+                } else {
+                  ezToast({
+                    title: "Success",
+                    body: "Your challenge has been updated!",
+                  });
+                }
               } else {
                 let body = "";
                 if (response.errors) {
