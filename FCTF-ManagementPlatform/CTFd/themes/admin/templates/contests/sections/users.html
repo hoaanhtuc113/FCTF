@@ -614,6 +614,9 @@
             Rows whose username or email already exists in the system are skipped and reported as errors.
             {% if contest.user_mode == "teams" %}Leave <code>team</code> empty for no team; a name matching an existing team joins it, any other name creates a new team.{% endif %}
         </p>
+        <button type="button" class="clean-btn btn-outline-secondary mb-2" id="import-contest-template-btn">
+            <i class="fas fa-file-download"></i> Download Template
+        </button>
         <div class="import-drop-zone" id="import-contest-drop-zone">
             <input type="file" id="import-contest-file-input" accept=".xlsx,.xls">
             <i class="fas fa-cloud-upload-alt" style="font-size:2rem;color:#adb5bd;"></i>
@@ -1491,8 +1494,27 @@ if (cuForm) {
     const importProgressBar= document.getElementById('import-contest-progress-bar');
     const importProgressText = document.getElementById('import-contest-progress-text');
     const importResults    = document.getElementById('import-contest-results');
+    const importTemplateBtn = document.getElementById('import-contest-template-btn');
     let importParsedRows = [];
     let importHasFailures = false;
+
+    function downloadImportTemplate() {
+        const headers = ['username', 'email', 'password', 'role', 'team'];
+        const sampleRows = CONTEST_USER_MODE === 'teams'
+            ? [
+                ['player1', 'player1@example.com', 'ChangeMe123!', 'contestant', 'Team Alpha'],
+                ['player2', 'player2@example.com', 'ChangeMe123!', 'contestant', ''],
+              ]
+            : [
+                ['player1', 'player1@example.com', 'ChangeMe123!', 'contestant', ''],
+              ];
+        const ws = XLSX.utils.aoa_to_sheet([headers].concat(sampleRows));
+        ws['!cols'] = [{ wch: 16 }, { wch: 26 }, { wch: 16 }, { wch: 18 }, { wch: 16 }];
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Users');
+        XLSX.writeFile(wb, 'import_users_template.xlsx');
+    }
+    if (importTemplateBtn) importTemplateBtn.addEventListener('click', downloadImportTemplate);
 
     function parseExcel(arrayBuffer) {
         const workbook = XLSX.read(arrayBuffer, { type: 'array' });
