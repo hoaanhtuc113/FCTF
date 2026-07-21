@@ -1148,6 +1148,7 @@ def contest_challenge_detail(contest_id, challenge_id):
         is_detail=True,
         ctf_is_active=ctf_is_active,
         versions=versions,
+        files_only_tabs=(challenge.type == "sandbox"),
     )
 
 
