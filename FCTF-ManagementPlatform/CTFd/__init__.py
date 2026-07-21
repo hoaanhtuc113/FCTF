@@ -475,7 +475,7 @@ def create_app(config="CTFd.config.Config"):
             """Allow contestants to access their contest UI, but block non-staff
             from admin routes. Regular users can browse /contests and /c/* routes.
             """
-            from CTFd.utils.user import authed, is_challenge_writer, is_jury
+            from CTFd.utils.user import authed, is_challenge_writer, is_conductor, is_jury
 
             path = request.path or ""
 
@@ -522,7 +522,7 @@ def create_app(config="CTFd.config.Config"):
                 return redirect(url_for("auth.login", next=request.full_path))
 
             # Admin routes – require staff roles
-            if is_admin() or is_challenge_writer() or is_jury():
+            if is_admin() or is_challenge_writer() or is_jury() or is_conductor():
                 return
 
             # Block anonymous + logged-in non-staff
