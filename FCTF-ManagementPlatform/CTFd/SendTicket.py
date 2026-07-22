@@ -5,7 +5,7 @@ All contestant-facing HTTP routes have been removed.
 This module is now admin-only.
 """
 from flask import jsonify
-from CTFd.models import Tickets, Users, Teams, db
+from CTFd.models import Tickets, Users, Teams, UserTeamMember, db
 from sqlalchemy.orm import aliased
 
 
@@ -57,6 +57,7 @@ def get_all_tickets(user_id=None, status=None, type_=None, search=None, page=1, 
         Author = aliased(Users)
         Replier = aliased(Users)
         Team = aliased(Teams)
+        UTM = aliased(UserTeamMember)
         query = db.session.query(
             Tickets,
             Author.name.label('author_name'),
@@ -64,7 +65,8 @@ def get_all_tickets(user_id=None, status=None, type_=None, search=None, page=1, 
             Team.name.label('team_name')
         ).join(Author, Tickets.author_id == Author.id) \
         .outerjoin(Replier, Tickets.replier_id == Replier.id) \
-        .outerjoin(Team, Author.team_id == Team.id)
+        .outerjoin(UTM, Author.id == UTM.user_id) \
+        .outerjoin(Team, UTM.team_id == Team.id)
 
         if user_id:
             query = query.filter(Tickets.author_id == user_id)
