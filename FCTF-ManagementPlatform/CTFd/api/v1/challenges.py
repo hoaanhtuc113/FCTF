@@ -362,6 +362,28 @@ class ChallengeTypes(Resource):
         return {"success": True, "data": response}
 
 
+def _cascade_hide_dependents(challenge):
+    to_process = [challenge.id]
+    seen = {challenge.id}
+    newly_hidden = []
+
+    while to_process:
+        current_id = to_process.pop()
+        dependents = Challenges.query.filter(
+            Challenges.state != "hidden",
+        ).all()
+        for dep in dependents:
+            if dep.id in seen:
+                continue
+            prereqs = (dep.requirements or {}).get("prerequisites", [])
+            if current_id in prereqs:
+                dep.state = "hidden"
+                seen.add(dep.id)
+                to_process.append(dep.id)
+                newly_hidden.append({"id": dep.id, "name": dep.name})
+
+    return newly_hidden
+
 @challenges_namespace.route("/<challenge_id>")
 class Challenge(Resource):
     @check_challenge_visibility
@@ -669,6 +691,12 @@ class Challenge(Resource):
 
         challenge_class = get_chal_class(challenge.type)
         challenge = challenge_class.update(challenge, request)
+        
+        is_hiding = data.get("state") == "hidden" and before_state["state"] != "hidden"
+        if is_hiding:
+            _cascade_hide_dependents(challenge)
+            db.session.commit()
+
         response = challenge_class.read(challenge)
         
         log_audit(
