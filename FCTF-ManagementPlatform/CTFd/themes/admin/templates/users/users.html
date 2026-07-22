@@ -408,15 +408,17 @@
 <div class="import-modal-overlay" id="import-users-modal">
 	<div class="import-modal-box">
 		<button class="import-modal-close" id="import-modal-close" title="Close">&times;</button>
-		<h5><i class="fas fa-file-import" style="color:#17a2b8;"></i> Import Users from CSV</h5>
+		<h5><i class="fas fa-file-import" style="color:#17a2b8;"></i> Import Users from Excel / CSV</h5>
 		<p style="font-size:0.88rem;color:#666;margin-bottom:1rem;">
-			Upload a CSV file with columns: <code>name</code>, <code>email</code>, <code>password</code>.<br>
+			Upload an <strong>Excel</strong> (.xlsx, .xls) or <strong>CSV</strong> file with columns:
+			<code>name</code>, <code>email</code>, <code>password</code>.<br>
 			Optional: <code>role</code> (user/admin), <code>verified</code>, <code>hidden</code>, <code>banned</code>.
 		</p>
 		<div class="import-drop-zone" id="import-drop-zone">
-			<input type="file" id="import-file-input" accept=".csv">
+			<input type="file" id="import-file-input" accept=".xlsx,.xls,.csv">
 			<i class="fas fa-cloud-upload-alt" style="font-size:2rem;color:#adb5bd;"></i>
-			<div style="margin-top:0.5rem;color:#666;font-size:0.9rem;">Drag &amp; drop CSV here, or click to browse</div>
+			<div style="margin-top:0.5rem;color:#666;font-size:0.9rem;">Drag &amp; drop Excel / CSV here, or click to browse</div>
+			<div style="margin-top:0.25rem;color:#adb5bd;font-size:0.78rem;">Supported: .xlsx, .xls, .csv</div>
 		</div>
 		<div class="import-file-name" id="import-file-name"></div>
 		<div id="import-progress" style="display:none;margin-top:0.75rem;">
@@ -439,6 +441,8 @@
 {% endblock %}
 
 {% block scripts %}
+<!-- SheetJS for Excel file parsing -->
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script>
 function createUser(event) {
 	event.preventDefault();
@@ -571,6 +575,52 @@ function parseCSV(text) {
 	}).filter(r => r.name || r.email);
 }
 
+/**
+ * Parse an Excel or CSV file into an array of user objects.
+ * Uses SheetJS (XLSX) for Excel; falls back to parseCSV for .csv.
+ * @param {File} file
+ * @returns {Promise<Array>}
+ */
+function parseFileToUsers(file) {
+	return new Promise((resolve, reject) => {
+		const ext = file.name.split('.').pop().toLowerCase();
+		if (ext === 'csv') {
+			const reader = new FileReader();
+			reader.onload = e => resolve(parseCSV(e.target.result));
+			reader.onerror = () => reject(new Error('Failed to read CSV file.'));
+			reader.readAsText(file);
+		} else {
+			// Excel: .xlsx or .xls — use SheetJS
+			if (typeof XLSX === 'undefined') {
+				reject(new Error('SheetJS (XLSX) library is not loaded.'));
+				return;
+			}
+			const reader = new FileReader();
+			reader.onload = function(e) {
+				try {
+					const data = new Uint8Array(e.target.result);
+					const workbook = XLSX.read(data, { type: 'array' });
+					const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+					// sheet_to_json with header:1 returns array of arrays
+					const rows = XLSX.utils.sheet_to_json(firstSheet, { header: 1, defval: '' });
+					if (rows.length < 2) { resolve([]); return; }
+					const headers = rows[0].map(h => String(h).trim().toLowerCase());
+					const users = rows.slice(1).map(row => {
+						const obj = {};
+						headers.forEach((h, i) => { obj[h] = String(row[i] !== undefined ? row[i] : '').trim(); });
+						return obj;
+					}).filter(r => r.name || r.email);
+					resolve(users);
+				} catch (err) {
+					reject(err);
+				}
+			};
+			reader.onerror = () => reject(new Error('Failed to read Excel file.'));
+			reader.readAsArrayBuffer(file);
+		}
+	});
+}
+
 document.addEventListener('DOMContentLoaded', function() {
 	const importModal = document.getElementById('import-users-modal');
 	if (!importModal) return;
@@ -605,19 +655,30 @@ document.addEventListener('DOMContentLoaded', function() {
 	}
 
 	function handleImportFile(file) {
-		importFileName.textContent = file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)';
-		const reader = new FileReader();
-		reader.onload = function(e) {
-			importParsedUsers = parseCSV(e.target.result);
-			if (importParsedUsers.length > 0) {
-				importSubmitBtn.disabled = false;
-				importFileName.textContent += ' - ' + importParsedUsers.length + ' users found';
-			} else {
+		const ext = (file.name.split('.').pop() || '').toLowerCase();
+		const allowed = ['csv', 'xlsx', 'xls'];
+		if (!allowed.includes(ext)) {
+			importFileName.textContent = 'Unsupported file type: .' + ext + '. Please upload .xlsx, .xls, or .csv.';
+			importSubmitBtn.disabled = true;
+			return;
+		}
+		importFileName.textContent = file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB) — reading...';
+		parseFileToUsers(file)
+			.then(users => {
+				importParsedUsers = users;
+				if (importParsedUsers.length > 0) {
+					importSubmitBtn.disabled = false;
+					importFileName.textContent = file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB) — ' + importParsedUsers.length + ' users found';
+				} else {
+					importSubmitBtn.disabled = true;
+					importFileName.textContent = file.name + ' — No valid rows found. Check column headers (name, email, password).';
+				}
+			})
+			.catch(err => {
+				importParsedUsers = [];
 				importSubmitBtn.disabled = true;
-				importFileName.textContent += ' - No valid rows found. Check column headers.';
-			}
-		};
-		reader.readAsText(file);
+				importFileName.textContent = 'Error reading file: ' + (err.message || err);
+			});
 	}
 
 	importOpenBtn.addEventListener('click', openImportModal);
