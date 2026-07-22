@@ -792,7 +792,7 @@ public class ChallengeController : BaseController
 
     if (kypoAccount?.KypoUsername != null && kypoAccount?.KypoPassword != null)
     {
-        var tokenResult = await GetKeycloakTokenAsync(kypoAccount.KypoUsername, kypoAccount.KypoPassword);
+        var tokenResult = await GetKeycloakTokenAsync(kypoAccount.KypoUsername, AesHelper.Decrypt(kypoAccount.KypoPassword));
         if (tokenResult != null)
         {
             var (accessToken, refreshToken, idToken, sessionState, expiresIn) = tokenResult.Value;
