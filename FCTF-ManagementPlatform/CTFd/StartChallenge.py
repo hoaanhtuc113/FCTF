@@ -9,6 +9,7 @@ from CTFd.models import (
     Teams,
     ChallengeFiles,
     Challenges,
+    ContestParticipant,
     Tokens,
     Users,
     db,
@@ -19,8 +20,8 @@ from CTFd.constants.envvars import (
     HOST_CACHE,
     get_redis_client_kwargs,
 )
-# 
-from CTFd.utils.user import get_current_user, is_admin
+#
+from CTFd.utils.user import get_current_user, is_admin, is_jury, is_challenge_writer
 
 import redis
 import re
@@ -238,22 +239,38 @@ def get_all_instance():
     try:
         # Kiểm tra quyền truy cập của người dùng
         user = get_current_user()
-        if not user or not is_admin():
+        if not user:
             return jsonify({"error": "Permission denied"}), 403
-        
+
+        contest_id_filter = request.args.get("contest_id", type=int)
+
+        if not is_admin():
+            if not (is_jury() or is_challenge_writer()):
+                return jsonify({"error": "Permission denied"}), 403
+            # Jury/challenge_writer can only view instances for a contest
+            # they are actually assigned to.
+            if not contest_id_filter:
+                return jsonify({"error": "Permission denied"}), 403
+            participant = ContestParticipant.query.filter(
+                ContestParticipant.user_id == user.id,
+                ContestParticipant.contest_id == contest_id_filter,
+                ContestParticipant.role.in_(["jury", "challenge_writer"]),
+            ).first()
+            if not participant:
+                return jsonify({"error": "Permission denied"}), 403
+
         # Get pagination and sorting parameters
         page = request.args.get("page", 1, type=int)
         per_page = request.args.get("per_page", 50, type=int)
         sort_by = request.args.get("sort_by", "time_finished")  # Default sort by time
         sort_order = request.args.get("sort_order", "desc")  # Default descending
-        
+
         # Get filter and search parameters
         team_filter = request.args.get("team_name", "").strip().lower()
         challenge_search = request.args.get("challenge_name", "").strip().lower()
         user_filter = request.args.get("user_name", "").strip().lower()
         category_filter = request.args.get("challenge_category", "").strip().lower()
         status_filter = request.args.get("status", "").strip().lower()
-        contest_id_filter = request.args.get("contest_id", type=int)
         
         pattern = "deploy_challenge_*_*"
         cursor = 0
