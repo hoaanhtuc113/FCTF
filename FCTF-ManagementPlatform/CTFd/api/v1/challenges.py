@@ -597,11 +597,13 @@ class Challenge(Resource):
         user = Users.query.filter_by(id=user_id).first()
         challenge = Challenges.query.filter_by(id=challenge_id).first_or_404()
 
-        if ChallengeStartTracking.query.filter_by(challenge_id=challenge_id).first():
-            return {
-                "success": False,
-                "error": "Cannot update: one or more teams have already started this challenge.",
-            }, 403
+        is_hiding = data.get("state") == "hidden" and challenge.state != "hidden"
+        if is_hiding:
+            if ChallengeStartTracking.query.filter_by(challenge_id=challenge_id).first():
+                return {
+                    "success": False,
+                    "error": "Cannot update: one or more teams have already started this challenge.",
+                }, 403
 
         print(f"Challenge {challenge.name} has been updated by user {user_id} ({user.type})")
 
