@@ -12,6 +12,10 @@
     margin-top: 6px !important;
     z-index: 1050 !important;
 }
+/* Export dropdown positioning */
+.cx-export-wrap { position: relative; display: inline-block; }
+.cx-export-menu { display: none; position: absolute; right: 0; top: calc(100% + 4px); min-width: 240px; z-index: 1060; }
+.cx-export-menu.show { display: block; }
 .import-modal-overlay {
     display: none;
     position: fixed;
@@ -190,33 +194,33 @@
                     id="users-delete-button" title="Delete selected users">
                 <i class="btn-fa fas fa-trash-alt"></i> Delete
             </button>
-            <div class="dropdown d-inline-block" style="position:relative;">
-                <button class="clean-btn dropdown-toggle" type="button" id="export-csv-button"
+            <!-- Export dropdown (CSV + Excel) -->
+            <div class="cx-export-wrap">
+                <button type="button" class="clean-btn dropdown-toggle" id="cx-export-toggle"
                         aria-haspopup="true" aria-expanded="false">
-                    <i class="fas fa-download"></i> Export CSV
+                    <i class="fas fa-download"></i> Export
                 </button>
-                <div class="dropdown-menu shadow-sm p-3" id="export-csv-dropdown"
-                     aria-labelledby="export-csv-button" style="min-width:270px;right:0;left:auto;">
-                    <p style="font-size:0.78rem;color:#666;margin-bottom:0.75rem;">
-                        Export all users in this contest to CSV.
+                <div class="cx-export-menu dropdown-menu shadow-sm p-3" id="cx-export-menu">
+                    <p style="font-size:0.78rem;color:#666;margin-bottom:0.6rem;">
+                        Export all users in this contest to file.
                     </p>
                     <div class="form-check mb-2">
-                        <input class="form-check-input" type="checkbox" id="export-include-passwords">
-                        <label class="form-check-label small font-weight-bold" for="export-include-passwords">
+                        <input class="form-check-input" type="checkbox" id="cx-incl-pwd">
+                        <label class="form-check-label small font-weight-bold" for="cx-incl-pwd">
                             Include Passwords (Reset)
                         </label>
-                        <small class="form-text text-muted d-block mt-1">
-                            Generates new random passwords and resets all users.
-                        </small>
+                        <small class="form-text text-muted d-block">Generates new random passwords and resets all users.</small>
                     </div>
-                    <div id="export-pw-warning" class="alert alert-warning py-2 px-2 mb-2"
+                    <div id="cx-pw-warn" class="alert alert-warning py-2 px-2 mb-2"
                          style="display:none;font-size:0.8rem;">
                         <i class="fas fa-exclamation-triangle"></i>
                         <small>Contest is active. Password reset export is disabled.</small>
                     </div>
-                    <button class="btn btn-warning btn-sm w-100 text-white font-weight-bold"
-                            id="export-contest-users-btn">
-                        <i class="fas fa-download"></i> Export
+                    <button class="btn btn-warning btn-sm w-100 text-white font-weight-bold mb-1" id="cx-do-csv">
+                        <i class="fas fa-file-csv"></i> Export CSV
+                    </button>
+                    <button class="btn btn-secondary btn-sm w-100 font-weight-bold" id="cx-do-xlsx">
+                        <i class="fas fa-file-excel"></i> Export Excel (.xlsx)
                     </button>
                 </div>
             </div>
@@ -1665,58 +1669,97 @@ if (cuForm) {
     });
 })();
 
-// ── Export CSV ────────────────────────────────────────────────────────────
+// ── Export dropdown (CSV + Excel) ─────────────────────────────────────────
 (function () {
-    var exportBtn     = document.getElementById('export-csv-button');
-    var exportDropdown = document.getElementById('export-csv-dropdown');
-    var doExportBtn   = document.getElementById('export-contest-users-btn');
-    var inclPasswords = document.getElementById('export-include-passwords');
-    var pwWarning     = document.getElementById('export-pw-warning');
+    var CONTEST_STATE = '{{ contest.state }}';
+    var CONTEST_ID    = '{{ contest.id }}';
 
-    if (!exportBtn) return;
+    var toggleBtn  = document.getElementById('cx-export-toggle');
+    var menu       = document.getElementById('cx-export-menu');
+    if (!toggleBtn || !menu) return;
 
-    exportBtn.addEventListener('click', function (e) {
+    var inclPwd    = document.getElementById('cx-incl-pwd');
+    var pwWarn     = document.getElementById('cx-pw-warn');
+    var doCsv      = document.getElementById('cx-do-csv');
+    var doXlsx     = document.getElementById('cx-do-xlsx');
+
+    var contestActive = (CONTEST_STATE === 'visible' || CONTEST_STATE === 'paused');
+
+    /* ── toggle ── */
+    toggleBtn.addEventListener('click', function (e) {
         e.stopPropagation();
-        var open = exportDropdown.classList.contains('show');
-        exportDropdown.classList.toggle('show', !open);
-        exportBtn.setAttribute('aria-expanded', String(!open));
+        var willShow = !menu.classList.contains('show');
+        menu.classList.toggle('show');
+        toggleBtn.setAttribute('aria-expanded', String(menu.classList.contains('show')));
+        if (willShow && contestActive) {
+            pwWarn.style.display  = 'block';
+            inclPwd.checked = false; inclPwd.disabled = true;
+        } else if (willShow) {
+            pwWarn.style.display = 'none';
+            inclPwd.disabled = false;
+        }
     });
     document.addEventListener('click', function (e) {
-        if (!exportBtn.contains(e.target) && !exportDropdown.contains(e.target)) {
-            exportDropdown.classList.remove('show');
-            exportBtn.setAttribute('aria-expanded', 'false');
+        if (!toggleBtn.contains(e.target) && !menu.contains(e.target)) {
+            menu.classList.remove('show');
+            toggleBtn.setAttribute('aria-expanded', 'false');
         }
     });
 
-    inclPasswords.addEventListener('change', function () {
-        if (this.checked) {
-            var state = '{{ contest.state }}';
-            if (state === 'visible' || state === 'paused') {
-                pwWarning.style.display = 'block';
-                this.checked = false;
-            }
+    /* ── password checkbox guard ── */
+    inclPwd.addEventListener('change', function () {
+        if (this.checked && contestActive) {
+            this.checked = false;
+            pwWarn.style.display  = 'block';
         }
     });
 
-    doExportBtn.addEventListener('click', function () {
-        var url = '/admin/contests/{{ contest.id }}/users/export/csv';
-        if (inclPasswords.checked) url += '?include_passwords=1';
-        var orig = doExportBtn.innerHTML;
-        doExportBtn.disabled = true;
-        doExportBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Exporting…';
-        // Trigger download via hidden link
-        var a = document.createElement('a');
-        a.href = url;
-        a.style.display = 'none';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        setTimeout(function () {
-            doExportBtn.disabled = false;
-            doExportBtn.innerHTML = orig;
-            exportDropdown.classList.remove('show');
-        }, 2000);
-    });
+    /* ── download helper ── */
+    function doExport(format) {
+        var includePwd = inclPwd.checked;
+        if (includePwd && contestActive) {
+            alert('Contest is active — password export is disabled.');
+            return;
+        }
+        if (includePwd && !confirm('All contestant passwords will be RESET and included in the export. Continue?')) {
+            return;
+        }
+
+        var baseUrl = '/admin/contests/' + CONTEST_ID + '/users/export/' + format;
+        var url = includePwd ? baseUrl + '?include_passwords=1' : baseUrl;
+
+        var btn = format === 'excel' ? doXlsx : doCsv;
+        var orig = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Exporting\u2026';
+
+        fetch(url, { credentials: 'same-origin' })
+            .then(function (resp) {
+                if (!resp.ok) throw new Error('Export failed (' + resp.status + ')');
+                return resp.blob().then(function (blob) {
+                    var cd = resp.headers.get('Content-Disposition') || '';
+                    var m  = cd.match(/filename="?([^"]+)"?/);
+                    var fname = m ? m[1] : (format === 'excel' ? 'users.xlsx' : 'users.csv');
+                    var a = document.createElement('a');
+                    a.href = URL.createObjectURL(blob);
+                    a.download = fname;
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    URL.revokeObjectURL(a.href);
+                    menu.classList.remove('show');
+                    toggleBtn.setAttribute('aria-expanded', 'false');
+                });
+            })
+            .catch(function (err) { alert('Export error: ' + err.message); })
+            .finally(function () {
+                btn.disabled = false;
+                btn.innerHTML = orig;
+            });
+    }
+
+    doCsv.addEventListener('click',  function () { doExport('csv'); });
+    doXlsx.addEventListener('click', function () { doExport('excel'); });
 })();
 
 })();
