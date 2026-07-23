@@ -2246,7 +2246,8 @@ def contest_create_team(contest_id):
 @admins_only
 def contest_team_detail(contest_id, team_id):
     from sqlalchemy import not_
-    from CTFd.models import Challenges, Tracking, Solves, Fails, Awards, UserTeamMember, KypoTeamAccount
+    from sqlalchemy.sql.expression import union_all
+    from CTFd.models import Challenges, Tracking, Solves, Fails, Awards, KypoTeamAccount
     from CTFd.utils.aes_helper import decrypt_kypo_password
 
     contest = Contests.query.filter_by(id=contest_id).first_or_404()
@@ -2262,6 +2263,7 @@ def contest_team_detail(contest_id, team_id):
 
     solves = (
         Solves.query
+        .options(joinedload(Solves.challenge))
         .filter(Solves.user_id.in_(member_ids), Solves.challenge_id.in_(challenge_ids_subq))
         .order_by(Solves.date.desc())
         .all()
@@ -2277,24 +2279,50 @@ def contest_team_detail(contest_id, team_id):
         .all()
     ) if member_ids else []
 
-    # Score = sum of UserTeamMember.score (updated on every correct solve)
-    score = db.session.query(db.func.sum(UserTeamMember.score)).filter(
-        UserTeamMember.team_id == team_id
-    ).scalar() or 0
+    # Per-member scores computed directly from Solves/Awards (contest-scoped).
+    # NOTE: UserTeamMember.score is a legacy cache column that is only kept up
+    # to date by the Python solve path — contestant flag submissions go through
+    # the separate ContestantBE (.NET) service, which writes Solves directly
+    # and never touches this column, so it drifts to 0. Solves/Awards are the
+    # source of truth (same pattern used by the contest scoreboard above).
+    member_scores = {}
+    for s in solves:
+        member_scores[s.user_id] = member_scores.get(s.user_id, 0) + (s.challenge.value or 0)
+    for a in awards:
+        member_scores[a.user_id] = member_scores.get(a.user_id, 0) + (a.value or 0)
 
-    # Per-member scores from UserTeamMember
-    member_scores = {
-        utm.user_id: utm.score
-        for utm in UserTeamMember.query.filter_by(team_id=team_id).all()
-    }
+    score = sum(member_scores.values())
 
     # Place: rank this team among all teams in the same contest by score
-    team_scores = db.session.query(
-        UserTeamMember.team_id,
-        db.func.sum(UserTeamMember.score).label("total")
-    ).join(Teams, Teams.id == UserTeamMember.team_id).filter(
-        Teams.contest_id == contest_id
-    ).group_by(UserTeamMember.team_id).order_by(db.desc("total")).all()
+    team_solve_scores = (
+        db.session.query(
+            Solves.team_id.label("team_id"),
+            db.func.sum(Challenges.value).label("score"),
+        )
+        .join(Challenges, Solves.challenge_id == Challenges.id)
+        .filter(Challenges.contest_id == contest_id)
+        .filter(Solves.team_id != None)
+        .group_by(Solves.team_id)
+    )
+    team_award_scores = (
+        db.session.query(
+            Awards.team_id.label("team_id"),
+            db.func.sum(Awards.value).label("score"),
+        )
+        .filter(Awards.contest_id == contest_id)
+        .filter(Awards.team_id != None)
+        .group_by(Awards.team_id)
+    )
+    team_sumscores = union_all(team_solve_scores, team_award_scores).alias("team_sumscores")
+    team_scores = (
+        db.session.query(
+            team_sumscores.columns.team_id,
+            db.func.sum(team_sumscores.columns.score).label("total"),
+        )
+        .group_by(team_sumscores.columns.team_id)
+        .order_by(db.desc("total"))
+        .all()
+    )
 
     place = None
     for rank, (tid, _) in enumerate(team_scores, start=1):
