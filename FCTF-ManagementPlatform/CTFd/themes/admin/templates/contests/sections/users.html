@@ -14,7 +14,18 @@
 }
 /* Export dropdown positioning */
 .cx-export-wrap { position: relative; display: inline-block; }
-.cx-export-menu { display: none; position: absolute; right: 0; top: calc(100% + 4px); min-width: 240px; z-index: 1060; }
+.cx-export-menu { 
+    display: none; 
+    position: absolute !important; 
+    right: 0 !important; 
+    left: auto !important; 
+    top: calc(100% + 6px) !important; 
+    min-width: 280px; 
+    max-width: 90vw;
+    z-index: 1060; 
+    border-radius: 8px;
+    transform: none !important; 
+}
 .cx-export-menu.show { display: block; }
 .import-modal-overlay {
     display: none;
@@ -200,27 +211,28 @@
                         aria-haspopup="true" aria-expanded="false">
                     <i class="fas fa-download"></i> Export
                 </button>
-                <div class="cx-export-menu dropdown-menu shadow-sm p-3" id="cx-export-menu">
-                    <p style="font-size:0.78rem;color:#666;margin-bottom:0.6rem;">
+                <div class="cx-export-menu dropdown-menu shadow p-3" id="cx-export-menu">
+                    <h6 class="dropdown-header px-0 text-dark font-weight-bold" style="font-size: 0.9rem;">Export Options</h6>
+                    <p style="font-size:0.8rem;color:#666;margin-bottom:0.8rem;">
                         Export all users in this contest to file.
                     </p>
-                    <div class="form-check mb-2">
+                    <div class="form-check mb-3">
                         <input class="form-check-input" type="checkbox" id="cx-incl-pwd">
-                        <label class="form-check-label small font-weight-bold" for="cx-incl-pwd">
+                        <label class="form-check-label small font-weight-bold" for="cx-incl-pwd" style="cursor: pointer;">
                             Include Passwords (Reset)
                         </label>
-                        <small class="form-text text-muted d-block">Generates new random passwords and resets all users.</small>
+                        <small class="form-text text-muted d-block mt-1" style="line-height: 1.2;">Generates new random passwords and resets all users.</small>
                     </div>
-                    <div id="cx-pw-warn" class="alert alert-warning py-2 px-2 mb-2"
-                         style="display:none;font-size:0.8rem;">
+                    <div id="cx-pw-warn" class="alert alert-warning py-2 px-2 mb-3"
+                         style="display:none;font-size:0.8rem; border-radius: 6px;">
                         <i class="fas fa-exclamation-triangle"></i>
                         <small>Contest is active. Password reset export is disabled.</small>
                     </div>
-                    <button class="btn btn-warning btn-sm w-100 text-white font-weight-bold mb-1" id="cx-do-csv">
-                        <i class="fas fa-file-csv"></i> Export CSV
+                    <button class="btn btn-warning btn-sm w-100 text-white font-weight-bold mb-2 d-flex align-items-center justify-content-center" id="cx-do-csv" style="gap: 0.4rem; padding: 0.5rem;">
+                        <i class="fas fa-file-csv fa-lg"></i> Export CSV
                     </button>
-                    <button class="btn btn-secondary btn-sm w-100 font-weight-bold" id="cx-do-xlsx">
-                        <i class="fas fa-file-excel"></i> Export Excel (.xlsx)
+                    <button class="btn btn-success btn-sm w-100 font-weight-bold d-flex align-items-center justify-content-center" id="cx-do-xlsx" style="gap: 0.4rem; padding: 0.5rem; background-color: #28a745; border-color: #28a745; color: #fff;">
+                        <i class="fas fa-file-excel fa-lg"></i> Export Excel
                     </button>
                 </div>
             </div>
