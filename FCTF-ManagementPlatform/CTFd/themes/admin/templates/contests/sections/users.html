@@ -1566,6 +1566,15 @@ if (cuForm) {
     }
 
     function handleImportFile(file) {
+        const ext = (file.name.split('.').pop() || '').toLowerCase();
+        const allowed = ['xlsx', 'xls'];
+        if (!allowed.includes(ext)) {
+            importParsedRows = [];
+            importFileName.textContent = 'Unsupported file type: .' + ext + '. Please upload .xlsx or .xls.';
+            importSubmitBtn.disabled = true;
+            return;
+        }
+
         importFileName.textContent = file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)';
         const reader = new FileReader();
         reader.onload = function(e) {

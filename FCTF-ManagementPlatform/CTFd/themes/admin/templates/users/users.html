@@ -450,11 +450,14 @@
 	<div class="import-modal-box">
 		<button class="import-modal-close" id="import-modal-close" title="Close">&times;</button>
 		<h5><i class="fas fa-file-import" style="color:#17a2b8;"></i> Import Users from Excel / CSV</h5>
-		<p style="font-size:0.88rem;color:#666;margin-bottom:1rem;">
+		<p style="font-size:0.88rem;color:#666;margin-bottom:0.5rem;">
 			Upload an <strong>Excel</strong> (.xlsx, .xls) or <strong>CSV</strong> file with columns:
 			<code>name</code>, <code>email</code>, <code>password</code>.<br>
 			Optional: <code>role</code> (user/admin), <code>verified</code>, <code>hidden</code>, <code>banned</code>.
 		</p>
+		<button type="button" class="clean-btn btn-outline-secondary mb-2" id="import-users-template-btn">
+			<i class="fas fa-file-download"></i> Download Template
+		</button>
 		<div class="import-drop-zone" id="import-drop-zone">
 			<input type="file" id="import-file-input" accept=".xlsx,.xls,.csv">
 			<i class="fas fa-cloud-upload-alt" style="font-size:2rem;color:#adb5bd;"></i>
@@ -666,6 +669,35 @@ document.addEventListener('DOMContentLoaded', function() {
 	const importModal = document.getElementById('import-users-modal');
 	if (!importModal) return;
 
+	// ── Download Template ────────────────────────────────────────────────────
+	const importTemplateBtn = document.getElementById('import-users-template-btn');
+	if (importTemplateBtn) {
+		importTemplateBtn.addEventListener('click', function() {
+			if (typeof XLSX === 'undefined') {
+				alert('Excel library is not loaded. Please refresh and try again.');
+				return;
+			}
+			const headers = ['name', 'email', 'password', 'role', 'verified', 'hidden', 'banned'];
+			const sampleRows = [
+				['Alice Johnson', 'alice@example.com', 'ChangeMe123!', 'user', 'true', 'false', 'false'],
+				['Bob Smith', 'bob@example.com', 'ChangeMe123!', 'user', 'true', 'false', 'false'],
+			];
+			const ws = XLSX.utils.aoa_to_sheet([headers].concat(sampleRows));
+			ws['!cols'] = [
+				{ wch: 20 }, // name
+				{ wch: 28 }, // email
+				{ wch: 16 }, // password
+				{ wch: 10 }, // role
+				{ wch: 10 }, // verified
+				{ wch: 8  }, // hidden
+				{ wch: 8  }, // banned
+			];
+			const wb = XLSX.utils.book_new();
+			XLSX.utils.book_append_sheet(wb, ws, 'Users');
+			XLSX.writeFile(wb, 'import_users_template.xlsx');
+		});
+	}
+
 	const importOpenBtn = document.getElementById('btn-import-users');
 	const importCloseBtn = document.getElementById('import-modal-close');
 	const importCancelBtn = document.getElementById('import-cancel');
@@ -699,6 +731,7 @@ document.addEventListener('DOMContentLoaded', function() {
 		const ext = (file.name.split('.').pop() || '').toLowerCase();
 		const allowed = ['csv', 'xlsx', 'xls'];
 		if (!allowed.includes(ext)) {
+			importParsedUsers = []; // reset stale data from any previous valid upload
 			importFileName.textContent = 'Unsupported file type: .' + ext + '. Please upload .xlsx, .xls, or .csv.';
 			importSubmitBtn.disabled = true;
 			return;
