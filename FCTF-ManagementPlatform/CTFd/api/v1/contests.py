@@ -4,7 +4,7 @@ import re
 from flask import abort, request
 from flask_restx import Namespace, Resource
 
-from CTFd.models import ContestParticipant, Contests, Users, db
+from CTFd.models import ContestParticipant, Contests, Teams, UserTeamMember, Users, db
 from CTFd.utils.decorators import admin_or_conductor_only, admins_only
 from CTFd.utils.logging.audit_logger import log_audit
 from CTFd.utils.user import get_current_user_attrs, is_admin, is_conductor
@@ -279,6 +279,51 @@ class ContestDetail(Resource):
                         "success": False,
                         "errors": {"slug": [f"Slug '{new_slug}' is already used by another contest."]},
                     }, 400
+
+        # Reducing team_size or switching to solo user_mode must not orphan
+        # teams that already exceed the new limit.
+        if "team_size" in data:
+            raw_size = data["team_size"]
+            new_team_size = int(raw_size) if raw_size not in (None, "", 0) else None
+            if new_team_size is not None:
+                oversized_team = (
+                    db.session.query(Teams.id)
+                    .join(UserTeamMember, UserTeamMember.team_id == Teams.id)
+                    .filter(Teams.contest_id == contest_id)
+                    .group_by(Teams.id)
+                    .having(db.func.count(UserTeamMember.id) > new_team_size)
+                    .first()
+                )
+                if oversized_team is not None:
+                    return {
+                        "success": False,
+                        "errors": {
+                            "team_size": [
+                                "Cannot set max team size to {0}: at least one team "
+                                "already has more than {0} members.".format(new_team_size)
+                            ]
+                        },
+                    }, 400
+
+        if data.get("user_mode") == "users" and contest.user_mode != "users":
+            multi_member_team = (
+                db.session.query(Teams.id)
+                .join(UserTeamMember, UserTeamMember.team_id == Teams.id)
+                .filter(Teams.contest_id == contest_id)
+                .group_by(Teams.id)
+                .having(db.func.count(UserTeamMember.id) > 1)
+                .first()
+            )
+            if multi_member_team is not None:
+                return {
+                    "success": False,
+                    "errors": {
+                        "user_mode": [
+                            "Cannot switch to user mode: one or more teams still have "
+                            "more than 1 member. Remove members or disband those teams first."
+                        ]
+                    },
+                }, 400
 
         for f in str_fields:
             if f in data:

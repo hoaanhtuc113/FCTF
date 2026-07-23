@@ -251,6 +251,7 @@ def challenges_detail(challenge_id):
         is_detail=is_detail,
         ctf_is_active=ctf_is_active,
         versions=versions,
+        files_only_tabs=(challenge.type == "sandbox"),
     )
 
 

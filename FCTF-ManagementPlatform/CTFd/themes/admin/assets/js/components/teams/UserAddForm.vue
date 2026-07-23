@@ -82,6 +82,8 @@
 
 <script>
 import CTFd from "../../compat/CTFd";
+import { ezAlert, ezToast } from "../../compat/ezq";
+import { htmlEntities } from "@ctfdio/ctfd-js/utils/html";
 
 export default {
   name: "UserAddForm",
@@ -191,17 +193,15 @@ export default {
       );
     },
     handleAddUsersRequest: function () {
-      let reqs = [];
+      let url;
+      if (this.$props.contest_id && this.$props.team_id) {
+        url = `/admin/contests/${this.$props.contest_id}/teams/${this.$props.team_id}/add_member`;
+      } else {
+        url = `/api/v1/teams/${this.$props.team_id}/members`;
+      }
 
-      this.selectedUsers.forEach((user) => {
-        let body = { user_id: user.id };
-        let url;
-        if (this.$props.contest_id && this.$props.team_id) {
-          url = `/admin/contests/${this.$props.contest_id}/teams/${this.$props.team_id}/add_member`;
-        } else {
-          url = `/api/v1/teams/${this.$props.team_id}/members`;
-        }
-        reqs.push(
+      return Promise.all(
+        this.selectedUsers.map((user) =>
           CTFd.fetch(url, {
             method: "POST",
             credentials: "same-origin",
@@ -209,16 +209,66 @@ export default {
               Accept: "application/json",
               "Content-Type": "application/json",
             },
-            body: JSON.stringify(body),
+            body: JSON.stringify({ user_id: user.id }),
           })
-        );
-      });
-
-      return Promise.all(reqs);
+            .then((response) => response.json())
+            .then((response) => ({
+              id: user.id,
+              name: user.name,
+              success: response.success === true,
+              message:
+                Object.values(response.errors || {})
+                  .flat()
+                  .join(" ") ||
+                (response.success ? "Added successfully." : "Failed to add member."),
+            }))
+            .catch(() => ({
+              id: user.id,
+              name: user.name,
+              success: false,
+              message: "Request failed.",
+            }))
+        )
+      );
     },
     addUsers: function () {
-      this.handleAddUsersRequest().then((_resps) => {
-        window.location.reload();
+      this.handleAddUsersRequest().then((results) => {
+        const succeeded = results.filter((r) => r.success);
+        const failed = results.filter((r) => !r.success);
+
+        // Keep unresolved users selected so the admin can retry after fixing the issue
+        const succeededIds = new Set(succeeded.map((r) => r.id));
+        this.selectedUsers = this.selectedUsers.filter(
+          (user) => !succeededIds.has(user.id)
+        );
+
+        if (failed.length > 0) {
+          ezAlert({
+            title: "Some members could not be added",
+            body:
+              "<ul>" +
+              failed
+                .map(
+                  (r) =>
+                    `<li><strong>${htmlEntities(r.name)}</strong>: ${htmlEntities(r.message)}</li>`
+                )
+                .join("") +
+              "</ul>",
+            button: "OK",
+            success: () => {
+              if (succeeded.length > 0) window.location.reload();
+            },
+          });
+        } else {
+          ezToast({
+            title: "Success",
+            body:
+              succeeded.length === 1
+                ? `${htmlEntities(succeeded[0].name)} was added to the team.`
+                : `${succeeded.length} members were added to the team.`,
+          });
+          window.location.reload();
+        }
       });
     },
   },
