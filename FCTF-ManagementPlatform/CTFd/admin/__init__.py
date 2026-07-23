@@ -365,6 +365,129 @@ def export_csv_user():
         download_name=filename,
     )
 
+
+@admin.route("/admin/export/excel/user")
+@admins_only
+def export_excel_user():
+    """Export users as an Excel (.xlsx) file using xlsxwriter."""
+    include_passwords = request.args.get("include_passwords") == "1"
+    field = request.args.get("field")
+    q = request.args.get("q")
+
+    try:
+        import xlsxwriter
+    except ImportError:
+        return {"success": False, "error": "xlsxwriter library not installed"}, 500
+
+    # ── Fetch users ───────────────────────────────────────────────────────────
+    base_query = (
+        db.session.query(Users, Teams)
+        .outerjoin(UserTeamMember, UserTeamMember.user_id == Users.id)
+        .outerjoin(Teams, Teams.id == UserTeamMember.team_id)
+        .filter(Users.type == "user")
+    )
+    if q and field and Users.__mapper__.has_property(field):
+        base_query = base_query.filter(getattr(Users, field).like(f"%{q}%"))
+
+    user_rows = base_query.all()
+
+    # ── Build rows (reset passwords if requested) ─────────────────────────────
+    if include_passwords:
+        import concurrent.futures
+        from passlib.hash import bcrypt_sha256
+
+        charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+
+        def _hash_row(user_team):
+            user, team = user_team
+            new_pass = "".join(secrets.choice(charset) for _ in range(12))
+            hashed = bcrypt_sha256.using(rounds=4).hash(str(new_pass))
+            if isinstance(hashed, bytes):
+                hashed = hashed.decode("utf-8")
+            return (
+                user.id, hashed,
+                user.name, user.email,
+                team.id if team else "", team.name if team else "",
+                new_pass,
+            )
+
+        prepared = []
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            for res in executor.map(_hash_row, user_rows):
+                prepared.append(res)
+
+        for user_id, hashed, *_ in prepared:
+            db.session.execute(
+                db.text("UPDATE users SET password = :password WHERE id = :user_id"),
+                {"password": hashed, "user_id": user_id},
+            )
+        db.session.commit()
+
+        log_audit(action="bulk_password_reset", data={"count": len(prepared)})
+
+        rows = [
+            (name, email, team_id, team_name, new_pass)
+            for _, _, name, email, team_id, team_name, new_pass in prepared
+        ]
+        headers = ["name", "email", "team_id", "team_name", "password_plain"]
+    else:
+        rows = [
+            (u.name, u.email, t.id if t else "", t.name if t else "")
+            for u, t in user_rows
+        ]
+        headers = ["name", "email", "team_id", "team_name"]
+
+    # ── Write Excel ───────────────────────────────────────────────────────────
+    output = io.BytesIO()
+    wb = xlsxwriter.Workbook(output, {"in_memory": True})
+    ws = wb.add_worksheet("Users")
+
+    # Formats
+    hdr_fmt = wb.add_format({
+        "bold": True, "font_name": "Calibri", "font_size": 11,
+        "font_color": "#FFFFFF", "bg_color": "#17A2B8",
+        "align": "center", "valign": "vcenter",
+        "border": 1, "border_color": "#AAAAAA",
+    })
+    even_fmt = wb.add_format({
+        "font_name": "Calibri", "font_size": 10,
+        "bg_color": "#EDF8FA", "border": 1, "border_color": "#CCCCCC",
+    })
+    odd_fmt = wb.add_format({
+        "font_name": "Calibri", "font_size": 10,
+        "bg_color": "#FFFFFF", "border": 1, "border_color": "#CCCCCC",
+    })
+
+    col_widths = {"name": 22, "email": 32, "team_id": 10,
+                  "team_name": 22, "password_plain": 18}
+
+    for col_idx, h in enumerate(headers):
+        ws.set_column(col_idx, col_idx, col_widths.get(h, 16))
+        ws.write(0, col_idx, h, hdr_fmt)
+    ws.set_row(0, 22)
+
+    for row_idx, row in enumerate(rows, start=1):
+        fmt = even_fmt if row_idx % 2 == 0 else odd_fmt
+        for col_idx, val in enumerate(row):
+            ws.write(row_idx, col_idx, str(val) if val is not None else "", fmt)
+
+    wb.close()
+    output.seek(0)
+
+    filename = f"{ctf_config.ctf_name()}-user"
+    if q and field:
+        filename += f"-{field}-{q}"
+    filename += ".xlsx"
+
+    return send_file(
+        output,
+        as_attachment=True,
+        max_age=-1,
+        download_name=filename,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+
+
 def dump_csv_with_passwords(field=None, q=None):
     """
     Xuất CSV cho user type='user' kèm password mới (plaintext + hash)
