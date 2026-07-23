@@ -100,6 +100,12 @@ public class KypoApiClient
             resp = await client.GetAsync(url);
         }
 
+        if (resp.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            _logger.LogDebug("[KYPO] Instance {Id} not found (404) — skipping progress fetch", instanceId);
+            return new List<KypoProgressEntry>();
+        }
+
         resp.EnsureSuccessStatusCode();
 
         var json = await resp.Content.ReadAsStringAsync();

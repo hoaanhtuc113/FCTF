@@ -179,7 +179,7 @@ def get_kypo_instances():
     instances = []
     errors = []
 
-    for kind in ("linear", "adaptive"):
+    for kind in ("linear",):
         try:
             instances.extend(_fetch_instances(token, kind))
         except Exception as exc:

@@ -25,7 +25,7 @@ from CTFd.models import (
     DeployedChallenge,
     ChallengeVersion,
 )
-from CTFd.models import Challenges, Contests
+from CTFd.models import Challenges, Contests, ContestParticipant
 from CTFd.models import ChallengeTopics as ChallengeTopicsModel
 from CTFd.models import Fails, Flags, Hints, HintUnlocks, Solves, Submissions, Tags, db
 from CTFd.plugins.challenges import CHALLENGE_CLASSES, get_chal_class
@@ -49,6 +49,7 @@ from CTFd.utils.config.visibility import (
 )
 from CTFd.utils.dates import ctf_ended, ctf_paused, ctftime
 from CTFd.utils.decorators import (
+    admin_or_challenge_writer_only,
     admin_or_challenge_writer_only_or_jury,
     admins_only,
     during_ctf_time_only,
@@ -167,6 +168,18 @@ class ChallengeList(Resource):
         # Build filtering queries
         q = query_args.pop("q", None)
         field = str(query_args.pop("field", None))
+
+        # Enforce contest membership: non-staff users can only query challenges
+        # from contests they are enrolled in.
+        contest_id = query_args.get("contest_id")
+        if contest_id and not (is_admin() or is_challenge_writer() or is_jury()):
+            user = get_current_user()
+            if user:
+                enrolled = ContestParticipant.query.filter_by(
+                    contest_id=contest_id, user_id=user.id
+                ).first()
+                if not enrolled:
+                    abort(403)
 
         # Admins get a shortcut to see all challenges despite pre-requisites
         admin_view = is_admin() and request.args.get("view") == "admin"
@@ -459,6 +472,15 @@ class Challenge(Resource):
                 Challenges.id == challenge_id,
                 and_(Challenges.state != "hidden", Challenges.state != "locked"),
             ).first_or_404()
+            # Enforce contest membership: user must belong to the challenge's contest
+            if chal.contest_id:
+                user = get_current_user()
+                if user:
+                    enrolled = ContestParticipant.query.filter_by(
+                        contest_id=chal.contest_id, user_id=user.id
+                    ).first()
+                    if not enrolled:
+                        abort(403)
 
         try:
             chal_class = get_chal_class(chal.type)
@@ -612,7 +634,7 @@ class Challenge(Resource):
         db.session.close()
         return {"success": True, "data": response}
 
-    @admin_or_challenge_writer_only_or_jury
+    @admin_or_challenge_writer_only
     @challenges_namespace.doc(
         description="Endpoint to edit a specific Challenge object",
         responses={
@@ -687,18 +709,17 @@ class Challenge(Resource):
             "shared_instant": challenge.shared_instant,
         }
 
-        if user.type == "admin":
+        if is_admin():
             data["user_id"] = challenge.created_by
-            pass
-        elif user.type == "challenge_writer":
+        elif is_challenge_writer():
             if challenge.created_by != user_id:
                 return {
                     "success": False,
-                    "error": "You are not authorized to update this challenge.",
+                    "error": "You do not have permission to edit this challenge.",
                 }, 403
             data["user_id"] = user_id
         else:
-            return {"success": False, "error": "Unauthorized user type."}, 403
+            return {"success": False, "error": "You do not have permission to edit this challenge."}, 403
 
         # Once a team has solved this challenge, hiding it would retroactively
         # invalidate their solve/scoring experience — block the transition.

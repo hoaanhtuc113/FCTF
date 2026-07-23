@@ -8,7 +8,7 @@ from CTFd.api.v1.helpers.schemas import sqlalchemy_to_pydantic
 from CTFd.api.v1.schemas import APIDetailedSuccessResponse, APIListSuccessResponse
 from CTFd.cache import clear_standings
 from CTFd.constants import RawEnum
-from CTFd.models import Awards, Users, db
+from CTFd.models import Awards, Teams, Users, db
 from CTFd.schemas.awards import AwardSchema
 from CTFd.utils.config import is_teams_mode
 from CTFd.utils.decorators import admins_only
@@ -113,21 +113,13 @@ class AwardList(Resource):
                 400,
             )
 
-        # Force a team_id if in team mode and unspecified
-        if is_teams_mode():
-            team_id = req.get("team_id")
-            if team_id is None:
-                return (
-                    {
-                        "success": False,
-                        "errors": {
-                            "team_id": [
-                                "team_id is required in team mode"
-                            ]
-                        },
-                    },
-                    400,
-                )
+        # Auto-resolve team_id from user in team mode
+        if is_teams_mode() and req.get("team_id") is None:
+            user_id = req.get("user_id")
+            if user_id:
+                user = Users.query.filter_by(id=user_id).first()
+                if user and user.team_id:
+                    req["team_id"] = user.team_id
 
         schema = AwardSchema()
 

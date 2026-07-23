@@ -2,7 +2,7 @@ from flask import request
 from flask_restx import Namespace, Resource
 
 from CTFd.models import Challenges, Contests, db
-from CTFd.utils.decorators import admins_only
+from CTFd.utils.decorators import admin_or_challenge_writer_only_or_jury, admins_only
 
 contest_challenges_namespace = Namespace(
     "contest_challenges",
@@ -12,7 +12,7 @@ contest_challenges_namespace = Namespace(
 
 @contest_challenges_namespace.route("")
 class ContestChallengeList(Resource):
-    method_decorators = [admins_only]
+    method_decorators = [admin_or_challenge_writer_only_or_jury]
 
     def get(self):
         """List challenges for a given contest."""
@@ -102,7 +102,7 @@ class ContestChallengeList(Resource):
 
 @contest_challenges_namespace.route("/<int:challenge_id>")
 class ContestChallengeDetail(Resource):
-    method_decorators = [admins_only]
+    method_decorators = [admin_or_challenge_writer_only_or_jury]
 
     def delete(self, challenge_id):
         """Delete a challenge from a contest."""
