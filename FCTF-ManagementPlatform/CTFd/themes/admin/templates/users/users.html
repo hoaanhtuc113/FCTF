@@ -16,6 +16,47 @@
 .dropdown .btn-secondary:hover { background-color: var(--primary-orange); border-color: var(--primary-orange); }
 .dropdown-menu .btn-warning { background-color: var(--primary-orange); border-color: var(--primary-orange); }
 .dropdown-menu .btn-warning:hover { background-color: var(--primary-orange-dark); border-color: var(--primary-orange-dark); }
+/* Export dropdown */
+.export-user-dropdown-wrap { position: relative; display: inline-block; }
+.export-user-dropdown-menu {
+	display: none; position: absolute; right: 0; top: calc(100% + 6px);
+	min-width: 300px; background: #fff; border: 1px solid #dee2e6;
+	border-radius: 8px; box-shadow: 0 6px 24px rgba(0,0,0,0.13);
+	padding: 1rem; z-index: 1060;
+}
+.export-user-dropdown-menu.show { display: block; }
+.export-user-dropdown-menu .export-section-title {
+	font-size: 0.78rem; font-weight: 700; color: #6c757d;
+	text-transform: uppercase; letter-spacing: .05em;
+	margin-bottom: 0.4rem;
+}
+.export-tab-btns { display: flex; gap: 0.4rem; margin-bottom: 0.75rem; }
+.export-tab-btn {
+	flex: 1; padding: 0.35rem 0.5rem; border-radius: 5px; border: 2px solid #dee2e6;
+	background: #f8f9fa; font-size: 0.82rem; font-weight: 600;
+	cursor: pointer; transition: all .15s; color: #495057;
+}
+.export-tab-btn.active-csv  { border-color: #17a2b8; background: #e8f7fa; color: #17a2b8; }
+.export-tab-btn.active-xlsx { border-color: #1d6f42; background: #e9f5ed; color: #1d6f42; }
+.export-panel { display: none; }
+.export-panel.active { display: block; }
+.export-user-dropdown-menu .export-action-btn {
+	width: 100%; padding: 0.45rem 0.8rem; border-radius: 6px;
+	border: none; font-size: 0.85rem; font-weight: 600;
+	cursor: pointer; transition: all .15s;
+	display: flex; align-items: center; gap: 0.4rem;
+	margin-top: 0.35rem;
+}
+.export-action-btn.csv-export-btn  { background: #17a2b8; color: #fff; }
+.export-action-btn.csv-export-btn:hover  { background: #138496; }
+.export-action-btn.xlsx-export-btn { background: #1d6f42; color: #fff; }
+.export-action-btn.xlsx-export-btn:hover { background: #155c35; }
+.export-pwd-row { display: flex; align-items: center; gap: 0.5rem; font-size: 0.83rem; color: #555; margin-top: 0.4rem; }
+#export-ctf-active-warning-users {
+	font-size: 0.78rem; color: #856404;
+	background: #fff3cd; border: 1px solid #ffc107;
+	border-radius: 4px; padding: 0.3rem 0.5rem; margin-top: 0.4rem;
+}
 .import-modal-overlay {
 	display: none;
 	position: fixed;
@@ -225,7 +266,66 @@
 			</button>
 			{% endif %}
 		</div>
+		{% if not pending_mode and not is_jury() %}
+		<div class="d-flex align-items-center">
+			<div class="export-user-dropdown-wrap">
+				<button type="button" id="export-user-toggle-btn"
+					class="clean-btn"
+					style="background:#28a745;border-color:#28a745;color:#fff;">
+					<i class="fas fa-file-export"></i> Export
+				</button>
+				<div class="export-user-dropdown-menu" id="export-user-dropdown-menu">
+					<!-- Tab switcher -->
+					<div class="export-section-title">Export Format</div>
+					<div class="export-tab-btns">
+						<button type="button" class="export-tab-btn active-csv" id="export-tab-csv">
+							<i class="fas fa-file-csv"></i> CSV
+						</button>
+						<button type="button" class="export-tab-btn" id="export-tab-xlsx">
+							<i class="fas fa-file-excel"></i> Excel (.xlsx)
+						</button>
+					</div>
+
+					<!-- CSV panel -->
+					<div class="export-panel active" id="export-panel-csv">
+						<div class="export-pwd-row">
+							<input type="checkbox" id="export-include-pwd-csv">
+							<label for="export-include-pwd-csv" style="margin:0;cursor:pointer;">
+								Include passwords (will reset all)
+							</label>
+						</div>
+						<div id="export-ctf-active-warning-users" style="display:none;">
+							<i class="fas fa-exclamation-triangle"></i>
+							Cannot export with passwords while CTF is active.
+						</div>
+						<button type="button" class="export-action-btn csv-export-btn" id="export-do-csv">
+							<i class="fas fa-download"></i> Download CSV
+						</button>
+					</div>
+
+					<!-- Excel panel -->
+					<div class="export-panel" id="export-panel-xlsx">
+						<div class="export-pwd-row">
+							<input type="checkbox" id="export-include-pwd-xlsx">
+							<label for="export-include-pwd-xlsx" style="margin:0;cursor:pointer;">
+								Include passwords (will reset all)
+							</label>
+						</div>
+						<div id="export-ctf-active-warning-users-xlsx" style="display:none;"
+							class="" style="font-size:0.78rem;color:#856404;background:#fff3cd;border:1px solid #ffc107;border-radius:4px;padding:0.3rem 0.5rem;margin-top:0.4rem;">
+							<i class="fas fa-exclamation-triangle"></i>
+							Cannot export with passwords while CTF is active.
+						</div>
+						<button type="button" class="export-action-btn xlsx-export-btn" id="export-do-xlsx">
+							<i class="fas fa-download"></i> Download Excel (.xlsx)
+						</button>
+					</div>
+				</div>
+			</div>
+		</div>
+		{% else %}
 		<div class="d-flex align-items-center"></div>
+		{% endif %}
 	</div>
 
 	<!-- Table -->
@@ -757,6 +857,144 @@ document.addEventListener('DOMContentLoaded', function() {
 		importSubmitBtn.disabled = false;
 		importSubmitBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Reload';
 		importSubmitBtn.addEventListener('click', function() { window.location.reload(); }, { once: true });
+	});
+});
+
+/* ── Export dropdown (CSV + Excel) ──────────────────────────────────────── */
+document.addEventListener('DOMContentLoaded', function () {
+	const toggleBtn   = document.getElementById('export-user-toggle-btn');
+	const dropMenu    = document.getElementById('export-user-dropdown-menu');
+	if (!toggleBtn || !dropMenu) return;
+
+	const tabCsv      = document.getElementById('export-tab-csv');
+	const tabXlsx     = document.getElementById('export-tab-xlsx');
+	const panelCsv    = document.getElementById('export-panel-csv');
+	const panelXlsx   = document.getElementById('export-panel-xlsx');
+	const warnCsv     = document.getElementById('export-ctf-active-warning-users');
+	const warnXlsx    = document.getElementById('export-ctf-active-warning-users-xlsx');
+	const chkCsv      = document.getElementById('export-include-pwd-csv');
+	const chkXlsx     = document.getElementById('export-include-pwd-xlsx');
+	const doCsv       = document.getElementById('export-do-csv');
+	const doXlsx      = document.getElementById('export-do-xlsx');
+
+	/* ---- helpers ---- */
+	async function checkCtfActive() {
+		try {
+			const [sRes, eRes] = await Promise.all([
+				fetch('/api/v1/configs/start', { credentials: 'same-origin' }),
+				fetch('/api/v1/configs/end',   { credentials: 'same-origin' }),
+			]);
+			const s = await sRes.json();
+			const e = await eRes.json();
+			if (!s.success || !e.success) return false;
+			const now   = Math.floor(Date.now() / 1000);
+			const start = s.data?.value ? parseInt(s.data.value) : 0;
+			const end   = e.data?.value ? parseInt(e.data.value) : 0;
+			if (start > 0 && end > 0) return start < now && now < end;
+			if (start > 0 && end === 0) return now > start;
+			return false;
+		} catch { return false; }
+	}
+
+	function getUrlFilters() {
+		const p = new URLSearchParams(window.location.search);
+		return { field: p.get('field') || '', q: p.get('q') || '' };
+	}
+
+	async function doExport(format, includePwd) {
+		if (includePwd) {
+			const active = await checkCtfActive();
+			if (active) {
+				alert('Cannot export with passwords while CTF is active.');
+				return;
+			}
+			if (!confirm('All contestant passwords will be RESET and included in the export. Continue?')) return;
+		}
+
+		const { field, q } = getUrlFilters();
+		const params = new URLSearchParams();
+		if (includePwd)       params.set('include_passwords', '1');
+		if (field && q)       { params.set('field', field); params.set('q', q); }
+
+		const endpoint = format === 'xlsx'
+			? '/admin/export/excel/user'
+			: '/admin/export/csv/user';
+		const url = endpoint + (params.toString() ? '?' + params.toString() : '');
+
+		try {
+			const btn = format === 'xlsx' ? doXlsx : doCsv;
+			btn.disabled = true;
+			btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Exporting…';
+
+			const resp = await fetch(url, { credentials: 'same-origin' });
+			if (!resp.ok) throw new Error('Export failed (' + resp.status + ')');
+
+			const blob = await resp.blob();
+			const cd   = resp.headers.get('Content-Disposition') || '';
+			const fnMatch = cd.match(/filename="?([^"]+)"?/);
+			const fileName = fnMatch ? fnMatch[1] : (format === 'xlsx' ? 'users.xlsx' : 'users.csv');
+
+			const link = document.createElement('a');
+			link.href  = URL.createObjectURL(blob);
+			link.download = fileName;
+			document.body.appendChild(link);
+			link.click();
+			link.remove();
+			URL.revokeObjectURL(link.href);
+
+			dropMenu.classList.remove('show');
+		} catch (err) {
+			alert('Export error: ' + err.message);
+		} finally {
+			if (format === 'xlsx') {
+				doXlsx.disabled = false;
+				doXlsx.innerHTML = '<i class="fas fa-download"></i> Download Excel (.xlsx)';
+			} else {
+				doCsv.disabled = false;
+				doCsv.innerHTML = '<i class="fas fa-download"></i> Download CSV';
+			}
+		}
+	}
+
+	/* ---- toggle dropdown ---- */
+	toggleBtn.addEventListener('click', async function (e) {
+		e.stopPropagation();
+		const willShow = !dropMenu.classList.contains('show');
+		dropMenu.classList.toggle('show');
+		if (willShow) {
+			/* Pre-check CTF status and disable pwd checkbox if active */
+			const active = await checkCtfActive();
+			[warnCsv, warnXlsx].forEach(w => { if (w) w.style.display = active ? 'block' : 'none'; });
+			if (active) {
+				chkCsv.checked  = false; chkCsv.disabled  = true;
+				chkXlsx.checked = false; chkXlsx.disabled = true;
+			} else {
+				chkCsv.disabled = false; chkXlsx.disabled = false;
+			}
+		}
+	});
+
+	/* ---- tab switch ---- */
+	tabCsv.addEventListener('click', function () {
+		tabCsv.classList.add('active-csv'); tabCsv.classList.remove('active-xlsx');
+		tabXlsx.classList.remove('active-csv', 'active-xlsx');
+		panelCsv.classList.add('active'); panelXlsx.classList.remove('active');
+	});
+	tabXlsx.addEventListener('click', function () {
+		tabXlsx.classList.add('active-xlsx'); tabXlsx.classList.remove('active-csv');
+		tabCsv.classList.remove('active-csv', 'active-xlsx');
+		panelXlsx.classList.add('active'); panelCsv.classList.remove('active');
+	});
+
+	/* ---- download buttons ---- */
+	doCsv.addEventListener('click',  () => doExport('csv',  chkCsv.checked));
+	doXlsx.addEventListener('click', () => doExport('xlsx', chkXlsx.checked));
+
+	/* ---- close on outside click ---- */
+	document.addEventListener('click', function (e) {
+		if (!toggleBtn.contains(e.target) && !dropMenu.contains(e.target)) {
+			dropMenu.classList.remove('show');
+		}
 	});
 });
 </script>
