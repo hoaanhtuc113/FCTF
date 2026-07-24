@@ -234,7 +234,7 @@
                     </thead>
                     <tbody>
                         {% for challenge in challenges.items %}
-                        <tr {% if not is_jury() %} data-href="{{ url_for('admin.challenges_detail', challenge_id=challenge.id) }}">
+                        <tr {% if not is_jury() %} data-href="{{ url_for('admin.challenges_detail', challenge_id=challenge.id) }}"{% endif %}>
                             <td data-checkbox>
                                 <input type="checkbox" class="table-check" value="{{ challenge.id }}"
                                     autocomplete="off" data-challenge-id="{{ challenge.id }}">
@@ -324,7 +324,6 @@
                             {% endif %}
 
                         </tr>
-                        {% endif %}
 
                         {% endfor %}
                     </tbody>
