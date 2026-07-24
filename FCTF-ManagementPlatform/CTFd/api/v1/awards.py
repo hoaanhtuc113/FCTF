@@ -113,13 +113,32 @@ class AwardList(Resource):
                 400,
             )
 
-        # Auto-resolve team_id from user in team mode
-        if is_teams_mode() and req.get("team_id") is None:
-            user_id = req.get("user_id")
-            if user_id:
-                user = Users.query.filter_by(id=user_id).first()
-                if user and user.team_id:
-                    req["team_id"] = user.team_id
+        # Force a team_id if in team mode and unspecified
+        if is_teams_mode():
+            team_id = req.get("team_id")
+            if team_id is None:
+                from CTFd.utils.user import get_team_id_for_contest
+
+                user_id = req.get("user_id")
+                contest_id = req.get("contest_id")
+                user = Users.query.filter_by(id=user_id).first() if user_id else None
+                team_id = get_team_id_for_contest(user, contest_id) if user else None
+
+                if team_id is None:
+                    return (
+                        {
+                            "success": False,
+                            "errors": {
+                                "team_id": [
+                                    "User doesn't have a team to associate award with"
+                                ]
+                                if user
+                                else ["team_id is required in team mode"]
+                            },
+                        },
+                        400,
+                    )
+                req["team_id"] = team_id
 
         schema = AwardSchema()
 
