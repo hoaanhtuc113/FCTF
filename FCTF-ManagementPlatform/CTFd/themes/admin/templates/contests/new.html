@@ -82,6 +82,19 @@
 
     .time-utc-row { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.6rem; }
     .time-utc-row label { font-size: 0.74rem; font-weight: 600; text-transform: uppercase; color: var(--text-medium); white-space: nowrap; }
+    .field-error {
+        font-size: 0.8rem;
+        color: #e53e3e;
+        margin-top: 0.3rem;
+        display: flex;
+        align-items: center;
+        gap: 0.3rem;
+    }
+    .field-error::before { content: '\26A0'; font-size: 0.85rem; }
+    .clean-form-control.is-invalid {
+        border-color: #e53e3e !important;
+        box-shadow: 0 0 0 2px rgba(229,62,62,0.15);
+    }
 </style>
 {% endblock %}
 
@@ -111,6 +124,7 @@
                         <input type="text" id="contest-name" name="name"
                                class="clean-form-control w-100" placeholder="e.g. FCTF 2026 Finals"
                                required>
+                        <div class="field-error d-none" id="err-name"></div>
                     </div>
                 </div>
                 <div class="col-md-6">
@@ -310,6 +324,8 @@
         </div>
 
         <!-- Submit -->
+        <div id="err-time" class="field-error d-none mb-2"></div>
+        <div id="err-server" class="field-error d-none mb-2"></div>
         <div class="d-flex justify-content-end mb-4">
             <a href="{{ url_for('admin.contests_listing') }}" class="clean-btn mr-2">Cancel</a>
             <button type="submit" class="clean-btn clean-btn-primary" id="submit-btn">
@@ -476,8 +492,27 @@
     });
 
     // ── Form submit ───────────────────────────────────────────────────────────
+    function clearFieldErrors() {
+        document.querySelectorAll('.field-error').forEach(function (el) {
+            el.textContent = '';
+            el.classList.add('d-none');
+        });
+        document.querySelectorAll('.clean-form-control.is-invalid').forEach(function (el) {
+            el.classList.remove('is-invalid');
+        });
+    }
+    function showFieldError(id, msg, inputId) {
+        var el = document.getElementById(id);
+        if (el) { el.textContent = msg; el.classList.remove('d-none'); }
+        if (inputId) {
+            var inp = document.getElementById(inputId);
+            if (inp) inp.classList.add('is-invalid');
+        }
+    }
+
     document.getElementById('new-contest-form').addEventListener('submit', function (e) {
         e.preventDefault();
+        clearFieldErrors();
 
         var btn = document.getElementById('submit-btn');
         btn.disabled = true;
@@ -490,37 +525,37 @@
         var freezeUTC = getTimeUTC('freeze');
 
         if (!form.name.value.trim()) {
-            alert('Contest name is required.');
+            showFieldError('err-name', 'Contest name is required.', 'contest-name');
             btn.disabled = false;
             btn.innerHTML = '<i class="bx bx-save"></i> Create Contest';
             return;
         }
         if (!startUTC) {
-            alert('Start time is required.');
+            showFieldError('err-time', 'Start time is required.');
             btn.disabled = false;
             btn.innerHTML = '<i class="bx bx-save"></i> Create Contest';
             return;
         }
         if (!endUTC) {
-            alert('End time is required.');
+            showFieldError('err-time', 'End time is required.');
             btn.disabled = false;
             btn.innerHTML = '<i class="bx bx-save"></i> Create Contest';
             return;
         }
         if (startUTC && endUTC && endUTC <= startUTC) {
-            alert('End time must be after start time.');
+            showFieldError('err-time', 'End time must be after start time.');
             btn.disabled = false;
             btn.innerHTML = '<i class="bx bx-save"></i> Create Contest';
             return;
         }
         if (freezeUTC && startUTC && freezeUTC < startUTC) {
-            alert('Freeze scoreboard time must be on or after start time.');
+            showFieldError('err-time', 'Freeze scoreboard time must be on or after start time.');
             btn.disabled = false;
             btn.innerHTML = '<i class="bx bx-save"></i> Create Contest';
             return;
         }
         if (freezeUTC && endUTC && freezeUTC > endUTC) {
-            alert('Freeze scoreboard time must be on or before end time.');
+            showFieldError('err-time', 'Freeze scoreboard time must be on or before end time.');
             btn.disabled = false;
             btn.innerHTML = '<i class="bx bx-save"></i> Create Contest';
             return;
@@ -558,15 +593,15 @@
                 window.location.href = '/admin/contests';
             } else {
                 var errors = json.errors || {};
-                var msg = Object.values(errors).flat().join('\n') || 'Failed to create contest.';
-                alert(msg);
+                var msg = Object.values(errors).flat().join(' ') || 'Failed to create contest.';
+                showFieldError('err-server', msg);
                 btn.disabled = false;
                 btn.innerHTML = '<i class="bx bx-save"></i> Create Contest';
             }
         })
         .catch(function (err) {
             console.error(err);
-            alert('An error occurred. Please try again.');
+            showFieldError('err-server', 'An error occurred. Please try again.');
             btn.disabled = false;
             btn.innerHTML = '<i class="bx bx-save"></i> Create Contest';
         });

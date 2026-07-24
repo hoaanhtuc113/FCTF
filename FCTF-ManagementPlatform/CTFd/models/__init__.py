@@ -822,6 +822,14 @@ class Admins(Users):
     __mapper_args__ = {"polymorphic_identity": "admin"}
 
 
+class Conductors(Users):
+    """Conductor — platform-level role (Users.type) that creates and manages
+    its own contests. Single-table inheritance, same as the legacy stubs
+    below: no dedicated table, just a distinct polymorphic_identity."""
+
+    __mapper_args__ = {"polymorphic_identity": "conductor"}
+
+
 # ---------------------------------------------------------------------------
 # Compatibility stubs — kept so SQLAlchemy can load legacy DB rows that still
 # have type='jury' or type='challenge_writer'. The migration

@@ -166,6 +166,9 @@ public class ChallengeController : BaseController
         if (user == null)
             return NotFound(new { error = "User not found" });
 
+        if (user.Banned.GetValueOrDefault() || user.Hidden.GetValueOrDefault())
+            return NotFound();
+
         try
         {
             var topicTeamId = GetUserTeamForContest(user, contestId)?.Id;

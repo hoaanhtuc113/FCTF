@@ -8,7 +8,7 @@ from CTFd.api.v1.helpers.schemas import sqlalchemy_to_pydantic
 from CTFd.api.v1.schemas import APIDetailedSuccessResponse, APIListSuccessResponse
 from CTFd.cache import clear_standings
 from CTFd.constants import RawEnum
-from CTFd.models import Awards, Users, db
+from CTFd.models import Awards, Teams, Users, db
 from CTFd.schemas.awards import AwardSchema
 from CTFd.utils.config import is_teams_mode
 from CTFd.utils.decorators import admins_only

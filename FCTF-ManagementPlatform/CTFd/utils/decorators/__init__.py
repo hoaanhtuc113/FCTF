@@ -25,7 +25,7 @@ def during_ctf_time_only(f):
 
     @functools.wraps(f)
     def during_ctf_time_only_wrapper(*args, **kwargs):
-        if ctftime() or current_user.is_admin():
+        if ctftime() or current_user.is_admin() or is_challenge_writer() or is_jury():
             return f(*args, **kwargs)
         else:
             if ctf_ended():

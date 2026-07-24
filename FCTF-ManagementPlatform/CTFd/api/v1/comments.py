@@ -15,7 +15,7 @@ from CTFd.models import (
     db,
 )
 from CTFd.schemas.comments import CommentSchema
-from CTFd.utils.decorators import admins_only
+from CTFd.utils.decorators import admin_or_challenge_writer_only_or_jury, admins_only
 from CTFd.utils.helpers.models import build_model_filters
 from CTFd.utils.logging.audit_logger import log_audit
 
@@ -57,7 +57,7 @@ def get_comment_model(data):
 
 @comments_namespace.route("")
 class CommentList(Resource):
-    @admins_only
+    @admin_or_challenge_writer_only_or_jury
     @comments_namespace.doc(
         description="Endpoint to list Comment objects in bulk",
         responses={
