@@ -157,7 +157,7 @@ class ChallengeList(Resource):
         # TODO: Convert this into a re-useable decorator
         # TODO: The require_team decorator doesnt work because of no admin passthru
         if get_current_user_attrs():
-            if is_admin() or is_challenge_writer() or is_jury:
+            if is_admin() or is_challenge_writer() or is_jury():
                 pass
             else:
                 if config.is_teams_mode() and get_current_team_attrs() is None:
