@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
 import { fetchWithAuth } from '../services/api';
 import { API_ENDPOINTS } from '../config/endpoints';
+import { contestService } from '../services/contestService';
 import { Typography, CircularProgress, Box } from '@mui/material';
 import {
   CheckCircle,
@@ -39,12 +40,21 @@ export function Tickets() {
   const [filterStatus, setFilterStatus] = useState('all');
   const [showModal, setShowModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [isContestActive, setIsContestActive] = useState(true);
 
   const ticketTypes = ['Question', 'Error', 'Inform'];
 
   useEffect(() => {
     fetchTickets();
-  }, []);
+    const checkStatus = async () => {
+      const cId = contestId ? Number(contestId) : contestService.getActiveContest()?.id;
+      if (cId) {
+        const access = await contestService.getContestAccess(cId);
+        setIsContestActive(access.reason === 'active');
+      }
+    };
+    checkStatus();
+  }, [contestId]);
 
   const fetchTickets = async () => {
     try {
@@ -210,16 +220,18 @@ export function Tickets() {
           }`}>
           [SUPPORT_TICKETS]
         </h1>
-        <button
-          onClick={() => setShowModal(true)}
-          className={`flex items-center gap-2 rounded-lg px-4 py-2 font-bold font-mono transition-all border ${theme === 'dark'
-              ? 'bg-orange-600 hover:bg-orange-700 text-white border-orange-500'
-              : 'bg-orange-600 hover:bg-orange-700 text-white border-orange-500'
-            }`}
-        >
-          <Add fontSize="small" />
-          NEW TICKET
-        </button>
+        {isContestActive && (
+          <button
+            onClick={() => setShowModal(true)}
+            className={`flex items-center gap-2 rounded-lg px-4 py-2 font-bold font-mono transition-all border ${theme === 'dark'
+                ? 'bg-orange-600 hover:bg-orange-700 text-white border-orange-500'
+                : 'bg-orange-600 hover:bg-orange-700 text-white border-orange-500'
+              }`}
+          >
+            <Add fontSize="small" />
+            NEW TICKET
+          </button>
+        )}
       </div>
 
       {/* Filters */}
@@ -363,7 +375,7 @@ export function Tickets() {
                         VIEW
                       </button>
                       {/* Show delete button only for open tickets without reply */}
-                      {ticket.status.toLowerCase() === 'open' && !ticket.replier_message && (
+                      {ticket.status.toLowerCase() === 'open' && !ticket.replier_message && isContestActive && (
                         <button
                           onClick={(e) => handleDeleteTicket(ticket.id, e)}
                           className={`p-2 rounded transition ${theme === 'dark'
