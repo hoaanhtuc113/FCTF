@@ -77,6 +77,8 @@ GRANT SELECT ON ctfd.challenge_start_tracking TO 'deployment_listener'@'%';
 GRANT INSERT ON ctfd.challenge_start_tracking TO 'deployment_listener'@'%';
 GRANT UPDATE ON ctfd.challenge_start_tracking TO 'deployment_listener'@'%';
 GRANT SELECT ON ctfd.challenges TO 'deployment_listener'@'%';
+GRANT SELECT ON ctfd.contests TO 'deployment_listener'@'%';
+GRANT UPDATE ON ctfd.contests TO 'deployment_listener'@'%';
 
 -- DeploymentConsumer
 GRANT SELECT ON ctfd.challenges TO 'deployment_consumer'@'%';
