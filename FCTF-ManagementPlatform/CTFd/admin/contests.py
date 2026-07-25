@@ -1993,6 +1993,134 @@ def contest_users_export_csv(contest_id):
     )
 
 
+@admin.route("/admin/contests/<int:contest_id>/users/export/excel")
+@admins_only
+def contest_users_export_excel(contest_id):
+    """Export contest users as a styled Excel (.xlsx) file."""
+    import io, secrets, concurrent.futures
+    from CTFd.models import Contests, Teams, Users, UserTeamMember, ContestParticipant
+
+    try:
+        import xlsxwriter
+    except ImportError:
+        return {"success": False, "error": "xlsxwriter library not installed"}, 500
+
+    contest = Contests.query.filter_by(id=contest_id).first_or_404()
+    include_passwords = request.args.get("include_passwords") == "1"
+
+    # ── Same query as CSV export ──────────────────────────────────────────────
+    team_users_subq = db.session.query(UserTeamMember.user_id)\
+        .join(Teams, Teams.id == UserTeamMember.team_id)\
+        .filter(Teams.contest_id == contest_id).subquery()
+    cp_users_subq = db.session.query(ContestParticipant.user_id)\
+        .filter(ContestParticipant.contest_id == contest_id).subquery()
+
+    db_rows = (
+        db.session.query(Users, Teams, ContestParticipant)
+        .outerjoin(UserTeamMember, UserTeamMember.user_id == Users.id)
+        .outerjoin(Teams, (Teams.id == UserTeamMember.team_id) & (Teams.contest_id == contest_id))
+        .outerjoin(ContestParticipant, (ContestParticipant.user_id == Users.id) & (ContestParticipant.contest_id == contest_id))
+        .filter(
+            Users.type == "user",
+            db.or_(Users.id.in_(team_users_subq), Users.id.in_(cp_users_subq))
+        )
+        .distinct(Users.id)
+        .order_by(Users.id)
+        .all()
+    )
+
+    # ── Build data rows ───────────────────────────────────────────────────────
+    if include_passwords:
+        from passlib.hash import bcrypt_sha256
+        charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+
+        def _hash_row(item):
+            user, team, cp = item
+            new_pass = "".join(secrets.choice(charset) for _ in range(12))
+            hashed = bcrypt_sha256.using(rounds=4).hash(str(new_pass))
+            if isinstance(hashed, bytes):
+                hashed = hashed.decode("utf-8")
+            return (user.id, hashed, user.name, user.email,
+                    team.name if team else "", cp.role if cp else "contestant", new_pass)
+
+        prepared = []
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            for res in executor.map(_hash_row, db_rows):
+                prepared.append(res)
+
+        for user_id, hashed, *_ in prepared:
+            db.session.execute(
+                db.text("UPDATE users SET password = :pw WHERE id = :uid"),
+                {"pw": hashed, "uid": user_id}
+            )
+        db.session.commit()
+
+        from CTFd.utils.logging.audit_logger import log_audit
+        log_audit(action="bulk_password_reset", data={"contest_id": contest_id, "count": len(prepared)})
+
+        headers = ["name", "email", "team_name", "contest_role", "password_plain"]
+        col_widths = [22, 32, 22, 16, 18]
+        data_rows = [
+            (name, email, team_name, role, new_pass)
+            for _, _, name, email, team_name, role, new_pass in prepared
+        ]
+    else:
+        headers = ["name", "email", "team_name", "contest_role", "verified", "banned"]
+        col_widths = [22, 32, 22, 16, 12, 12]
+        data_rows = [
+            (u.name, u.email,
+             t.name if t else "",
+             cp.role if cp else "contestant",
+             str(u.verified).lower(),
+             str(u.banned).lower())
+            for u, t, cp in db_rows
+        ]
+
+    # ── Write Excel ───────────────────────────────────────────────────────────
+    output = io.BytesIO()
+    wb = xlsxwriter.Workbook(output, {"in_memory": True})
+    ws = wb.add_worksheet("Users")
+
+    hdr_fmt = wb.add_format({
+        "bold": True, "font_name": "Calibri", "font_size": 11,
+        "font_color": "#FFFFFF", "bg_color": "#17A2B8",
+        "align": "center", "valign": "vcenter",
+        "border": 1, "border_color": "#AAAAAA",
+    })
+    even_fmt = wb.add_format({
+        "font_name": "Calibri", "font_size": 10,
+        "bg_color": "#EDF8FA", "border": 1, "border_color": "#CCCCCC",
+    })
+    odd_fmt = wb.add_format({
+        "font_name": "Calibri", "font_size": 10,
+        "bg_color": "#FFFFFF", "border": 1, "border_color": "#CCCCCC",
+    })
+
+    for col_idx, (h, w) in enumerate(zip(headers, col_widths)):
+        ws.set_column(col_idx, col_idx, w)
+        ws.write(0, col_idx, h, hdr_fmt)
+    ws.set_row(0, 22)
+
+    for row_idx, row in enumerate(data_rows, start=1):
+        fmt = even_fmt if row_idx % 2 == 0 else odd_fmt
+        for col_idx, val in enumerate(row):
+            ws.write(row_idx, col_idx, str(val) if val is not None else "", fmt)
+
+    wb.close()
+    output.seek(0)
+
+    safe_slug = contest.slug.replace(" ", "_")[:40]
+    suffix = "-with-passwords" if include_passwords else ""
+    fname = f"{safe_slug}-users{suffix}.xlsx"
+    return send_file(
+        output,
+        as_attachment=True,
+        max_age=-1,
+        download_name=fname,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+
+
 @admin.route("/admin/contests/<int:contest_id>/users")
 @admins_only
 def contest_users(contest_id):
@@ -2246,7 +2374,8 @@ def contest_create_team(contest_id):
 @admins_only
 def contest_team_detail(contest_id, team_id):
     from sqlalchemy import not_
-    from CTFd.models import Challenges, Tracking, Solves, Fails, Awards, UserTeamMember, KypoTeamAccount
+    from sqlalchemy.sql.expression import union_all
+    from CTFd.models import Challenges, Tracking, Solves, Fails, Awards, KypoTeamAccount
     from CTFd.utils.aes_helper import decrypt_kypo_password
 
     contest = Contests.query.filter_by(id=contest_id).first_or_404()
@@ -2262,6 +2391,7 @@ def contest_team_detail(contest_id, team_id):
 
     solves = (
         Solves.query
+        .options(joinedload(Solves.challenge))
         .filter(Solves.user_id.in_(member_ids), Solves.challenge_id.in_(challenge_ids_subq))
         .order_by(Solves.date.desc())
         .all()
@@ -2277,24 +2407,50 @@ def contest_team_detail(contest_id, team_id):
         .all()
     ) if member_ids else []
 
-    # Score = sum of UserTeamMember.score (updated on every correct solve)
-    score = db.session.query(db.func.sum(UserTeamMember.score)).filter(
-        UserTeamMember.team_id == team_id
-    ).scalar() or 0
+    # Per-member scores computed directly from Solves/Awards (contest-scoped).
+    # NOTE: UserTeamMember.score is a legacy cache column that is only kept up
+    # to date by the Python solve path — contestant flag submissions go through
+    # the separate ContestantBE (.NET) service, which writes Solves directly
+    # and never touches this column, so it drifts to 0. Solves/Awards are the
+    # source of truth (same pattern used by the contest scoreboard above).
+    member_scores = {}
+    for s in solves:
+        member_scores[s.user_id] = member_scores.get(s.user_id, 0) + (s.challenge.value or 0)
+    for a in awards:
+        member_scores[a.user_id] = member_scores.get(a.user_id, 0) + (a.value or 0)
 
-    # Per-member scores from UserTeamMember
-    member_scores = {
-        utm.user_id: utm.score
-        for utm in UserTeamMember.query.filter_by(team_id=team_id).all()
-    }
+    score = sum(member_scores.values())
 
     # Place: rank this team among all teams in the same contest by score
-    team_scores = db.session.query(
-        UserTeamMember.team_id,
-        db.func.sum(UserTeamMember.score).label("total")
-    ).join(Teams, Teams.id == UserTeamMember.team_id).filter(
-        Teams.contest_id == contest_id
-    ).group_by(UserTeamMember.team_id).order_by(db.desc("total")).all()
+    team_solve_scores = (
+        db.session.query(
+            Solves.team_id.label("team_id"),
+            db.func.sum(Challenges.value).label("score"),
+        )
+        .join(Challenges, Solves.challenge_id == Challenges.id)
+        .filter(Challenges.contest_id == contest_id)
+        .filter(Solves.team_id != None)
+        .group_by(Solves.team_id)
+    )
+    team_award_scores = (
+        db.session.query(
+            Awards.team_id.label("team_id"),
+            db.func.sum(Awards.value).label("score"),
+        )
+        .filter(Awards.contest_id == contest_id)
+        .filter(Awards.team_id != None)
+        .group_by(Awards.team_id)
+    )
+    team_sumscores = union_all(team_solve_scores, team_award_scores).alias("team_sumscores")
+    team_scores = (
+        db.session.query(
+            team_sumscores.columns.team_id,
+            db.func.sum(team_sumscores.columns.score).label("total"),
+        )
+        .group_by(team_sumscores.columns.team_id)
+        .order_by(db.desc("total"))
+        .all()
+    )
 
     place = None
     for rank, (tid, _) in enumerate(team_scores, start=1):

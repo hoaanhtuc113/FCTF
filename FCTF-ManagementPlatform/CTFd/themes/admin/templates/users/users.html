@@ -16,6 +16,13 @@
 .dropdown .btn-secondary:hover { background-color: var(--primary-orange); border-color: var(--primary-orange); }
 .dropdown-menu .btn-warning { background-color: var(--primary-orange); border-color: var(--primary-orange); }
 .dropdown-menu .btn-warning:hover { background-color: var(--primary-orange-dark); border-color: var(--primary-orange-dark); }
+/* Export dropdown positioning */
+.export-user-dropdown-wrap { position: relative; display: inline-block; }
+.export-user-dropdown-menu {
+	display: none; position: absolute; right: 0; top: calc(100% + 4px);
+	min-width: 240px; z-index: 1060;
+}
+.export-user-dropdown-menu.show { display: block; }
 .import-modal-overlay {
 	display: none;
 	position: fixed;
@@ -225,7 +232,41 @@
 			</button>
 			{% endif %}
 		</div>
+		{% if not pending_mode and not is_jury() %}
+		<div class="d-flex align-items-center">
+			<div class="export-user-dropdown-wrap">
+				<button type="button" class="clean-btn dropdown-toggle" id="export-user-toggle-btn"
+					aria-haspopup="true" aria-expanded="false">
+					<i class="fas fa-download"></i> Export
+				</button>
+				<div class="export-user-dropdown-menu dropdown-menu shadow-sm p-3" id="export-user-dropdown-menu">
+					<p style="font-size:0.78rem;color:#666;margin-bottom:0.6rem;">
+						Export all users to file.
+					</p>
+					<div class="form-check mb-2">
+						<input class="form-check-input" type="checkbox" id="export-include-pwd-users">
+						<label class="form-check-label small font-weight-bold" for="export-include-pwd-users">
+							Include Passwords (Reset)
+						</label>
+						<small class="form-text text-muted d-block">Generates new random passwords and resets all users.</small>
+					</div>
+					<div id="export-users-pw-warning" class="alert alert-warning py-2 px-2 mb-2"
+						 style="display:none;font-size:0.8rem;">
+						<i class="fas fa-exclamation-triangle"></i>
+						<small>CTF is active. Password reset export is disabled.</small>
+					</div>
+					<button class="btn btn-warning btn-sm w-100 text-white font-weight-bold mb-1" id="export-do-csv">
+						<i class="fas fa-file-csv"></i> Export CSV
+					</button>
+					<button class="btn btn-secondary btn-sm w-100 font-weight-bold" id="export-do-xlsx">
+						<i class="fas fa-file-excel"></i> Export Excel (.xlsx)
+					</button>
+				</div>
+			</div>
+		</div>
+		{% else %}
 		<div class="d-flex align-items-center"></div>
+		{% endif %}
 	</div>
 
 	<!-- Table -->
@@ -409,11 +450,14 @@
 	<div class="import-modal-box">
 		<button class="import-modal-close" id="import-modal-close" title="Close">&times;</button>
 		<h5><i class="fas fa-file-import" style="color:#17a2b8;"></i> Import Users from Excel / CSV</h5>
-		<p style="font-size:0.88rem;color:#666;margin-bottom:1rem;">
+		<p style="font-size:0.88rem;color:#666;margin-bottom:0.5rem;">
 			Upload an <strong>Excel</strong> (.xlsx, .xls) or <strong>CSV</strong> file with columns:
 			<code>name</code>, <code>email</code>, <code>password</code>.<br>
 			Optional: <code>role</code> (user/admin), <code>verified</code>, <code>hidden</code>, <code>banned</code>.
 		</p>
+		<button type="button" class="clean-btn btn-outline-secondary mb-2" id="import-users-template-btn">
+			<i class="fas fa-file-download"></i> Download Template
+		</button>
 		<div class="import-drop-zone" id="import-drop-zone">
 			<input type="file" id="import-file-input" accept=".xlsx,.xls,.csv">
 			<i class="fas fa-cloud-upload-alt" style="font-size:2rem;color:#adb5bd;"></i>
@@ -625,6 +669,35 @@ document.addEventListener('DOMContentLoaded', function() {
 	const importModal = document.getElementById('import-users-modal');
 	if (!importModal) return;
 
+	// ── Download Template ────────────────────────────────────────────────────
+	const importTemplateBtn = document.getElementById('import-users-template-btn');
+	if (importTemplateBtn) {
+		importTemplateBtn.addEventListener('click', function() {
+			if (typeof XLSX === 'undefined') {
+				alert('Excel library is not loaded. Please refresh and try again.');
+				return;
+			}
+			const headers = ['name', 'email', 'password', 'role', 'verified', 'hidden', 'banned'];
+			const sampleRows = [
+				['Alice Johnson', 'alice@example.com', 'ChangeMe123!', 'user', 'true', 'false', 'false'],
+				['Bob Smith', 'bob@example.com', 'ChangeMe123!', 'user', 'true', 'false', 'false'],
+			];
+			const ws = XLSX.utils.aoa_to_sheet([headers].concat(sampleRows));
+			ws['!cols'] = [
+				{ wch: 20 }, // name
+				{ wch: 28 }, // email
+				{ wch: 16 }, // password
+				{ wch: 10 }, // role
+				{ wch: 10 }, // verified
+				{ wch: 8  }, // hidden
+				{ wch: 8  }, // banned
+			];
+			const wb = XLSX.utils.book_new();
+			XLSX.utils.book_append_sheet(wb, ws, 'Users');
+			XLSX.writeFile(wb, 'import_users_template.xlsx');
+		});
+	}
+
 	const importOpenBtn = document.getElementById('btn-import-users');
 	const importCloseBtn = document.getElementById('import-modal-close');
 	const importCancelBtn = document.getElementById('import-cancel');
@@ -658,6 +731,7 @@ document.addEventListener('DOMContentLoaded', function() {
 		const ext = (file.name.split('.').pop() || '').toLowerCase();
 		const allowed = ['csv', 'xlsx', 'xls'];
 		if (!allowed.includes(ext)) {
+			importParsedUsers = []; // reset stale data from any previous valid upload
 			importFileName.textContent = 'Unsupported file type: .' + ext + '. Please upload .xlsx, .xls, or .csv.';
 			importSubmitBtn.disabled = true;
 			return;
@@ -758,6 +832,106 @@ document.addEventListener('DOMContentLoaded', function() {
 		importSubmitBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Reload';
 		importSubmitBtn.addEventListener('click', function() { window.location.reload(); }, { once: true });
 	});
+});
+
+/* ── Export dropdown (CSV + Excel) ──────────────────────────────────────── */
+document.addEventListener('DOMContentLoaded', function () {
+	var toggleBtn = document.getElementById('export-user-toggle-btn');
+	var dropMenu  = document.getElementById('export-user-dropdown-menu');
+	if (!toggleBtn || !dropMenu) return;
+
+	var inclPwd  = document.getElementById('export-include-pwd-users');
+	var pwWarn   = document.getElementById('export-users-pw-warning');
+	var doCsv    = document.getElementById('export-do-csv');
+	var doXlsx   = document.getElementById('export-do-xlsx');
+
+	/* toggle */
+	toggleBtn.addEventListener('click', async function (e) {
+		e.stopPropagation();
+		var willShow = !dropMenu.classList.contains('show');
+		dropMenu.classList.toggle('show');
+		toggleBtn.setAttribute('aria-expanded', String(dropMenu.classList.contains('show')));
+		if (willShow) {
+			var active = await checkCtfActive();
+			if (active) {
+				pwWarn.style.display = 'block';
+				inclPwd.checked = false; inclPwd.disabled = true;
+			} else {
+				pwWarn.style.display = 'none';
+				inclPwd.disabled = false;
+			}
+		}
+	});
+
+	/* close on outside click */
+	document.addEventListener('click', function (e) {
+		if (!toggleBtn.contains(e.target) && !dropMenu.contains(e.target)) {
+			dropMenu.classList.remove('show');
+			toggleBtn.setAttribute('aria-expanded', 'false');
+		}
+	});
+
+	/* password checkbox guard */
+	inclPwd.addEventListener('change', async function () {
+		if (this.checked) {
+			var active = await checkCtfActive();
+			if (active) { this.checked = false; pwWarn.style.display = 'block'; }
+		}
+	});
+
+	/* shared download helper */
+	async function doExport(format) {
+		var includePwd = inclPwd.checked;
+		if (includePwd) {
+			var active = await checkCtfActive();
+			if (active) { alert('Cannot export with passwords while CTF is active.'); return; }
+			if (!confirm('All user passwords will be RESET and included in the export. Continue?')) return;
+		}
+		var p = new URLSearchParams(window.location.search);
+		var params = new URLSearchParams();
+		if (includePwd) params.set('include_passwords', '1');
+		if (p.get('field') && p.get('q')) { params.set('field', p.get('field')); params.set('q', p.get('q')); }
+
+		var endpoint = format === 'xlsx' ? '/admin/export/excel/user' : '/admin/export/csv/user';
+		var url = endpoint + (params.toString() ? '?' + params.toString() : '');
+		var btn = format === 'xlsx' ? doXlsx : doCsv;
+		var orig = btn.innerHTML;
+		btn.disabled = true;
+		btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Exporting…';
+		try {
+			var resp = await fetch(url, { credentials: 'same-origin' });
+			if (!resp.ok) throw new Error('Export failed (' + resp.status + ')');
+			var blob = await resp.blob();
+			var cd = resp.headers.get('Content-Disposition') || '';
+			var m  = cd.match(/filename="?([^"]+)"?/);
+			var fname = m ? m[1] : (format === 'xlsx' ? 'users.xlsx' : 'users.csv');
+			var a = document.createElement('a');
+			a.href = URL.createObjectURL(blob); a.download = fname;
+			document.body.appendChild(a); a.click(); a.remove();
+			URL.revokeObjectURL(a.href);
+			dropMenu.classList.remove('show');
+			toggleBtn.setAttribute('aria-expanded', 'false');
+		} catch (err) { alert('Export error: ' + err.message); }
+		finally { btn.disabled = false; btn.innerHTML = orig; }
+	}
+
+	async function checkCtfActive() {
+		try {
+			var sRes = await fetch('/api/v1/configs/start', { credentials: 'same-origin' });
+			var eRes = await fetch('/api/v1/configs/end',   { credentials: 'same-origin' });
+			var s = await sRes.json(); var e = await eRes.json();
+			if (!s.success || !e.success) return false;
+			var now = Math.floor(Date.now() / 1000);
+			var start = s.data && s.data.value ? parseInt(s.data.value) : 0;
+			var end   = e.data && e.data.value ? parseInt(e.data.value) : 0;
+			if (start > 0 && end > 0) return start < now && now < end;
+			if (start > 0 && end === 0) return now > start;
+			return false;
+		} catch (e) { return false; }
+	}
+
+	doCsv.addEventListener('click',  function () { doExport('csv'); });
+	doXlsx.addEventListener('click', function () { doExport('xlsx'); });
 });
 </script>
 {% endblock %}
