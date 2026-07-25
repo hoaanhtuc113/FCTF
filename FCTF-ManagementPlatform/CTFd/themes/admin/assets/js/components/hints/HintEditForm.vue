@@ -212,6 +212,11 @@ export default {
         .then((response) => {
           if (response.success) {
             this.$emit("refreshHints", this.$options.name);
+          } else {
+            const errorMsg =
+              Object.values(response.errors || {}).flat().join("\n") ||
+              "Cannot update this hint.";
+            alert(errorMsg);
           }
         });
     },

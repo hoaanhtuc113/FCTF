@@ -173,8 +173,8 @@ class Hint(Resource):
             requirements = hint.prerequisites
 
             # Get the IDs of all hints that the user has unlocked
-            all_unlocks = HintUnlocks.query.filter_by(account_id=user.account_id).all()
-            unlock_ids = {unlock.target for unlock in all_unlocks}
+            all_unlocks = HintUnlocks.query.filter_by(user_id=user.id).all()
+            unlock_ids = {unlock.hint_id for unlock in all_unlocks}
 
             # Get the IDs of all free hints
             free_hints = Hints.query.filter_by(cost=0).all()
@@ -207,7 +207,7 @@ class Hint(Resource):
         if hint.cost:
             view = "locked"
             unlocked = HintUnlocks.query.filter_by(
-                account_id=user.account_id, target=hint.id
+                user_id=user.id, hint_id=hint.id
             ).first()
             if unlocked:
                 view = "unlocked"
@@ -237,6 +237,15 @@ class Hint(Resource):
     def patch(self, hint_id):
         hint = Hints.query.filter_by(id=hint_id).first_or_404()
         req = request.get_json()
+
+        unlock_count = HintUnlocks.query.filter_by(hint_id=hint_id).count()
+        if unlock_count > 0:
+            return {
+                "success": False,
+                "errors": {
+                    "hint_id": f"Cannot update: {unlock_count} team(s)/user(s) have already unlocked this hint."
+                }
+            }, 400
 
         cost = req.get("cost")
         if cost is not None and cost < 0:
@@ -296,6 +305,16 @@ class Hint(Resource):
     )
     def delete(self, hint_id):
         hint = Hints.query.filter_by(id=hint_id).first_or_404()
+
+        # Block deletion if any contestant has already unlocked this hint
+        unlock_count = HintUnlocks.query.filter_by(hint_id=hint_id).count()
+        if unlock_count > 0:
+            return {
+                "success": False,
+                "errors": {
+                    "hint_id": f"Cannot delete: {unlock_count} team(s)/user(s) have already unlocked this hint."
+                }
+            }, 400
 
         # Resolve challenge name for audit context
         _challenge_name = None

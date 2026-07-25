@@ -149,6 +149,11 @@ export default {
             .then((data) => {
               if (data.success) {
                 this.loadHints();
+              } else {
+                const errorMsg =
+                  Object.values(data.errors || {}).flat().join("\n") ||
+                  "Cannot delete this hint.";
+                alert(errorMsg);
               }
             });
         },

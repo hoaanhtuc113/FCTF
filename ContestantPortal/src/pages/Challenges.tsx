@@ -2677,6 +2677,102 @@ function ChallengeDetailPanel({
     }
   };
 
+  const handleStopDeployChallenge = async () => {
+    if (stopChallengeRunningRef.current) return;
+
+    const result = await Swal.fire({
+      html: `
+        <div class="font-mono text-left text-sm">
+          <div class="text-yellow-400 mb-2">[?] Stop Challenge</div>
+          <div class="text-gray-400 mb-2">> Challenge: ${challenge.name}</div>
+          <div class="text-gray-400">> This will stop the running instance. You can restart it later.</div>
+        </div>
+      `,
+      icon: 'warning',
+      iconColor: '#fbbf24',
+      showCancelButton: true,
+      confirmButtonText: 'Stop',
+      cancelButtonText: 'Cancel',
+      background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+      color: theme === 'dark' ? '#fbbf24' : '#000000',
+      customClass: {
+        popup: 'rounded-lg border border-yellow-500/30',
+        confirmButton: 'bg-red-500 hover:bg-red-600 text-white font-mono px-4 py-2 rounded',
+        cancelButton: 'bg-gray-600 hover:bg-gray-700 text-white font-mono px-4 py-2 rounded',
+      }
+    });
+
+    if (!result.isConfirmed) return;
+
+    stopChallengeRunningRef.current = true;
+    setIsStopping(true);
+
+    try {
+      const response = await fetchWithAuth(API_ENDPOINTS.CHALLENGES.STOP, {
+        method: 'POST',
+        body: JSON.stringify({ challengeId: challenge.id, contestId })
+      });
+      const data = await response.json();
+
+      if (data.success) {
+        setIsChallengeStarted(false);
+        setUrl(null);
+        setIsPodHealthy(false);
+        setIsHealthChecking(false);
+        setIsDeploymentInProgress(false);
+
+        if (timerRef.current) {
+          clearInterval(timerRef.current);
+          timerRef.current = null;
+        }
+        endTimeRef.current = null;
+        localStorage.removeItem(`timer_endtime_${challenge.id}`);
+        localStorage.removeItem(`deployment_${challenge.id}`);
+        localStorage.removeItem(`healthcheck_${challenge.id}`);
+        challengeTimerService.stopTimer(challenge.id);
+
+        if (onFlagSuccess) await onFlagSuccess();
+
+        Swal.fire({
+          html: `
+            <div class="font-mono text-left text-sm">
+              <div class="text-green-400 mb-2">[✓] Stopped</div>
+              <div class="text-gray-400">> Challenge: ${challenge.name}</div>
+              <div class="text-gray-400">> Instance stopped successfully.</div>
+            </div>
+          `,
+          icon: 'success',
+          iconColor: '#22c55e',
+          background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+          color: theme === 'dark' ? '#22c55e' : '#000000',
+          toast: true,
+          position: 'top-end',
+          showConfirmButton: false,
+          timer: 3000,
+          timerProgressBar: true,
+        });
+      } else {
+        Swal.fire({
+          html: `<div class="font-mono text-sm text-red-400">[!] ${data.message || data.error || 'Failed to stop challenge'}</div>`,
+          icon: 'error',
+          iconColor: '#ef4444',
+          confirmButtonText: 'OK',
+          background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+          color: theme === 'dark' ? '#ef4444' : '#000000',
+          customClass: {
+            popup: 'rounded-lg border border-red-500/30',
+            confirmButton: 'bg-red-500 hover:bg-red-600 text-white font-mono px-4 py-2 rounded',
+          },
+        });
+      }
+    } catch (error) {
+      console.error('Stop challenge error:', error);
+    } finally {
+      setIsStopping(false);
+      stopChallengeRunningRef.current = false;
+    }
+  };
+
   const handleSubmitChallenge = async () => {
     if (stopChallengeRunningRef.current) return;
 
@@ -4143,7 +4239,7 @@ function ChallengeDetailPanel({
 
 
             {/* Hints */}
-            {hints.length > 0 && !challenge.solve_by_myteam && (
+            {hints.length > 0 && (
               <div className="space-y-2">
                 <div className={`text-xs font-mono font-bold ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
                   [HINTS]
@@ -4322,7 +4418,7 @@ function ChallengeDetailPanel({
                         } disabled:opacity-50 disabled:cursor-not-allowed`}
                     >
                       {isStopping && <CircularProgress size={14} sx={{ color: '#fff' }} />}
-                      {isStopping ? '[...] Stopping...' : '[-] Submit Challenge'}
+                      {isStopping ? '[...] Stopping...' : '[-] Stop Challenge'}
                     </button>
                   </>
                 ) : challenge.kypo_submitted ? (
@@ -4355,7 +4451,7 @@ function ChallengeDetailPanel({
                     }}>
                       <div style={{ color: '#f59e0b', fontWeight: 'bold', marginBottom: '6px' }}>[!] Instructions</div>
                       <div style={{ color: theme === 'dark' ? '#ca8a04' : '#92400e', marginBottom: '4px' }}>1. Click <strong>Enter Challenge</strong> to open the KYPO portal.</div>
-                      <div style={{ color: theme === 'dark' ? '#ca8a04' : '#92400e', marginBottom: '8px' }}>2. Complete <strong>ALL phases</strong> on KYPO, then return here and click <strong>[-] Submit Challenge</strong> to submit your result.</div>
+                      <div style={{ color: theme === 'dark' ? '#ca8a04' : '#92400e', marginBottom: '8px' }}>2. Complete <strong>ALL phases</strong> on KYPO, then return here and click <strong>[-] Stop Challenge</strong> to submit your result.</div>
                       <div style={{ color: theme === 'dark' ? '#9ca3af' : '#6b7280', marginBottom: '4px' }}>
                         You are allowed to access this sandbox <strong>{KYPO_MAX_ACCESSES} times</strong> only. Each reload counts as 1 access.
                       </div>
@@ -4472,15 +4568,21 @@ function ChallengeDetailPanel({
                     )
                   ) : (
                     <button
-                      onClick={handleSubmitChallenge}
+                      onClick={challenge.type === 'sandbox' ? handleSubmitChallenge : handleStopDeployChallenge}
                       disabled={isStopping || !!(challenge.pod_status && (challenge.pod_status === 'Deleting' || challenge.pod_status.toString().toLowerCase().includes('delet')))}
-                      className={`w-full py-2 px-4 rounded font-mono font-bold text-sm transition-colors flex items-center justify-center gap-2 ${theme === 'dark'
-                        ? 'bg-orange-600 hover:bg-orange-700 text-white border border-orange-500'
-                        : 'bg-orange-500 hover:bg-orange-600 text-white border border-orange-400'
+                      className={`w-full py-2 px-4 rounded font-mono font-bold text-sm transition-colors flex items-center justify-center gap-2 ${challenge.type === 'sandbox'
+                        ? theme === 'dark'
+                          ? 'bg-orange-600 hover:bg-orange-700 text-white border border-orange-500'
+                          : 'bg-orange-500 hover:bg-orange-600 text-white border border-orange-400'
+                        : theme === 'dark'
+                          ? 'bg-red-600 hover:bg-red-700 text-white border border-red-500'
+                          : 'bg-red-500 hover:bg-red-600 text-white border border-red-400'
                         } disabled:opacity-50 disabled:cursor-not-allowed`}
                     >
                       {isStopping && <CircularProgress size={14} sx={{ color: '#fff' }} />}
-                      {isStopping ? '[...] Submitting...' : '[✓] Submit'}
+                      {challenge.type === 'sandbox'
+                        ? (isStopping ? '[...] Submitting...' : '[✓] Submit')
+                        : (isStopping ? '[...] Stopping...' : '[-] Stop Challenge')}
                     </button>
                   )}
                 </div>
