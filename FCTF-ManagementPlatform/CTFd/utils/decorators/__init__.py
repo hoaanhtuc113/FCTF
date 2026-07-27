@@ -171,9 +171,6 @@ def jury_only(f):
 def admin_or_challenge_writer_only_or_jury(f):
     @functools.wraps(f)
     def admin_or_challenge_writer_only_wrapper(*args, **kwargs):
-        print("is_jury(): " + str(is_jury()))
-        print("is_challenge_writer(): " + str(is_challenge_writer()))
-        print("is_admin(): " + str(is_admin()))
         if is_jury() or is_challenge_writer() or is_admin():
             return f(*args, **kwargs)
         else:
