@@ -781,6 +781,9 @@
         </div>
 
         <div class="mt-auto w-100 pt-3" style="border-top: 1px solid var(--border-light);">
+            <a class="nav-link" href="{{ url_for('admin.profile') }}">
+                <i class="bx bx-user-circle"></i> My Profile
+            </a>
             <a class="nav-link" href="{{ url_for('auth.logout') }}"
                 style="color: var(--text-light); transition: color 0.2s;" onmouseover="this.style.color='#fff'"
                 onmouseout="this.style.color='var(--text-light)'">
