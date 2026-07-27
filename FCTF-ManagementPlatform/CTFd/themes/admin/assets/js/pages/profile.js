@@ -15,6 +15,22 @@ function updateProfile(event) {
   $results.empty();
   $form.find(".form-control").removeClass("input-filled-invalid");
 
+  const passwordConfirm = params.password_confirm;
+  delete params.password_confirm;
+
+  if (params.password && params.password !== passwordConfirm) {
+    $results.append(
+      ezBadge({
+        type: "error",
+        body: "Your new password and confirmation do not match",
+      }),
+    );
+    $("#profile-password, #profile-password-confirm").addClass(
+      "input-filled-invalid",
+    );
+    return;
+  }
+
   CTFd.fetch("/api/v1/users/me", {
     method: "PATCH",
     credentials: "same-origin",
@@ -31,6 +47,7 @@ function updateProfile(event) {
       if (response.success) {
         $("#profile-confirm").val("");
         $("#profile-password").val("");
+        $("#profile-password-confirm").val("");
 
         $results.append(
           ezBadge({

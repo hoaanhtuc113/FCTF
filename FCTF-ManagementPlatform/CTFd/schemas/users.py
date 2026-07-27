@@ -164,7 +164,13 @@ class UserSchema(ma.ModelSchema):
         confirm = data.get("confirm")
         target_user = get_current_user()
 
-        if is_admin():
+        # The "self" view is only used when a user is editing their own
+        # account (e.g. PATCH /api/v1/users/me). Even admins must confirm
+        # their current password to change it there. The is_admin() bypass
+        # below only applies to the "admin" view, where an admin is editing
+        # someone else's account and cannot be expected to know that
+        # user's current password.
+        if is_admin() and self.view != "self":
             pass
         else:
             if password and (bool(confirm) is False):
