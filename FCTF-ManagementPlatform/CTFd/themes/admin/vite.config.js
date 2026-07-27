@@ -89,6 +89,7 @@ export default defineConfig({
         "pages/team": resolve(__dirname, "assets/js/pages/team.js"),
         "pages/teams": resolve(__dirname, "assets/js/pages/teams.js"),
         "pages/user": resolve(__dirname, "assets/js/pages/user.js"),
+        "pages/profile": resolve(__dirname, "assets/js/pages/profile.js"),
         "pages/users": resolve(__dirname, "assets/js/pages/users.js"),
         "main-css": resolve(__dirname, "assets/css/main.scss"),
         "fonts-css": resolve(__dirname, "assets/css/fonts.scss"),
