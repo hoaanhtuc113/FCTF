@@ -24,6 +24,7 @@ from CTFd.models import (
     Users,
     DeployedChallenge,
     ChallengeVersion,
+    ChallengeStartTracking,
 )
 from CTFd.models import Challenges
 from CTFd.models import ChallengeTopics as ChallengeTopicsModel
@@ -762,9 +763,24 @@ class Challenge(Resource):
         responses={200: ("Success", "APISimpleSuccessResponse")},
     )
     def delete(self, challenge_id):
-        DeployedChallenge.query.filter_by(challenge_id=challenge_id).delete()
-
         challenge = Challenges.query.filter_by(id=challenge_id).first_or_404()
+
+        # Block deletion if challenge has been successfully deployed and used by contestants
+        if challenge.require_deploy and challenge.deploy_status == "DEPLOY_SUCCESS":
+            contestant_count = ChallengeStartTracking.query.filter_by(
+                challenge_id=challenge_id
+            ).count()
+            if contestant_count > 0:
+                return {
+                    "success": False,
+                    "message": (
+                        f"Cannot delete challenge '{challenge.name}': "
+                        f"it has been deployed and used by {contestant_count} contestant session(s). "
+                        "Please hide the challenge instead of deleting it to preserve competition data integrity."
+                    )
+                }, 400
+
+        DeployedChallenge.query.filter_by(challenge_id=challenge_id).delete()
         
         # Store challenge info before deletion for audit
         challenge_info = {

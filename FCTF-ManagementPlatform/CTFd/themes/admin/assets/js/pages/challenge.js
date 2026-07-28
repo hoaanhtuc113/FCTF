@@ -535,6 +535,12 @@ $(() => {
           .then(function (response) {
             if (response.success) {
               window.location = CTFd.config.urlRoot + "/admin/challenges";
+            } else {
+              ezAlert({
+                title: "Cannot Delete Challenge",
+                body: response.message || "An error occurred while deleting the challenge.",
+                button: "OK",
+              });
             }
           });
       },

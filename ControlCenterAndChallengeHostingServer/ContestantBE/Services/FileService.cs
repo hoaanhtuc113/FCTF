@@ -1,4 +1,4 @@
-﻿using ContestantBE.Interfaces;
+using ContestantBE.Interfaces;
 using ContestantBE.Utils;
 using ResourceShared.DTOs.File;
 using ResourceShared.Models;
@@ -113,17 +113,28 @@ public class FileService : IFileService
 
                     if (prerequisites is { Count: > 0 })
                     {
-                        var solvedIds = await _context.Solves
+                        var existingPrereqs = await _context.Challenges
                             .AsNoTracking()
-                            .Where(s => s.TeamId == fileToken.team_id
-                                        && s.ChallengeId != null
-                                        && prerequisites.Contains(s.ChallengeId.Value))
-                            .Select(s => s.ChallengeId!.Value)
-                            .Distinct()
+                            .Where(c => prerequisites.Contains(c.Id))
+                            .Select(c => c.Id)
                             .ToListAsync();
 
-                        if (!prerequisites.All(prereqId => solvedIds.Contains(prereqId)))
-                            return new FileResult { Success = false, Message = "Access denied" };
+                        prerequisites.RemoveAll(p => !existingPrereqs.Contains(p));
+
+                        if (prerequisites.Count > 0)
+                        {
+                            var solvedIds = await _context.Solves
+                                .AsNoTracking()
+                                .Where(s => s.TeamId == fileToken.team_id
+                                            && s.ChallengeId != null
+                                            && prerequisites.Contains(s.ChallengeId.Value))
+                                .Select(s => s.ChallengeId!.Value)
+                                .Distinct()
+                                .ToListAsync();
+
+                            if (!prerequisites.All(prereqId => solvedIds.Contains(prereqId)))
+                                return new FileResult { Success = false, Message = "Access denied" };
+                        }
                     }
                 }
             }
