@@ -586,7 +586,7 @@ class Challenge(Resource):
                 except (TypeError, ValueError):
                     data["difficulty"] = None
         # Load data through schema for validation but not for insertion
-        schema = ChallengeSchema()
+        schema = ChallengeSchema(partial=True)
         data["user_id"] = session["id"]
         response = schema.load(data)
         scoringType = data.get("scoring-type-radio")

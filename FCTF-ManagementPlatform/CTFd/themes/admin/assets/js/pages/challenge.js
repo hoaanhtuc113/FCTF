@@ -399,6 +399,7 @@ function handleChallengeOptions(event) {
     max_deploy_count: maxDeployCount,
     require_deploy: requireDeploy,
     shared_instant: requireDeploy ? sharedInstant : false,
+    connection_protocol: params.connection_protocol || "http",
   };
   if (requireDeploy) {
     patchBody.cpu_limit = cpuLimit;
