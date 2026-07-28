@@ -143,8 +143,21 @@ export function Challenges() {
         const response = await fetchWithAuth(API_ENDPOINTS.CHALLENGES.DETAIL(prereqId), {
           method: 'GET'
         });
+
+        // Check prereq is hidden or locked, treat as unmet prerequisite
+        if (!response.ok) {
+          unmetPrereqs.push({
+            id: prereqId,
+            name: `Challenge ${prereqId}`,
+            category: '',
+            solved: false
+          });
+          continue;
+        }
+
         const data = await response.json();
 
+        // Check if the prerequisite challenge is solved by the team
         if (data.data) {
           const isSolved = data.data.solve_by_myteam || false;
 
@@ -156,9 +169,22 @@ export function Challenges() {
               solved: false
             });
           }
+        } else {
+          unmetPrereqs.push({
+            id: prereqId,
+            name: `Challenge ${prereqId}`,
+            category: '',
+            solved: false
+          });
         }
       } catch (error) {
         console.error(`Error checking prerequisite ${prereqId}:`, error);
+        unmetPrereqs.push({
+          id: prereqId,
+          name: `Challenge ${prereqId}`,
+          category: '',
+          solved: false
+        });
       }
     }
 
