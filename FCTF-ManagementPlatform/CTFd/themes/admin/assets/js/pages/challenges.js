@@ -27,7 +27,18 @@ function deleteSelectedChallenges(_event) {
           }),
         );
       }
-      Promise.all(reqs).then((_responses) => {
+      Promise.all(reqs).then((responses) => {
+        const blocked = responses.filter((r) => !r.success);
+        if (blocked.length > 0) {
+          const messages = blocked
+            .map((r) => `• ${r.message || "Unknown error"}`)
+            .join("<br>");
+          ezAlert({
+            title: `${blocked.length} Challenge(s) Could Not Be Deleted`,
+            body: messages,
+            button: "OK",
+          });
+        }
         window.location.reload();
       });
     },
