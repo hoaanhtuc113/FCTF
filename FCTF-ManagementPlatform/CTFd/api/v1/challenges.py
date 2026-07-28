@@ -690,6 +690,25 @@ class Challenge(Resource):
         if is_hiding:
             _cascade_hide_dependents(challenge)
             db.session.commit()
+        else:
+            import json as _json
+            new_reqs = data.get("requirements")
+            if new_reqs:
+                if isinstance(new_reqs, str):
+                    try:
+                        new_reqs = _json.loads(new_reqs)
+                    except Exception:
+                        new_reqs = {}
+                new_prereqs = (new_reqs or {}).get("prerequisites", [])
+                if new_prereqs:
+                    hidden_prereq_count = Challenges.query.filter(
+                        Challenges.id.in_(new_prereqs),
+                        Challenges.state == "hidden"
+                    ).count()
+                    if hidden_prereq_count > 0 and challenge.state != "hidden":
+                        challenge.state = "hidden"
+                        _cascade_hide_dependents(challenge)
+                        db.session.commit()
 
         response = challenge_class.read(challenge)
         
