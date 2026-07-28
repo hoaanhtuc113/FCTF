@@ -1,4 +1,4 @@
-﻿using ContestantBE.Utils;
+using ContestantBE.Utils;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 using ResourceShared;
@@ -148,6 +148,11 @@ public class ChallengeService : IChallengeService
             requirementsObj,
             solvedChallengeIds.ToHashSet(),
             allChallengeIds.ToHashSet());
+
+        if (requirementsObj?.prerequisites != null)
+        {
+            requirementsObj.prerequisites.RemoveAll(p => !allChallengeIds.Contains(p));
+        }
 
         if (!isUnlocked && requirementsObj?.anonymize != true)
         {
@@ -376,6 +381,11 @@ public class ChallengeService : IChallengeService
             {
                 // hidden behavior when not unlocked: do not show challenge in listing.
                 continue;
+            }
+
+            if (requirementsObj?.prerequisites != null)
+            {
+                requirementsObj.prerequisites.RemoveAll(p => !allChallengeIds.Contains(p));
             }
 
             // Check pod status if challenge requires deployment
