@@ -109,7 +109,7 @@ builder.Services.AddSingleton<KypoService>();
 builder.Services.AddSingleton<KypoApiClient>();
 builder.Services.AddScoped<KypoScoreLockService>();
 builder.Services.AddHostedService<KypoTimeoutWatcher>();
-builder.Services.AddHostedService<KypyCacheWarmupService>();
+// builder.Services.AddHostedService<KypyCacheWarmupService>(); // không còn dùng
 builder.Services.AddHttpClient("kypo")
     .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
     {
