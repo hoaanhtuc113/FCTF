@@ -500,13 +500,10 @@ public class ChallengeService : IChallengeService
                 unixTime = unixTime.ToString(),
                 flagValue = flagValue,
             };
-            var data = new Dictionary<string, string>
-            {
-                { "challengeId", challenge.Id.ToString() },
-                { "teamId", teamId.ToString() },
-                { "userId", user.Id.ToString() },
-            };
-            string generatedSecretKey = SecretKeyHelper.CreateSecretKey(unixTime, data);
+            // Sign the exact payload being sent — not a hand-picked subset of its fields —
+            // since RequireSecretKeyAttribute on the receiving side recomputes the hash from
+            // the full request body.
+            string generatedSecretKey = SecretKeyHelper.CreateSecretKeyFromObject(unixTime, parammeters);
 
             var headers = new Dictionary<string, string>
             {
@@ -555,7 +552,7 @@ public class ChallengeService : IChallengeService
         }
         catch (TaskCanceledException ex)
         {
-            _logger.LogError(ex, user?.Id, null, new { challengeId = challenge.Id });
+            _logger.LogError(ex, user?.Id, teamId, new { challengeId = challenge.Id });
             return new ChallengeDeployResponeDTO
             {
                 status = (int)HttpStatusCode.GatewayTimeout,
@@ -565,7 +562,7 @@ public class ChallengeService : IChallengeService
         }
         catch (TimeoutException ex)
         {
-            _logger.LogError(ex, user?.Id, null, new { challengeId = challenge.Id });
+            _logger.LogError(ex, user?.Id, teamId, new { challengeId = challenge.Id });
             return new ChallengeDeployResponeDTO
             {
                 status = (int)HttpStatusCode.GatewayTimeout,
@@ -575,7 +572,7 @@ public class ChallengeService : IChallengeService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, user?.Id, null, new { challengeId = challenge.Id });
+            _logger.LogError(ex, user?.Id, teamId, new { challengeId = challenge.Id });
             return new ChallengeDeployResponeDTO
             {
                 status = (int)HttpStatusCode.InternalServerError,
@@ -607,18 +604,16 @@ public class ChallengeService : IChallengeService
         var lockAcquired = false;
 
         var unixTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-        var data = new Dictionary<string, string>
-        {
-            { "challengeId", challengeId.ToString() },
-            { "teamId", teamId.Value.ToString() },
-        };
         var parammeters = new ChallengeStartStopReqDTO
         {
             challengeId = challengeId,
             teamId = teamId.Value,
             unixTime = unixTime.ToString()
         };
-        var secretKey = SecretKeyHelper.CreateSecretKey(unixTime, data);
+        // Sign the exact payload being sent — not a hand-picked subset of its fields —
+        // since RequireSecretKeyAttribute on the receiving side recomputes the hash from
+        // the full request body.
+        var secretKey = SecretKeyHelper.CreateSecretKeyFromObject(unixTime, parammeters);
         var headers = new Dictionary<string, string>
         {
             { "SecretKey", secretKey }
