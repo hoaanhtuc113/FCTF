@@ -8,7 +8,7 @@ from CTFd.api.v1.helpers.request import validate_args
 from CTFd.api.v1.helpers.schemas import sqlalchemy_to_pydantic
 from CTFd.api.v1.schemas import APIDetailedSuccessResponse, APIListSuccessResponse
 from CTFd.constants import RawEnum
-from CTFd.models import Challenges, Flags, RegexFlag, StaticFlag, db
+from CTFd.models import Challenges, DynamicFlag, Flags, RegexFlag, StaticFlag, db
 from CTFd.plugins.flags import FLAG_CLASSES, get_flag_class
 from CTFd.schemas.flags import FlagSchema
 from CTFd.utils.decorators import admins_only,admin_or_challenge_writer_only_or_jury
@@ -92,14 +92,16 @@ class FlagList(Resource):
     )
     def post(self):
         req = request.get_json()
-        
-        flag_type = req.get("flag_type", "static")  # Default to 'static' if not provided
-        
+
+        flag_type = req.get("type", "static")  # Default to 'static' if not provided
+
         # Ensure the correct subclass is instantiated
         if flag_type == "static":
-            flag = StaticFlag()  
+            flag = StaticFlag()
         elif flag_type == "regex":
-            flag = RegexFlag()  
+            flag = RegexFlag()
+        elif flag_type == "dynamic":
+            flag = DynamicFlag()
         else:
             flag = Flags()  # Default to Flags if no specific subclass matches
         
