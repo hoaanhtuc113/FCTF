@@ -765,21 +765,6 @@ class Challenge(Resource):
     def delete(self, challenge_id):
         challenge = Challenges.query.filter_by(id=challenge_id).first_or_404()
 
-        # Block deletion if challenge has been successfully deployed and used by contestants
-        if challenge.require_deploy and challenge.deploy_status == "DEPLOY_SUCCESS":
-            contestant_count = ChallengeStartTracking.query.filter_by(
-                challenge_id=challenge_id
-            ).count()
-            if contestant_count > 0:
-                return {
-                    "success": False,
-                    "message": (
-                        f"Cannot delete challenge '{challenge.name}': "
-                        f"it has been deployed and used by {contestant_count} contestant session(s). "
-                        "Please hide the challenge instead of deleting it to preserve competition data integrity."
-                    )
-                }, 400
-
         DeployedChallenge.query.filter_by(challenge_id=challenge_id).delete()
         
         # Store challenge info before deletion for audit
@@ -1219,6 +1204,23 @@ class ChallengeSolves(Resource):
         response = get_solves_for_challenge_id(challenge_id=challenge_id, freeze=freeze)
 
         return {"success": True, "data": response}
+
+
+@challenges_namespace.route("/<challenge_id>/submissions_count")
+class ChallengeSubmissionsCount(Resource):
+    @admin_or_challenge_writer_only_or_jury
+    def get(self, challenge_id):
+        """Return the total number of submissions (solves + fails) for a challenge."""
+        Challenges.query.filter_by(id=challenge_id).first_or_404()
+
+        total_count = Submissions.query.filter_by(challenge_id=challenge_id).count()
+
+        return {
+            "success": True,
+            "data": {
+                "total": total_count,
+            },
+        }
 
 
 @challenges_namespace.route("/<challenge_id>/files")

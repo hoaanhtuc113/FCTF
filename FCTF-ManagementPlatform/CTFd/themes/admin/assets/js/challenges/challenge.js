@@ -159,26 +159,45 @@ $(() => {
   });
 
   $(".delete-challenge").click(function (_event) {
-    ezQuery({
-      title: "Delete Challenge",
-      body: "Are you sure you want to delete {0}".format(
-        "<strong>" + htmlEntities(window.CHALLENGE_NAME) + "</strong>"
-      ),
-      success: function () {
-        CTFd.fetch("/api/v1/challenges/" + window.CHALLENGE_ID, {
-          method: "DELETE",
-        }).then(function (response) {
-          if (response.success) {
-            window.location = CTFd.config.urlRoot + "/admin/challenges";
-          } else {
-            ezAlert({
-              title: "Cannot Delete Challenge",
-              body: response.message || "An error occurred while deleting the challenge.",
-              button: "OK",
-            });
-          }
-        });
-      },
+    const challengeId = window.CHALLENGE_ID;
+    const challengeName = "<strong>" + htmlEntities(window.CHALLENGE_NAME) + "</strong>";
+
+    CTFd.fetch("/api/v1/challenges/" + challengeId + "/submissions_count", {
+      method: "GET",
+    }).then(function (countResp) {
+      let warningHtml = "";
+      if (countResp.success && countResp.data && countResp.data.total > 0) {
+        warningHtml =
+          '<div class="alert alert-danger mt-3 mb-0" role="alert" style="border-radius:6px;">' +
+          '  <strong>⚠️ Warning:</strong> This challenge has submission data from contestants. ' +
+          '  All data will be <strong>permanently deleted</strong> upon confirmation.' +
+          '</div>';
+      }
+
+      const bodyEl = document.createElement("div");
+      bodyEl.innerHTML =
+        "<p>Are you sure you want to delete " + challengeName + "?</p>" +
+        warningHtml;
+
+      ezQuery({
+        title: "Delete Challenge",
+        body: bodyEl,
+        success: function () {
+          CTFd.fetch("/api/v1/challenges/" + challengeId, {
+            method: "DELETE",
+          }).then(function (response) {
+            if (response.success) {
+              window.location = CTFd.config.urlRoot + "/admin/challenges";
+            } else {
+              ezAlert({
+                title: "Cannot Delete Challenge",
+                body: response.message || "An error occurred while deleting the challenge.",
+                button: "OK",
+              });
+            }
+          });
+        },
+      });
     });
   });
 
