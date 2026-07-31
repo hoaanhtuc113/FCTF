@@ -12,36 +12,66 @@ import TagsList from "../components/tags/TagsList.vue";
 function deleteSelectedChallenges(_event) {
   let challengeIDs = $("input[data-challenge-id]:checked").map(function () {
     return $(this).data("challenge-id");
-  });
+  }).get();
+  
+  if (challengeIDs.length === 0) {
+    return;
+  }
+  
   let target = challengeIDs.length === 1 ? "challenge" : "challenges";
 
-  ezQuery({
-    title: "Delete Challenges",
-    body: `Are you sure you want to delete ${challengeIDs.length} ${target}?`,
-    success: function () {
-      const reqs = [];
-      for (var chalID of challengeIDs) {
-        reqs.push(
-          CTFd.fetch(`/api/v1/challenges/${chalID}`, {
-            method: "DELETE",
-          }),
-        );
-      }
-      Promise.all(reqs).then((responses) => {
-        const blocked = responses.filter((r) => !r.success);
-        if (blocked.length > 0) {
-          const messages = blocked
-            .map((r) => `• ${r.message || "Unknown error"}`)
-            .join("<br>");
-          ezAlert({
-            title: `${blocked.length} Challenge(s) Could Not Be Deleted`,
-            body: messages,
-            button: "OK",
-          });
+  const countReqs = challengeIDs.map((chalID) =>
+    CTFd.fetch(`/api/v1/challenges/${chalID}/submissions_count`, {
+      method: "GET",
+    }).then((response) => response.json())
+  );
+
+  Promise.all(countReqs).then((countResponses) => {
+    let hasSubmissions = countResponses.some((r) => r.success && r.data && r.data.total > 0);
+
+    let warningHtml = "";
+    if (hasSubmissions) {
+      warningHtml =
+        '<div class="alert alert-danger mt-3 mb-0" role="alert" style="border-radius:6px;">' +
+        '  <strong>⚠️ Warning:</strong> Some of the selected challenges have submission data from contestants. ' +
+        '  All data will be <strong>permanently deleted</strong> upon confirmation.' +
+        '</div>';
+    }
+
+    const bodyEl = document.createElement("div");
+    bodyEl.innerHTML =
+      `<p>Are you sure you want to delete ${challengeIDs.length} ${target}?</p>` +
+      warningHtml;
+
+    ezQuery({
+      title: "Delete Challenges",
+      body: bodyEl,
+      success: function () {
+        const reqs = [];
+        for (var chalID of challengeIDs) {
+          reqs.push(
+            CTFd.fetch(`/api/v1/challenges/${chalID}`, {
+              method: "DELETE",
+            }).then((response) => response.json())
+          );
         }
-        window.location.reload();
-      });
-    },
+        Promise.all(reqs).then((responses) => {
+          const blocked = responses.filter((r) => !r.success);
+          if (blocked.length > 0) {
+            const messages = blocked
+              .map((r) => `• ${r.message || "Unknown error"}`)
+              .join("<br>");
+            ezAlert({
+              title: `${blocked.length} Challenge(s) Could Not Be Deleted`,
+              body: messages,
+              button: "OK",
+            });
+          } else {
+            window.location.reload();
+          }
+        });
+      },
+    });
   });
 }
 
