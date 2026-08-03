@@ -278,11 +278,26 @@ function solveSelectedMissingChallenges(event) {
   });
 }
 
+function fetchContestTeamStat(kind, accountId) {
+  return CTFd.fetch(
+    `/api/v1/contest_statistics/${window.CONTEST_ID}/teams/${accountId}/${kind}`,
+  ).then((response) => response.json());
+}
+
 const api_funcs = {
   team: [
-    (x) => CTFd.api.get_team_solves({ teamId: x }),
-    (x) => CTFd.api.get_team_fails({ teamId: x }),
-    (x) => CTFd.api.get_team_awards({ teamId: x }),
+    (x) =>
+      window.CONTEST_ID
+        ? fetchContestTeamStat("solves", x)
+        : CTFd.api.get_team_solves({ teamId: x }),
+    (x) =>
+      window.CONTEST_ID
+        ? fetchContestTeamStat("fails", x)
+        : CTFd.api.get_team_fails({ teamId: x }),
+    (x) =>
+      window.CONTEST_ID
+        ? fetchContestTeamStat("awards", x)
+        : CTFd.api.get_team_awards({ teamId: x }),
   ],
   user: [
     (x) => CTFd.api.get_user_solves({ userId: x }),
@@ -326,6 +341,8 @@ const createGraphs = (type, id, name, account_id) => {
       name,
       account_id,
     );
+  }).catch((error) => {
+    console.error("Failed to load team statistics graphs", error);
   });
 };
 
@@ -364,6 +381,8 @@ const updateGraphs = (type, id, name, account_id) => {
       name,
       account_id,
     );
+  }).catch((error) => {
+    console.error("Failed to load team statistics graphs", error);
   });
 };
 

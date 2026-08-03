@@ -512,3 +512,95 @@ class ContestUserAwards(Resource):
             "data": response.data,
             "meta": {"count": len(response.data)},
         }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# /api/v1/contest_statistics/<contest_id>/teams/<team_id>/{solves,fails,awards}
+# Per-team solves/fails/awards scoped to a single contest — used by the
+# "Team Statistics" modal on the contest detail page.
+# ─────────────────────────────────────────────────────────────────────────────
+@contest_statistics_namespace.route("/<int:contest_id>/teams/<int:team_id>/solves")
+class ContestTeamSolves(Resource):
+    method_decorators = [admins_only]
+
+    def get(self, contest_id, team_id):
+        Contests.query.filter_by(id=contest_id).first_or_404()
+        Teams.query.filter_by(id=team_id).first_or_404()
+        challenge_ids = _get_contest_challenge_ids(contest_id)
+
+        solves = []
+        if challenge_ids:
+            solves = (
+                Solves.query.filter(
+                    Solves.team_id == team_id,
+                    Solves.challenge_id.in_(challenge_ids),
+                )
+                .order_by(Solves.date.desc())
+                .all()
+            )
+
+        response = SubmissionSchema(view="admin", many=True).dump(solves)
+        if response.errors:
+            return {"success": False, "errors": response.errors}, 400
+
+        return {
+            "success": True,
+            "data": response.data,
+            "meta": {"count": len(response.data)},
+        }
+
+
+@contest_statistics_namespace.route("/<int:contest_id>/teams/<int:team_id>/fails")
+class ContestTeamFails(Resource):
+    method_decorators = [admins_only]
+
+    def get(self, contest_id, team_id):
+        Contests.query.filter_by(id=contest_id).first_or_404()
+        Teams.query.filter_by(id=team_id).first_or_404()
+        challenge_ids = _get_contest_challenge_ids(contest_id)
+
+        fails = []
+        if challenge_ids:
+            fails = (
+                Fails.query.filter(
+                    Fails.team_id == team_id,
+                    Fails.challenge_id.in_(challenge_ids),
+                )
+                .order_by(Fails.date.desc())
+                .all()
+            )
+
+        response = SubmissionSchema(view="admin", many=True).dump(fails)
+        if response.errors:
+            return {"success": False, "errors": response.errors}, 400
+
+        return {
+            "success": True,
+            "data": response.data,
+            "meta": {"count": len(fails)},
+        }
+
+
+@contest_statistics_namespace.route("/<int:contest_id>/teams/<int:team_id>/awards")
+class ContestTeamAwards(Resource):
+    method_decorators = [admins_only]
+
+    def get(self, contest_id, team_id):
+        Contests.query.filter_by(id=contest_id).first_or_404()
+        Teams.query.filter_by(id=team_id).first_or_404()
+
+        awards = (
+            Awards.query.filter_by(team_id=team_id, contest_id=contest_id)
+            .order_by(Awards.date.desc())
+            .all()
+        )
+
+        response = AwardSchema(view="admin", many=True).dump(awards)
+        if response.errors:
+            return {"success": False, "errors": response.errors}, 400
+
+        return {
+            "success": True,
+            "data": response.data,
+            "meta": {"count": len(response.data)},
+        }
