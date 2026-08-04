@@ -54,6 +54,17 @@ public class ScoreboardController : BaseController
                     bracket_id = team?.BracketId;
                 }
                 break;
+            case "admins":
+                // Only admin users can view the scoreboard
+                if (!(User.Identity?.IsAuthenticated ?? false))
+                    return Unauthorized(new { success = false, message = "Scores are only visible to admins." });
+                var requestingUserId = UserContext.UserId;
+                var requestingUser = await _context.Users
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(u => u.Id == requestingUserId);
+                if (requestingUser?.Type != "admin")
+                    return StatusCode(403, new { success = false, message = "Scores are only visible to admins." });
+                break;
             case "hidden":
                 return StatusCode(403, new { success = false, message = "Scores are currently hidden." });
         }
@@ -74,6 +85,19 @@ public class ScoreboardController : BaseController
 
         if (contest.ScoreVisibility == "private" && !bracketViewOther)
             return Ok(new { success = true, data = Array.Empty<object>() });
+
+        if (contest.ScoreVisibility == "hidden")
+            return Ok(new { success = true, data = Array.Empty<object>() });
+
+        if (contest.ScoreVisibility == "admins")
+        {
+            if (!(User.Identity?.IsAuthenticated ?? false))
+                return Ok(new { success = true, data = Array.Empty<object>() });
+            var userId = UserContext.UserId;
+            var user = await _context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == userId);
+            if (user?.Type != "admin")
+                return Ok(new { success = true, data = Array.Empty<object>() });
+        }
 
         var brackets = await _context.Brackets
             .Select(b => new { b.Id, b.Name, b.Description, b.Type })
