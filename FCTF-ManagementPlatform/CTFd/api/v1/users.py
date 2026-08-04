@@ -230,6 +230,13 @@ class UserList(Resource):
             from CTFd.models import Teams, KypoTeamAccount
             from CTFd.utils.crypto import hash_password
             raw_pw = req.get("password") or "changeme"
+
+            if Teams.query.filter_by(contest_id=contest_id, name=response.data.name).first():
+                return {
+                    "success": False,
+                    "errors": {"team": ["A team with this name already exists in this contest."]},
+                }, 400
+
             team = Teams(
                 name=response.data.name,
                 email=response.data.email,
