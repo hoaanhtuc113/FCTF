@@ -56,19 +56,33 @@ def get_all_tickets(user_id=None, status=None, type_=None, search=None, page=1, 
 
         Author = aliased(Users)
         Replier = aliased(Users)
-        Team = aliased(Teams)
-        UTM = aliased(UserTeamMember)
         Contest = aliased(Contests)
+
+        # Scalar subquery instead of a join: a user can belong to a different
+        # team in every contest they've played, so joining UserTeamMember
+        # directly on author_id would multiply each ticket row by however
+        # many teams that user has ever been on. Resolving the team name
+        # for the ticket's own contest via a subquery keeps one row per ticket.
+        team_name_subq = (
+            db.session.query(Teams.name)
+            .join(UserTeamMember, UserTeamMember.team_id == Teams.id)
+            .filter(
+                UserTeamMember.user_id == Tickets.author_id,
+                Teams.contest_id == Tickets.contest_id,
+            )
+            .correlate(Tickets)
+            .limit(1)
+            .scalar_subquery()
+        )
+
         query = db.session.query(
             Tickets,
             Author.name.label('author_name'),
             Replier.name.label('replier_name'),
-            Team.name.label('team_name'),
+            team_name_subq.label('team_name'),
             Contest.name.label('contest_name')
         ).join(Author, Tickets.author_id == Author.id) \
         .outerjoin(Replier, Tickets.replier_id == Replier.id) \
-        .outerjoin(UTM, Author.id == UTM.user_id) \
-        .outerjoin(Team, UTM.team_id == Team.id) \
         .outerjoin(Contest, Tickets.contest_id == Contest.id)
 
         if user_id:
