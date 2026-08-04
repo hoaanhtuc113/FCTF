@@ -76,6 +76,15 @@
 		<form method="get" action="" class="m-0">
 			<div class="row no-gutters align-items-end">
 				<div class="col-md-3 px-1">
+					<label>Contest</label>
+					<select name="contest_id" class="clean-form-control ss-select w-100" id="contest-select" onchange="this.form.submit()">
+						<option value="">All Contests</option>
+						{% for c in contest_options %}
+							<option value="{{ c.id }}" {% if selected_contest==c.id %}selected{% endif %}>{{ c.name }}</option>
+						{% endfor %}
+					</select>
+				</div>
+				<div class="col-md-2 px-1">
 					<label>Status</label>
 					<select name="status" class="clean-form-control ss-select w-100" id="status-select" onchange="this.form.submit()">
 						<option value="">All Status</option>
@@ -84,7 +93,7 @@
 						{% endfor %}
 					</select>
 				</div>
-				<div class="col-md-3 px-1">
+				<div class="col-md-2 px-1">
 					<label>Type</label>
 					<select name="type" class="clean-form-control ss-select w-100" id="type-select" onchange="this.form.submit()">
 						<option value="">All Types</option>
@@ -93,7 +102,7 @@
 						{% endfor %}
 					</select>
 				</div>
-				<div class="col-md-4 px-1">
+				<div class="col-md-3 px-1">
 					<label>Search</label>
 					<input type="text" name="search" class="clean-form-control w-100" placeholder="Search by title" value="{{ search or '' }}">
 				</div>
@@ -125,6 +134,7 @@
 						<input type="checkbox" class="table-check" id="select-all">
 					</th>
 					<th class="text-center"><b>ID</b></th>
+					<th class="text-center"><b>Contest</b></th>
 					<th class="text-center"><b>Team</b></th>
 					<th class="text-center"><b>Type</b></th>
 					<th class="text-center"><b>Title</b></th>
@@ -142,6 +152,7 @@
 						<input type="checkbox" class="table-check ticket-checkbox" value="{{ ticket.id }}" form="delete-form" name="ticket_ids[]">
 					</td>
 					<td>{{ ticket.id }}</td>
+					<td class="cell-truncate-sm" title="{{ ticket.contest_name or '' }}">{{ (ticket.contest_name or '-') | truncate(24, True, '...') }}</td>
 					<td class="cell-truncate-sm" title="{{ ticket.team_name or '' }}">{{ (ticket.team_name or '') | truncate(24, True, '...') }}</td>
 					<td class="cell-truncate-sm" title="{{ ticket.type or '' }}">{{ (ticket.type or '') | truncate(20, True, '...') }}</td>
 					<td class="cell-truncate" title="{{ ticket.title or '' }}">{{ (ticket.title or '') | truncate(40, True, '...') }}</td>
@@ -161,7 +172,7 @@
 				</tr>
 				{% else %}
 				<tr>
-					<td colspan="10" class="text-center text-muted">No tickets found</td>
+					<td colspan="11" class="text-center text-muted">No tickets found</td>
 				</tr>
 				{% endfor %}
 			</tbody>
@@ -179,7 +190,7 @@
 			<ul class="clean-pagination pagination mb-0">
 				{% for p in range(1, total_pages+1) %}
 					<li class="page-item {% if p == page %}active{% endif %}">
-						<a class="page-link" href="?user_id={{ selected_user or '' }}&status={{ selected_status or '' }}&type={{ selected_type or '' }}&search={{ search or '' }}&page={{ p }}&per_page={{ per_page }}">{{ p }}</a>
+						<a class="page-link" href="?user_id={{ selected_user or '' }}&contest_id={{ selected_contest or '' }}&status={{ selected_status or '' }}&type={{ selected_type or '' }}&search={{ search or '' }}&page={{ p }}&per_page={{ per_page }}">{{ p }}</a>
 					</li>
 				{% endfor %}
 			</ul>
