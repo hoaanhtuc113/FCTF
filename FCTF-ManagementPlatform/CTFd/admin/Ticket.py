@@ -3,6 +3,7 @@ from flask import abort, flash, jsonify, redirect, render_template, request, ses
 import requests
 
 from CTFd.admin import admin
+from CTFd.models import Contests
 from CTFd.SendTicket import get_all_tickets, get_ticket_by_id, send_ticket_from_relier
 from CTFd.utils.decorators import admins_only
 from CTFd.utils.user import get_current_user
@@ -10,6 +11,7 @@ from CTFd.utils.user import get_current_user
 
 # View tickets with filter, search, pagination, and bulk delete
 @admin.route("/admin/viewticket", methods=["GET"])
+@admins_only
 def view_tickets():
     try:
         page = request.args.get("page", default=1, type=int) or 1
@@ -17,12 +19,14 @@ def view_tickets():
         page = max(page, 1)
         per_page = min(max(per_page, 1), 100)
         user_id = request.args.get("user_id", type=int)
+        contest_id = request.args.get("contest_id", type=int)
         status = request.args.get("status", type=str)
         type_ = request.args.get("type", type=str)
         search = request.args.get("search", type=str)
 
         response, status_code = get_all_tickets(
             user_id=user_id,
+            contest_id=contest_id,
             status=status,
             type_=type_,
             search=search,
@@ -45,6 +49,7 @@ def view_tickets():
         # Lấy tất cả status/type từ model Tickets (distinct)
         all_status = ["Open", "Closed"]
         all_type = ["Question", "Error"]
+        all_contests = Contests.query.order_by(Contests.name.asc()).all()
 
         selected_status = status
         selected_type = type_
@@ -57,7 +62,9 @@ def view_tickets():
             page=page,
             status_options=all_status,
             type_options=all_type,
+            contest_options=all_contests,
             selected_user=user_id,
+            selected_contest=contest_id,
             selected_status=selected_status,
             selected_type=selected_type,
             search=search

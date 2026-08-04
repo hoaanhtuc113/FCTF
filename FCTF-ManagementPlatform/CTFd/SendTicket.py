@@ -5,7 +5,7 @@ All contestant-facing HTTP routes have been removed.
 This module is now admin-only.
 """
 from flask import jsonify
-from CTFd.models import Tickets, Users, Teams, UserTeamMember, db
+from CTFd.models import Tickets, Users, Teams, UserTeamMember, Contests, db
 from sqlalchemy.orm import aliased
 
 
@@ -58,15 +58,18 @@ def get_all_tickets(user_id=None, status=None, type_=None, search=None, page=1, 
         Replier = aliased(Users)
         Team = aliased(Teams)
         UTM = aliased(UserTeamMember)
+        Contest = aliased(Contests)
         query = db.session.query(
             Tickets,
             Author.name.label('author_name'),
             Replier.name.label('replier_name'),
-            Team.name.label('team_name')
+            Team.name.label('team_name'),
+            Contest.name.label('contest_name')
         ).join(Author, Tickets.author_id == Author.id) \
         .outerjoin(Replier, Tickets.replier_id == Replier.id) \
         .outerjoin(UTM, Author.id == UTM.user_id) \
-        .outerjoin(Team, UTM.team_id == Team.id)
+        .outerjoin(Team, UTM.team_id == Team.id) \
+        .outerjoin(Contest, Tickets.contest_id == Contest.id)
 
         if user_id:
             query = query.filter(Tickets.author_id == user_id)
@@ -83,7 +86,7 @@ def get_all_tickets(user_id=None, status=None, type_=None, search=None, page=1, 
         tickets = query.order_by(Tickets.created_at.desc()).offset((page-1)*per_page).limit(per_page).all()
 
         tickets_data = []
-        for ticket, author_name, replier_name, team_name in tickets:
+        for ticket, author_name, replier_name, team_name, contest_name in tickets:
             tickets_data.append({
                 'author_name': _string_or_empty(author_name),
                 'team_name': _string_or_empty(team_name),
@@ -94,7 +97,9 @@ def get_all_tickets(user_id=None, status=None, type_=None, search=None, page=1, 
                 'date': ticket.created_at,
                 'description': _string_or_empty(ticket.description),
                 'replier_name': _string_or_empty(replier_name),
-                'replier_message': _string_or_empty(ticket.replier_message)
+                'replier_message': _string_or_empty(ticket.replier_message),
+                'contest_id': ticket.contest_id,
+                'contest_name': _string_or_empty(contest_name)
             })
 
         return {'tickets': tickets_data, 'total': total}, 200
