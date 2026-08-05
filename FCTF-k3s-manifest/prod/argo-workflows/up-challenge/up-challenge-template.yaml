@@ -59,13 +59,18 @@ spec:
         image: gcr.io/kaniko-project/executor:debug
         imagePullPolicy: IfNotPresent
 
-        # Kaniko REQUIRE root + writable FS
+        # Kaniko needs root to write build layers, but does NOT require
+        # privileged mode - that's the whole point of Kaniko vs Docker-in-Docker.
         securityContext:
           runAsUser: 0
           runAsGroup: 0
           runAsNonRoot: false
-          privileged: true
-          allowPrivilegeEscalation: true
+          privileged: false
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: ["ALL"]
+          seccompProfile:
+            type: RuntimeDefault
 
         # Production-safe resources (tested range)
         resources:
