@@ -9,6 +9,12 @@ public class RequireSecretKeyAttribute : Attribute, IAsyncResourceFilter
 {
     private readonly HashSet<string> _requiredFields = [];
 
+    // unixTime is part of what gets signed, but the signature alone only
+    // proves "this (unixTime, data) pair was signed with PRIVATE_KEY" - it
+    // says nothing about *when*. Without this window, a single captured
+    // valid request (log, MITM, etc.) is replayable forever.
+    private static readonly long MaxClockSkewSeconds = 120;
+
     public async Task OnResourceExecutionAsync(ResourceExecutingContext context, ResourceExecutionDelegate next)
     {
         var headers = context.HttpContext.Request.Headers;
@@ -105,6 +111,18 @@ public class RequireSecretKeyAttribute : Attribute, IAsyncResourceFilter
 
             data = bodyData.ToDictionary(k => k.Key, v => v.Value?.ToString() ?? string.Empty);
         }
+
+        long skewSeconds = Math.Abs(DateTimeOffset.UtcNow.ToUnixTimeSeconds() - unixTime);
+        if (skewSeconds > MaxClockSkewSeconds)
+        {
+            context.Result = new ContentResult()
+            {
+                StatusCode = 400,
+                Content = "[Middlewares] Request expired"
+            };
+            return;
+        }
+
         string generatedSecretKey = SecretKeyHelper.CreateSecretKey(unixTime, data);
 
         if (receivedSecretKey != generatedSecretKey)
