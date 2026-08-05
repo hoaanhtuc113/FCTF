@@ -253,7 +253,10 @@ public class DeployService : IDeployService
             // Admin force delete: xóa namespace và cache ngay lập tức
             if (user != null && user.Type == UserType.Admin)
             {
-                await Console.Out.WriteLineAsync($"[Admin] Force deleting namespace {deployInfo._namespace}...");
+                _logger.LogAudit(
+                    "admin_force_delete_namespace",
+                    before: new { @namespace = deployInfo._namespace, stopReq.challengeId, stopReq.teamId },
+                    userId: user.Id);
                 await _k8SHealthService.DeleteNamespace(deployInfo._namespace ?? string.Empty);
 
                 deployInfo.status = DeploymentStatus.STOPPED;
