@@ -212,6 +212,10 @@ spec:
             cpu: "250m"
             memory: "256Mi"
 
+        envFrom:
+          - secretRef:
+              name: common-private-key-secret
+
         command: ["/bin/sh", "-c"]
         args:
           - |
@@ -222,14 +226,34 @@ spec:
             WORKFLOW_TYPE="up"
             CHALLENGE_ID="{{workflow.parameters.CHALLENGE_ID}}"
             ENDPOINT="{{workflow.parameters.DEPLOYMENT_CENTER_API_ENDPOINT}}"
+            UNIX_TIME="$(date +%s)"
+
+            # /api/statuscheck/message requires [RequireSecretKey]: MD5 of
+            # unixTime + PRIVATE_KEY + field values sorted alphabetically by
+            # field name (ChallengeId, Status, Type, WorkFlowName) - must
+            # match SecretKeyHelper.CreateSecretKey exactly.
+            SIGN_INPUT="${UNIX_TIME}${PRIVATE_KEY}${CHALLENGE_ID}${WORKFLOW_STATUS}${WORKFLOW_TYPE}${WORKFLOW_NAME}"
+
+            if command -v md5sum >/dev/null 2>&1; then
+              SECRET_KEY="$(printf '%s' "${SIGN_INPUT}" | md5sum | awk '{print $1}')"
+            elif command -v openssl >/dev/null 2>&1; then
+              SECRET_KEY="$(printf '%s' "${SIGN_INPUT}" | openssl dgst -md5 -r | awk '{print $1}')"
+            else
+              echo "ERROR: neither md5sum nor openssl available in this image - cannot sign status callback, skipping"
+              SECRET_KEY=""
+            fi
 
             echo "Posting workflow status to deployment center"
 
-            curl -sS -X POST "${ENDPOINT}" \
-              -H 'Content-Type: application/json' \
-              -d '{
-                "WorkFlowName": "'"${WORKFLOW_NAME}"'",
-                "ChallengeId": '"${CHALLENGE_ID}"',
-                "Status": "'"${WORKFLOW_STATUS}"'",
-                "Type": "'"${WORKFLOW_TYPE}"'"
-              }' || true
+            if [ -n "${SECRET_KEY}" ]; then
+              curl -sS -X POST "${ENDPOINT}" \
+                -H 'Content-Type: application/json' \
+                -H "SecretKey: ${SECRET_KEY}" \
+                -d '{
+                  "WorkFlowName": "'"${WORKFLOW_NAME}"'",
+                  "ChallengeId": '"${CHALLENGE_ID}"',
+                  "Status": "'"${WORKFLOW_STATUS}"'",
+                  "Type": "'"${WORKFLOW_TYPE}"'",
+                  "unixTime": "'"${UNIX_TIME}"'"
+                }' || true
+            fi

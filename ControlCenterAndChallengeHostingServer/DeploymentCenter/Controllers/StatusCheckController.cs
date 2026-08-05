@@ -63,8 +63,8 @@ public class StatusCheckController : ControllerBase
         return data;
     }
 
-    //AUTHENTICATION-NOTE: api này chưa được authen 
     [HttpPost("message")]
+    [RequireSecretKey]
     public async Task<BaseResponseDTO> MessageFromArgo([FromBody] WorkflowStatusDTO message)
     {
 
