@@ -10,8 +10,11 @@ metadata:
   name: deployment-listener-sa-role
 rules:
   - apiGroups: [""]
-    resources: ["pods", "services", "namespaces", "nodes"]
+    resources: ["namespaces"]
     verbs: ["get", "list", "watch", "delete"]
+  - apiGroups: [""]
+    resources: ["pods", "services"]
+    verbs: ["get", "list", "watch"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
