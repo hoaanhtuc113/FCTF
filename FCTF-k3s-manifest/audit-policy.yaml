@@ -1,0 +1,58 @@
+# Kubernetes API server audit policy.
+#
+# Before this file existed, kube-apiserver was started with no
+# --audit-log-path / --audit-policy-file at all (see setup-master.sh), so no
+# K8s-level audit trail existed anywhere in this cluster.
+#
+# Namespace create/delete is logged at RequestResponse so investigators can
+# see exactly which ServiceAccount, at what time, acted on which namespace.
+# Even though every team's request shares the same SA (deployment-center-sa /
+# deployment-listener-sa / start-chal-v2-workflow-sa), the namespace name
+# itself already encodes team/challenge (see ChallengeHelper.GetDeploymentAppName:
+# "team-{teamId}-{challengeId}-{challengeName}-{timestamp}"), so this alone
+# tells you *which team's* namespace was affected. Matching that to *which
+# HTTP request/admin* triggered it still requires joining with the app-level
+# correlationId (see AppLogger) - K8s audit log cannot know that on its own,
+# since it only ever sees the shared SA identity.
+apiVersion: audit.k8s.io/v1
+kind: Policy
+omitStages:
+  - "RequestReceived"
+rules:
+  # Cut the highest-volume, lowest-signal noise: node/kube-proxy read-only
+  # polling. Without this, the audit log fills up with watch/list churn
+  # that has nothing to do with any human or app-triggered action.
+  - level: None
+    userGroups: ["system:nodes"]
+    verbs: ["get", "list", "watch"]
+  - level: None
+    users: ["system:kube-proxy"]
+    verbs: ["watch"]
+    resources:
+      - group: ""
+        resources: ["endpoints", "services", "services/status"]
+  - level: None
+    users: ["system:apiserver", "system:kube-scheduler", "system:kube-controller-manager"]
+    verbs: ["get", "list", "watch"]
+
+  # Namespace lifecycle - the core event this policy exists to capture.
+  - level: RequestResponse
+    resources:
+      - group: ""
+        resources: ["namespaces"]
+    verbs: ["create", "delete"]
+
+  # RBAC changes are always high-signal (privilege escalation path).
+  - level: RequestResponse
+    resources:
+      - group: "rbac.authorization.k8s.io"
+        resources: ["clusterroles", "clusterrolebindings", "roles", "rolebindings"]
+
+  # Record that secrets/configmaps were touched, never their payload.
+  - level: Metadata
+    resources:
+      - group: ""
+        resources: ["secrets", "configmaps"]
+
+  # Everything else: who/when/what, not full bodies.
+  - level: Metadata
