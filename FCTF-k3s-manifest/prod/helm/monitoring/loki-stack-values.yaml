@@ -40,6 +40,22 @@ loki:
 promtail:
   enabled: true
   priorityClassName: infra-critical
+  # k3s writes the kube-apiserver audit log to a plain file on the master
+  # node only (see setup-master.sh / audit-policy.yaml) - it isn't shipped
+  # anywhere by default, which is exactly why abuse of a broad-read SA (e.g.
+  # Prometheus's own cluster-wide list/watch) only ever shows up as a
+  # generic entry nobody can search. Mount that path and tail it so the
+  # audit log is queryable in Grafana/Loki instead of stuck on one node.
+  # On worker nodes the path won't exist; Promtail just finds nothing to
+  # tail there, which is expected.
+  extraVolumes:
+    - name: k3s-audit-log
+      hostPath:
+        path: /var/log/k3s-audit
+  extraVolumeMounts:
+    - name: k3s-audit-log
+      mountPath: /var/log/k3s-audit
+      readOnly: true
   config:
     logLevel: info
     serverPort: 3101
@@ -47,7 +63,14 @@ promtail:
       - url: http://{{ .Release.Name }}:3100/loki/api/v1/push
     snippets:
       logFormat: logfmt
-      extraScrapeConfigs: ""
+      extraScrapeConfigs: |
+        - job_name: k8s-audit-log
+          static_configs:
+            - targets:
+                - localhost
+              labels:
+                job: k8s-audit-log
+                __path__: /var/log/k3s-audit/audit.log
       pipelineStages:
         - cri: {}
 
