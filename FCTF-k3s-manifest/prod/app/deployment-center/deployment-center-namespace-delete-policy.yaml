@@ -1,0 +1,36 @@
+# Mitigation for T-K8S-1 (see deployment-center-sa.yaml): even after RBAC was
+# trimmed to `namespaces: delete`, that verb is cluster-scoped and RBAC alone
+# cannot restrict *which* namespaces. This policy enforces that deployment-center-sa
+# can only delete namespaces labeled ctf/kind=challenge (the only namespaces it
+# has any legitimate reason to delete - see K8sService.DeleteNamespace /
+# DeleteAllChallengeNamespaces), so a stolen/misused token cannot delete
+# kube-system, argo, app, db, monitoring, etc.
+#
+# Requires Kubernetes >=1.30 (ValidatingAdmissionPolicy GA) or >=1.28 with the
+# ValidatingAdmissionPolicy feature gate enabled. Verify the cluster's k3s
+# version supports admissionregistration.k8s.io/v1 before applying.
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: deployment-center-sa-namespace-delete-scope
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+      - apiGroups: [""]
+        apiVersions: ["v1"]
+        operations: ["DELETE"]
+        resources: ["namespaces"]
+  validations:
+    - expression: >-
+        request.userInfo.username != 'system:serviceaccount:app:deployment-center-sa' ||
+        (has(oldObject.metadata.labels) && oldObject.metadata.labels['ctf/kind'] == 'challenge')
+      message: "deployment-center-sa may only delete namespaces labeled ctf/kind=challenge"
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: deployment-center-sa-namespace-delete-scope-binding
+spec:
+  policyName: deployment-center-sa-namespace-delete-scope
+  validationActions: ["Deny"]
