@@ -14,18 +14,21 @@ public class ContestEndCleanupService : BackgroundService
     private readonly IK8sService _k8sService;
     private readonly RedisHelper _redisHelper;
     private readonly AppLogger _logger;
+    private readonly WorkerHeartbeat _heartbeat;
     private static readonly TimeSpan Interval = TimeSpan.FromSeconds(30);
 
     public ContestEndCleanupService(
         IServiceScopeFactory scopeFactory,
         IK8sService k8sService,
         RedisHelper redisHelper,
-        AppLogger logger)
+        AppLogger logger,
+        WorkerHeartbeat heartbeat)
     {
         _scopeFactory = scopeFactory;
         _k8sService = k8sService;
         _redisHelper = redisHelper;
         _logger = logger;
+        _heartbeat = heartbeat;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -43,6 +46,7 @@ public class ContestEndCleanupService : BackgroundService
                 _logger.LogError(ex, data: new { errorType = "ContestEndCleanupTickError" });
             }
 
+            _heartbeat.PingCleanupTick();
             await Task.Delay(Interval, stoppingToken);
         }
     }

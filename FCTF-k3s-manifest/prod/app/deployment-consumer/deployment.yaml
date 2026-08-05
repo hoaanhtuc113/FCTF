@@ -22,6 +22,10 @@ spec:
       containers:
         - name: deployment-consumer
           image: <REGISTRY_DOMAIN>/fctf/deployment-consumer:latest
+          ports:
+            - name: http-health
+              containerPort: 5040
+              protocol: TCP
           envFrom:
             - configMapRef:
                 name: deployment-consumer-cm
@@ -36,6 +40,22 @@ spec:
             limits:
               cpu: 1
               memory: 2Gi
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 5040
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 5040
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            timeoutSeconds: 2
+            failureThreshold: 3
           imagePullPolicy: Always
           securityContext:
             readOnlyRootFilesystem: true

@@ -10,7 +10,11 @@ spec:
   policyTypes:
     - Ingress
     - Egress
-  ingress: []
+  ingress:
+    # kubelet readiness/liveness probes
+    - ports:
+        - protocol: TCP
+          port: 5040
   egress:
     - to:
         - ipBlock:
