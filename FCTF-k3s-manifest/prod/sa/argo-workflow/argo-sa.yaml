@@ -58,13 +58,27 @@ rules:
   # Matches exactly what deploy-challenge-v2 applies from
   # challenge-hardened.yaml/challenge-plain.yaml (Namespace, Service,
   # NetworkPolicy, Job) plus the imagePullSecret copy step (Secret).
-  # See T-K8S-13: this SA used to be bound to cluster-admin.
+  # This SA used to be bound to cluster-admin.
   - apiGroups: [""]
     resources: ["namespaces"]
     verbs: ["create", "get"]
   - apiGroups: [""]
-    resources: ["services", "secrets"]
+    resources: ["services"]
     verbs: ["create", "get"]
+  # Secret access is scoped to global-regcred by name: the only secret this
+  # SA ever reads (kubectl get secret global-regcred -n argo) or writes (the
+  # copy of that same secret into the newly created challenge namespace).
+  # resourceNames restricts `get` correctly, but Kubernetes RBAC cannot
+  # restrict `create` by resource name (the object name isn't known at
+  # authorization time) - the accompanying ValidatingAdmissionPolicy below
+  # covers that gap for create.
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get"]
+    resourceNames: ["global-regcred"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["create"]
   - apiGroups: ["networking.k8s.io"]
     resources: ["networkpolicies"]
     verbs: ["create", "get"]

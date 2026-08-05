@@ -326,7 +326,7 @@ if [[ "${APPLY_HELM}" == "true" ]]; then
   )
 
   echo "==> Applying Argo ServiceAccount"
-  kubectl apply -f "${PROD_DIR}/sa/argo-workflow/argo-sa.yaml"
+  kubectl apply -f "${PROD_DIR}/sa/argo-workflow/"
 fi
 
 if [[ "${DEPLOY_APP_SERVICES}" == "true" ]]; then
