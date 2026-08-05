@@ -95,9 +95,9 @@ controller:
   # -- Globally limits the rate at which pods are created.
   # This is intended to mitigate flooding of the Kubernetes API server by workflows with a large amount of
   # parallel nodes.
-  resourceRateLimit: {}
-    # limit: 10
-    # burst: 1
+  resourceRateLimit:
+    limit: 10
+    burst: 1
 
   rbac:
     # -- Adds Role and RoleBinding for the controller.
@@ -118,7 +118,7 @@ controller:
     annotations: {}
 
   # -- Limits the maximum number of incomplete workflows in a namespace
-  namespaceParallelism:
+  namespaceParallelism: 30
   # -- Resolves ongoing, uncommon AWS EKS bug: https://github.com/argoproj/argo-workflows/pull/4224
   initialDelay:
   # -- deploymentAnnotations is an optional map of annotations to be applied to the controller Deployment
