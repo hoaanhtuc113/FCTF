@@ -327,6 +327,9 @@ if [[ "${APPLY_HELM}" == "true" ]]; then
 
   echo "==> Applying Argo ServiceAccount"
   kubectl apply -f "${PROD_DIR}/sa/argo-workflow/"
+
+  echo "==> Applying monitoring NetworkPolicy"
+  kubectl apply -f "${PROD_DIR}/monitoring/NetworkPolicy/"
 fi
 
 if [[ "${DEPLOY_APP_SERVICES}" == "true" ]]; then
