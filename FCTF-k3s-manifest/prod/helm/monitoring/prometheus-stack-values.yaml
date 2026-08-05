@@ -4589,7 +4589,19 @@ prometheus:
 
     ## Containers allows injecting additional containers. This is meant to allow adding an authentication proxy to a Prometheus pod.
     ## if using proxy extraContainer update targetPort with proxy container port
-    containers: []
+    ## A container with the same name as an existing one (e.g. "prometheus") is
+    ## merged into it rather than added - used here to harden the main
+    ## container's securityContext, which prometheusSpec.securityContext
+    ## (pod-level) cannot express (readOnlyRootFilesystem/capabilities are
+    ## container-level fields). /prometheus (TSDB) and the config-reloader's
+    ## config path are both separate volume mounts, unaffected by this.
+    containers:
+      - name: prometheus
+        securityContext:
+          readOnlyRootFilesystem: true
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: ["ALL"]
     # containers:
     # - name: oauth-proxy
     #   image: quay.io/oauth2-proxy/oauth2-proxy:v7.12.0
