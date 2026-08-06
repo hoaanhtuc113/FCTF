@@ -150,6 +150,7 @@ spec:
             export CONTEST_ID="{{inputs.parameters.CONTEST_ID}}"
             export CHALLENGE_ID="{{inputs.parameters.CHALLENGE_ID}}"
             export TEAM_ID="{{inputs.parameters.TEAM_ID}}"
+            export WORKFLOW_NAME="{{workflow.name}}"
 
             if [ "{{inputs.parameters.USE_GVISOR}}" = "true" ]; then
               export RUNTIME_CLASS_NAME_LINE="runtimeClassName: gvisor"
