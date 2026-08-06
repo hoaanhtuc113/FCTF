@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using ResourceShared;
 using ResourceShared.DTOs;
 using ResourceShared.DTOs.Challenge;
@@ -22,7 +23,7 @@ public interface IDeployService
     Task<ChallengeDeployResponeDTO> Start(ChallengeStartStopReqDTO challengeStartReq);
     Task<ChallengeDeployResponeDTO> Stop(ChallengeStartStopReqDTO challengeStartReq);
     Task<BaseResponseDTO> StopAll(int contestId);
-    Task<BaseResponseDTO> StopAllGlobal();
+    Task<BaseResponseDTO> StopAllGlobal(int? userId);
     Task<ChallengeDeployResponeDTO> StatusCheck(ChallengCheckStatusReqDTO statusReq);
     Task<BaseResponseDTO> HandleMessageFromArgo(WorkflowStatusDTO message);
     Task<BaseResponseDTO<DeploymentLogsDTO>> GetDeploymentLogs(string workflowName);
@@ -383,9 +384,33 @@ public class DeployService : IDeployService
     // contestId filter. Kept as a distinct method (rather than StopAll's old
     // contestId=0 fallback) so it can only be reached through the separate,
     // extra-confirmation-gated /stop-all-global endpoint.
-    public async Task<BaseResponseDTO> StopAllGlobal()
+    public async Task<BaseResponseDTO> StopAllGlobal(int? userId)
     {
         await Console.Out.WriteLineAsync("Stopping ALL challenges across ALL contests...");
+
+        // Stopping every contest at once is expected/low-risk when there's
+        // only ever one contest live. With 2+ running concurrently it means
+        // an admin just took down someone else's contest too - that's the
+        // scenario worth paging someone over, not just an info log line.
+        var now = DateTime.UtcNow;
+        var runningContestIds = await _dbContext.Contests
+            .AsNoTracking()
+            .Where(c => c.State != "paused" && c.State != "ended"
+                && (c.StartTime == null || now >= c.StartTime)
+                && (c.EndTime == null || now <= c.EndTime))
+            .Select(c => c.Id)
+            .ToListAsync();
+
+        if (runningContestIds.Count >= 2)
+        {
+            _logger.Log(
+                "stop_all_global_multi_contest",
+                userId,
+                null,
+                new { runningContestCount = runningContestIds.Count, runningContestIds },
+                level: LogLevel.Critical);
+        }
+
         try
         {
             var (successCount, failCount, errors) = await _k8SHealthService.DeleteAllChallengeNamespaces("ctf/kind=challenge", null);

@@ -154,7 +154,7 @@ public class ChallengeController : ControllerBase
         }
 
         await Console.Out.WriteLineAsync($"[Stop All GLOBAL] Account {user.Name} stopping ALL challenges across ALL contests");
-        var response = await _deployService.StopAllGlobal();
+        var response = await _deployService.StopAllGlobal(user.Id);
         return response.HttpStatusCode switch
         {
             HttpStatusCode.OK => Ok(response),
