@@ -3,6 +3,13 @@ apiVersion: v1
 kind: Namespace
 metadata:
   name: cron-job
+  labels:
+    pod-security.kubernetes.io/enforce: "restricted"
+    pod-security.kubernetes.io/enforce-version: "latest"
+    pod-security.kubernetes.io/audit: "restricted"
+    pod-security.kubernetes.io/audit-version: "latest"
+    pod-security.kubernetes.io/warn: "restricted"
+    pod-security.kubernetes.io/warn-version: "latest"
 ---
 apiVersion: batch/v1
 kind: CronJob
@@ -38,6 +45,8 @@ spec:
                 privileged: false
                 capabilities:
                   drop: ["ALL"]
+                seccompProfile:
+                  type: RuntimeDefault
               env:
                 - name: HOME
                   value: /tmp

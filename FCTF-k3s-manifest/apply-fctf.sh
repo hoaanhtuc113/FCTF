@@ -281,7 +281,7 @@ if [[ "${APPLY_HELM}" == "true" ]]; then
   fi
 
   echo "==> Creating required namespace for Helm components"
-  kubectl create namespace app --dry-run=client -o yaml | kubectl apply -f -
+  kubectl apply -f "${PROD_DIR}/app/namespace.yaml"
   kubectl create namespace argo --dry-run=client -o yaml | kubectl apply -f -
   kubectl create namespace storage --dry-run=client -o yaml | kubectl apply -f -
   kubectl create namespace db --dry-run=client -o yaml | kubectl apply -f -
@@ -339,7 +339,7 @@ if [[ "${DEPLOY_APP_SERVICES}" == "true" ]]; then
   fi
 
   echo "==> Creating required namespaces"
-  kubectl create namespace app --dry-run=client -o yaml | kubectl apply -f -
+  kubectl apply -f "${PROD_DIR}/app/namespace.yaml"
   kubectl create namespace db --dry-run=client -o yaml | kubectl apply -f -
 
   echo "==> Applying base classes, ConfigMaps and Secrets"
@@ -362,6 +362,9 @@ if [[ "${DEPLOY_APP_SERVICES}" == "true" ]]; then
 
   echo "==> Applying app NetworkPolicy"
   kubectl apply -f "${PROD_DIR}/app/NetworkPolicy/"
+
+  echo "==> Applying readOnlyRootFilesystem admission policy"
+  kubectl apply -f "${PROD_DIR}/app/readonly-rootfs-policy.yaml"
 
   if [[ "${SERVICE_MODE}" == "clusterip" ]]; then
     echo "==> Applying ClusterIP service mode"
