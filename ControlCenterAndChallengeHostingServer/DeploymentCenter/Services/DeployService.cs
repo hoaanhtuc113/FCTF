@@ -21,7 +21,8 @@ public interface IDeployService
 {
     Task<ChallengeDeployResponeDTO> Start(ChallengeStartStopReqDTO challengeStartReq);
     Task<ChallengeDeployResponeDTO> Stop(ChallengeStartStopReqDTO challengeStartReq);
-    Task<BaseResponseDTO> StopAll(int contestId = 0);
+    Task<BaseResponseDTO> StopAll(int contestId);
+    Task<BaseResponseDTO> StopAllGlobal();
     Task<ChallengeDeployResponeDTO> StatusCheck(ChallengCheckStatusReqDTO statusReq);
     Task<BaseResponseDTO> HandleMessageFromArgo(WorkflowStatusDTO message);
     Task<BaseResponseDTO<DeploymentLogsDTO>> GetDeploymentLogs(string workflowName);
@@ -313,55 +314,91 @@ public class DeployService : IDeployService
     }
 
 
-    public async Task<BaseResponseDTO> StopAll(int contestId = 0)
+    public async Task<BaseResponseDTO> StopAll(int contestId)
     {
-        await Console.Out.WriteLineAsync($"Stopping all challenges{(contestId > 0 ? $" for contest {contestId}" : "")}...");
+        if (contestId <= 0)
+        {
+            return new BaseResponseDTO
+            {
+                Success = false,
+                Message = "contestId is required. Use StopAllGlobal to stop every contest's challenges.",
+                HttpStatusCode = HttpStatusCode.BadRequest
+            };
+        }
+
+        await Console.Out.WriteLineAsync($"Stopping all challenges for contest {contestId}...");
         try
         {
-            HashSet<int>? challengeIdFilter = null;
+            var ids = await _dbContext.Challenges
+                .Where(c => c.ContestId == contestId)
+                .Select(c => c.Id)
+                .ToListAsync();
 
-            if (contestId > 0)
+            if (ids.Count == 0)
             {
-                var ids = await _dbContext.Challenges
-                    .Where(c => c.ContestId == contestId)
-                    .Select(c => c.Id)
-                    .ToListAsync();
-
-                if (ids.Count == 0)
+                return new BaseResponseDTO
                 {
-                    return new BaseResponseDTO
-                    {
-                        Success = true,
-                        Message = $"No challenges found for contest {contestId}.",
-                        HttpStatusCode = HttpStatusCode.OK
-                    };
-                }
-
-                challengeIdFilter = new HashSet<int>(ids);
+                    Success = true,
+                    Message = $"No challenges found for contest {contestId}.",
+                    HttpStatusCode = HttpStatusCode.OK
+                };
             }
 
+            var challengeIdFilter = new HashSet<int>(ids);
             var (successCount, failCount, errors) = await _k8SHealthService.DeleteAllChallengeNamespaces("ctf/kind=challenge", challengeIdFilter);
 
-            // Clear Redis cache scoped to the affected challenges only
-            if (challengeIdFilter != null)
-            {
-                foreach (var cid in challengeIdFilter)
-                    await _redisHelper.RemoveCacheByPattern($"deploy_challenge_{cid}_*");
-            }
-            else
-            {
-                await _redisHelper.RemoveCacheByPattern("deploy_challenge_*");
-                await _redisHelper.RemoveCacheByPattern("active_deploys_team_*");
-            }
+            foreach (var cid in challengeIdFilter)
+                await _redisHelper.RemoveCacheByPattern($"deploy_challenge_{cid}_*");
 
-            var scope = contestId > 0 ? $" for contest {contestId}" : "";
-            var message = $"Stopped {successCount} challenge namespace(s){scope} successfully.";
+            var message = $"Stopped {successCount} challenge namespace(s) for contest {contestId} successfully.";
             if (failCount > 0)
             {
                 message += $" {failCount} failed. Errors: {string.Join("; ", errors)}";
-                var scopeDesc = contestId > 0 ? $"contest {contestId}" : "all contests";
                 await Console.Error.WriteLineAsync(
-                    $"[WARNING] StopAll partial failure for {scopeDesc}: {failCount} namespace(s) could not be deleted after retries. " +
+                    $"[WARNING] StopAll partial failure for contest {contestId}: {failCount} namespace(s) could not be deleted after retries. " +
+                    $"Retry the stop-all operation or delete manually. Errors: {string.Join("; ", errors)}");
+            }
+
+            return new BaseResponseDTO
+            {
+                Success = failCount == 0,
+                Message = message,
+                HttpStatusCode = failCount == 0 ? HttpStatusCode.OK : HttpStatusCode.PartialContent
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex);
+            await Console.Error.WriteLineAsync($"Error during stopping all challenges: {ex.Message}");
+            return new BaseResponseDTO
+            {
+                Success = false,
+                Message = $"Error during stopping all challenges: {ex.Message}",
+                HttpStatusCode = HttpStatusCode.InternalServerError
+            };
+        }
+    }
+
+    // Deletes every ctf/kind=challenge namespace across every contest - no
+    // contestId filter. Kept as a distinct method (rather than StopAll's old
+    // contestId=0 fallback) so it can only be reached through the separate,
+    // extra-confirmation-gated /stop-all-global endpoint.
+    public async Task<BaseResponseDTO> StopAllGlobal()
+    {
+        await Console.Out.WriteLineAsync("Stopping ALL challenges across ALL contests...");
+        try
+        {
+            var (successCount, failCount, errors) = await _k8SHealthService.DeleteAllChallengeNamespaces("ctf/kind=challenge", null);
+
+            await _redisHelper.RemoveCacheByPattern("deploy_challenge_*");
+            await _redisHelper.RemoveCacheByPattern("active_deploys_team_*");
+
+            var message = $"Stopped {successCount} challenge namespace(s) across all contests successfully.";
+            if (failCount > 0)
+            {
+                message += $" {failCount} failed. Errors: {string.Join("; ", errors)}";
+                await Console.Error.WriteLineAsync(
+                    $"[WARNING] StopAllGlobal partial failure: {failCount} namespace(s) could not be deleted after retries. " +
                     $"Retry the stop-all operation or delete manually. Errors: {string.Join("; ", errors)}");
             }
 
