@@ -28,7 +28,7 @@ spec:
           restartPolicy: Never
           containers:
             - name: cleaner
-              image: bitnamilegacy/kubectl:1.33.4
+              image: <REGISTRY_DOMAIN>/fctf/kubectl-cli:latest
               securityContext:
                 runAsUser: 1105
                 runAsGroup: 1105

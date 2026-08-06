@@ -1,0 +1,72 @@
+# ============================================================================
+# FCTF – kubectl-cli image rebuild
+# Rebuilds the internal kubectl-cli image (FCTF-k3s-manifest/docker/kubectl)
+# on a weekly schedule so it keeps picking up Alpine base and kubectl
+# security patches, instead of sitting static after a one-off manual build.
+# Every build is scanned with Trivy before push; a CRITICAL/HIGH finding
+# blocks the push so ":latest" keeps pointing at the last scanned-clean
+# image instead of being overwritten by a newly-vulnerable one.
+#
+# Reuses the same HARBOR_USERNAME / HARBOR_TOKEN secrets as ci-cd.yml.
+# ============================================================================
+
+name: Rebuild kubectl-cli image
+
+on:
+  schedule:
+    - cron: '0 3 * * 1' # every Monday 03:00 UTC
+  workflow_dispatch: # allow manual trigger
+  push:
+    branches: [main]
+    paths:
+      - 'FCTF-k3s-manifest/docker/kubectl/dockerfile'
+
+env:
+  REGISTRY: registry.sanchoi.iahn.hanoi.vn
+  IMAGE: registry.sanchoi.iahn.hanoi.vn/fctf/kubectl-cli
+
+jobs:
+  build-scan-push:
+    name: Build, scan, and push kubectl-cli
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image (local only, not pushed yet)
+        uses: docker/build-push-action@v6
+        with:
+          context: FCTF-k3s-manifest/docker/kubectl
+          file: FCTF-k3s-manifest/docker/kubectl/dockerfile
+          push: false
+          load: true
+          tags: ${{ env.IMAGE }}:scan-${{ github.run_id }}
+
+      - name: Scan with Trivy
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ${{ env.IMAGE }}:scan-${{ github.run_id }}
+          format: table
+          severity: CRITICAL,HIGH
+          exit-code: '1'
+
+      - name: Login to Harbor
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.HARBOR_USERNAME }}
+          password: ${{ secrets.HARBOR_TOKEN }}
+
+      # Only reached if the Trivy step above didn't exit 1 - a
+      # CRITICAL/HIGH finding stops the job here and nothing gets pushed.
+      - name: Push image
+        uses: docker/build-push-action@v6
+        with:
+          context: FCTF-k3s-manifest/docker/kubectl
+          file: FCTF-k3s-manifest/docker/kubectl/dockerfile
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:${{ github.sha }}
+            ${{ env.IMAGE }}:latest
