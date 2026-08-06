@@ -405,6 +405,7 @@ if [[ "${APPLY_ARGO_TEMPLATES}" == "true" ]]; then
   echo "==> Applying Argo workflow templates"
   kubectl apply -f "${PROD_DIR}/argo-workflows/start-chal-v2/start-chal-v2-template.yaml"
   kubectl apply -f "${PROD_DIR}/argo-workflows/up-challenge/up-challenge-template.yaml"
+  kubectl apply -f "${PROD_DIR}/argo-workflows/up-challenge/kaniko-network-policy.yaml"
 fi
 
 bootstrap_rabbitmq_deploy_users

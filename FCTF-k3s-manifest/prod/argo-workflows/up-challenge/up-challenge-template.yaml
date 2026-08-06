@@ -47,10 +47,11 @@ spec:
           - name: IMAGE_REPO
           - name: IMAGE_TAG
       priorityClassName: lowest
+      metadata:
+        labels:
+          app: kaniko-builder
       podSpecPatch: |
         preemptionPolicy: Never
-        hostNetwork: true
-        dnsPolicy: ClusterFirstWithHostNet
         securityContext:
           fsGroup: 1103
           fsGroupChangePolicy: OnRootMismatch
