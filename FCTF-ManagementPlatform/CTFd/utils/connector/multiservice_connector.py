@@ -65,7 +65,10 @@ def generate_cache_key(challenge_id, team_id):
     return raw_key
 
 def get_workflow_key(challenge_id):
-    key = f"challenge_up_workflow_{challenge_id}"
+    # Under the fctf:admin: namespace rather than a key family of its own:
+    # nothing outside CTFd reads it, so it needs no shared pattern in the Redis
+    # ACL. Existing keys carry a one day TTL and simply age out after a deploy.
+    key = f"fctf:admin:workflow:{challenge_id}"
     return key
 
 def get_workflow_name(challenge_id):

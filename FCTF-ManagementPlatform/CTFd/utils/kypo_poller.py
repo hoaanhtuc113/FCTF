@@ -34,7 +34,10 @@ import redis as _redis_lib
 log = logging.getLogger(__name__)
 
 POLL_INTERVAL = int(os.environ.get("KYPO_POLL_INTERVAL", 10))
-_REDIS_KEY_PREFIX = "kypo_progress"
+# Under fctf:admin: like the rest of CTFd's own keys - nothing outside this
+# module reads them, so they need no key family of their own in the Redis ACL.
+# The entries carry a 2 hour TTL and the old kypo_progress_* ones age out.
+_REDIS_KEY_PREFIX = "fctf:admin:kypo"
 _REDIS_TTL = 7200  # 2 giờ
 
 _stop_event = threading.Event()
@@ -147,7 +150,7 @@ def _calc_status_and_score(levels: list) -> tuple[str, int]:
 # ── Redis helpers ──────────────────────────────────────────────────────────────
 
 def _redis_key(challenge_id: int, team_id: int) -> str:
-    return f"{_REDIS_KEY_PREFIX}_{challenge_id}_{team_id}"
+    return f"{_REDIS_KEY_PREFIX}:{challenge_id}:{team_id}"
 
 
 
@@ -170,7 +173,7 @@ def get_all_cached_progress(challenge_id: int) -> list[dict]:
     """Scan Redis để lấy toàn bộ entries của 1 challenge (tất cả teams)."""
     try:
         rc = _redis_lib.StrictRedis(**get_redis_client_kwargs())
-        pattern = f"{_REDIS_KEY_PREFIX}_{challenge_id}_*"
+        pattern = f"{_REDIS_KEY_PREFIX}:{challenge_id}:*"
         results = []
         cursor = 0
         while True:
