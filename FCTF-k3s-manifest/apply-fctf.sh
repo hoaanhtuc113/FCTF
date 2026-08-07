@@ -358,6 +358,12 @@ if [[ "${DEPLOY_APP_SERVICES}" == "true" ]]; then
     kubectl apply -f "${PROD_DIR}/env/configmap/"
   kubectl apply -f "${PROD_DIR}/env/secret/"
 
+  # Puts fctf-internal-ca's ca.crt in the app namespace. The gateway and all
+  # four .NET services mount it to verify the Redis certificate, so it has to
+  # exist before they start or their pods wait on a missing secret.
+  echo "==> Applying Redis client CA certificate"
+  kubectl apply -f "${PROD_DIR}/app/redis-client-cert.yaml"
+
   if [[ "${APPLY_HELM}" != "true" ]]; then
     apply_storage_manifests
   fi
