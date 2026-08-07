@@ -330,6 +330,9 @@ if [[ "${APPLY_HELM}" == "true" ]]; then
 
   echo "==> Applying monitoring NetworkPolicy"
   kubectl apply -f "${PROD_DIR}/monitoring/NetworkPolicy/"
+
+  echo "==> Applying db NetworkPolicy"
+  kubectl apply -f "${PROD_DIR}/db/NetworkPolicy/"
 fi
 
 if [[ "${DEPLOY_APP_SERVICES}" == "true" ]]; then

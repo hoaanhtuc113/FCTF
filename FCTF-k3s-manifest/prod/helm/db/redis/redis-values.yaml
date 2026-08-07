@@ -1684,23 +1684,44 @@ networkPolicy:
   ##                 values:
   ##                   - frontend
   ##
+  ## Only the workloads that actually hold Redis credentials, and only on the
+  ## Redis port. The previous rules allowed every pod in app/ AND every pod in
+  ## monitoring/ on EVERY port (no `ports:` block = all ports), which meant an
+  ## exploited pod that merely lands in one of those namespaces gets a TCP path
+  ## to Redis and only has to guess a password. contestant-portal is a static
+  ## frontend and never talks to Redis; nothing in monitoring scrapes Redis
+  ## (metrics.enabled is false), so neither is listed.
   extraIngress:
     - from:
         - namespaceSelector:
             matchLabels:
               kubernetes.io/metadata.name: app
-    - from:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: monitoring
+          podSelector:
+            matchExpressions:
+              - key: app
+                operator: In
+                values:
+                  - admin-mvc
+                  - challenge-gateway
+                  - contestant-be
+                  - deployment-center
+                  - deployment-consumer
+                  - deployment-listener
+      ports:
+        - protocol: TCP
+          port: 6379
   ## @param networkPolicy.extraEgress Add extra egress rules to the NetworkPolicy
   ##
   extraEgress: []
   ## @param networkPolicy.ingressNSMatchLabels Labels to match to allow traffic from other namespaces
   ## @param networkPolicy.ingressNSPodMatchLabels Pod labels to match to allow traffic from other namespaces
   ##
-  ingressNSMatchLabels:
-    kubernetes.io/metadata.name: app
+  ## Emptied on purpose: this used to open port 6379 to the whole app namespace.
+  ## The chart renders it as a bare namespaceSelector, so it cannot express a
+  ## per-workload allowlist - that now lives in extraIngress above. With this
+  ## empty and allowExternal false, the chart's built-in rule still admits pods
+  ## labelled redis-client=true and the Redis pods themselves.
+  ingressNSMatchLabels: {}
   ingressNSPodMatchLabels: {}
   metrics:
     ## @param networkPolicy.metrics.allowExternal Don't require client label for connections for metrics endpoint
