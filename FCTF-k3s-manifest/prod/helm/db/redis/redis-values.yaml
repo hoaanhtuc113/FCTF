@@ -193,6 +193,31 @@ commonConfiguration: |-
   maxclients 10000
   # Close idle client connections after N seconds.
   timeout 300
+  # Without these two, Redis grows until the container limit and gets OOMKilled,
+  # taking every service's data with it. TTLs alone do not bound this: the rate
+  # limiter creates one key per token/IP and refreshes its TTL on every request,
+  # so enough distinct sources keep enough keys alive at once to exhaust RAM
+  # inside the expiry window.
+  #
+  # 2gb matches the memory request, not the 4gb limit, on purpose. The gap
+  # absorbs what maxmemory does not count - copy-on-write during AOF rewrite,
+  # client output buffers, allocator fragmentation - so a rewrite spike cannot
+  # cross the limit into an OOMKill, and steady-state usage stays inside the
+  # guaranteed request rather than making the pod a candidate for kubelet
+  # eviction under node memory pressure.
+  maxmemory 2gb
+  # volatile-lru, not the other candidates:
+  #   allkeys-*    would evict keys that carry no TTL - live deployment state
+  #                (RedisHelper.StringSetAsync without an expiry, the CTFd
+  #                submission cooldowns) - leaving orphaned instances behind.
+  #   noeviction   turns memory pressure into failed writes; with the gateway
+  #                fail-closed that is a full outage instead of a slowdown.
+  #   volatile-ttl evicts whatever expires soonest, which is the memory about to
+  #                free itself anyway, and a flood's freshly-written keys hold
+  #                the longest TTLs - exactly the wrong ones to keep.
+  # LRU sheds flood keys first because they are written once and never read
+  # again, while a real client's counter is touched on every request.
+  maxmemory-policy volatile-lru
   # Load ACL file (mounted via extraVolumes, no subPath to avoid k3s bind-mount bug with dot keys)
   aclfile /opt/bitnami/redis/acl-file/usersacl
 ## @param existingConfigmap The name of an existing ConfigMap with your custom configuration for Redis(R) nodes
