@@ -1059,7 +1059,15 @@ class ChallengeAttempt(Resource):
                         429,
                     )
             
-            redis_client.set(cooldown_key, str(time.time()))
+            # The expiry is not optional. A bare SET drops whatever TTL the key
+            # had, and ContestantBE - which writes this same key - always pairs
+            # its SET with an EXPIRE. So every submission through this path
+            # turned a expiring key into a permanent one, and permanent keys are
+            # exactly the ones maxmemory-policy volatile-lru will never evict:
+            # they accumulate one per (challenge, team) forever and survive the
+            # memory pressure everything else absorbs. Past cooldown_seconds the
+            # value cannot change any decision here, so that is the lifetime.
+            redis_client.set(cooldown_key, str(time.time()), ex=cooldown_seconds)
         
         # TODO: Convert this into a re-useable decorator
         if config.is_teams_mode() and team is None:
