@@ -19,7 +19,7 @@ namespace ResourceShared
                 var logger = sp.GetRequiredService<ILogger<IConnectionMultiplexer>>();
                 var redisConnection = Environment.GetEnvironmentVariable("REDIS_CONNECTION")
                     ?? throw new Exception("Missing REDIS_CONNECTION");
-                var options = ConfigurationOptions.Parse(redisConnection);
+                var options = RedisOptionsFactory.Build(redisConnection);
 
                 options.AbortOnConnectFail = false;
                 options.ConnectRetry = 3;
@@ -28,12 +28,9 @@ namespace ResourceShared
                 options.KeepAlive = 60;
                 options.ReconnectRetryPolicy = new ExponentialRetry(5000);
 
-                // Redis TLS in k8s commonly uses auto-generated certs; allow opt-in skip verify to avoid bootstrap failures.
-                var redisTlsInsecureSkipVerify = (Environment.GetEnvironmentVariable("REDIS_TLS_INSECURE_SKIP_VERIFY") ?? "true")
-                    .Equals("true", StringComparison.OrdinalIgnoreCase);
-                if (options.Ssl && redisTlsInsecureSkipVerify)
+                if (!options.Ssl)
                 {
-                    options.CertificateValidation += (_, _, _, _) => true;
+                    logger.LogWarning("[Redis] Connecting without TLS - REDIS_ALLOW_PLAINTEXT is set");
                 }
 
                 var multiplexer = ConnectionMultiplexer.Connect(options);
