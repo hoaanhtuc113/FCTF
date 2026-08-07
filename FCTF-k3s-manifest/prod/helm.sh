@@ -21,6 +21,20 @@ helm upgrade --install cert-manager jetstack/cert-manager \
   --set webhook.securePort=10250 \
   --debug
 
+# Internal CA + Redis server certificate.
+# Order matters: the Redis chart mounts the redis-tls secret, so the pod will
+# not start until cert-manager has filled it. Each step waits rather than
+# racing - the webhook rejects Certificate objects until it is serving, and the
+# CA ClusterIssuer is not usable until its own certificate is signed.
+kubectl wait --for=condition=Available --timeout=300s \
+  deployment --all -n cert-manager
+kubectl apply -f ./cert-manager/internal-ca.yaml
+kubectl wait --for=condition=Ready --timeout=180s \
+  certificate/fctf-internal-ca -n cert-manager
+kubectl apply -f ./db/redis-tls-cert.yaml
+kubectl wait --for=condition=Ready --timeout=180s \
+  certificate/redis-tls -n db
+
 # Cài mariadb
 helm repo add bitnami https://charts.bitnami.com/bitnami
 helm repo update
