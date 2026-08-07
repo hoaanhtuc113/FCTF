@@ -22,7 +22,7 @@ public interface IDeployService
 {
     Task<ChallengeDeployResponeDTO> Start(ChallengeStartStopReqDTO challengeStartReq);
     Task<ChallengeDeployResponeDTO> Stop(ChallengeStartStopReqDTO challengeStartReq);
-    Task<BaseResponseDTO> StopAll(int contestId);
+    Task<BaseResponseDTO> StopAll(int contestId, int? userId);
     Task<BaseResponseDTO> StopAllGlobal(int? userId);
     Task<ChallengeDeployResponeDTO> StatusCheck(ChallengCheckStatusReqDTO statusReq);
     Task<BaseResponseDTO> HandleMessageFromArgo(WorkflowStatusDTO message);
@@ -315,7 +315,7 @@ public class DeployService : IDeployService
     }
 
 
-    public async Task<BaseResponseDTO> StopAll(int contestId)
+    public async Task<BaseResponseDTO> StopAll(int contestId, int? userId)
     {
         if (contestId <= 0)
         {
@@ -345,7 +345,19 @@ public class DeployService : IDeployService
                 };
             }
 
+            // Recorded before the deletion, not after: this tears down every
+            // running instance for every team in the contest, and an audit
+            // trail that only exists when the operation finishes cleanly is not
+            // one. Console.Out goes to a container log that rotates away; this
+            // goes to the same action log as the rest of the admin actions.
             var challengeIdFilter = new HashSet<int>(ids);
+            _logger.Log(
+                "stop_all_contest",
+                userId,
+                null,
+                new { contestId, challengeCount = challengeIdFilter.Count },
+                level: LogLevel.Warning);
+
             var (successCount, failCount, errors) = await _k8SHealthService.DeleteAllChallengeNamespaces("ctf/kind=challenge", challengeIdFilter);
 
             // Clears the ZSET entries as well as the JSON keys. Dropping only
