@@ -348,8 +348,11 @@ public class DeployService : IDeployService
             var challengeIdFilter = new HashSet<int>(ids);
             var (successCount, failCount, errors) = await _k8SHealthService.DeleteAllChallengeNamespaces("ctf/kind=challenge", challengeIdFilter);
 
+            // Clears the ZSET entries as well as the JSON keys. Dropping only
+            // the keys left every affected team holding slots against its
+            // concurrent-deployment limit for challenges that no longer exist.
             foreach (var cid in challengeIdFilter)
-                await _redisHelper.RemoveCacheByPattern($"deploy_challenge_{cid}_*");
+                await _redisHelper.RemoveDeploymentsForChallenge(cid);
 
             var message = $"Stopped {successCount} challenge namespace(s) for contest {contestId} successfully.";
             if (failCount > 0)

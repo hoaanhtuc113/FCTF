@@ -81,8 +81,10 @@ public class ContestEndCleanupService : BackgroundService
             var (successCount, failCount, errors) = await _k8sService.DeleteAllChallengeNamespaces(
                 "ctf/kind=challenge", challengeIdFilter);
 
+            // Same helper the manual stop-all uses, so both paths also clear the
+            // active-deployment ZSET entries rather than only the JSON keys.
             foreach (var cid in challengeIdFilter)
-                await _redisHelper.RemoveCacheByPattern($"deploy_challenge_{cid}_*");
+                await _redisHelper.RemoveDeploymentsForChallenge(cid);
 
             if (failCount > 0)
             {

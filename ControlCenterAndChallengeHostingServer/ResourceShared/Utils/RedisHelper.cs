@@ -435,6 +435,50 @@ public class RedisHelper
         }
     }
 
+    /// <summary>
+    /// Clears every trace of one challenge's deployments: the JSON key per team
+    /// and that challenge's entry in each team's active-deployment ZSET.
+    ///
+    /// Deleting only the JSON keys - which is what a bare
+    /// RemoveCacheByPattern("deploy_challenge_{id}_*") does - leaves the ZSET
+    /// members behind, and those are what the reserve script counts. A team
+    /// whose challenges were stopped that way keeps the slots on its limit and
+    /// gets "already exists" when it tries the same challenge again, until the
+    /// stale scores age out. The key name carries the team id, so no scan of
+    /// the team keyspace is needed to find them.
+    /// </summary>
+    /// <returns>How many deployment records were removed.</returns>
+    public async Task<int> RemoveDeploymentsForChallenge(int challengeId)
+    {
+        var prefix = $"deploy_challenge_{challengeId}_";
+        var removed = 0;
+
+        foreach (var key in GetKeysByPattern($"{prefix}*"))
+        {
+            var teamPart = key.Length > prefix.Length ? key[prefix.Length..] : string.Empty;
+
+            // Team ids can be zero or negative - those are preview deployments,
+            // and the reserve script gives them a ZSET entry like any other.
+            if (int.TryParse(teamPart, out var teamId))
+            {
+                await AtomicRemoveDeploymentZSet(
+                    teamId.ToString(),
+                    key,
+                    challengeId.ToString());
+            }
+            else
+            {
+                // Not a shape this method knows how to unwind; drop the key so
+                // the sweep still leaves nothing behind.
+                await RemoveCacheAsync(key);
+            }
+
+            removed++;
+        }
+
+        return removed;
+    }
+
     // Get the underlying Redis database for advanced operations (INCR, DECR, etc.)
     public Task<IDatabase> GetDatabaseAsync()
     {
