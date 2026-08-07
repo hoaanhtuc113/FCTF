@@ -61,7 +61,16 @@ func Load() Config {
 		RedisKeyPrefix:        EnvString("REDIS_KEY_PREFIX", "fctf:gateway"),
 		RedisPoolSize:         EnvInt("REDIS_POOL_SIZE", 100),
 		RedisMinIdle:          EnvInt("REDIS_MIN_IDLE", 10),
-		RedisFailClosed:       EnvBool("REDIS_FAIL_CLOSED", false),
+		// Defaults to on. This flag decides what the limiters do when a Redis
+		// call fails while the gateway is already serving: fail closed rejects
+		// the request, fail open admits it. Defaulting to open meant a Redis
+		// blip silently removed every rate and connection limit at once - the
+		// moment the limits matter most - and EnvBool falls back to the default
+		// on a value it cannot parse, so a typo did the same thing with nothing
+		// in the log. Startup is unaffected either way: limiter.Init refuses to
+		// build a limiter set without a Redis client and main treats that as
+		// fatal.
+		RedisFailClosed: EnvBool("REDIS_FAIL_CLOSED", true),
 
 		// Defaults to on: the Redis connection carries the gateway's ACL
 		// credentials and every rate-limit key, and it crosses the pod network
