@@ -1709,32 +1709,17 @@ networkPolicy:
   ##                 values:
   ##                   - frontend
   ##
-  ## Only the workloads that actually hold Redis credentials, and only on the
-  ## Redis port. The previous rules allowed every pod in app/ AND every pod in
-  ## monitoring/ on EVERY port (no `ports:` block = all ports), which meant an
-  ## exploited pod that merely lands in one of those namespaces gets a TCP path
-  ## to Redis and only has to guess a password. contestant-portal is a static
-  ## frontend and never talks to Redis; nothing in monitoring scrapes Redis
-  ## (metrics.enabled is false), so neither is listed.
-  extraIngress:
-    - from:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: app
-          podSelector:
-            matchExpressions:
-              - key: app
-                operator: In
-                values:
-                  - admin-mvc
-                  - challenge-gateway
-                  - contestant-be
-                  - deployment-center
-                  - deployment-consumer
-                  - deployment-listener
-      ports:
-        - protocol: TCP
-          port: 6379
+  ## Empty on purpose. The allowlist of workloads permitted to reach Redis now
+  ## lives in db/NetworkPolicy/redis.yaml, next to the namespace default-deny it
+  ## qualifies and next to the matching egress rules in app/NetworkPolicy/.
+  ## Adding rules back here would not be wrong - policies are additive - but it
+  ## would put half the answer in a values file and half in a manifest.
+  ##
+  ## What this file still contributes is the deny baseline: allowExternal false
+  ## with no ingressNSMatchLabels means the chart's own policy admits only pods
+  ## labelled redis-client=true and the Redis pods themselves. Everything else
+  ## has to be named in db/NetworkPolicy/redis.yaml.
+  extraIngress: []
   ## @param networkPolicy.extraEgress Add extra egress rules to the NetworkPolicy
   ##
   extraEgress: []

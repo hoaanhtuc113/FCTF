@@ -1,0 +1,50 @@
+# Who may reach Redis. Pairs with default-deny.yaml in this directory: that one
+# closes the namespace, this one names the exceptions.
+#
+# This allowlist used to live in networkPolicy.extraIngress in
+# helm/db/redis/redis-values.yaml. It is here instead because it belongs next to
+# the default-deny it qualifies and next to the egress rules it mirrors in
+# app/NetworkPolicy/, and because changing who may talk to Redis should not
+# require a helm upgrade or a reader digging through 2000 lines of vendored
+# chart defaults. The chart's own policy is still rendered with allowExternal
+# false, so it denies everything this file does not admit.
+#
+# The six workloads are the ones holding Redis credentials, verified against
+# env/secret/: admin-mvc (CTFd connects directly - REDIS_URL points at
+# redis-headless), challenge-gateway, contestant-be, and the three deployment
+# services. contestant-portal is a static frontend and is deliberately absent.
+#
+# namespaceSelector and podSelector sit in the SAME list item on purpose: that
+# is an AND (pods carrying these labels, in that namespace). Splitting them into
+# two items would be an OR and would admit every pod in the app namespace - the
+# same mistake the previous chart-level rule made.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: redis-allow-app-clients
+  namespace: db
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: redis
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: app
+          podSelector:
+            matchExpressions:
+              - key: app
+                operator: In
+                values:
+                  - admin-mvc
+                  - challenge-gateway
+                  - contestant-be
+                  - deployment-center
+                  - deployment-consumer
+                  - deployment-listener
+      ports:
+        - protocol: TCP
+          port: 6379

@@ -380,6 +380,13 @@ if [[ "${DEPLOY_APP_SERVICES}" == "true" ]]; then
   echo "==> Applying app NetworkPolicy"
   kubectl apply -f "${PROD_DIR}/app/NetworkPolicy/"
 
+  # Also applied in the Helm block. Repeated here because these services cannot
+  # reach Redis without it: the allowlist lives in this directory rather than in
+  # the chart values, so a run that deploys app services without touching Helm
+  # would otherwise leave the db namespace denying them.
+  echo "==> Applying db NetworkPolicy"
+  kubectl apply -f "${PROD_DIR}/db/NetworkPolicy/"
+
   echo "==> Applying readOnlyRootFilesystem admission policy"
   kubectl apply -f "${PROD_DIR}/app/readonly-rootfs-policy.yaml"
 
