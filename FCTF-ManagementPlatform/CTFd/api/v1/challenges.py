@@ -315,6 +315,18 @@ class ChallengeList(Resource):
         # Validate name and category are not empty after trim
         if not data.get("name"):
             return {"success": False, "errors": {"name": ["Name cannot be empty"]}}, 400
+
+        # Reject duplicate challenge name within the same contest
+        from CTFd.models import Challenges as ChallengesModel
+        duplicate = ChallengesModel.query.filter_by(
+            name=data["name"], contest_id=validated_contest_id
+        ).first()
+        if duplicate:
+            return {
+                "success": False,
+                "errors": {"name": ["A challenge with this name already exists in this contest"]},
+            }, 400
+
         if not data.get("category"):
             return {"success": False, "errors": {"category": ["Category cannot be empty"]}}, 400
 

@@ -109,6 +109,9 @@ public class ChallengeController : BaseController
                 return NotFound(new { error = "User not found" });
 
             var teamId = GetUserTeamForContest(user, contestId)?.Id;
+            if (teamId == null)
+                return Forbid();
+
             _userBehaviorLogger.Log("VIEW_CHALLENGE", user.Id, teamId, new { challengeId = id });
 
             var result = await _challengeServices.GetById(id, user, contestId);
@@ -172,6 +175,9 @@ public class ChallengeController : BaseController
         try
         {
             var topicTeamId = GetUserTeamForContest(user, contestId)?.Id;
+            if (topicTeamId == null)
+                return Forbid();
+
             _userBehaviorLogger.Log("VIEW_All_TOPIC", user.Id, topicTeamId, null);
             var result = await _challengeServices.GetTopic(user, contestId);
             return Ok(new
@@ -200,6 +206,9 @@ public class ChallengeController : BaseController
             .AsNoTracking()
             .FirstOrDefaultAsync(u => u.Id == userId);
         var teamId = (int?)GetUserTeamForContest(user, contestId)?.Id;
+        if (teamId == null)
+            return Forbid();
+
         _userBehaviorLogger.Log("VIEW_CHALLENGES_BY_CATEGORY", userId, teamId, new { category = category_name });
         var challenges = await _challengeServices.GetChallengeByCategories(category_name, teamId, contestId);
         return Ok(new
