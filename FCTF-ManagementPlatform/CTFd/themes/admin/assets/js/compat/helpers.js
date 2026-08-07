@@ -49,9 +49,16 @@ const files = {
           }
         },
         error: function (jqXHR, textStatus, errorThrown) {
-          console.error("Error during file upload:", textStatus, errorThrown);
-          alert("Error during file upload: " + textStatus + " " + errorThrown);
-          reject(new Error("File upload failed: " + jqXHR.statusText));
+          // The API puts the real reason in the body. Falling back to statusText
+          // turns every failure into a bare "Internal Server Error".
+          const body = jqXHR.responseJSON;
+          let detail = body && (body.error || body.errors || body.message);
+          if (detail && typeof detail !== "string") {
+            detail = Object.values(detail).flat().join("\n");
+          }
+          detail = detail || jqXHR.responseText || jqXHR.statusText || errorThrown;
+          console.error("Error during file upload:", textStatus, detail);
+          reject(new Error("File upload failed: " + detail));
         },
       });
     });

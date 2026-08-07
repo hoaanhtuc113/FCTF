@@ -147,10 +147,26 @@ public class RequireSecretKeyAttribute : Attribute, IAsyncResourceFilter
         // one-time-use nonce: the signature itself is unique per (unixTime,
         // data), so it doubles as the nonce. TTL only needs to outlive the
         // window above, since a stale unixTime is already rejected by then.
-        var redisHelper = context.HttpContext.RequestServices.GetRequiredService<RedisHelper>();
-        var db = await redisHelper.GetDatabaseAsync();
-        var nonceKey = $"secretkey-nonce:{receivedSecretKey}";
-        bool firstUse = await db.StringSetAsync(nonceKey, "1", TimeSpan.FromSeconds(MaxClockSkewSeconds * 2), When.NotExists);
+        bool firstUse;
+        try
+        {
+            var redisHelper = context.HttpContext.RequestServices.GetRequiredService<RedisHelper>();
+            var db = await redisHelper.GetDatabaseAsync();
+            var nonceKey = $"secretkey-nonce:{receivedSecretKey}";
+            firstUse = await db.StringSetAsync(nonceKey, "1", TimeSpan.FromSeconds(MaxClockSkewSeconds * 2), When.NotExists);
+        }
+        catch (Exception ex)
+        {
+            // Fail closed. Letting the request through when the nonce store is
+            // unreachable would silently drop replay protection, so reject and say
+            // why - an unhandled exception here surfaces as an opaque 500 instead.
+            context.Result = new ContentResult()
+            {
+                StatusCode = 503,
+                Content = $"[Middlewares] Nonce store unavailable: {ex.Message}"
+            };
+            return;
+        }
 
         if (!firstUse)
         {

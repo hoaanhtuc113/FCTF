@@ -252,13 +252,16 @@ public class ChallengeController : ControllerBase
             }
         };
 
-        var headers = new Dictionary<string, string>
-        {
-            ["Authorization"] = $"Bearer {DeploymentCenterConfigHelper.GetArgoWorkflowsBearerToken()}"
-        };
-
+        // Token resolution reads the service account token file and throws when it
+        // cannot. Keep it inside the try so the caller gets the reason instead of an
+        // unhandled exception turning into an opaque 500 from the outer middleware.
         try
         {
+            var headers = new Dictionary<string, string>
+            {
+                ["Authorization"] = $"Bearer {DeploymentCenterConfigHelper.GetArgoWorkflowsBearerToken()}"
+            };
+
             var argoResponse = await _multiServiceConnector.ExecuteRequest(
                 DeploymentCenterConfigHelper.ARGO_WORKFLOWS_URL,
                 "/submit",
@@ -301,13 +304,13 @@ public class ChallengeController : ControllerBase
             });
         }
 
-        var headers = new Dictionary<string, string>
-        {
-            ["Authorization"] = $"Bearer {DeploymentCenterConfigHelper.GetArgoWorkflowsBearerToken()}"
-        };
-
         try
         {
+            var headers = new Dictionary<string, string>
+            {
+                ["Authorization"] = $"Bearer {DeploymentCenterConfigHelper.GetArgoWorkflowsBearerToken()}"
+            };
+
             var argoResponse = await _multiServiceConnector.ExecuteRequest(
                 DeploymentCenterConfigHelper.ARGO_WORKFLOWS_URL,
                 $"/{req.workflowName}",
