@@ -517,6 +517,17 @@ kubectl delete pod -n storage -l app.kubernetes.io/name=filebrowser
 # nếu xử dụng firewall mở các port 80, 443, 30037, 30038
 ```
 
+Cổng 30320 (Redis NodePort) **không** nằm trong danh sách mở cho tất cả. Nó chỉ
+được mở cho dải IP quản trị/VPN, chạy trên **từng node**:
+
+```bash
+sudo ./prod/db/redis-nodeport-firewall.sh <dải-IP-quản-trị>
+```
+
+Kèm theo đó phải apply `prod/db/redis-nodeport-admin-policy.yaml` (sau khi điền
+CIDR) — chi tiết trong phần đầu `prod/db-nodeport.yaml`. Thiếu một trong hai thì
+Redis nằm trên một cổng công khai.
+
 ### Pod pending hoặc CrashLoopBackOff
 ```bash
 # Xem logs

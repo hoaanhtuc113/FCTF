@@ -334,13 +334,10 @@ if [[ "${APPLY_HELM}" == "true" ]]; then
   echo "==> Applying db NetworkPolicy"
   kubectl apply -f "${PROD_DIR}/db/NetworkPolicy/"
 
-  # redis-nodeport exposed Redis on every node, outside the ingress and outside
-  # anything a NetworkPolicy can filter. It was removed from db-nodeport.yaml,
-  # but that only stops it being recreated - a cluster where it was applied by
-  # hand still has it, so delete it here. Clients use
-  # redis-headless.db.svc.cluster.local; admins use kubectl port-forward.
-  echo "==> Removing the Redis NodePort if it is still present"
-  kubectl delete service redis-nodeport -n db --ignore-not-found
+  # The Redis NodePort is not applied or removed here. It lives in
+  # prod/db-nodeport.yaml and is applied by hand together with its firewall rule
+  # and admin NetworkPolicy - see that file's header. Applying it without both
+  # of those puts Redis on a public port.
 fi
 
 if [[ "${DEPLOY_APP_SERVICES}" == "true" ]]; then
