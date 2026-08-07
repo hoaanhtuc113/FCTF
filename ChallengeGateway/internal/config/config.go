@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"strconv"
+	"strings"
 )
 
 // Config holds all runtime configuration for the gateway.
@@ -34,6 +35,20 @@ type Config struct {
 
 	RedisTLSInsecureSkipVerify bool
 	RedisTLSCAFile             string
+
+	AppEnv string
+}
+
+// IsProduction reports whether this process believes it is serving a real
+// contest. Settings that are merely unwise locally are refused outright when
+// it returns true.
+func (c Config) IsProduction() bool {
+	switch strings.ToLower(strings.TrimSpace(c.AppEnv)) {
+	case "production", "prod":
+		return true
+	default:
+		return false
+	}
 }
 
 // Load reads configuration from environment variables, applying defaults where unset.
@@ -86,6 +101,10 @@ func Load() Config {
 		// turns verification on and makes this flag irrelevant.
 		RedisTLSInsecureSkipVerify: EnvBool("REDIS_TLS_INSECURE_SKIP_VERIFY", true),
 		RedisTLSCAFile:             EnvString("REDIS_TLS_CA_FILE", ""),
+
+		// Set to "production" in the deployed ConfigMap. Turns the Redis TLS
+		// opt-out from a warning into a refusal to start - see InitRedis.
+		AppEnv: EnvString("APP_ENV", ""),
 	}
 }
 

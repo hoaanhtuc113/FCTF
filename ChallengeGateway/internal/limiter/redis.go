@@ -82,6 +82,15 @@ func InitRedis(cfg config.Config) (RedisClient, error) {
 			return nil, err
 		}
 		opts.TLSConfig = tlsConfig
+	} else if cfg.IsProduction() {
+		// Deployed Redis listens on a TLS port only (the chart starts it with
+		// --port 0 --tls-port 6379), so a plaintext client here would not even
+		// connect - but failing on the configuration is clearer than failing on
+		// the handshake, and it keeps a copied .env from quietly disabling
+		// transport security on a live contest.
+		return nil, fmt.Errorf(
+			"APP_ENV=%s with REDIS_TLS off: refusing to start rather than send credentials to %s in cleartext",
+			cfg.AppEnv, cfg.RedisAddr)
 	} else {
 		log.Printf("WARNING: REDIS_TLS is off - credentials and rate-limit traffic to %s travel in cleartext", cfg.RedisAddr)
 	}

@@ -40,6 +40,20 @@ namespace ResourceShared.Utils
                 options.Ssl = true;
             }
 
+            // That escape hatch does not apply in a deployment. Every deployed
+            // ConfigMap sets ASPNETCORE_ENVIRONMENT=Production, so this refuses
+            // to hand back options that would put credentials and cached values
+            // on the wire in cleartext - whether the connection string lost its
+            // ssl=true or someone carried REDIS_ALLOW_PLAINTEXT over from a
+            // local .env.
+            if (!options.Ssl && IsProduction())
+            {
+                throw new InvalidOperationException(
+                    "Redis TLS is disabled while ASPNETCORE_ENVIRONMENT=Production. " +
+                    "Add ssl=true to REDIS_CONNECTION and remove REDIS_ALLOW_PLAINTEXT; " +
+                    "the deployed Redis listens on a TLS port only.");
+            }
+
             if (!options.Ssl)
             {
                 return options;
@@ -111,6 +125,12 @@ namespace ResourceShared.Utils
             using var leaf = new X509Certificate2(certificate);
             return chain.Build(leaf);
         }
+
+        private static bool IsProduction()
+            => string.Equals(
+                Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")?.Trim(),
+                "Production",
+                StringComparison.OrdinalIgnoreCase);
 
         private static bool EnvFlag(string name, bool fallback)
         {

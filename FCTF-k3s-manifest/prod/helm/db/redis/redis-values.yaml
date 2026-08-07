@@ -1799,6 +1799,10 @@ pdb: {}
 tls:
   ## @param tls.enabled Enable TLS traffic
   ##
+  ## This does more than add a TLS listener. Rendering the chart with these
+  ## values shows the container starting Redis with `--port 0 --tls-port 6379`,
+  ## so the plaintext listener is not merely discouraged, it does not exist -
+  ## a client that drops TLS cannot connect at all.
   enabled: true
   ## @param tls.authClients Require clients to authenticate
   ##
