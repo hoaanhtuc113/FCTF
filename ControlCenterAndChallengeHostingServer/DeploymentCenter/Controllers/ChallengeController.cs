@@ -83,6 +83,8 @@ public class ChallengeController : ControllerBase
         };
     }
 
+    // Stops every challenge namespace for ONE specific contest. contestId is
+    // required - use /stop-all-global for every contest at once.
     [HttpPost("stop-all")]
     [RequireSecretKey]
     public async Task<IActionResult> StopAllChallenges([FromBody] ChallengeStartStopReqDTO challengeStopReq)
@@ -99,8 +101,19 @@ public class ChallengeController : ControllerBase
                 message = "Unauthorized request."
             });
         }
-        await Console.Out.WriteLineAsync($"[Stop All] Account {user.Name} stop all challenge");
-        var response = await _deployService.StopAll(challengeStopReq.contestId ?? 0);
+
+        if (challengeStopReq.contestId is not > 0)
+        {
+            return BadRequest(new ChallengeDeployResponeDTO
+            {
+                status = (int)HttpStatusCode.BadRequest,
+                success = false,
+                message = "contestId is required. Use /stop-all-global to stop every contest's challenges."
+            });
+        }
+
+        await Console.Out.WriteLineAsync($"[Stop All] Account {user.Name} stop all challenges for contest {challengeStopReq.contestId}");
+        var response = await _deployService.StopAll(challengeStopReq.contestId.Value);
         return response.HttpStatusCode switch
         {
             HttpStatusCode.OK => Ok(response),
@@ -108,6 +121,49 @@ public class ChallengeController : ControllerBase
             _ => StatusCode((int)response.HttpStatusCode, response)
         };
     }
+
+    // Stops EVERY challenge namespace across EVERY contest. Split out from
+    // /stop-all (rather than a contestId=0 fallback there) so this
+    // maximum-blast-radius action requires its own explicit confirmation
+    // phrase, not just an admin forgetting to pass a contestId.
+    [HttpPost("stop-all-global")]
+    [RequireSecretKey]
+    public async Task<IActionResult> StopAllChallengesGlobal([FromBody] StopAllGlobalReqDTO req)
+    {
+        var user = await _dbContext.Users
+            .AsNoTracking()
+            .FirstOrDefaultAsync(u => u.Id == req.userId);
+        if (user == null || user.Type != "admin")
+        {
+            return BadRequest(new ChallengeDeployResponeDTO
+            {
+                status = (int)HttpStatusCode.BadRequest,
+                success = false,
+                message = "Unauthorized request."
+            });
+        }
+
+        if (req.confirm != StopAllGlobalConfirmationPhrase)
+        {
+            return BadRequest(new ChallengeDeployResponeDTO
+            {
+                status = (int)HttpStatusCode.BadRequest,
+                success = false,
+                message = $"This stops every running contest's challenges. Resend with confirm=\"{StopAllGlobalConfirmationPhrase}\" to proceed."
+            });
+        }
+
+        await Console.Out.WriteLineAsync($"[Stop All GLOBAL] Account {user.Name} stopping ALL challenges across ALL contests");
+        var response = await _deployService.StopAllGlobal(user.Id);
+        return response.HttpStatusCode switch
+        {
+            HttpStatusCode.OK => Ok(response),
+            HttpStatusCode.BadRequest => BadRequest(response),
+            _ => StatusCode((int)response.HttpStatusCode, response)
+        };
+    }
+
+    private const string StopAllGlobalConfirmationPhrase = "CONFIRM_STOP_ALL_CONTESTS";
 
     [HttpPost("deployment-logs/{workflowName}")]
     [RequireSecretKey]
@@ -196,13 +252,16 @@ public class ChallengeController : ControllerBase
             }
         };
 
-        var headers = new Dictionary<string, string>
-        {
-            ["Authorization"] = $"Bearer {DeploymentCenterConfigHelper.GetArgoWorkflowsBearerToken()}"
-        };
-
+        // Token resolution reads the service account token file and throws when it
+        // cannot. Keep it inside the try so the caller gets the reason instead of an
+        // unhandled exception turning into an opaque 500 from the outer middleware.
         try
         {
+            var headers = new Dictionary<string, string>
+            {
+                ["Authorization"] = $"Bearer {DeploymentCenterConfigHelper.GetArgoWorkflowsBearerToken()}"
+            };
+
             var argoResponse = await _multiServiceConnector.ExecuteRequest(
                 DeploymentCenterConfigHelper.ARGO_WORKFLOWS_URL,
                 "/submit",
@@ -245,13 +304,13 @@ public class ChallengeController : ControllerBase
             });
         }
 
-        var headers = new Dictionary<string, string>
-        {
-            ["Authorization"] = $"Bearer {DeploymentCenterConfigHelper.GetArgoWorkflowsBearerToken()}"
-        };
-
         try
         {
+            var headers = new Dictionary<string, string>
+            {
+                ["Authorization"] = $"Bearer {DeploymentCenterConfigHelper.GetArgoWorkflowsBearerToken()}"
+            };
+
             var argoResponse = await _multiServiceConnector.ExecuteRequest(
                 DeploymentCenterConfigHelper.ARGO_WORKFLOWS_URL,
                 $"/{req.workflowName}",

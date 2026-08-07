@@ -3,6 +3,24 @@ apiVersion: v1
 kind: Namespace
 metadata:
   name: cron-job
+  labels:
+    pod-security.kubernetes.io/enforce: "restricted"
+    pod-security.kubernetes.io/enforce-version: "latest"
+    pod-security.kubernetes.io/audit: "restricted"
+    pod-security.kubernetes.io/audit-version: "latest"
+    pod-security.kubernetes.io/warn: "restricted"
+    pod-security.kubernetes.io/warn-version: "latest"
+---
+# The only workload here (cleaner, below) uses its own dedicated
+# `cleanup` SA - nothing relies on default's token. Neutralize it at
+# the SA level so a future pod added to this namespace doesn't
+# silently get one.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: default
+  namespace: cron-job
+automountServiceAccountToken: false
 ---
 apiVersion: batch/v1
 kind: CronJob
@@ -20,16 +38,32 @@ spec:
         spec:
           serviceAccountName: cleanup
           priorityClassName: app-normal-preemption
-          nodeSelector:
-            kubernetes.io/hostname: server-1-master
-          tolerations:
-            - key: "node-role.kubernetes.io/control-plane"
-              operator: "Exists"
-              effect: "NoSchedule"
+          # No nodeSelector/control-plane toleration: this only talks to the
+          # API server over the network (kubectl get/delete namespace), it
+          # has no reason to run on the master node specifically. Pinning it
+          # there meant any compromise of this container ran directly on the
+          # node that controls the whole cluster.
           restartPolicy: Never
           containers:
             - name: cleaner
-              image: bitnamilegacy/kubectl:1.33.4
+              image: <REGISTRY_DOMAIN>/fctf/kubectl-cli:latest
+              securityContext:
+                runAsUser: 1105
+                runAsGroup: 1105
+                runAsNonRoot: true
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                privileged: false
+                capabilities:
+                  drop: ["ALL"]
+                seccompProfile:
+                  type: RuntimeDefault
+              env:
+                - name: HOME
+                  value: /tmp
+              volumeMounts:
+                - name: tmp
+                  mountPath: /tmp
               resources:
                 requests:
                   cpu: "100m"
@@ -66,12 +100,16 @@ spec:
                     done
                   fi
                   echo "[Cleanup] ✅ Done!"
+          volumes:
+            - name: tmp
+              emptyDir: {}
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: cleanup
   namespace: cron-job
+automountServiceAccountToken: true
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -94,3 +132,38 @@ subjects:
   - kind: ServiceAccount
     name: cleanup
     namespace: cron-job
+---
+# RBAC's `delete` verb is cluster-scoped and can't be restricted to specific
+# namespaces by label - only get/list support that. This closes the gap:
+# the cleanup script only ever targets `kubectl get ns -l ctf/temporary=true`,
+# so a stolen/misused token for this SA still can't delete kube-system,
+# argo, app, db, etc.
+#
+# Requires Kubernetes >=1.30 (ValidatingAdmissionPolicy GA) or >=1.28 with the
+# ValidatingAdmissionPolicy feature gate enabled. Verify the cluster's k3s
+# version supports admissionregistration.k8s.io/v1 before applying.
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: cleanup-sa-namespace-delete-scope
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+      - apiGroups: [""]
+        apiVersions: ["v1"]
+        operations: ["DELETE"]
+        resources: ["namespaces"]
+  validations:
+    - expression: >-
+        request.userInfo.username != 'system:serviceaccount:cron-job:cleanup' ||
+        (has(oldObject.metadata.labels) && oldObject.metadata.labels['ctf/temporary'] == 'true')
+      message: "cleanup SA may only delete namespaces labeled ctf/temporary=true"
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: cleanup-sa-namespace-delete-scope-binding
+spec:
+  policyName: cleanup-sa-namespace-delete-scope
+  validationActions: ["Deny"]

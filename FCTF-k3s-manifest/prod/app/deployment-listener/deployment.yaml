@@ -22,6 +22,10 @@ spec:
       containers:
         - name: deployment-listener
           image: <REGISTRY_DOMAIN>/fctf/deployment-listener:latest
+          ports:
+            - name: http-health
+              containerPort: 5030
+              protocol: TCP
           envFrom:
             - configMapRef:
                 name: deployment-listener-cm
@@ -29,6 +33,13 @@ spec:
                 name: deployment-listener-secret
             - secretRef:
                 name: common-private-key-secret
+          env:
+            # CA that signed the Redis server certificate. Without it the
+            # service falls back to the container trust store, which does not
+            # know fctf-internal-ca, and the connection fails - certificate
+            # validation is on by default now.
+            - name: REDIS_TLS_CA_FILE
+              value: /etc/redis-ca/ca.crt
           resources:
             requests:
               cpu: 0.3
@@ -36,6 +47,22 @@ spec:
             limits:
               cpu: 1
               memory: 2Gi
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 5030
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 5030
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            timeoutSeconds: 2
+            failureThreshold: 3
           imagePullPolicy: Always
           securityContext:
             readOnlyRootFilesystem: true
@@ -51,6 +78,19 @@ spec:
               type: container_t
             seccompProfile:
               type: RuntimeDefault
+          volumeMounts:
+            - name: redis-ca
+              mountPath: /etc/redis-ca
+              readOnly: true
       imagePullSecrets:
         - name: regcred
+      volumes:
+        # Only ca.crt - the leaf and key in this secret are for a later mTLS
+        # switch and nothing here uses them yet.
+        - name: redis-ca
+          secret:
+            secretName: redis-client-tls
+            items:
+              - key: ca.crt
+                path: ca.crt
   revisionHistoryLimit: 3

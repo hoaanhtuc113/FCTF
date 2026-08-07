@@ -1,6 +1,8 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
+using Microsoft.Extensions.DependencyInjection;
 using ResourceShared.Utils;
+using StackExchange.Redis;
 using System.Text.Json;
 
 namespace DeploymentCenter.Middlewares;
@@ -8,6 +10,16 @@ namespace DeploymentCenter.Middlewares;
 public class RequireSecretKeyAttribute : Attribute, IAsyncResourceFilter
 {
     private readonly HashSet<string> _requiredFields = [];
+
+    // unixTime is part of what gets signed, but the signature alone only
+    // proves "this (unixTime, data) pair was signed with PRIVATE_KEY" - it
+    // says nothing about *when*. Without this window, a single captured
+    // valid request (log, MITM, etc.) is replayable forever. Configurable
+    // via env var since different callers may need more/less slack.
+    private static readonly long MaxClockSkewSeconds =
+        long.TryParse(Environment.GetEnvironmentVariable("SECRET_KEY_MAX_SKEW_SECONDS"), out var configured) && configured > 0
+            ? configured
+            : 60;
 
     public async Task OnResourceExecutionAsync(ResourceExecutingContext context, ResourceExecutionDelegate next)
     {
@@ -105,6 +117,18 @@ public class RequireSecretKeyAttribute : Attribute, IAsyncResourceFilter
 
             data = bodyData.ToDictionary(k => k.Key, v => v.Value?.ToString() ?? string.Empty);
         }
+
+        long skewSeconds = Math.Abs(DateTimeOffset.UtcNow.ToUnixTimeSeconds() - unixTime);
+        if (skewSeconds > MaxClockSkewSeconds)
+        {
+            context.Result = new ContentResult()
+            {
+                StatusCode = 400,
+                Content = "[Middlewares] Request expired"
+            };
+            return;
+        }
+
         string generatedSecretKey = SecretKeyHelper.CreateSecretKey(unixTime, data);
 
         if (receivedSecretKey != generatedSecretKey)
@@ -113,6 +137,43 @@ public class RequireSecretKeyAttribute : Attribute, IAsyncResourceFilter
             {
                 StatusCode = 400,
                 Content = "[Middlewares] Invalid Secret Key"
+            };
+            return;
+        }
+
+        // The time window above still leaves a replay gap for its whole
+        // duration - a captured valid request works as many times as an
+        // attacker can send it within MaxClockSkewSeconds. Close that with a
+        // one-time-use nonce: the signature itself is unique per (unixTime,
+        // data), so it doubles as the nonce. TTL only needs to outlive the
+        // window above, since a stale unixTime is already rejected by then.
+        bool firstUse;
+        try
+        {
+            var redisHelper = context.HttpContext.RequestServices.GetRequiredService<RedisHelper>();
+            var db = await redisHelper.GetDatabaseAsync();
+            var nonceKey = $"secretkey-nonce:{receivedSecretKey}";
+            firstUse = await db.StringSetAsync(nonceKey, "1", TimeSpan.FromSeconds(MaxClockSkewSeconds * 2), When.NotExists);
+        }
+        catch (Exception ex)
+        {
+            // Fail closed. Letting the request through when the nonce store is
+            // unreachable would silently drop replay protection, so reject and say
+            // why - an unhandled exception here surfaces as an opaque 500 instead.
+            context.Result = new ContentResult()
+            {
+                StatusCode = 503,
+                Content = $"[Middlewares] Nonce store unavailable: {ex.Message}"
+            };
+            return;
+        }
+
+        if (!firstUse)
+        {
+            context.Result = new ContentResult()
+            {
+                StatusCode = 400,
+                Content = "[Middlewares] Secret Key already used"
             };
             return;
         }

@@ -149,6 +149,13 @@ class ContestList(Resource):
         if not name:
             return {"success": False, "errors": {"name": ["Name is required"]}}, 400
 
+        # Check name uniqueness — reject instead of allowing duplicate contest names
+        if Contests.query.filter_by(name=name).first():
+            return {
+                "success": False,
+                "errors": {"name": [f"A contest named '{name}' already exists."]},
+            }, 400
+
         slug = (data.get("slug") or "").strip()
         if not slug:
             slug = _slugify(name)
@@ -265,6 +272,20 @@ class ContestDetail(Resource):
             # Only admins may reassign contest ownership.
             int_fields.append("owner_id")
         dt_fields = ["start_time", "end_time", "freeze_scoreboard_at"]
+
+        # Validate name uniqueness before applying changes
+        if "name" in data:
+            new_name = (data["name"] or "").strip()
+            if new_name:
+                conflict = Contests.query.filter(
+                    Contests.name == new_name,
+                    Contests.id != contest_id,
+                ).first()
+                if conflict:
+                    return {
+                        "success": False,
+                        "errors": {"name": [f"A contest named '{new_name}' already exists."]},
+                    }, 400
 
         # Validate slug uniqueness before applying changes
         if "slug" in data:

@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: argo-namespace-quota
+  namespace: argo
+spec:
+  hard:
+    pods: "70"
+    services: "10"
+    secrets: "10"
+    count/jobs.batch: "10"

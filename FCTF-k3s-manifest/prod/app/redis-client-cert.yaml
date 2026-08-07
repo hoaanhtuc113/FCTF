@@ -1,0 +1,35 @@
+# This exists to get fctf-internal-ca's ca.crt into the app namespace.
+#
+# Kubernetes secrets do not cross namespaces and cert-manager has no resource
+# that publishes a CA bundle on its own, so the usual way to hand a workload the
+# CA is to issue it a certificate from that CA: every secret cert-manager fills
+# from a CA issuer carries ca.crt alongside tls.crt/tls.key, and cert-manager
+# keeps it renewed. The gateway mounts only the ca.crt key.
+#
+# The leaf itself is currently unused - Redis runs with tls.authClients false,
+# so it asks for no client certificate. It is issued with client auth usage so
+# that turning mTLS on later is a values change rather than new plumbing.
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: redis-client-tls
+  namespace: app
+spec:
+  secretName: redis-client-tls
+  duration: 2160h # 90 days
+  renewBefore: 360h # 15 days
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+    rotationPolicy: Always
+  usages:
+    - client auth
+    - digital signature
+    - key encipherment
+  commonName: challenge-gateway.app.svc.cluster.local
+  dnsNames:
+    - challenge-gateway.app.svc.cluster.local
+  issuerRef:
+    name: fctf-internal-ca
+    kind: ClusterIssuer
+    group: cert-manager.io

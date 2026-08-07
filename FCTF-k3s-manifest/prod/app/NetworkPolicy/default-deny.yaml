@@ -1,0 +1,17 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: app
+spec:
+  # Empty selector = every pod in this namespace. NetworkPolicies are
+  # additive, so this only closes traffic for pods that no other policy in
+  # this directory selects yet (a new workload added without its own
+  # NetworkPolicy, a mislabeled pod, a debug pod) - it does not change
+  # behavior for admin-mvc/challenge-gateway/contestant-be/contestant-portal/
+  # deployment-center/deployment-consumer/deployment-listener, which already
+  # have their own explicit ingress/egress rules.
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress

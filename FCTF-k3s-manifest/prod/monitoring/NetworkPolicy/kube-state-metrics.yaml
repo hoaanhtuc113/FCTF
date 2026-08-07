@@ -1,0 +1,31 @@
+# kube-state-metrics has no NetworkPolicy of its own from the chart, so its
+# raw /metrics endpoint (full, unfiltered - every namespace, every pod) is
+# reachable by any pod in the cluster. Prometheus's own metricRelabelings
+# (see prometheus-stack-values.yaml) drops challenge-namespace (team-*)
+# samples, but that only applies to what Prometheus keeps after scraping -
+# it does nothing to protect the source endpoint itself. Restrict ingress to
+# the actual scraper (Prometheus) only.
+#
+# NOTE: verify the podSelector/port below against the real deployed labels
+# (kubectl get pods -n monitoring --show-labels) - these are the
+# kube-prometheus-stack chart's conventional defaults, not confirmed against
+# a live cluster.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: kube-state-metrics-network-policy
+  namespace: monitoring
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: kube-state-metrics
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: prometheus
+      ports:
+        - protocol: TCP
+          port: 8080

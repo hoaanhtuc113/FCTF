@@ -69,10 +69,16 @@ Copy `.env.example` and ensure the local connection strings are set:
 ```env
 DB_CONNECTION=Server=localhost;Port=3306;Database=ctfd;User=fctf_user;Password=fctf_password;
 REDIS_CONNECTION=localhost:6379,abortConnect=false
+REDIS_ALLOW_PLAINTEXT=true
 PRIVATE_KEY=local_dev_private_key_change_me
 DEPLOYMENT_SERVICE_API=http://localhost:5002
 NFS_MOUNT_PATH=./uploads
 ```
+
+> `REDIS_ALLOW_PLAINTEXT=true` is required locally. The .NET services turn TLS on
+> for Redis whether or not the connection string asks for it, and the Redis
+> container in `docker-compose.dev.yml` serves no certificate - without this flag
+> the connection fails at startup. Never set it in a deployed environment.
 
 ### 3. ContestantPortal (`ContestantPortal/.env`)
 

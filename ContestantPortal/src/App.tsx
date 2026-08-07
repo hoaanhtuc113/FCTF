@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { ToastProvider } from './components/ToastProvider';
 import { PrivateRoute } from './components/PrivateRoute';
+import { ScoreboardRoute } from './components/ScoreboardRoute';
 import { PageLoader } from './components/PageLoader';
 import { Layout } from './components/Layout';
 import { ThemeProvider } from './context/ThemeContext';
@@ -65,7 +66,9 @@ function AppRoutes() {
                 path="/contest/:contestId/scoreboard"
                 element={
                   <PrivateRoute requireContest={true}>
-                    <Layout><Scoreboard /></Layout>
+                    <ScoreboardRoute>
+                      <Layout><Scoreboard /></Layout>
+                    </ScoreboardRoute>
                   </PrivateRoute>
                 }
               />

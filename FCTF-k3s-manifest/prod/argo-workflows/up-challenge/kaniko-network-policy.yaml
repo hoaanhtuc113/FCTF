@@ -1,0 +1,40 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: kaniko-builder-network-policy
+  namespace: argo
+spec:
+  podSelector:
+    matchLabels:
+      app: kaniko-builder
+  policyTypes:
+    - Ingress
+    - Egress
+  # No ingress rules - nothing needs to reach this pod, it only pushes out.
+  egress:
+    # DNS resolution
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # Registry push over HTTPS only - excludes private ranges and
+    # link-local (blocks lateral movement to cluster/VPC and cloud
+    # metadata via SSRF). The registry is an external SaaS (Docker Hub
+    # per docker-secret.yaml/README) fronted by a CDN with no stable
+    # IP range, so this can't be narrowed further than port 443 with a
+    # plain Kubernetes NetworkPolicy.
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+              - 169.254.0.0/16
+      ports:
+        - port: 443

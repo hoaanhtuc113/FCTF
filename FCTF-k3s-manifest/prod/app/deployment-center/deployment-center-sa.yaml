@@ -11,8 +11,11 @@ metadata:
   name: deployment-center-sa-role
 rules:
   - apiGroups: [""]
-    resources: ["pods", "services", "namespaces"]
-    verbs: ["get", "list", "watch", "delete", "deletecollection"]
+    resources: ["namespaces"]
+    verbs: ["get", "list", "watch", "delete"]
+  - apiGroups: [""]
+    resources: ["pods", "services"]
+    verbs: ["get", "list", "watch"]
   - apiGroups: [""]
     resources: ["pods/log"]
     verbs: ["get", "list"]

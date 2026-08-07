@@ -14,6 +14,8 @@ spec:
         app: challenge-gateway
     spec:
       priorityClassName: app-normal-preemption
+      # No K8s API calls made from this pod - don't hand it a token it has no use for.
+      automountServiceAccountToken: false
       tolerations:
         - key: "node-role.kubernetes.io/control-plane"
           operator: "Exists"
@@ -33,6 +35,13 @@ spec:
               value: /etc/gateway/tls/tls.crt
             - name: GATEWAY_TLS_KEY_FILE
               value: /etc/gateway/tls/tls.key
+            # CA that signed the Redis server certificate. Setting this turns
+            # on chain and hostname verification for the Redis connection and
+            # overrides REDIS_TLS_INSECURE_SKIP_VERIFY, so the gateway stops
+            # accepting whatever certificate answers on that address. The file
+            # is kept current by cert-manager via redis-client-cert.yaml.
+            - name: REDIS_TLS_CA_FILE
+              value: /etc/redis-ca/ca.crt
           resources:
             requests:
               cpu: 0.1
@@ -61,6 +70,9 @@ spec:
             - name: gateway-tls
               mountPath: /etc/gateway/tls
               readOnly: true
+            - name: redis-ca
+              mountPath: /etc/redis-ca
+              readOnly: true
           securityContext:
             readOnlyRootFilesystem: true
             runAsNonRoot: true
@@ -81,6 +93,14 @@ spec:
         - name: gateway-tls
           secret:
             secretName: gateway-tls
+        # Only ca.crt - the leaf and its private key in this secret are for a
+        # future mTLS switch and the gateway has no use for them today.
+        - name: redis-ca
+          secret:
+            secretName: redis-client-tls
+            items:
+              - key: ca.crt
+                path: ca.crt
   revisionHistoryLimit: 3
 ---
 apiVersion: v1

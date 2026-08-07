@@ -359,6 +359,32 @@ def handle_zip_file_upload(challenge, file_path, challenge_id):
         else:
             return jsonify({"error": "Challenge already pending deploy"}), 400
 
+def discard_failed_upload(challenge, nfs_destination):
+    """
+    Undo what handle_challenge_upload() already did when the deploy workflow
+    never got submitted: remove the copied folder from the share and put the
+    challenge back into a state the admin can retry from.
+
+    Only safe on paths where nothing was handed to the deployment service yet -
+    once a workflow is running it reads that folder.
+    """
+    try:
+        if nfs_destination and os.path.exists(nfs_destination):
+            shutil.rmtree(nfs_destination)
+            print(f"Removed orphaned challenge folder: {nfs_destination}")
+    except OSError as exc:
+        print(f"Could not remove orphaned challenge folder {nfs_destination}: {exc}")
+
+    try:
+        db.session.rollback()
+        challenge.deploy_file = None
+        challenge.deploy_status = "FILE_UPLOAD_FAILED"
+        db.session.commit()
+    except Exception as exc:
+        db.session.rollback()
+        print(f"Could not mark challenge {challenge.id} as failed: {exc}")
+
+
 def handle_challenge_upload(challenge, file_path, expose_port=None):
     """
     Handle the challenge upload process
@@ -443,8 +469,11 @@ def handle_challenge_upload(challenge, file_path, expose_port=None):
 
                 if response.status_code != 200:
                     print(f"Error uploading challenge: {response.text}")
+                    # Nothing was submitted, so the folder we just copied is dead
+                    # weight - drop it instead of leaving it on the share forever.
+                    discard_failed_upload(challenge, nfs_destination)
                     return {"success": False, "error": f"Deployment service error: {response.text}"}, 500
-                    
+
                 result = response.json()
                 workflow_name = result.get("metadata", {}).get("name")
 

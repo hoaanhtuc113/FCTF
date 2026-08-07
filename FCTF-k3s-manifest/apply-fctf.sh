@@ -281,10 +281,10 @@ if [[ "${APPLY_HELM}" == "true" ]]; then
   fi
 
   echo "==> Creating required namespace for Helm components"
-  kubectl create namespace app --dry-run=client -o yaml | kubectl apply -f -
+  kubectl apply -f "${PROD_DIR}/app/namespace.yaml"
   kubectl create namespace argo --dry-run=client -o yaml | kubectl apply -f -
   kubectl create namespace storage --dry-run=client -o yaml | kubectl apply -f -
-  kubectl create namespace db --dry-run=client -o yaml | kubectl apply -f -
+  kubectl apply -f "${PROD_DIR}/db/namespace.yaml"
 
   if [[ ! -f "${MARIADB_AUTH_SECRET_FILE}" ]]; then
     echo "Error: MariaDB auth secret manifest not found at ${MARIADB_AUTH_SECRET_FILE}"
@@ -326,7 +326,21 @@ if [[ "${APPLY_HELM}" == "true" ]]; then
   )
 
   echo "==> Applying Argo ServiceAccount"
-  kubectl apply -f "${PROD_DIR}/sa/argo-workflow/argo-sa.yaml"
+  kubectl apply -f "${PROD_DIR}/sa/argo-workflow/"
+
+  echo "==> Applying monitoring NetworkPolicy"
+  kubectl apply -f "${PROD_DIR}/monitoring/NetworkPolicy/"
+
+  echo "==> Applying db NetworkPolicy"
+  kubectl apply -f "${PROD_DIR}/db/NetworkPolicy/"
+
+  # redis-nodeport exposed Redis on every node, outside the ingress and outside
+  # anything a NetworkPolicy can filter. It was removed from db-nodeport.yaml,
+  # but that only stops it being recreated - a cluster where it was applied by
+  # hand still has it, so delete it here. Clients use
+  # redis-headless.db.svc.cluster.local; admins use kubectl port-forward.
+  echo "==> Removing the Redis NodePort if it is still present"
+  kubectl delete service redis-nodeport -n db --ignore-not-found
 fi
 
 if [[ "${DEPLOY_APP_SERVICES}" == "true" ]]; then
@@ -336,13 +350,19 @@ if [[ "${DEPLOY_APP_SERVICES}" == "true" ]]; then
   fi
 
   echo "==> Creating required namespaces"
-  kubectl create namespace app --dry-run=client -o yaml | kubectl apply -f -
-  kubectl create namespace db --dry-run=client -o yaml | kubectl apply -f -
+  kubectl apply -f "${PROD_DIR}/app/namespace.yaml"
+  kubectl apply -f "${PROD_DIR}/db/namespace.yaml"
 
   echo "==> Applying base classes, ConfigMaps and Secrets"
   kubectl apply -f "${PROD_DIR}/priority-classes.yaml"
     kubectl apply -f "${PROD_DIR}/env/configmap/"
   kubectl apply -f "${PROD_DIR}/env/secret/"
+
+  # Puts fctf-internal-ca's ca.crt in the app namespace. The gateway and all
+  # four .NET services mount it to verify the Redis certificate, so it has to
+  # exist before they start or their pods wait on a missing secret.
+  echo "==> Applying Redis client CA certificate"
+  kubectl apply -f "${PROD_DIR}/app/redis-client-cert.yaml"
 
   if [[ "${APPLY_HELM}" != "true" ]]; then
     apply_storage_manifests
@@ -359,6 +379,9 @@ if [[ "${DEPLOY_APP_SERVICES}" == "true" ]]; then
 
   echo "==> Applying app NetworkPolicy"
   kubectl apply -f "${PROD_DIR}/app/NetworkPolicy/"
+
+  echo "==> Applying readOnlyRootFilesystem admission policy"
+  kubectl apply -f "${PROD_DIR}/app/readonly-rootfs-policy.yaml"
 
   if [[ "${SERVICE_MODE}" == "clusterip" ]]; then
     echo "==> Applying ClusterIP service mode"
@@ -402,6 +425,7 @@ if [[ "${APPLY_ARGO_TEMPLATES}" == "true" ]]; then
   echo "==> Applying Argo workflow templates"
   kubectl apply -f "${PROD_DIR}/argo-workflows/start-chal-v2/start-chal-v2-template.yaml"
   kubectl apply -f "${PROD_DIR}/argo-workflows/up-challenge/up-challenge-template.yaml"
+  kubectl apply -f "${PROD_DIR}/argo-workflows/up-challenge/kaniko-network-policy.yaml"
 fi
 
 bootstrap_rabbitmq_deploy_users

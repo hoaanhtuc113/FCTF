@@ -1,0 +1,52 @@
+# An internal CA for service-to-service TLS inside the cluster.
+#
+# letsencrypt-dev cannot do this job: ACME issues for public domains and proves
+# ownership over HTTP-01 through the ingress, so it can never sign a name like
+# redis-headless.db.svc.cluster.local. Without a CA any client can only choose
+# between skipping certificate verification and not using TLS - which is why the
+# gateway shipped with verification hardcoded off.
+#
+# The chain is the standard cert-manager bootstrap: a self-signed issuer signs
+# one CA certificate, and that certificate backs the issuer everything else uses.
+# Only the CA lives here; the leaf certificates sit next to what they belong to
+# (db/redis-tls-cert.yaml, app/challenge-gateway/redis-client-cert.yaml).
+#
+# Rotating the CA invalidates every leaf under it, so treat its secret as
+# cluster-critical: losing it means reissuing and restarting every client that
+# pins it.
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: fctf-selfsigned
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: fctf-internal-ca
+  # Must be cert-manager's cluster resource namespace - that is where a CA
+  # ClusterIssuer looks for its signing key.
+  namespace: cert-manager
+spec:
+  isCA: true
+  commonName: fctf-internal-ca
+  secretName: fctf-internal-ca
+  duration: 43800h # 5 years
+  renewBefore: 720h # 30 days
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+    rotationPolicy: Always
+  issuerRef:
+    name: fctf-selfsigned
+    kind: ClusterIssuer
+    group: cert-manager.io
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: fctf-internal-ca
+spec:
+  ca:
+    secretName: fctf-internal-ca

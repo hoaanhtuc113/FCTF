@@ -19,18 +19,24 @@ internal class Worker : BackgroundService
     private readonly ILogger<Worker> _logger;
     private readonly RedisHelper _redisHelper;
     private readonly MultiServiceConnector _multiServiceConnector;
+    private readonly WorkerHeartbeat _heartbeat;
 
     public Worker(
         IServiceScopeFactory scopeFactory,
         ILogger<Worker> logger,
         RedisHelper redisHelper,
-        MultiServiceConnector multiServiceConnector)
+        MultiServiceConnector multiServiceConnector,
+        WorkerHeartbeat heartbeat)
     {
         _scopeFactory = scopeFactory;
         _logger = logger;
         _redisHelper = redisHelper;
         _multiServiceConnector = multiServiceConnector;
+        _heartbeat = heartbeat;
     }
+
+    private static readonly TimeSpan MaxRetryDelay = TimeSpan.FromSeconds(60);
+    private int _consecutiveFailures = 0;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -39,12 +45,23 @@ internal class Worker : BackgroundService
             try
             {
                 await ProcessAsync(stoppingToken);
+                _heartbeat.Ping();
+                _consecutiveFailures = 0;
                 await Task.Delay(TimeSpan.FromSeconds(DeploymentConsumerConfigHelper.WORKER_POLL_INTERVAL_SECONDS), stoppingToken);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error in DeploymentConsumer Worker");
-                await Task.Delay(TimeSpan.FromSeconds(DeploymentConsumerConfigHelper.WORKER_POLL_INTERVAL_SECONDS), stoppingToken);
+                _heartbeat.Ping();
+                _consecutiveFailures++;
+
+                // Exponential backoff on repeated failures instead of hammering
+                // Argo/K8s at a fixed interval while they're already struggling.
+                var backoff = TimeSpan.FromSeconds(
+                    DeploymentConsumerConfigHelper.WORKER_POLL_INTERVAL_SECONDS * Math.Pow(2, Math.Min(_consecutiveFailures, 8)));
+                var delay = backoff < MaxRetryDelay ? backoff : MaxRetryDelay;
+
+                await Task.Delay(delay, stoppingToken);
             }
         }
     }
