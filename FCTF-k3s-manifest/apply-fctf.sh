@@ -284,7 +284,7 @@ if [[ "${APPLY_HELM}" == "true" ]]; then
   kubectl apply -f "${PROD_DIR}/app/namespace.yaml"
   kubectl create namespace argo --dry-run=client -o yaml | kubectl apply -f -
   kubectl create namespace storage --dry-run=client -o yaml | kubectl apply -f -
-  kubectl create namespace db --dry-run=client -o yaml | kubectl apply -f -
+  kubectl apply -f "${PROD_DIR}/db/namespace.yaml"
 
   if [[ ! -f "${MARIADB_AUTH_SECRET_FILE}" ]]; then
     echo "Error: MariaDB auth secret manifest not found at ${MARIADB_AUTH_SECRET_FILE}"
@@ -343,7 +343,7 @@ if [[ "${DEPLOY_APP_SERVICES}" == "true" ]]; then
 
   echo "==> Creating required namespaces"
   kubectl apply -f "${PROD_DIR}/app/namespace.yaml"
-  kubectl create namespace db --dry-run=client -o yaml | kubectl apply -f -
+  kubectl apply -f "${PROD_DIR}/db/namespace.yaml"
 
   echo "==> Applying base classes, ConfigMaps and Secrets"
   kubectl apply -f "${PROD_DIR}/priority-classes.yaml"

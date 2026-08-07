@@ -1,0 +1,28 @@
+# Redis, MariaDB and RabbitMQ already run as uid 1001 with runAsNonRoot,
+# allowPrivilegeEscalation false, all capabilities dropped, a RuntimeDefault
+# seccomp profile and a read-only root filesystem - but only because three
+# Helm values files happen to say so. Nothing checked it: this namespace was
+# created bare by `kubectl create namespace db`, so it had no Pod Security
+# Admission level, and a `helm upgrade` with different values, a chart pinned
+# to a newer version whose defaults changed, or any other chart installed here
+# would have been admitted running as root with no objection.
+#
+# `restricted` makes the current shape the enforced floor instead of a
+# convention. Verified against the three charts before enabling: none use
+# hostPath/hostNetwork/hostPID/hostIPC/hostPorts or sysctls, volumePermissions
+# (the root-running init container) is disabled on all of them, and metrics
+# sidecars are off.
+#
+# Note this only gates pods created from now on - pods already running are not
+# re-evaluated, so a non-compliant workload surfaces at its next restart.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: db
+  labels:
+    pod-security.kubernetes.io/enforce: "restricted"
+    pod-security.kubernetes.io/enforce-version: "latest"
+    pod-security.kubernetes.io/audit: "restricted"
+    pod-security.kubernetes.io/audit-version: "latest"
+    pod-security.kubernetes.io/warn: "restricted"
+    pod-security.kubernetes.io/warn-version: "latest"
