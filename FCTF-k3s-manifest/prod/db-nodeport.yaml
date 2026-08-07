@@ -1,3 +1,29 @@
+# Direct node-level access to the databases. Applied by hand, not by
+# apply-fctf.sh.
+#
+# redis-nodeport used to live here and has been removed. A NodePort binds the
+# port on EVERY node, so it reached Redis from anywhere those node IPs are
+# reachable: past the ingress, past Cloudflare, past any WAF, and past the
+# NetworkPolicy on the db namespace, which selects pods and cannot express "not
+# from outside the cluster". Nothing in this repository used it - every client
+# connects to redis-headless.db.svc.cluster.local, and the Redis chart's own
+# service is ClusterIP.
+#
+# For the admin access it provided, port-forward gives the same reach without
+# leaving a listener open on every node:
+#
+#   kubectl port-forward -n db svc/redis-master 6379:6379
+#
+# Deleting it here does not delete it from a cluster where it was already
+# applied, so apply-fctf.sh removes it explicitly on its next run.
+#
+# The MariaDB entry below has the same shape and the same exposure - the whole
+# contest database on port 30306 of every node - and the same replacement:
+#
+#   kubectl port-forward -n db svc/mariadb 3306:3306
+#
+# It is left in place only because removing it was not part of the change that
+# removed the Redis one.
 apiVersion: v1
 kind: Service
 metadata:
@@ -17,23 +43,3 @@ spec:
       port: 3306
       targetPort: 3306
       nodePort: 30306
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: redis-nodeport
-  namespace: db
-  labels:
-    app.kubernetes.io/name: redis
-    app.kubernetes.io/component: master
-spec:
-  type: NodePort
-  selector:
-    app.kubernetes.io/name: redis
-    app.kubernetes.io/component: master
-  ports:
-    - name: redis
-      protocol: TCP
-      port: 6379
-      targetPort: 6379
-      nodePort: 30320
