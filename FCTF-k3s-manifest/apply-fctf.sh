@@ -112,6 +112,35 @@ apply_manifest_with_default_sa() {
   fi
 }
 
+# challenge-gateway mounts gateway-tls as a volume, and kubelet mounts volumes
+# before it creates the pod sandbox - so while that secret is missing the pods
+# stay in ContainerCreating with no IP, no restarts, and events that say nothing
+# about certificates. Waiting here turns "the gateway is inexplicably down" into
+# a message at install time, next to the thing that caused it.
+#
+# A warning rather than an error: on a first install the gateway cannot serve
+# anything yet anyway (its image is pushed later by setup-harbor.sh), and the
+# pods do start on their own the moment the certificate lands.
+wait_for_gateway_certificate() {
+  local ns="app" cert="gateway-tls"
+
+  echo "==> Waiting for ${cert} to be issued (challenge-gateway mounts it)"
+  if kubectl -n "${ns}" wait --for=condition=Ready "certificate/${cert}" --timeout=300s >/dev/null 2>&1; then
+    echo "    ${cert} issued"
+    return 0
+  fi
+
+  echo
+  echo "WARNING: ${ns}/${cert} was not issued within 300s."
+  echo "    challenge-gateway's pods will sit in ContainerCreating until it exists."
+  echo "    The install continues and they start on their own once it is issued."
+  echo
+  echo "    To see where the ACME challenge is stuck:"
+  echo "      kubectl -n ${ns} describe challenge | grep -E 'Reason:|State:'"
+  echo
+  return 0
+}
+
 apply_storage_manifests() {
   echo "==> Applying storage PVs"
   for manifest in "${STORAGE_PV_FILES[@]}"; do
@@ -437,11 +466,26 @@ if [[ "${DEPLOY_APP_SERVICES}" == "true" ]]; then
     kubectl apply -f "${PROD_DIR}/env/configmap/"
   kubectl apply -f "${PROD_DIR}/env/secret/"
 
+  # Before the certificates below, not after: app/NetworkPolicy/ carries the rule
+  # that lets the ingress controller reach cert-manager's HTTP-01 solver pods,
+  # and without it every ACME challenge in this namespace times out.
+  echo "==> Applying app NetworkPolicy"
+  kubectl apply -f "${PROD_DIR}/app/NetworkPolicy/"
+
   # Puts fctf-internal-ca's ca.crt in the app namespace. The gateway and all
   # four .NET services mount it to verify the Redis certificate, so it has to
   # exist before they start or their pods wait on a missing secret.
   echo "==> Applying Redis client CA certificate"
   kubectl apply -f "${PROD_DIR}/app/redis-client-cert.yaml"
+
+  # The gateway mounts gateway-tls, so it has to be issued before the deployment
+  # below is of any use. The ClusterIssuer goes out here as well rather than only
+  # in the ingress phase, so that deploying app services without that phase still
+  # has something to issue from.
+  echo "==> Applying gateway TLS certificate"
+  kubectl apply -f "${PROD_DIR}/cert-manager/cluster-issuer.yaml"
+  kubectl apply -f "${PROD_DIR}/app/gateway-cert.yaml"
+  wait_for_gateway_certificate
 
   if [[ "${APPLY_HELM}" != "true" ]]; then
     apply_storage_manifests
@@ -455,9 +499,6 @@ if [[ "${DEPLOY_APP_SERVICES}" == "true" ]]; then
   kubectl apply -f "${PROD_DIR}/app/deployment-listener/"
   kubectl apply -f "${PROD_DIR}/app/challenge-gateway/"
   kubectl apply -f "${PROD_DIR}/app/deployment-consumer/"
-
-  echo "==> Applying app NetworkPolicy"
-  kubectl apply -f "${PROD_DIR}/app/NetworkPolicy/"
 
   # Also applied in the Helm block. Repeated here because these services cannot
   # reach Redis without it: the allowlist lives in this directory rather than in

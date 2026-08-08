@@ -1,3 +1,23 @@
+# Despite the name, this is Let's Encrypt's PRODUCTION endpoint - the
+# certificates it issues are publicly trusted, and its rate limits are the real
+# ones. What matters in practice when reinstalling:
+#
+#   50 certificates per registered domain (nvtai24.site) per week
+#   5 certificates per identical set of domain names per week
+#   5 failed validations per hostname per hour
+#
+# The second is the one a rebuild loop runs into: deleting and reissuing
+# admin-tls counts against that domain set every time, and there is no way to
+# reset it. If the install needs to be exercised repeatedly, point the
+# certificates at a staging issuer first - same block with
+# server: https://acme-staging-v02.api.letsencrypt.org/directory and its own
+# privateKeySecretRef - and switch back once the plumbing is proven. Staging
+# certificates are not trusted by browsers, so they are for testing the flow
+# only, never for a live contest.
+#
+# The name is left alone deliberately: renaming it means editing the issuerRef
+# in every Certificate and every Ingress annotation, and cert-manager reissues
+# each one against the new issuer, spending the limits above to fix a label.
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
 metadata:
