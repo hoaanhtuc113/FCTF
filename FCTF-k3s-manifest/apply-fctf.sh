@@ -24,7 +24,6 @@ MARIADB_AUTH_SECRET_FILE="${PROD_DIR}/env/secret/mariadb-auth-secret.yaml"
 REDIS_AUTH_SECRET_FILE="${PROD_DIR}/env/secret/redis-auth-secret.yaml"
 REDIS_ACL_USERS_SECRET_FILE="${PROD_DIR}/env/secret/redis-acl-users-secret.yaml"
 REDIS_ACL_FILE_SECRET_FILE="${PROD_DIR}/env/secret/redis-acl-file-secret.yaml"
-MARIADB_CREATE_DB_SQL="${PROD_DIR}/helm/db/mariadb/createDB.sql"
 MARIADB_POST_INIT_GRANTS_SQL="${PROD_DIR}/helm/db/mariadb/least-privilege-service-accounts.sql"
 RABBIT_DEPLOY_PRODUCER_BOOTSTRAP_PASSWORD="Fctf2025@producer"
 RABBIT_DEPLOY_CONSUMER_BOOTSTRAP_PASSWORD="Fctf2025@consumer"
@@ -512,7 +511,7 @@ fi
 
 bootstrap_rabbitmq_deploy_users
 
-if [[ -f "${MARIADB_CREATE_DB_SQL}" && -f "${MARIADB_POST_INIT_GRANTS_SQL}" ]]; then
+if [[ -f "${MARIADB_POST_INIT_GRANTS_SQL}" ]]; then
   echo "==> Waiting for MariaDB pod readiness"
   kubectl rollout status statefulset/mariadb -n db --timeout=600s
 
@@ -531,14 +530,43 @@ if [[ -f "${MARIADB_CREATE_DB_SQL}" && -f "${MARIADB_POST_INIT_GRANTS_SQL}" ]]; 
     exit 1
   fi
 
-  echo "==> Applying createDB.sql baseline schema"
-  kubectl -n db exec -i mariadb-0 -- bash -lc '/opt/bitnami/mariadb/bin/mariadb --ssl=0 -uroot -p"$(cat /opt/bitnami/mariadb/secrets/mariadb-root-password)"' < "${MARIADB_CREATE_DB_SQL}"
+  # The schema belongs to CTFd's Alembic migrations, not to this script. It used
+  # to be seeded from helm/db/mariadb/createDB.sql, but that dump was a snapshot
+  # of one particular database rather than the output of the migration chain,
+  # and it had drifted: it stamped alembic_version at e9a1c2d3f4b5 while already
+  # containing tables that migrations after that revision create. CTFd then
+  # replayed those migrations on first start and died on the first one,
+  #
+  #   (1050, "Table 'contests' already exists")
+  #
+  # in a crash loop it could never get out of. Restamping would not have fixed
+  # it either - the same dump still had action_logs in its pre-rename camelCase
+  # form and was missing columns from a dozen other migrations, so no single
+  # revision described it. The MariaDB chart already creates an empty `ctfd`
+  # database and a user with rights over it, which is all CTFd needs to build
+  # the schema itself.
+  #
+  # The grants are table-level, so they can only be applied once those tables
+  # exist. On a first install that is after setup-harbor.sh has pushed the
+  # images and admin-mvc has started, which is later than this script runs.
+  ctfd_table_count="$(kubectl -n db exec -i mariadb-0 -- bash -lc '/opt/bitnami/mariadb/bin/mariadb --ssl=0 -uroot -p"$(cat /opt/bitnami/mariadb/secrets/mariadb-root-password)" -N -B -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='"'"'ctfd'"'"'"' 2>/dev/null | tr -d '[:space:]' || true)"
 
-  echo "==> Applying least-privilege MariaDB grants"
-  kubectl -n db exec -i mariadb-0 -- bash -lc '/opt/bitnami/mariadb/bin/mariadb --ssl=0 -uroot -p"$(cat /opt/bitnami/mariadb/secrets/mariadb-root-password)" ctfd' < "${MARIADB_POST_INIT_GRANTS_SQL}"
+  if [[ "${ctfd_table_count}" =~ ^[0-9]+$ && "${ctfd_table_count}" -gt 1 ]]; then
+    echo "==> Applying least-privilege MariaDB grants (${ctfd_table_count} tables present)"
+    kubectl -n db exec -i mariadb-0 -- bash -lc '/opt/bitnami/mariadb/bin/mariadb --ssl=0 -uroot -p"$(cat /opt/bitnami/mariadb/secrets/mariadb-root-password)" ctfd' < "${MARIADB_POST_INIT_GRANTS_SQL}"
+  else
+    echo "==> Skipping least-privilege MariaDB grants: the ctfd schema does not exist yet"
+    echo "    CTFd creates it the first time admin-mvc starts, which needs its image in"
+    echo "    Harbor - so run Setup Harbor, wait for admin-mvc, then apply the grants:"
+    echo
+    echo "      kubectl -n app rollout status deployment/admin-mvc --timeout=600s"
+    echo "      kubectl -n db exec -i mariadb-0 -- bash -lc '/opt/bitnami/mariadb/bin/mariadb --ssl=0 -uroot -p\"\$(cat /opt/bitnami/mariadb/secrets/mariadb-root-password)\" ctfd' \\"
+    echo "        < ${MARIADB_POST_INIT_GRANTS_SQL}"
+    echo
+    echo "    Re-running Install FCTF once admin-mvc is up applies them automatically."
+  fi
 else
-  [[ -f "${MARIADB_CREATE_DB_SQL}" ]] || echo "Warning: createDB SQL file not found at ${MARIADB_CREATE_DB_SQL}; skipping schema bootstrap."
-  [[ -f "${MARIADB_POST_INIT_GRANTS_SQL}" ]] || echo "Warning: grants SQL file not found at ${MARIADB_POST_INIT_GRANTS_SQL}; skipping least-privilege grants."
+  echo "Warning: grants SQL file not found at ${MARIADB_POST_INIT_GRANTS_SQL}; skipping least-privilege grants."
 fi
 
 echo
