@@ -44,6 +44,55 @@ STORAGE_PVC_FILES=(
   "${PROD_DIR}/storage/pvc/start-challenge-workflow-pvc.yaml"
 )
 
+# Same list configure-domains.sh substitutes. REDIS_ADMIN_CIDR is deliberately
+# absent: that placeholder lives in a manifest this script never applies.
+DOMAIN_PLACEHOLDER_TOKENS=(
+  "MASTER_NODE_PRIVATE_IP"
+  "RABBITMQ_DOMAIN"
+  "GRAFANA_DOMAIN"
+  "CONTESTANT_DOMAIN"
+  "ADMIN_DOMAIN"
+  "ARGO_DOMAIN"
+  "CONTESTANT_API_DOMAIN"
+  "REGISTRY_DOMAIN"
+  "RANCHER_DOMAIN"
+  "GATEWAY_DOMAIN"
+)
+
+# configure-domains.sh rewrites tracked files in place, so its edits are working
+# tree changes that any `git pull`/`git reset --hard` throws away. Applying the
+# restored manifests then sends placeholders to the API server, and the errors
+# that follow name none of this: a PV whose nfs.server is already a real address
+# fails with "spec.persistentvolumesource is immutable after creation", and a
+# Deployment quietly accepts an image called <REGISTRY_DOMAIN>/fctf/... that no
+# node can ever pull.
+require_domains_configured() {
+  local grep_args=() token hit
+  local -a hits=()
+
+  for token in "${DOMAIN_PLACEHOLDER_TOKENS[@]}"; do
+    grep_args+=("-e" "<${token}>")
+  done
+
+  while IFS= read -r hit; do
+    [[ -n "${hit}" ]] && hits+=("${hit}")
+  done < <(grep -RIl "${grep_args[@]}" "${PROD_DIR}" 2>/dev/null || true)
+
+  if [[ ${#hits[@]} -eq 0 ]]; then
+    return 0
+  fi
+
+  echo "Error: unresolved domain/IP placeholders under ${PROD_DIR}:"
+  for hit in "${hits[@]}"; do
+    echo "  - ${hit}"
+  done
+  echo
+  echo "Run 'Configure service domains/IP' (manage.sh option 9) before installing."
+  echo "On a cluster that is already up, enter the SAME values as the first run -"
+  echo "a PV's NFS server address cannot be changed after the PV exists."
+  exit 1
+}
+
 # For manifests that create a namespace and, in the same file, our hardened
 # copy of that namespace's `default` ServiceAccount. The namespace controller
 # creates its own `default` SA as soon as the namespace appears, which can beat
@@ -293,6 +342,8 @@ if [[ "${SERVICE_MODE}" != "clusterip" && "${SERVICE_MODE}" != "nodeport" ]]; th
   echo "Error: --service-mode must be clusterip or nodeport"
   exit 1
 fi
+
+require_domains_configured
 
 
 if [[ "${APPLY_HELM}" == "true" ]]; then
