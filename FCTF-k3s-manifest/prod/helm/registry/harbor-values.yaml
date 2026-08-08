@@ -1043,6 +1043,17 @@ redis:
   internal:
     image:
       repository: docker.io/goharbor/redis-photon
+      # Pinned because the chart's default does not exist. Every other Harbor
+      # component is published at the chart's appVersion, but redis-photon
+      # stops at v2.15.1 upstream, so a chart at 2.15.2 asks the kubelet for
+      # docker.io/goharbor/redis-photon:v2.15.2 and gets "not found" forever.
+      # harbor-redis then never starts, and harbor-core/harbor-jobservice sit
+      # in CrashLoopBackOff behind it.
+      #
+      # This is only Redis, not a Harbor component, so trailing the rest of the
+      # stack by a patch release is harmless. Re-check it when the Harbor chart
+      # version moves.
+      tag: v2.15.1
     # set the service account to be used, default if left empty
     serviceAccountName: ""
     # mount the service account token
