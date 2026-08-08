@@ -77,7 +77,7 @@ spec:
             privileged: false
             capabilities:
               drop:
-                - NET_RAW
+                - ALL
             seLinuxOptions:
               type: container_t
             seccompProfile:
