@@ -23,6 +23,7 @@ ROTATE_SERVICE_SCRIPT="${SCRIPT_DIR}/rotate-service-passwords.sh"
 MARIADB_AUTH_SECRET_FILE="${PROD_DIR}/env/secret/mariadb-auth-secret.yaml"
 REDIS_AUTH_SECRET_FILE="${PROD_DIR}/env/secret/redis-auth-secret.yaml"
 REDIS_ACL_USERS_SECRET_FILE="${PROD_DIR}/env/secret/redis-acl-users-secret.yaml"
+REDIS_ACL_FILE_SECRET_FILE="${PROD_DIR}/env/secret/redis-acl-file-secret.yaml"
 MARIADB_CREATE_DB_SQL="${PROD_DIR}/helm/db/mariadb/createDB.sql"
 MARIADB_POST_INIT_GRANTS_SQL="${PROD_DIR}/helm/db/mariadb/least-privilege-service-accounts.sql"
 RABBIT_DEPLOY_PRODUCER_BOOTSTRAP_PASSWORD="Fctf2025@producer"
@@ -42,6 +43,26 @@ STORAGE_PVC_FILES=(
   "${PROD_DIR}/storage/pvc/up-challenge-workflow-pvc.yaml"
   "${PROD_DIR}/storage/pvc/start-challenge-workflow-pvc.yaml"
 )
+
+# For manifests that create a namespace and, in the same file, our hardened
+# copy of that namespace's `default` ServiceAccount. The namespace controller
+# creates its own `default` SA as soon as the namespace appears, which can beat
+# kubectl's create of ours: kubectl's read says the SA is absent, it POSTs, and
+# the whole apply fails with `serviceaccounts "default" already exists`. On the
+# retry the SA is there, so apply patches it instead of creating it.
+apply_manifest_with_default_sa() {
+  local manifest="$1"
+
+  if [[ ! -f "${manifest}" ]]; then
+    echo "Error: manifest not found at ${manifest}"
+    exit 1
+  fi
+
+  if ! kubectl apply -f "${manifest}"; then
+    echo "==> Re-applying ${manifest} (default ServiceAccount raced namespace creation)"
+    kubectl apply -f "${manifest}"
+  fi
+}
 
 apply_storage_manifests() {
   echo "==> Applying storage PVs"
@@ -281,7 +302,7 @@ if [[ "${APPLY_HELM}" == "true" ]]; then
   fi
 
   echo "==> Creating required namespace for Helm components"
-  kubectl apply -f "${PROD_DIR}/app/namespace.yaml"
+  apply_manifest_with_default_sa "${PROD_DIR}/app/namespace.yaml"
   kubectl create namespace argo --dry-run=client -o yaml | kubectl apply -f -
   kubectl create namespace storage --dry-run=client -o yaml | kubectl apply -f -
   kubectl apply -f "${PROD_DIR}/db/namespace.yaml"
@@ -304,12 +325,23 @@ if [[ "${APPLY_HELM}" == "true" ]]; then
     exit 1
   fi
 
+  if [[ ! -f "${REDIS_ACL_FILE_SECRET_FILE}" ]]; then
+    echo "Error: Redis ACL file secret manifest not found at ${REDIS_ACL_FILE_SECRET_FILE}"
+    echo "Please create/update this file before running Helm so redis-master can mount its aclfile."
+    exit 1
+  fi
+
   echo "==> Applying MariaDB auth secret before Helm"
   kubectl apply -f "${MARIADB_AUTH_SECRET_FILE}"
 
   echo "==> Applying Redis auth secrets before Helm"
   kubectl apply -f "${REDIS_AUTH_SECRET_FILE}"
   kubectl apply -f "${REDIS_ACL_USERS_SECRET_FILE}"
+  # redis-master mounts this one as a plain (non-optional) secret volume and
+  # reads its aclfile at startup, so it has to exist before the chart installs
+  # or the pod sits in ContainerCreating on a FailedMount until the rest of
+  # prod/env/secret/ is applied further down.
+  kubectl apply -f "${REDIS_ACL_FILE_SECRET_FILE}"
 
   apply_storage_manifests
 
@@ -347,7 +379,7 @@ if [[ "${DEPLOY_APP_SERVICES}" == "true" ]]; then
   fi
 
   echo "==> Creating required namespaces"
-  kubectl apply -f "${PROD_DIR}/app/namespace.yaml"
+  apply_manifest_with_default_sa "${PROD_DIR}/app/namespace.yaml"
   kubectl apply -f "${PROD_DIR}/db/namespace.yaml"
 
   echo "==> Applying base classes, ConfigMaps and Secrets"
@@ -411,13 +443,8 @@ if [[ "${APPLY_PRODUCTION_INGRESS}" == "true" ]]; then
 fi
 
 if [[ "${APPLY_CRONJOB}" == "true" ]]; then
-  if [[ ! -f "${PROD_DIR}/cron-job/delete-chal-job.yaml" ]]; then
-    echo "Error: cronjob manifest not found at ${PROD_DIR}/cron-job/delete-chal-job.yaml"
-    exit 1
-  fi
-
   echo "==> Applying cleanup cronjob"
-  kubectl apply -f "${PROD_DIR}/cron-job/delete-chal-job.yaml"
+  apply_manifest_with_default_sa "${PROD_DIR}/cron-job/delete-chal-job.yaml"
 fi
 
 if [[ "${APPLY_ARGO_TEMPLATES}" == "true" ]]; then
