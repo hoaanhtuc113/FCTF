@@ -676,32 +676,46 @@ restart_harbor_workloads() {
   local -a statefulsets=("harbor-database" "harbor-redis")
   local name replicas
 
-  echo "==> Restarting Harbor workloads"
-  for name in "${deployments[@]}"; do
-    if kubectl -n "${ns}" get deployment "${name}" >/dev/null 2>&1; then
-      replicas="$(kubectl -n "${ns}" get deployment "${name}" -o jsonpath='{.spec.replicas}' 2>/dev/null || echo "1")"
-      if [[ "${replicas}" == "0" ]]; then
-        kubectl -n "${ns}" scale "deployment/${name}" --replicas=1 >/dev/null
-      fi
-      kubectl -n "${ns}" rollout restart "deployment/${name}"
-    fi
-  done
-
+  # Datastores first, and fully back before anything that talks to them. The
+  # other way round stalls the rollout: harbor-core cannot pass readiness while
+  # Postgres is restarting under it, so its replacement pod never goes
+  # Available, so the Deployment is not allowed to drop the pod it is replacing,
+  # and rollout status sits on "1 old replicas are pending termination" until it
+  # times out.
+  echo "==> Restarting Harbor datastores"
   for name in "${statefulsets[@]}"; do
     if kubectl -n "${ns}" get statefulset "${name}" >/dev/null 2>&1; then
       kubectl -n "${ns}" rollout restart "statefulset/${name}"
     fi
   done
 
-  for name in "${deployments[@]}"; do
-    if kubectl -n "${ns}" get deployment "${name}" >/dev/null 2>&1; then
-      kubectl -n "${ns}" rollout status "deployment/${name}" --timeout=600s
-    fi
-  done
-
   for name in "${statefulsets[@]}"; do
     if kubectl -n "${ns}" get statefulset "${name}" >/dev/null 2>&1; then
       kubectl -n "${ns}" rollout status "statefulset/${name}" --timeout=600s
+    fi
+  done
+
+  echo "==> Restarting Harbor components"
+  for name in "${deployments[@]}"; do
+    if ! kubectl -n "${ns}" get deployment "${name}" >/dev/null 2>&1; then
+      continue
+    fi
+
+    replicas="$(kubectl -n "${ns}" get deployment "${name}" -o jsonpath='{.spec.replicas}' 2>/dev/null || echo "1")"
+    if [[ "${replicas}" == "0" ]]; then
+      # scale_harbor_deployments_down already removed every pod, so scaling back
+      # up *is* the restart, and the pod it creates reads the patched secrets.
+      # Adding a rollout restart on top only builds a second ReplicaSet whose
+      # pod the first one now has to wait for.
+      kubectl -n "${ns}" scale "deployment/${name}" --replicas=1 >/dev/null
+    else
+      kubectl -n "${ns}" rollout restart "deployment/${name}"
+    fi
+  done
+
+  for name in "${deployments[@]}"; do
+    if kubectl -n "${ns}" get deployment "${name}" >/dev/null 2>&1; then
+      kubectl -n "${ns}" rollout status "deployment/${name}" --timeout=600s
     fi
   done
 }
