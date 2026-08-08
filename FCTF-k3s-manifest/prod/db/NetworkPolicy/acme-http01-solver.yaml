@@ -1,0 +1,24 @@
+# Same reason as the copy in prod/app/NetworkPolicy/: this namespace also has a
+# default-deny that selects every pod, and rabbitmq-tls is issued here, so
+# cert-manager's HTTP-01 solver pod lands behind that deny and its challenge
+# never completes.
+#
+# Nothing here mounts the resulting secret the way challenge-gateway does, so
+# the only symptom in this namespace is the RabbitMQ ingress serving nginx's
+# default certificate - quiet enough to sit unnoticed.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-acme-http01-solver
+  namespace: db
+spec:
+  podSelector:
+    matchLabels:
+      acme.cert-manager.io/http01-solver: "true"
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx

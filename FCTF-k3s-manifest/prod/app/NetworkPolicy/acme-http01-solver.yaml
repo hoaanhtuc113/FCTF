@@ -1,0 +1,39 @@
+# cert-manager runs an HTTP-01 challenge in a throwaway pod, and it creates that
+# pod in the namespace of the Certificate - so solver pods for admin-tls,
+# api-backend-tls, contestant-tls and gateway-tls all land here, where
+# default-deny.yaml selects every pod and denies all ingress. The ingress
+# controller then cannot reach the solver, cert-manager's self check never sees
+# the token, and the challenge stays `pending` forever:
+#
+#   NAME                      STATE     DOMAIN
+#   gateway-tls-1-...         pending   gateway.fctf.nvtai24.site
+#
+# For three of the four that only means nginx serves its default self-signed
+# certificate. For gateway-tls it stops the gateway from starting at all -
+# challenge-gateway mounts that secret as a volume, and a pod whose volume does
+# not exist never leaves ContainerCreating.
+#
+# Certificates in registry/monitoring/argo/cattle-system were unaffected, which
+# is what made this look like a gateway problem rather than a namespace one:
+# those namespaces have no default-deny policy.
+#
+# No port is listed on purpose. The selector already narrows this to solver pods,
+# which exist only while a certificate is being issued and serve nothing but the
+# ACME token; pinning cert-manager's solver port (8089 today) would reintroduce
+# this exact silent failure the day it changes.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-acme-http01-solver
+  namespace: app
+spec:
+  podSelector:
+    matchLabels:
+      acme.cert-manager.io/http01-solver: "true"
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
