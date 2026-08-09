@@ -251,10 +251,34 @@ install_gvisor_production() {
   echo "==> gVisor installed: $(/usr/local/bin/runsc --version 2>/dev/null | head -n 1 || echo "unknown version")"
 }
 
+# The password a service actually presents to RabbitMQ is the one in its
+# Secret, so that Secret - not a constant in this script - is what the broker
+# has to be synchronised against. rotate-service-passwords.sh only ever patches
+# the live Secret, never the tracked YAML, so re-applying prod/env/secret/ after
+# a rotation silently resets the app side while the broker keeps the rotated
+# password. Reading the value back here means the two are realigned on every
+# install, whether or not a rotation happened in between.
+rabbit_password_from_secret() {
+  local secret_name="$1"
+  local fallback="$2"
+  local value=""
+
+  value="$(kubectl -n app get secret "${secret_name}" -o jsonpath='{.data.RABBIT_PASSWORD}' 2>/dev/null | base64 -d 2>/dev/null || true)"
+
+  if [[ -z "${value}" ]]; then
+    value="${fallback}"
+  fi
+
+  printf '%s' "${value}"
+}
+
 bootstrap_rabbitmq_deploy_users() {
   local ns="db"
   local rabbit_pod=""
   local deadline
+  local producer_password=""
+  local consumer_password=""
+  local user_check
 
   if ! kubectl get namespace "${ns}" >/dev/null 2>&1; then
     echo "Warning: namespace ${ns} not found; skip RabbitMQ deployment-user bootstrap."
@@ -286,12 +310,15 @@ bootstrap_rabbitmq_deploy_users() {
     if kubectl -n "${ns}" exec "${rabbit_pod}" -- rabbitmqctl await_startup >/dev/null 2>&1; then
       kubectl -n "${ns}" exec "${rabbit_pod}" -- rabbitmqctl add_vhost "fctf_deploy" >/dev/null 2>&1 || true
 
-      if ! kubectl -n "${ns}" exec "${rabbit_pod}" -- rabbitmqctl change_password "deployment-producer" "${RABBIT_DEPLOY_PRODUCER_BOOTSTRAP_PASSWORD}" >/dev/null 2>&1; then
-        kubectl -n "${ns}" exec "${rabbit_pod}" -- rabbitmqctl add_user "deployment-producer" "${RABBIT_DEPLOY_PRODUCER_BOOTSTRAP_PASSWORD}" >/dev/null 2>&1
+      producer_password="$(rabbit_password_from_secret "deployment-center-secret" "${RABBIT_DEPLOY_PRODUCER_BOOTSTRAP_PASSWORD}")"
+      consumer_password="$(rabbit_password_from_secret "deployment-consumer-secret" "${RABBIT_DEPLOY_CONSUMER_BOOTSTRAP_PASSWORD}")"
+
+      if ! kubectl -n "${ns}" exec "${rabbit_pod}" -- rabbitmqctl change_password "deployment-producer" "${producer_password}" >/dev/null 2>&1; then
+        kubectl -n "${ns}" exec "${rabbit_pod}" -- rabbitmqctl add_user "deployment-producer" "${producer_password}" >/dev/null 2>&1
       fi
 
-      if ! kubectl -n "${ns}" exec "${rabbit_pod}" -- rabbitmqctl change_password "deployment-consumer" "${RABBIT_DEPLOY_CONSUMER_BOOTSTRAP_PASSWORD}" >/dev/null 2>&1; then
-        kubectl -n "${ns}" exec "${rabbit_pod}" -- rabbitmqctl add_user "deployment-consumer" "${RABBIT_DEPLOY_CONSUMER_BOOTSTRAP_PASSWORD}" >/dev/null 2>&1
+      if ! kubectl -n "${ns}" exec "${rabbit_pod}" -- rabbitmqctl change_password "deployment-consumer" "${consumer_password}" >/dev/null 2>&1; then
+        kubectl -n "${ns}" exec "${rabbit_pod}" -- rabbitmqctl add_user "deployment-consumer" "${consumer_password}" >/dev/null 2>&1
       fi
 
       if ! kubectl -n "${ns}" exec "${rabbit_pod}" -- rabbitmqctl change_password "admin" "${RABBIT_ADMIN_BOOTSTRAP_PASSWORD}" >/dev/null 2>&1; then
@@ -303,6 +330,20 @@ bootstrap_rabbitmq_deploy_users() {
       kubectl -n "${ns}" exec "${rabbit_pod}" -- rabbitmqctl set_permissions -p "fctf_deploy" "deployment-producer" "^$" "^(deployment_exchange)$" "^$" >/dev/null 2>&1
       kubectl -n "${ns}" exec "${rabbit_pod}" -- rabbitmqctl set_permissions -p "fctf_deploy" "deployment-consumer" "^$" "^$" "^(deployment_queue)$" >/dev/null 2>&1
       kubectl -n "${ns}" exec "${rabbit_pod}" -- rabbitmqctl set_permissions -p "fctf_deploy" "admin" ".*" ".*" ".*" >/dev/null 2>&1
+
+      # Prove the two sides agree before declaring the install done. Every way
+      # this can drift produces the same useless symptom: RabbitMQ.Client wraps
+      # an authentication failure in BrokerUnreachableException, deployment-center
+      # turns that into "Deployment service is temporarily unavailable", and the
+      # contestant sees a bare 500 with nothing naming RabbitMQ anywhere.
+      for user_check in "deployment-producer:${producer_password}" "deployment-consumer:${consumer_password}"; do
+        if ! kubectl -n "${ns}" exec "${rabbit_pod}" -- rabbitmqctl authenticate_user "${user_check%%:*}" "${user_check#*:}" >/dev/null 2>&1; then
+          echo "Error: RabbitMQ user '${user_check%%:*}' does not accept the password held in its Kubernetes Secret."
+          echo "Starting a challenge would fail with a 500 that never mentions RabbitMQ."
+          exit 1
+        fi
+      done
+
       return 0
     fi
 
