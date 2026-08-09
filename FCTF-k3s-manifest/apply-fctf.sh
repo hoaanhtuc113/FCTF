@@ -112,6 +112,48 @@ apply_manifest_with_default_sa() {
   fi
 }
 
+# The Kaniko builder's egress policy denies the private ranges, which also
+# covers the API server that the argoexec `wait` sidecar posts its
+# workflowtaskresults to. Without an explicit allow the symptom is not an
+# error anywhere: the image builds and lands in the registry, then the sidecar
+# retries the API forever and the workflow sits in Running until someone
+# deletes it. The two addresses cannot be baked into the manifest - the
+# ClusterIP follows --service-cidr and the endpoint is whatever address k3s
+# bound the API server to - so read both from the live cluster here. Calico
+# evaluates egress policy after service DNAT, which is why the endpoint is
+# needed on top of the ClusterIP.
+apply_kaniko_network_policy() {
+  local manifest="${PROD_DIR}/argo-workflows/up-challenge/kaniko-network-policy.yaml"
+  local api_cluster_ip api_endpoint_ip api_endpoint_port endpoint_count
+
+  if [[ ! -f "${manifest}" ]]; then
+    echo "Error: manifest not found at ${manifest}"
+    exit 1
+  fi
+
+  api_cluster_ip="$(kubectl -n default get svc kubernetes -o jsonpath='{.spec.clusterIP}')"
+  api_endpoint_ip="$(kubectl -n default get endpoints kubernetes -o jsonpath='{.subsets[0].addresses[0].ip}')"
+  api_endpoint_port="$(kubectl -n default get endpoints kubernetes -o jsonpath='{.subsets[0].ports[0].port}')"
+
+  if [[ -z "${api_cluster_ip}" || -z "${api_endpoint_ip}" || -z "${api_endpoint_port}" ]]; then
+    echo "Error: could not read the Kubernetes API address from svc/endpoints 'kubernetes' in namespace default."
+    echo "Applying the policy with the placeholders unresolved would hang every challenge build."
+    exit 1
+  fi
+
+  endpoint_count="$(kubectl -n default get endpoints kubernetes -o jsonpath='{.subsets[*].addresses[*].ip}' | wc -w)"
+  if [[ "${endpoint_count}" -gt 1 ]]; then
+    echo "Warning: the API server has ${endpoint_count} endpoints, the policy will only allow ${api_endpoint_ip}."
+    echo "         Add the other addresses to ${manifest} on a multi-master cluster."
+  fi
+
+  echo "==> Applying Kaniko NetworkPolicy (API server ${api_cluster_ip}:443 and ${api_endpoint_ip}:${api_endpoint_port})"
+  sed -e "s|<KUBERNETES_API_CLUSTER_IP>|${api_cluster_ip}|g" \
+      -e "s|<KUBERNETES_API_ENDPOINT_IP>|${api_endpoint_ip}|g" \
+      -e "s|<KUBERNETES_API_ENDPOINT_PORT>|${api_endpoint_port}|g" \
+      "${manifest}" | kubectl apply -f -
+}
+
 # challenge-gateway mounts gateway-tls as a volume, and kubelet mounts volumes
 # before it creates the pod sandbox - so while that secret is missing the pods
 # stay in ContainerCreating with no IP, no restarts, and events that say nothing
@@ -547,7 +589,7 @@ if [[ "${APPLY_ARGO_TEMPLATES}" == "true" ]]; then
   echo "==> Applying Argo workflow templates"
   kubectl apply -f "${PROD_DIR}/argo-workflows/start-chal-v2/start-chal-v2-template.yaml"
   kubectl apply -f "${PROD_DIR}/argo-workflows/up-challenge/up-challenge-template.yaml"
-  kubectl apply -f "${PROD_DIR}/argo-workflows/up-challenge/kaniko-network-policy.yaml"
+  apply_kaniko_network_policy
 fi
 
 bootstrap_rabbitmq_deploy_users
