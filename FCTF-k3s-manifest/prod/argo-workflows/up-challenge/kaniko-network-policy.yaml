@@ -22,6 +22,26 @@ spec:
           port: 53
         - protocol: TCP
           port: 53
+    # Kubernetes API. Argo injects a `wait` sidecar into this pod that reports
+    # the node's result back through the API once the build container exits;
+    # blocking it leaves the sidecar retrying forever, so the pod stays Running
+    # and the workflow never leaves Running even though the image was pushed.
+    # Two destinations because Calico evaluates egress policy after service
+    # DNAT: the ClusterIP for the pre-DNAT path, the API server's own address
+    # for the post-DNAT one. 10.43.0.1 is the first address of the default
+    # service CIDR in setup-master.sh - update it alongside --service-cidr.
+    - to:
+        - ipBlock:
+            cidr: 10.43.0.1/32
+      ports:
+        - protocol: TCP
+          port: 443
+    - to:
+        - ipBlock:
+            cidr: <MASTER_NODE_PRIVATE_IP>/32
+      ports:
+        - protocol: TCP
+          port: 6443
     # Registry push over HTTPS only - excludes private ranges and
     # link-local (blocks lateral movement to cluster/VPC and cloud
     # metadata via SSRF). The registry is an external SaaS (Docker Hub
