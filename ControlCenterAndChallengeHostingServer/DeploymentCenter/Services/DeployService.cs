@@ -718,6 +718,24 @@ public class DeployService : IDeployService
     {
         try
         {
+            // teamId/challengeId are ints, but ns is a free string that gets
+            // interpolated straight into the LogQL below. A value carrying a
+            // quote can close the ns matcher and append filters of its own -
+            // dropping the team filter to read another team's logs, or adding
+            // a line filter that makes Loki scan the whole retention window.
+            // The only legitimate value is a Kubernetes namespace name, so
+            // reject anything else instead of trying to escape it.
+            var ns = challengeReq.ns?.Trim();
+            if (!string.IsNullOrEmpty(ns) && !Regex.IsMatch(ns, @"^[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?$"))
+            {
+                return new BaseResponseDTO<PodLogsDTO>
+                {
+                    Success = false,
+                    HttpStatusCode = HttpStatusCode.BadRequest,
+                    Message = "Invalid namespace"
+                };
+            }
+
             var lokiBaseUrl = (DeploymentCenterConfigHelper.LOKI_BASE_URL ?? "http://loki-stack:3100").Trim();
             var lokiSelector = (DeploymentCenterConfigHelper.LOKI_QUERY_SELECTOR ?? "{app=\"challenge-gateway\"}").Trim();
 
@@ -756,9 +774,9 @@ public class DeployService : IDeployService
             var startNs = DateTimeOffset.UtcNow.AddHours(-6).ToUnixTimeMilliseconds() * 1_000_000;
 
             // Base filter: team + challenge. Optionally narrow to a specific namespace.
-            var logql = string.IsNullOrWhiteSpace(challengeReq.ns)
+            var logql = string.IsNullOrEmpty(ns)
                 ? $"{lokiSelector} | logfmt | team=\"{challengeReq.teamId}\" | challenge=\"{challengeReq.challengeId}\""
-                : $"{lokiSelector} | logfmt | team=\"{challengeReq.teamId}\" | challenge=\"{challengeReq.challengeId}\" | ns=\"{challengeReq.ns}\"";
+                : $"{lokiSelector} | logfmt | team=\"{challengeReq.teamId}\" | challenge=\"{challengeReq.challengeId}\" | ns=\"{ns}\"";
 
             var query = Uri.EscapeDataString(logql);
             var url = $"/loki/api/v1/query_range?query={query}&start={startNs}&end={endNs}&limit=2000&direction=backward";
