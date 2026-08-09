@@ -35,10 +35,24 @@ metadata:
   namespace: db
 spec:
   restartPolicy: Never
+  # db namespace enforces the "restricted" PodSecurity standard, so this pod
+  # needs the same non-root profile as the redis-master pod it's cleaning up
+  # after (podSecurityContext.fsGroup/runAsUser: 1001 in redis-values.yaml).
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1001
+    runAsGroup: 1001
+    fsGroup: 1001
+    seccompProfile:
+      type: RuntimeDefault
   containers:
     - name: wipe
       image: busybox
       command: ["sh", "-c", "rm -rf /data/* /data/.[!.]* ; ls -la /data ; echo WIPED"]
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop: ["ALL"]
       volumeMounts:
         - name: data
           mountPath: /data
