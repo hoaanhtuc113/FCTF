@@ -19,6 +19,7 @@ INTERACTIVE="true"
 ARG_COUNT=$#
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROD_DIR="${SCRIPT_DIR}/prod"
+DOMAINS_FILE="${SCRIPT_DIR}/../.fctf-domains"
 ROTATE_SERVICE_SCRIPT="${SCRIPT_DIR}/rotate-service-passwords.sh"
 MARIADB_AUTH_SECRET_FILE="${PROD_DIR}/env/secret/mariadb-auth-secret.yaml"
 REDIS_AUTH_SECRET_FILE="${PROD_DIR}/env/secret/redis-auth-secret.yaml"
@@ -87,8 +88,15 @@ require_domains_configured() {
   done
   echo
   echo "Run 'Configure service domains/IP' (manage.sh option 9) before installing."
-  echo "On a cluster that is already up, enter the SAME values as the first run -"
-  echo "a PV's NFS server address cannot be changed after the PV exists."
+
+  if [[ -f "${DOMAINS_FILE}" ]]; then
+    echo "Your answers from the last run are remembered in ${DOMAINS_FILE},"
+    echo "so option 9 offers them as defaults - press Enter to keep each one."
+  else
+    echo "On a cluster that is already up, enter the SAME values as the first run -"
+    echo "a PV's NFS server address cannot be changed after the PV exists."
+  fi
+
   exit 1
 }
 
