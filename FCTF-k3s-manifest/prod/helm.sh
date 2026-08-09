@@ -5,6 +5,15 @@
 # only failed much later, far from the cause.
 set -euo pipefail
 
+# Grafana, Rancher and Harbor previously shared one admin password written
+# into their values files, so a single copy of this repository was enough to
+# log into all three - one of them being the cluster-admin console. The
+# passwords are now generated on this machine and injected with --set below;
+# nothing here is committed.
+# shellcheck source=../platform-credentials.sh
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/platform-credentials.sh"
+fctf_ensure_platform_credentials
+
 # --------------APPLY HELM REPO AND CHARTS-----------------
 # Tạo PriorityClass (cần cho ingress-nginx và một số chart khác)
 kubectl apply -f ./priority-classes.yaml
@@ -79,6 +88,7 @@ helm repo update
 helm upgrade --install prometheus prometheus-community/kube-prometheus-stack \
   -n monitoring --create-namespace \
   -f ./helm/monitoring/prometheus-stack-values.yaml \
+  --set grafana.adminPassword="${GRAFANA_ADMIN_PASSWORD}" \
   --debug
 
 
@@ -96,6 +106,7 @@ helm repo update
 helm upgrade --install harbor harbor/harbor \
   --namespace registry --create-namespace \
   -f ./helm/registry/harbor-values.yaml \
+  --set harborAdminPassword="${HARBOR_ADMIN_PASSWORD}" \
   --debug
 
 # cài rancher
@@ -105,5 +116,6 @@ helm upgrade --install rancher rancher-latest/rancher \
   -n cattle-system \
   --create-namespace \
   -f ./helm/rancher/rancher-values.yaml \
+  --set bootstrapPassword="${RANCHER_BOOTSTRAP_PASSWORD}" \
   --debug
 
