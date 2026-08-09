@@ -56,11 +56,19 @@ metadata:
   name: start-chal-v2-workflow-sa-role
 rules:
   # Matches exactly what deploy-challenge-v2 applies from
-  # challenge-hardened.yaml/challenge-plain.yaml (Namespace, Service,
-  # NetworkPolicy, Job) plus the imagePullSecret copy step (Secret).
+  # challenge-hardened.yaml/challenge-plain.yaml (Namespace, ResourceQuota,
+  # Service, NetworkPolicy, Job) plus the imagePullSecret copy step (Secret).
   # This SA used to be bound to cluster-admin.
   - apiGroups: [""]
     resources: ["namespaces"]
+    verbs: ["create", "get"]
+  # `kubectl apply` reads the live object before writing it, so every kind
+  # here needs get alongside create - a missing get fails the apply even when
+  # the object does not exist yet. Leaving resourcequotas out did not stop the
+  # deploy: apply reported the quota as forbidden, carried on to create the
+  # Job, and the challenge ran in a namespace with no resource ceiling at all.
+  - apiGroups: [""]
+    resources: ["resourcequotas"]
     verbs: ["create", "get"]
   - apiGroups: [""]
     resources: ["services"]
