@@ -1,3 +1,9 @@
+#!/usr/bin/env bash
+# Without this, a failed chart install or a `kubectl wait` that times out was
+# just an error line in the log: the script kept going and exited with the
+# status of the last command, so apply-fctf.sh saw a successful Helm phase and
+# only failed much later, far from the cause.
+set -euo pipefail
 
 # --------------APPLY HELM REPO AND CHARTS-----------------
 # Tạo PriorityClass (cần cho ingress-nginx và một số chart khác)

@@ -1,4 +1,26 @@
 /*
+ NOT APPLIED BY ANY SCRIPT. Kept for reference only - do not run it against a
+ live database.
+
+ This is a hand-taken snapshot of one developer's `ctfd` schema, not the output
+ of CTFd's migration chain, and the two have diverged. It stamps
+ alembic_version at e9a1c2d3f4b5 while already containing tables that
+ migrations *after* that revision create, so CTFd replays those migrations on
+ first start and dies on the first one with
+
+   (1050, "Table 'contests' already exists")
+
+ Correcting the stamp does not rescue it: no single revision describes this
+ file. `contests` and `contest_participants` come from late migrations, while
+ `action_logs` is still in its pre-rename camelCase form (actionId, userId,
+ actionDate) and `unlocks`, `teams`, `awards`, `challenges` and others are
+ missing columns those same migrations add.
+
+ CTFd owns its schema. The MariaDB chart creates an empty `ctfd` database and a
+ user with rights over it, and CTFd builds the tables on first start. If a
+ pre-seeded schema is ever wanted again, generate it from a database CTFd has
+ migrated to head rather than editing this file.
+
  Navicat Premium Data Transfer
 
  Source Server         : localhost

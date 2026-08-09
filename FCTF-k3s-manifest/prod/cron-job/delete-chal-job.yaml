@@ -44,6 +44,12 @@ spec:
           # there meant any compromise of this container ran directly on the
           # node that controls the whole cluster.
           restartPolicy: Never
+          # The kubectl-cli image below lives in the private `fctf` Harbor
+          # project, same as every app image. Without this the job could never
+          # pull it and expired namespaces would simply never be cleaned up.
+          # setup-harbor.sh writes this secret into the cron-job namespace.
+          imagePullSecrets:
+            - name: regcred
           containers:
             - name: cleaner
               image: <REGISTRY_DOMAIN>/fctf/kubectl-cli:latest

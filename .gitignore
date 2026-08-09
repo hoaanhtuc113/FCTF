@@ -4,6 +4,11 @@ docker-compose.local.yml
 # Runtime environment config (contains server-specific URLs/ports — never commit)
 ContestantPortal/public/env.js
 
+# Domain/IP answers remembered by FCTF-k3s-manifest/configure-domains.sh so a
+# git pull does not cost you ten retyped values. Deployment-specific, and
+# MASTER_NODE_PRIVATE_IP in particular must not be shared between clusters.
+.fctf-domains
+
 # Logs
 logs
 *.log

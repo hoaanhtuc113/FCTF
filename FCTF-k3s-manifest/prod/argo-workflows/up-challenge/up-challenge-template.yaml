@@ -62,6 +62,11 @@ spec:
 
         # Kaniko needs root to write build layers, but does NOT require
         # privileged mode - that's the whole point of Kaniko vs Docker-in-Docker.
+        # It does need the filesystem-ownership capabilities: it chowns the
+        # Dockerfile it copies into /kaniko, and restores owner, mode, device
+        # nodes and file capabilities while extracting base image layers.
+        # Without them even uid 0 fails with EPERM. Everything dangerous
+        # (SYS_ADMIN, NET_RAW, NET_ADMIN, SYS_PTRACE, ...) stays dropped.
         securityContext:
           runAsUser: 0
           runAsGroup: 0
@@ -70,6 +75,15 @@ spec:
           allowPrivilegeEscalation: false
           capabilities:
             drop: ["ALL"]
+            add:
+              - CHOWN
+              - DAC_OVERRIDE
+              - FOWNER
+              - FSETID
+              - SETGID
+              - SETUID
+              - MKNOD
+              - SETFCAP
           seccompProfile:
             type: RuntimeDefault
 
