@@ -184,7 +184,7 @@ public class DeployService : IDeployService
         {
             await _redisHelper.RemoveCacheAsync(deploymentKey);
 
-            _logger.LogError(ex, null, startReq.teamId, new { startReq.challengeId });
+            _logger.LogError(ex, null, startReq.teamId, new { startReq.challengeId }, contestId: startReq.contestId);
             return new ChallengeDeployResponeDTO
             {
                 status = (int)HttpStatusCode.InternalServerError,
@@ -196,7 +196,7 @@ public class DeployService : IDeployService
         {
             await _redisHelper.RemoveCacheAsync(deploymentKey);
 
-            _logger.LogError(ex, null, startReq.teamId, new { startReq.challengeId });
+            _logger.LogError(ex, null, startReq.teamId, new { startReq.challengeId }, contestId: startReq.contestId);
             return new ChallengeDeployResponeDTO
             {
                 status = (int)HttpStatusCode.TooManyRequests,
@@ -208,7 +208,7 @@ public class DeployService : IDeployService
         {
             await _redisHelper.RemoveCacheAsync(deploymentKey);
 
-            _logger.LogError(ex, null, startReq.teamId, new { startReq.challengeId });
+            _logger.LogError(ex, null, startReq.teamId, new { startReq.challengeId }, contestId: startReq.contestId);
             return new ChallengeDeployResponeDTO
             {
                 status = (int)HttpStatusCode.InternalServerError,
@@ -220,7 +220,7 @@ public class DeployService : IDeployService
         {
             await _redisHelper.RemoveCacheAsync(deploymentKey);
 
-            _logger.LogError(ex, null, startReq.teamId, new { startReq.challengeId });
+            _logger.LogError(ex, null, startReq.teamId, new { startReq.challengeId }, contestId: startReq.contestId);
 
             return new ChallengeDeployResponeDTO
             {
@@ -258,7 +258,8 @@ public class DeployService : IDeployService
                 _logger.LogAudit(
                     "admin_force_delete_namespace",
                     before: new { @namespace = deployInfo._namespace, stopReq.challengeId, stopReq.teamId },
-                    userId: user.Id);
+                    userId: user.Id,
+                    contestId: stopReq.contestId);
                 await _k8SHealthService.DeleteNamespace(deployInfo._namespace ?? string.Empty);
 
                 deployInfo.status = DeploymentStatus.STOPPED;
@@ -303,7 +304,7 @@ public class DeployService : IDeployService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, null, stopReq.teamId, new { challengeId = stopReq.challengeId });
+            _logger.LogError(ex, null, stopReq.teamId, new { challengeId = stopReq.challengeId }, contestId: stopReq.contestId);
             await Console.Error.WriteLineAsync($"Error during stopping challenge: {ex.Message}");
             return new ChallengeDeployResponeDTO
             {
@@ -356,7 +357,8 @@ public class DeployService : IDeployService
                 userId,
                 null,
                 new { contestId, challengeCount = challengeIdFilter.Count },
-                level: LogLevel.Warning);
+                level: LogLevel.Warning,
+                contestId: contestId);
 
             var (successCount, failCount, errors) = await _k8SHealthService.DeleteAllChallengeNamespaces("ctf/kind=challenge", challengeIdFilter);
 
@@ -384,7 +386,7 @@ public class DeployService : IDeployService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex);
+            _logger.LogError(ex, contestId: contestId);
             await Console.Error.WriteLineAsync($"Error during stopping all challenges: {ex.Message}");
             return new BaseResponseDTO
             {
@@ -703,7 +705,7 @@ public class DeployService : IDeployService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, null, challengeReq.teamId, new { challengeId = challengeReq.challengeId });
+            _logger.LogError(ex, null, challengeReq.teamId, new { challengeId = challengeReq.challengeId }, contestId: challengeReq.contestId);
             await Console.Error.WriteLineAsync($"Error retrieving pod logs: {ex.Message}");
             return new BaseResponseDTO<PodLogsDTO>
             {
@@ -866,7 +868,7 @@ public class DeployService : IDeployService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, null, challengeReq.teamId, new { challengeId = challengeReq.challengeId });
+            _logger.LogError(ex, null, challengeReq.teamId, new { challengeId = challengeReq.challengeId }, contestId: challengeReq.contestId);
             await Console.Error.WriteLineAsync($"Error retrieving request logs from Loki. BaseUrl={DeploymentCenterConfigHelper.LOKI_BASE_URL}, Selector={DeploymentCenterConfigHelper.LOKI_QUERY_SELECTOR}, Error={ex.Message}");
             return new BaseResponseDTO<PodLogsDTO>
             {

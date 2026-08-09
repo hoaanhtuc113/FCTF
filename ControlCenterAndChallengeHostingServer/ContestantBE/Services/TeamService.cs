@@ -76,7 +76,7 @@ public class TeamService : ITeamService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, userId);
+            _logger.LogError(ex, userId, contestId: contestId);
             return null;
         }
     }
@@ -122,7 +122,7 @@ public class TeamService : ITeamService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, userId);
+            _logger.LogError(ex, userId, contestId: contestId);
             return [];
         }
     }

@@ -37,7 +37,11 @@ namespace ResourceShared.Logger
             // }
         }
 
-        public void Log(string action, int? userId, int? teamId, object? data = null, LogLevel level = LogLevel.Information, string? correlationId = null)
+        // contestId is last on every signature so existing positional callers
+        // keep compiling; pass it by name. It is emitted even when null so the
+        // field is always present in the JSON, which keeps Promtail's label
+        // extraction uniform across log lines.
+        public void Log(string action, int? userId, int? teamId, object? data = null, LogLevel level = LogLevel.Information, string? correlationId = null, int? contestId = null)
         {
              Write(new
             {
@@ -46,26 +50,28 @@ namespace ResourceShared.Logger
                 action,
                 userId,
                 teamId,
+                contestId,
                 correlationId,
                 data,
                 timestamp = DateTime.UtcNow.ToString("o")
             }, level: level);
         }
 
-        public void LogDebug(string message, object? data = null, LogLevel level = LogLevel.Debug, string? correlationId = null)
+        public void LogDebug(string message, object? data = null, LogLevel level = LogLevel.Debug, string? correlationId = null, int? contestId = null)
         {
             Write(new
             {
                 level = level.ToString(),
                 type = "debug",
                 message,
+                contestId,
                 correlationId,
                 data,
                 timestamp = DateTime.UtcNow.ToString("o")
             }, level: level);
         }
 
-        public void LogError(Exception ex, int? userId = null, int? teamId = null, object? data = null, LogLevel logLevel = LogLevel.Error, string? correlationId = null)
+        public void LogError(Exception ex, int? userId = null, int? teamId = null, object? data = null, LogLevel logLevel = LogLevel.Error, string? correlationId = null, int? contestId = null)
         {
             Write(new
             {
@@ -76,13 +82,14 @@ namespace ResourceShared.Logger
                 stackTrace = ex.StackTrace,
                 userId,
                 teamId,
+                contestId,
                 correlationId,
                 data,
                 timestamp = DateTime.UtcNow.ToString("o")
             }, level: logLevel);
         }
 
-        public void LogAudit(string action, object? before = null, object? after = null, int? userId = null, string? correlationId = null)
+        public void LogAudit(string action, object? before = null, object? after = null, int? userId = null, string? correlationId = null, int? contestId = null)
         {
             Write(new
             {
@@ -90,6 +97,7 @@ namespace ResourceShared.Logger
                 type = "audit",
                 action,
                 userId,
+                contestId,
                 correlationId,
                 before,
                 after,

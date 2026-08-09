@@ -50,7 +50,7 @@ public class ChallengeService : IChallengeService
         _multiServiceConnector = multiServiceConnector;
     }
 
-    private ChallengeRequirementsDTO? TryParseRequirements(string? requirementsJson, int challengeId, int? teamId)
+    private ChallengeRequirementsDTO? TryParseRequirements(string? requirementsJson, int challengeId, int? teamId, int contestId)
     {
         if (string.IsNullOrWhiteSpace(requirementsJson))
         {
@@ -63,7 +63,7 @@ public class ChallengeService : IChallengeService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, null, teamId, new { challengeId, requirements = requirementsJson });
+            _logger.LogError(ex, null, teamId, new { challengeId, requirements = requirementsJson }, contestId: contestId);
             return null;
         }
     }
@@ -125,7 +125,7 @@ public class ChallengeService : IChallengeService
             };
         }
 
-        var requirementsObj = TryParseRequirements(challenge.Requirements, challenge.Id, teamId);
+        var requirementsObj = TryParseRequirements(challenge.Requirements, challenge.Id, teamId, contestId);
 
         var solvedChallengeIds = await _dbContext.Solves
             .AsNoTracking()
@@ -357,7 +357,7 @@ public class ChallengeService : IChallengeService
 
         foreach (var challenge in challenges)
         {
-            var requirementsObj = TryParseRequirements(challenge.Requirements, challenge.Id, team_id);
+            var requirementsObj = TryParseRequirements(challenge.Requirements, challenge.Id, team_id, contestId);
 
             var isUnlocked = IsUnlockedByPrerequisites(requirementsObj, solvedChallengeIds, allChallengeIds);
             if (!isUnlocked && requirementsObj?.anonymize != true)
@@ -542,7 +542,7 @@ public class ChallengeService : IChallengeService
         }
         catch (HttpRequestException ex)
         {
-            _logger.LogError(ex);
+            _logger.LogError(ex, contestId: contestId);
             return new ChallengeDeployResponeDTO
             {
                 status = (int)HttpStatusCode.BadGateway,
@@ -552,7 +552,7 @@ public class ChallengeService : IChallengeService
         }
         catch (TaskCanceledException ex)
         {
-            _logger.LogError(ex, user?.Id, teamId, new { challengeId = challenge.Id });
+            _logger.LogError(ex, user?.Id, teamId, new { challengeId = challenge.Id }, contestId: contestId);
             return new ChallengeDeployResponeDTO
             {
                 status = (int)HttpStatusCode.GatewayTimeout,
@@ -562,7 +562,7 @@ public class ChallengeService : IChallengeService
         }
         catch (TimeoutException ex)
         {
-            _logger.LogError(ex, user?.Id, teamId, new { challengeId = challenge.Id });
+            _logger.LogError(ex, user?.Id, teamId, new { challengeId = challenge.Id }, contestId: contestId);
             return new ChallengeDeployResponeDTO
             {
                 status = (int)HttpStatusCode.GatewayTimeout,
@@ -572,7 +572,7 @@ public class ChallengeService : IChallengeService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, user?.Id, teamId, new { challengeId = challenge.Id });
+            _logger.LogError(ex, user?.Id, teamId, new { challengeId = challenge.Id }, contestId: contestId);
             return new ChallengeDeployResponeDTO
             {
                 status = (int)HttpStatusCode.InternalServerError,
@@ -673,7 +673,7 @@ public class ChallengeService : IChallengeService
         }
         catch (HttpRequestException ex)
         {
-            _logger.LogError(ex);
+            _logger.LogError(ex, contestId: contestId);
             return new ChallengeDeployResponeDTO
             {
                 status = (int)HttpStatusCode.BadGateway,
@@ -683,7 +683,7 @@ public class ChallengeService : IChallengeService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, user?.Id, null, new { challengeId });
+            _logger.LogError(ex, user?.Id, null, new { challengeId }, contestId: contestId);
             return new ChallengeDeployResponeDTO
             {
                 status = (int)HttpStatusCode.InternalServerError,

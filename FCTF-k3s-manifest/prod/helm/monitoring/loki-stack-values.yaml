@@ -111,6 +111,7 @@ promtail:
               action: action
               userId: userId
               teamId: teamId
+              contest_id: contestId
 
         - replace:
             source: level
@@ -133,11 +134,17 @@ promtail:
             expression: '(?i)("?(?:password|passwd|pwd|token|access_token|refresh_token|api[_-]?key|secret|authorization|cookie|set-cookie)"?\s*[:=]\s*)([^,\s}]+)'
             replace: '$1[REDACTED]'
 
-        # Gán labels
+        # Gán labels. contest_id is promoted to a label so a query can be
+        # scoped to one contest at the index level instead of relying on a
+        # `| logfmt | contest=...` line filter, which is a display filter and
+        # not a boundary. Cardinality stays tiny - one value per contest.
+        # userId/teamId are extracted above but deliberately NOT labels: they
+        # are unbounded and each new value creates a stream in Loki.
         - labels:
             level:
             type:
             action:
+            contest_id:
   extraObjects:
     - apiVersion: networking.k8s.io/v1
       kind: NetworkPolicy

@@ -64,7 +64,7 @@ public class ContestEndCleanupService : BackgroundService
 
         foreach (var contest in endedContests)
         {
-            _logger.LogDebug($"Contest '{contest.Name}' (id={contest.Id}) ended — triggering cleanup");
+            _logger.LogDebug($"Contest '{contest.Name}' (id={contest.Id}) ended — triggering cleanup", contestId: contest.Id);
 
             var challengeIds = await dbContext.Challenges
                 .Where(c => c.ContestId == contest.Id && c.RequireDeploy)
@@ -97,7 +97,7 @@ public class ContestEndCleanupService : BackgroundService
             else
             {
                 await MarkCleanupDoneAsync(dbContext, contest.Id, now, ct);
-                _logger.LogDebug($"Contest {contest.Id} cleanup complete", new { successCount });
+                _logger.LogDebug($"Contest {contest.Id} cleanup complete", new { successCount }, contestId: contest.Id);
             }
         }
     }
