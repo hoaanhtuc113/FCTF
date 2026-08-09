@@ -73,6 +73,7 @@ helm upgrade --install rabbitmq bitnami/rabbitmq \
   --namespace db --create-namespace \
   -f ./helm/db/rabbitmq/rabbitmq-values.yaml \
   --set global.security.allowInsecureImages=true \
+  --set auth.password="${RABBITMQ_ADMIN_PASSWORD}" \
   --debug
 
 # cài monitoring stack (prometheus, grafana, loki, promtail)

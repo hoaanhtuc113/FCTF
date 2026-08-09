@@ -30,6 +30,20 @@
 
 FCTF_CREDENTIALS_FILE="${FCTF_CREDENTIALS_FILE:-/etc/fctf/platform-credentials.env}"
 
+# The two backing services below behave differently again from the consoles:
+# their password is baked into state on first boot (MariaDB's datadir, the
+# RabbitMQ Mnesia database), so what is generated here is what a *fresh*
+# install gets. Changing either on a cluster that already runs is a migration,
+# not an edit - rotate-service-passwords.sh is the tool for that, because it
+# issues the ALTER USER / rabbitmqctl calls that move the live account too.
+FCTF_CREDENTIAL_KEYS=(
+  GRAFANA_ADMIN_PASSWORD
+  RANCHER_BOOTSTRAP_PASSWORD
+  HARBOR_ADMIN_PASSWORD
+  RABBITMQ_ADMIN_PASSWORD
+  MARIADB_ROOT_PASSWORD
+)
+
 # Every one of these is passed to `helm --set`, where a comma or a backslash
 # would be read as syntax rather than as part of the value. Restricting the
 # alphabet to [A-Za-z0-9] avoids the quoting problem entirely; the length is
@@ -107,7 +121,7 @@ fctf_ensure_platform_credentials() {
   existing="$(${sudo_cmd} cat "${FCTF_CREDENTIALS_FILE}")" \
     || { echo "Error: cannot read ${FCTF_CREDENTIALS_FILE}" >&2; return 1; }
 
-  for name in GRAFANA_ADMIN_PASSWORD RANCHER_BOOTSTRAP_PASSWORD HARBOR_ADMIN_PASSWORD; do
+  for name in "${FCTF_CREDENTIAL_KEYS[@]}"; do
     if ! printf '%s\n' "${existing}" | grep -q "^${name}="; then
       value="$(fctf_generate_secret 32)" || return 1
       ${sudo_cmd} sh -c "printf '%s=%s\n' '${name}' '${value}' >> '${FCTF_CREDENTIALS_FILE}'" \
@@ -118,13 +132,13 @@ fctf_ensure_platform_credentials() {
 
   # shellcheck disable=SC1090
   source <(${sudo_cmd} cat "${FCTF_CREDENTIALS_FILE}")
-  export GRAFANA_ADMIN_PASSWORD RANCHER_BOOTSTRAP_PASSWORD HARBOR_ADMIN_PASSWORD
 
-  for name in GRAFANA_ADMIN_PASSWORD RANCHER_BOOTSTRAP_PASSWORD HARBOR_ADMIN_PASSWORD; do
+  for name in "${FCTF_CREDENTIAL_KEYS[@]}"; do
     if [[ -z "${!name:-}" ]]; then
       echo "Error: ${name} is empty in ${FCTF_CREDENTIALS_FILE}" >&2
       return 1
     fi
+    export "${name?}"
   done
 }
 
@@ -181,6 +195,20 @@ fctf_show_platform_credentials() {
     "admin" \
     "$(_fctf_secret_value registry harbor-core HARBOR_ADMIN_PASSWORD)" \
     "set when Harbor first initialised its database; a later change made in the Harbor UI will not show here."
+
+  _fctf_report "RabbitMQ (management)" \
+    "$(_fctf_ingress_host db)" \
+    "admin" \
+    "$(_fctf_secret_value db rabbitmq rabbitmq-password)" \
+    "apply-fctf.sh re-applies this to the broker on every install, so the secret and the live account stay in step."
+
+  # No ingress: MariaDB is reachable only inside the cluster. Shown because an
+  # operator debugging the database needs it and it is otherwise buried.
+  _fctf_report "MariaDB (root)" \
+    "" \
+    "root" \
+    "$(_fctf_secret_value db mariadb-auth-secret mariadb-root-password)" \
+    "cluster-internal only. Rotating this on a running cluster needs rotate-service-passwords.sh, which also ALTERs the account."
 
   echo "Stored copy: ${FCTF_CREDENTIALS_FILE}"
   echo "==========================================================="
