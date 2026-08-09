@@ -284,36 +284,6 @@ rabbit_password_from_secret() {
   printf '%s' "${value}"
 }
 
-# Same reasoning as above, one layer deeper. MariaDB writes the root password
-# into its datadir the first time the server initialises, so pushing a
-# different one into the Secret afterwards does not move the account - it only
-# makes the Secret disagree with the database, and the next thing to
-# authenticate fails. Reuse whatever the cluster already holds; only a cluster
-# with no Secret yet takes the freshly generated password. Changing it on a
-# running install is rotate-service-passwords.sh's job, because that also
-# issues the ALTER USER.
-mariadb_root_password_to_apply() {
-  local value=""
-
-  value="$(kubectl -n db get secret mariadb-auth-secret -o jsonpath='{.data.mariadb-root-password}' 2>/dev/null | base64 -d 2>/dev/null || true)"
-
-  if [[ -z "${value}" ]]; then
-    value="${MARIADB_ROOT_PASSWORD}"
-  fi
-
-  printf '%s' "${value}"
-}
-
-# The manifest ships a ${MARIADB_ROOT_PASSWORD} placeholder instead of a
-# password. Substituting in memory and piping to kubectl means the rendered
-# Secret never touches the disk, so there is no file to forget to delete.
-apply_mariadb_auth_secret() {
-  local rendered password
-  password="$(mariadb_root_password_to_apply)"
-  rendered="$(cat "${MARIADB_AUTH_SECRET_FILE}")"
-  printf '%s\n' "${rendered//\$\{MARIADB_ROOT_PASSWORD\}/${password}}" | kubectl apply -f -
-}
-
 bootstrap_rabbitmq_deploy_users() {
   local ns="db"
   local rabbit_pod=""
@@ -536,7 +506,7 @@ if [[ "${APPLY_HELM}" == "true" ]]; then
   fi
 
   echo "==> Applying MariaDB auth secret before Helm"
-  apply_mariadb_auth_secret
+  kubectl apply -f "${MARIADB_AUTH_SECRET_FILE}"
 
   echo "==> Applying Redis auth secrets before Helm"
   kubectl apply -f "${REDIS_AUTH_SECRET_FILE}"
@@ -589,14 +559,7 @@ if [[ "${DEPLOY_APP_SERVICES}" == "true" ]]; then
   echo "==> Applying base classes, ConfigMaps and Secrets"
   kubectl apply -f "${PROD_DIR}/priority-classes.yaml"
     kubectl apply -f "${PROD_DIR}/env/configmap/"
-  # Applied one at a time rather than as a directory: mariadb-auth-secret.yaml
-  # holds a ${MARIADB_ROOT_PASSWORD} placeholder, and a blanket apply would
-  # write that literal string into the Secret as the root password.
-  for secret_manifest in "${PROD_DIR}"/env/secret/*.yaml; do
-    [[ "${secret_manifest}" == "${MARIADB_AUTH_SECRET_FILE}" ]] && continue
-    kubectl apply -f "${secret_manifest}"
-  done
-  apply_mariadb_auth_secret
+  kubectl apply -f "${PROD_DIR}/env/secret/"
 
   # Before the certificates below, not after: app/NetworkPolicy/ carries the rule
   # that lets the ingress controller reach cert-manager's HTTP-01 solver pods,

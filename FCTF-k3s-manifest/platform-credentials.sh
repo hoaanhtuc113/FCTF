@@ -30,18 +30,18 @@
 
 FCTF_CREDENTIALS_FILE="${FCTF_CREDENTIALS_FILE:-/etc/fctf/platform-credentials.env}"
 
-# The two backing services below behave differently again from the consoles:
-# their password is baked into state on first boot (MariaDB's datadir, the
-# RabbitMQ Mnesia database), so what is generated here is what a *fresh*
-# install gets. Changing either on a cluster that already runs is a migration,
-# not an edit - rotate-service-passwords.sh is the tool for that, because it
-# issues the ALTER USER / rabbitmqctl calls that move the live account too.
+# Scope is the consoles a human logs into over the Internet, nothing else.
+# RabbitMQ is here because its admin account is the management UI login served
+# on <RABBITMQ_DOMAIN>, not a service credential - the deployment services
+# authenticate as deployment-producer / deployment-consumer instead. Passwords
+# used only between pods inside the cluster (MariaDB root, the Redis ACL users,
+# the RabbitMQ producer/consumer pair) are deliberately left where they are;
+# rotate-service-passwords.sh owns those.
 FCTF_CREDENTIAL_KEYS=(
   GRAFANA_ADMIN_PASSWORD
   RANCHER_BOOTSTRAP_PASSWORD
   HARBOR_ADMIN_PASSWORD
   RABBITMQ_ADMIN_PASSWORD
-  MARIADB_ROOT_PASSWORD
 )
 
 # Every one of these is passed to `helm --set`, where a comma or a backslash
@@ -201,14 +201,6 @@ fctf_show_platform_credentials() {
     "admin" \
     "$(_fctf_secret_value db rabbitmq rabbitmq-password)" \
     "apply-fctf.sh re-applies this to the broker on every install, so the secret and the live account stay in step."
-
-  # No ingress: MariaDB is reachable only inside the cluster. Shown because an
-  # operator debugging the database needs it and it is otherwise buried.
-  _fctf_report "MariaDB (root)" \
-    "" \
-    "root" \
-    "$(_fctf_secret_value db mariadb-auth-secret mariadb-root-password)" \
-    "cluster-internal only. Rotating this on a running cluster needs rotate-service-passwords.sh, which also ALTERs the account."
 
   echo "Stored copy: ${FCTF_CREDENTIALS_FILE}"
   echo "==========================================================="
