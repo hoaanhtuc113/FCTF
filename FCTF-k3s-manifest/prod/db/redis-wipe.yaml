@@ -1,0 +1,48 @@
+# One-off manual recovery tool, not part of the regular apply-fctf.sh flow -
+# nothing in that script references this file, so applying it is always a
+# deliberate, explicit action.
+#
+# Use when redis-master is stuck failing to load its AOF (e.g. NOPERM on a
+# replayed MULTI/EXEC after an ACL change - the loading fake client checks
+# queued transactions against the CURRENT `default` user's permissions, not
+# whoever originally ran them, so tightening `default` in
+# redis-acl-file-secret.yaml breaks replay of any pre-existing MULTI/EXEC
+# history, including the transactions Redis auto-wraps around Lua script
+# effects). Redis has no RDB fallback (`save ""` in redis-values.yaml,
+# appendonly is the only persistence), so a broken AOF blocks startup
+# entirely and takes down every service that pings Redis at boot.
+#
+# Everything this instance holds is reconstructable/ephemeral - see the
+# per-account rationale comments in redis-acl-file-secret.yaml - so wiping it
+# and starting empty under the current ACL is the simple recovery path.
+# Before running, scale redis-master to 0 first (the PVC is ReadWriteOnce,
+# so the running pod must release it):
+#
+#   kubectl scale statefulset redis-master -n db --replicas=0
+#   kubectl wait --for=delete pod/redis-master-0 -n db --timeout=60s
+#   kubectl apply -f redis-wipe.yaml
+#   kubectl logs redis-wipe -n db
+#   kubectl delete pod redis-wipe -n db
+#   kubectl scale statefulset redis-master -n db --replicas=1
+#
+# claimName assumes the Bitnami chart's default naming for the `redis`
+# release's master StatefulSet - confirm with `kubectl get pvc -n db` and
+# edit below if it differs.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: redis-wipe
+  namespace: db
+spec:
+  restartPolicy: Never
+  containers:
+    - name: wipe
+      image: busybox
+      command: ["sh", "-c", "rm -rf /data/* /data/.[!.]* ; ls -la /data ; echo WIPED"]
+      volumeMounts:
+        - name: data
+          mountPath: /data
+  volumes:
+    - name: data
+      persistentVolumeClaim:
+        claimName: redis-data-redis-master-0
