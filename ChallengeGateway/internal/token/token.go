@@ -42,7 +42,12 @@ func Verify(token string) (Payload, error) {
 	_, _ = mac.Write([]byte(payloadB64))
 	expected := mac.Sum(nil)
 	if !hmac.Equal(sigBytes, expected) {
-		log.Printf("[token.Verify] signature mismatch: sigBytes=%q expected=%q", base64.RawURLEncoding.EncodeToString(sigBytes), base64.RawURLEncoding.EncodeToString(expected))
+		// Never log `expected` (or any prefix of it): it is the correct HMAC of
+		// a caller-supplied payload, so anyone who can read the logs could
+		// submit an arbitrary payload with a junk signature, read the answer
+		// back, and mint a valid token without ever knowing PRIVATE_KEY.
+		// The payload half carries no secret, so it stays for diagnostics.
+		log.Printf("[token.Verify] signature mismatch for payload=%q", payloadB64)
 		return Payload{}, fmt.Errorf("invalid token signature")
 	}
 

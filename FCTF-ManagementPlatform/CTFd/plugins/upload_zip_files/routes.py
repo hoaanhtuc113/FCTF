@@ -88,7 +88,6 @@ def update_challenge_info():
     secret_key_request = request.headers.get("SecretKey")
     if not secret_key_request:
         return jsonify({"error": "SecretKey is required"}), 400
-    print(secret_key_request)
     data = request.form.to_dict() or request.get_json()
 
     challenge_id = data.get("ChallengeId")
@@ -103,8 +102,6 @@ def update_challenge_info():
 
     data.pop("UnixTime", None)
     secret_key = create_secret_key(private_key, unix_time, data)
-    print(secret_key)
-    print(secret_key)
 
     if secret_key_request != secret_key:
         return jsonify({"error": "SecretKey is not correct"}), 400
