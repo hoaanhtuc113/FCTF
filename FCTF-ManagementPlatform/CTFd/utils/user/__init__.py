@@ -190,6 +190,36 @@ def is_jury():
         user_id=user.id, role="jury"
     ).first() is not None
 
+
+def is_jury_for_contest(contest_id):
+    """True if user has jury role for this specific contest (or is platform admin/jury)."""
+    if not authed():
+        return False
+    user = get_current_user_attrs()
+    if not user:
+        return False
+    if user.type in ("admin", "jury"):
+        return True
+    from CTFd.models import ContestParticipant
+    return db.session.query(ContestParticipant).filter_by(
+        user_id=user.id, contest_id=contest_id, role="jury"
+    ).first() is not None
+
+
+def is_challenge_writer_for_contest(contest_id):
+    """True if user has challenge_writer role for this specific contest (or is platform admin/challenge_writer)."""
+    if not authed():
+        return False
+    user = get_current_user_attrs()
+    if not user:
+        return False
+    if user.type in ("admin", "challenge_writer"):
+        return True
+    from CTFd.models import ContestParticipant
+    return db.session.query(ContestParticipant).filter_by(
+        user_id=user.id, contest_id=contest_id, role="challenge_writer"
+    ).first() is not None
+
 def is_conductor():
     """True if the user is a conductor — a platform-level role (Users.type),
     not a per-contest ContestParticipant role like jury/challenge_writer.
