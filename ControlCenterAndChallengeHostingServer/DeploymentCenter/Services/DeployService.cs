@@ -259,7 +259,8 @@ public class DeployService : IDeployService
                     "admin_force_delete_namespace",
                     before: new { @namespace = deployInfo._namespace, stopReq.challengeId, stopReq.teamId },
                     userId: user.Id,
-                    contestId: stopReq.contestId);
+                    contestId: stopReq.contestId,
+                    teamId: stopReq.teamId);
                 await _k8SHealthService.DeleteNamespace(deployInfo._namespace ?? string.Empty);
 
                 deployInfo.status = DeploymentStatus.STOPPED;

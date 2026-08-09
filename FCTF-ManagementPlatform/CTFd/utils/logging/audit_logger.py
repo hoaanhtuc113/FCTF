@@ -77,7 +77,79 @@ def _extract_target_id(action: str, data: dict | None) -> int | None:
     return None
 
 
-def log_audit(action: str, before=None, after=None, data=None) -> None:
+def _resolve_contest_id(action: str, data: dict | None, explicit) -> int | None:
+    """
+    Work out which contest an audited action landed in.
+
+    With several contests running at once, "who did what" is not enough for an
+    investigation — the entry has to say *where*. Reading that back out of the
+    before/after payload afterwards only works when the caller happened to put
+    it there, so it is resolved here into a field of its own.
+
+    Resolution order: what the caller passed, then a contest_id already sitting
+    in ``data``, then a lookup from the target row, then a last attempt through
+    any challenge_id / team_id the payload mentions. Deleting the target itself
+    defeats all of the lookups — those callers pass contest_id explicitly from
+    state captured before the delete.
+    """
+    if explicit is not None:
+        return explicit
+    if data and data.get("contest_id") is not None:
+        return data.get("contest_id")
+    if not data:
+        return None
+
+    try:
+        from CTFd.models import Awards, Brackets, Challenges, Flags, Hints, Submissions, Tags, Teams
+
+        # Models that carry the contest directly.
+        for prefix, model, key in (
+            ("challenge", Challenges, "challenge_id"),
+            ("team", Teams, "team_id"),
+            ("award", Awards, "award_id"),
+            ("bracket", Brackets, "bracket_id"),
+        ):
+            if action.startswith(prefix) and data.get(key) is not None:
+                row = model.query.filter_by(id=data[key]).first()
+                if row is not None:
+                    return row.contest_id
+                break
+
+        # Models one hop away, through the challenge they belong to.
+        for prefix, model, key in (
+            ("hint", Hints, "hint_id"),
+            ("submission", Submissions, "id"),
+            ("flag", Flags, "flag_id"),
+            ("tag", Tags, "tag_id"),
+        ):
+            if action.startswith(prefix) and data.get(key) is not None:
+                row = model.query.filter_by(id=data[key]).first()
+                if row is not None and row.challenge_id is not None:
+                    challenge = Challenges.query.filter_by(id=row.challenge_id).first()
+                    if challenge:
+                        return challenge.contest_id
+                break
+
+        # Catch-all for entries that name a challenge or team in their payload
+        # without the target row still being there — a delete records its audit
+        # after the row is gone, so the lookups above come back empty even
+        # though the payload still says which challenge it was.
+        if data.get("challenge_id") is not None:
+            challenge = Challenges.query.filter_by(id=data["challenge_id"]).first()
+            if challenge:
+                return challenge.contest_id
+        if data.get("team_id") is not None:
+            team = Teams.query.filter_by(id=data["team_id"]).first()
+            if team:
+                return team.contest_id
+    except Exception as exc:  # noqa: BLE001
+        # Never let attribution failure cost us the audit entry itself.
+        audit_logger.error("Failed to resolve contest_id for audit log: %s", exc)
+
+    return None
+
+
+def log_audit(action: str, before=None, after=None, data=None, contest_id=None) -> None:
     """
     Record a privileged action performed by an admin / jury / challenge_writer.
 
@@ -85,14 +157,22 @@ def log_audit(action: str, before=None, after=None, data=None) -> None:
        file, depending on the logging configuration).
     2. Persists a row to the ``admin_audit_logs`` database table so that
        history is searchable and survives log rotation.
+
+    ``contest_id`` is inferred from the target when it is not supplied; pass it
+    explicitly for platform-wide actions that still belong to a contest, or for
+    deletions where the row is already gone.
     """
     actor_id = session.get("id")
+    contest_id = _resolve_contest_id(action, data, contest_id)
 
+    # "contestId" matches the field AppLogger emits on the .NET side, so the
+    # Promtail pipeline lifts both onto the same contest_id Loki label.
     entry = {
         "level": "Information",
         "type": "audit",
         "action": action,
         "userId": actor_id,
+        "contestId": contest_id,
         "before": before,
         "after": after,
         "data": data,
@@ -136,6 +216,7 @@ def log_audit(action: str, before=None, after=None, data=None) -> None:
             action=action,
             target_type=_ACTION_TARGET_TYPES.get(action),
             target_id=_extract_target_id(action, data),
+            contest_id=contest_id,
             before_state=before,
             after_state=after,
             extra_data=data,

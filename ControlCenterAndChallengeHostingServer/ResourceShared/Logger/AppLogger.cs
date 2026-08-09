@@ -89,7 +89,11 @@ namespace ResourceShared.Logger
             }, level: logLevel);
         }
 
-        public void LogAudit(string action, object? before = null, object? after = null, int? userId = null, string? correlationId = null, int? contestId = null)
+        // An audit entry has to answer "who did what, to whom, in which contest"
+        // on its own. Reading the affected team or contest back out of the
+        // before/after payload is guesswork that depends on whatever the caller
+        // happened to put there, so both are structured fields here.
+        public void LogAudit(string action, object? before = null, object? after = null, int? userId = null, string? correlationId = null, int? contestId = null, int? teamId = null)
         {
             Write(new
             {
@@ -97,6 +101,7 @@ namespace ResourceShared.Logger
                 type = "audit",
                 action,
                 userId,
+                teamId,
                 contestId,
                 correlationId,
                 before,

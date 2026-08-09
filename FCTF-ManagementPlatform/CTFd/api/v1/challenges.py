@@ -856,6 +856,9 @@ class Challenge(Resource):
         # Store challenge info before deletion for audit
         challenge_info = {
             "challenge_id": challenge.id,
+            # Captured before the delete: once the row is gone the audit entry
+            # has no other way to say which contest lost the challenge.
+            "contest_id": challenge.contest_id,
             "name": challenge.name,
             "description": challenge.description,
             "category": challenge.category,
@@ -905,7 +908,8 @@ class Challenge(Resource):
         log_audit(
             action="challenge_delete",
             before=challenge_info,
-            data={"challenge_id": challenge_id, "name": challenge_info["name"]}
+            data={"challenge_id": challenge_id, "name": challenge_info["name"]},
+            contest_id=challenge_info["contest_id"],
         )
         
         if(challenge.state == "visible"):

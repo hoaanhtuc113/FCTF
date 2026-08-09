@@ -1590,6 +1590,13 @@ class AdminAuditLog(db.Model):
     target_type = db.Column(db.String(80), nullable=True)
     target_id = db.Column(db.Integer, nullable=True)
 
+    # Which contest the action landed in. Nullable because some audited
+    # actions are platform-wide (user CRUD, config, ctf_reset) and some
+    # deletions destroy the row the contest would have been read from.
+    # Deliberately not a ForeignKey: an audit trail has to survive the
+    # contest being deleted, which a CASCADE or SET NULL would undo.
+    contest_id = db.Column(db.Integer, nullable=True, index=True)
+
     before_state = db.Column(db.JSON, nullable=True)
     after_state = db.Column(db.JSON, nullable=True)
     extra_data = db.Column(db.JSON, nullable=True)
@@ -1617,6 +1624,7 @@ class AdminAuditLog(db.Model):
             "action": self.action,
             "target_type": self.target_type,
             "target_id": self.target_id,
+            "contest_id": self.contest_id,
             "before_state": self.before_state,
             "after_state": self.after_state,
             "extra_data": self.extra_data,
