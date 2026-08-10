@@ -1,0 +1,15 @@
+# PVC cho bản dump định kỳ của MariaDB (namespace db).
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mariadb-backup-pvc
+  namespace: db
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 20Gi
+  volumeName: nfs-mariadb-backup-pv
+  storageClassName: ""

@@ -39,6 +39,7 @@ STORAGE_PV_FILES=(
   "${PROD_DIR}/storage/pv/contestant-be-pv.yaml"
   "${PROD_DIR}/storage/pv/up-challenge-workflow-pv.yaml"
   "${PROD_DIR}/storage/pv/start-challenge-workflow-pv.yaml"
+  "${PROD_DIR}/storage/pv/mariadb-backup-pv.yaml"
 )
 
 STORAGE_PVC_FILES=(
@@ -46,6 +47,7 @@ STORAGE_PVC_FILES=(
   "${PROD_DIR}/storage/pvc/contestant-be-pvc.yaml"
   "${PROD_DIR}/storage/pvc/up-challenge-workflow-pvc.yaml"
   "${PROD_DIR}/storage/pvc/start-challenge-workflow-pvc.yaml"
+  "${PROD_DIR}/storage/pvc/mariadb-backup-pvc.yaml"
 )
 
 # Same list configure-domains.sh substitutes. REDIS_ADMIN_CIDR is deliberately
@@ -540,6 +542,9 @@ if [[ "${APPLY_HELM}" == "true" ]]; then
   echo "==> Applying db NetworkPolicy"
   kubectl apply -f "${PROD_DIR}/db/NetworkPolicy/"
 
+  echo "==> Applying MariaDB backup CronJob"
+  kubectl apply -f "${PROD_DIR}/db/mariadb-backup-cronjob.yaml"
+
   # The Redis NodePort is not applied or removed here. It lives in
   # prod/db-nodeport.yaml and is applied by hand together with its firewall rule
   # and admin NetworkPolicy - see that file's header. Applying it without both
@@ -601,6 +606,9 @@ if [[ "${DEPLOY_APP_SERVICES}" == "true" ]]; then
   # would otherwise leave the db namespace denying them.
   echo "==> Applying db NetworkPolicy"
   kubectl apply -f "${PROD_DIR}/db/NetworkPolicy/"
+
+  echo "==> Applying MariaDB backup CronJob"
+  kubectl apply -f "${PROD_DIR}/db/mariadb-backup-cronjob.yaml"
 
   echo "==> Applying readOnlyRootFilesystem admission policy"
   kubectl apply -f "${PROD_DIR}/app/readonly-rootfs-policy.yaml"

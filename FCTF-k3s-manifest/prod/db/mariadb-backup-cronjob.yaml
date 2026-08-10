@@ -1,0 +1,179 @@
+# Hourly logical backup of MariaDB.
+#
+# This is the only copy of the contest data that exists. MariaDB's own volume
+# comes from the default local-path storage class, which is a directory on one
+# node with reclaim policy Delete - so `kubectl delete pvc`, a mistaken
+# `helm uninstall`, or that node losing its disk destroys every user, team,
+# submission and score with no way back. Nothing else in the repository backs
+# any of it up.
+#
+# Scope is deliberately just the database. Challenge images are rebuildable
+# from Harbor, cluster state is rebuildable from this repository; the rows in
+# here are not rebuildable from anything.
+---
+# The job runs in namespace db, which carries a default-deny NetworkPolicy for
+# both directions, so without this it cannot reach the database or even
+# resolve its name - and would fail every hour for a reason that looks
+# nothing like a network problem.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: mariadb-backup-egress
+  namespace: db
+spec:
+  podSelector:
+    matchLabels:
+      app: mariadb-backup
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/instance: mariadb
+              app.kubernetes.io/name: mariadb
+      ports:
+        - protocol: TCP
+          port: 3306
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+# No egress rule is needed for the NFS volume: the kubelet performs that mount
+# on the node, outside the pod's network namespace.
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: mariadb-backup
+  namespace: db
+spec:
+  schedule: "0 * * * *"
+  timeZone: "Asia/Ho_Chi_Minh"
+  # A dump that overruns the hour must not have a second copy started on top
+  # of it, both writing to the same directory.
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 600
+  successfulJobsHistoryLimit: 3
+  # Kept deliberately higher than the success count: a failed backup is the
+  # thing worth being able to read the logs of, hours later.
+  failedJobsHistoryLimit: 10
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        metadata:
+          labels:
+            app: mariadb-backup
+            # MariaDB's chart runs with networkPolicy.allowExternal false, so
+            # its ingress rule admits only pods carrying this exact label.
+            # Without it the connection is refused by policy, not by MariaDB.
+            mariadb-client: "true"
+        spec:
+          restartPolicy: Never
+          # Namespace db enforces the restricted Pod Security Standard.
+          securityContext:
+            runAsNonRoot: true
+            # 1106: 1101-1105 are already assigned to admin-mvc, contestant-be,
+            # up-challenge, start-chal-v2 and filebrowser in nfs-setup.sh.
+            # Reusing one would give this job that service's access to the
+            # challenge directories, which it has no business touching.
+            runAsUser: 1106
+            runAsGroup: 1106
+            fsGroup: 1106
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: dump
+              # Same image the server runs, so it is already on the node and
+              # the client version cannot drift from the server version.
+              image: docker.io/bitnamilegacy/mariadb:12.0.2-debian-12-r0
+              imagePullPolicy: IfNotPresent
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop:
+                    - ALL
+              env:
+                # Passed as MYSQL_PWD rather than --password so the credential
+                # does not appear in the process list.
+                - name: MYSQL_PWD
+                  valueFrom:
+                    secretKeyRef:
+                      name: mariadb-auth-secret
+                      key: mariadb-root-password
+                - name: KEEP
+                  value: "72"
+              command:
+                - /bin/bash
+                - -c
+                - |
+                  # pipefail is what makes this a backup rather than a file:
+                  # without it a mariadb-dump that dies halfway still exits 0
+                  # because gzip succeeded, and the job reports success while
+                  # writing a truncated dump.
+                  set -euo pipefail
+
+                  ts="$(date -u +%Y%m%dT%H%M%SZ)"
+                  out="/backup/mariadb-${ts}.sql.gz"
+
+                  # Written under a .partial name and renamed only once the
+                  # dump and the integrity check both pass, so an interrupted
+                  # run can never leave something that looks restorable.
+                  mariadb-dump \
+                    --host=mariadb-headless.db.svc.cluster.local \
+                    --port=3306 \
+                    --user=root \
+                    --all-databases \
+                    --single-transaction \
+                    --routines \
+                    --triggers \
+                    --events \
+                    | gzip -c > "${out}.partial"
+
+                  gzip -t "${out}.partial"
+
+                  # A dump of a live platform is never this small; if it is,
+                  # something answered without returning the data.
+                  size="$(stat -c %s "${out}.partial")"
+                  if [[ "${size}" -lt 10240 ]]; then
+                    echo "Refusing to keep a ${size}-byte dump - too small to be real." >&2
+                    rm -f "${out}.partial"
+                    exit 1
+                  fi
+
+                  mv "${out}.partial" "${out}"
+                  echo "Wrote ${out} (${size} bytes compressed)"
+
+                  # Prune oldest first, and only after the new one landed, so
+                  # a failing backup never erodes the copies already held.
+                  ls -1t /backup/mariadb-*.sql.gz \
+                    | tail -n "+$((KEEP + 1))" \
+                    | xargs -r rm -f
+
+                  echo "Retained $(ls -1 /backup/mariadb-*.sql.gz | wc -l) backups"
+              volumeMounts:
+                - name: backup
+                  mountPath: /backup
+                - name: tmp
+                  mountPath: /tmp
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 128Mi
+                limits:
+                  cpu: 500m
+                  memory: 512Mi
+          volumes:
+            - name: backup
+              persistentVolumeClaim:
+                claimName: mariadb-backup-pvc
+            # readOnlyRootFilesystem is on, and the client writes scratch here.
+            - name: tmp
+              emptyDir: {}
