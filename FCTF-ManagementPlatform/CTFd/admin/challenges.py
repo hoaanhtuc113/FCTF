@@ -1,4 +1,3 @@
-import hashlib
 import os
 import time
 import requests
@@ -33,6 +32,7 @@ from CTFd.utils.security.signing import serialize
 from CTFd.utils.user import get_current_team, get_current_user, is_admin,is_jury
 from CTFd.utils.uploads import upload_file
 from CTFd.constants.envvars import DEPLOYMENT_SERVICE_API, PRIVATE_KEY
+from CTFd.utils.connector.multiservice_connector import create_secret_key
 from CTFd.plugins import bypass_csrf_protection
 from CTFd.constants import status_challenge
 
@@ -373,16 +373,6 @@ def submit_upload_file(challenge_id):
     db.session.commit()
     flash("Challenge deployment updated successfully!", "success")
     return redirect(url_for("admin.challenges_detail", challenge_id=challenge.id))
-
-
-def create_secret_key(
-    private_key: str, unix_time: int, data: dict, default_value: str = "1"
-) -> str:
-    sorted_key = sorted(data.keys())
-    combine_string = str(unix_time) + private_key
-    for key in sorted_key:
-        combine_string += str(data.get(key, default_value))
-    return hashlib.md5(combine_string.encode()).hexdigest()
 
 
 @admin.route("/api/challenge/start", methods=["POST"])
