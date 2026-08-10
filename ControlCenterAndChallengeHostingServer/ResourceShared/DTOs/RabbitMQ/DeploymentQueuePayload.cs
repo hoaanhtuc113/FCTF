@@ -1,4 +1,5 @@
-﻿using System;
+﻿using ResourceShared.DTOs.Challenge;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -16,7 +17,13 @@ namespace ResourceShared.DTOs.RabbitMQ
     public class DequeuedMessage
     {
         public ulong DeliveryTag { get; set; }
-        public DeploymentQueuePayload Payload { get; set; }
+        public DeploymentQueuePayload Payload { get; set; } = new();
+
+        // Deserialized and validated out of Payload.Data at the consumer boundary,
+        // so the worker never parses an untrusted string in the middle of its loop
+        // where a failure has no delivery tag to settle.
+        public ChallengeStartStopReqDTO Request { get; set; } = new();
+
         public IDictionary<string, object?>? Headers { get; set; }
     }
 }

@@ -92,12 +92,10 @@ internal class Worker : BackgroundService
         {
             _logger.LogInformation($"[Worker] Excuting message with tag {mess.DeliveryTag}");
 
-            var startReq = JsonSerializer.Deserialize<ChallengeStartStopReqDTO>(mess.Payload.Data);
-            if (startReq == null)
-            {
-                _logger.LogError("Invalid payload");
-                continue;
-            }
+            // Deserialized and validated by DeploymentConsumerService when the
+            // message came off the queue; anything that failed there was nacked
+            // there and never reached this batch.
+            var startReq = mess.Request;
 
             var deploymentKey = ChallengeHelper.GetCacheKey(startReq.challengeId, startReq.teamId);
             var deploymentCache = await _redisHelper.GetFromCacheAsync<ChallengeDeploymentCacheDTO>(deploymentKey);

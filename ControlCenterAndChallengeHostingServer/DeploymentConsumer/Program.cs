@@ -39,7 +39,9 @@ builder.Services.AddSingleton<IDeploymentConsumerService>(sp =>
     var vhost = DeploymentConsumerConfigHelper.RABBIT_VHOST;
     var useTls = DeploymentConsumerConfigHelper.RABBIT_TLS;
 
-    return new DeploymentConsumerService(host, user, pass, port, vhost, useTls);
+    var logger = sp.GetRequiredService<ILogger<DeploymentConsumerService>>();
+
+    return new DeploymentConsumerService(logger, host, user, pass, port, vhost, useTls);
 });
 
 builder.Services.AddResourceShared();

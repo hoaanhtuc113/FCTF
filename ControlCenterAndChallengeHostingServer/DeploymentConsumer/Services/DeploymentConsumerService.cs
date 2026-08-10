@@ -1,8 +1,7 @@
-﻿using RabbitMQ.Client;
+﻿using Microsoft.Extensions.Logging;
+using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using ResourceShared.DTOs.RabbitMQ;
-using System.Text;
-using System.Text.Json;
 using System.Threading.Channels;
 
 namespace DeploymentConsumer.Services;
@@ -21,10 +20,12 @@ public class DeploymentConsumerService : IDeploymentConsumerService, IAsyncDispo
     private string? _consumerTag;
     private readonly ConnectionFactory _factory;
     private readonly Channel<DequeuedMessage> _messageBuffer;
+    private readonly ILogger<DeploymentConsumerService> _logger;
 
     private const string QueueName = "deployment_queue";
 
     public DeploymentConsumerService(
+        ILogger<DeploymentConsumerService> logger,
         string host,
         string username,
         string password,
@@ -33,6 +34,8 @@ public class DeploymentConsumerService : IDeploymentConsumerService, IAsyncDispo
         bool useTls = false,
         string? sslServerName = null)
     {
+        _logger = logger;
+
         _factory = new ConnectionFactory
         {
             HostName = host,
@@ -83,12 +86,25 @@ public class DeploymentConsumerService : IDeploymentConsumerService, IAsyncDispo
     {
         try
         {
-            var body = Encoding.UTF8.GetString(ea.Body.ToArray());
-            var payload = JsonSerializer.Deserialize<DeploymentQueuePayload>(body);
+            if (!DeploymentMessageValidator.TryParseEnvelope(ea.Body.ToArray(), out var payload, out var envelopeError))
+            {
+                await RejectAsync(ea.DeliveryTag, envelopeError);
+                return;
+            }
 
-            if (payload != null && payload.Expiry < DateTime.UtcNow)
+            if (payload.Expiry < DateTime.UtcNow)
             {
                 await _channel!.BasicAckAsync(ea.DeliveryTag, false);
+                return;
+            }
+
+            // Parsed and checked here rather than in the worker loop: a message
+            // that cannot produce a usable request must be settled while its
+            // delivery tag is still in hand, otherwise it holds a prefetch slot
+            // for the lifetime of the channel.
+            if (!DeploymentMessageValidator.TryParseRequest(payload.Data, out var request, out var requestError))
+            {
+                await RejectAsync(ea.DeliveryTag, requestError);
                 return;
             }
 
@@ -96,15 +112,26 @@ public class DeploymentConsumerService : IDeploymentConsumerService, IAsyncDispo
             await _messageBuffer.Writer.WriteAsync(new DequeuedMessage
             {
                 DeliveryTag = ea.DeliveryTag,
-                Payload = payload!,
+                Payload = payload,
+                Request = request,
                 Headers = ea.BasicProperties?.Headers ?? new Dictionary<string, object?>()
             });
         }
-        catch
+        catch (Exception ex)
         {
-            if (_channel is { IsOpen: true })
-                await _channel.BasicNackAsync(ea.DeliveryTag, false, false);
+            await RejectAsync(ea.DeliveryTag, $"unhandled error: {ex.Message}");
         }
+    }
+
+    // A message rejected here will not parse differently on a second attempt, so
+    // it is dropped instead of requeued. The reason is logged because the queue
+    // has no dead-letter exchange to inspect it in afterwards.
+    private async Task RejectAsync(ulong deliveryTag, string reason)
+    {
+        _logger.LogWarning("Rejecting deployment message {DeliveryTag}: {Reason}", deliveryTag, reason);
+
+        if (_channel is { IsOpen: true })
+            await _channel.BasicNackAsync(deliveryTag, false, false);
     }
 
     public async Task<List<DequeuedMessage>> DequeueAvailableBatchAsync(int count)
@@ -114,7 +141,10 @@ public class DeploymentConsumerService : IDeploymentConsumerService, IAsyncDispo
         var batch = new List<DequeuedMessage>();
         while (batch.Count < count && _messageBuffer.Reader.TryRead(out var msg))
         {
-            if (msg.Payload != null && msg.Payload.Expiry < DateTime.UtcNow)
+            // Buffered messages only reach here after passing validation, so the
+            // one thing left to recheck is whether the wait in the buffer outlived
+            // the deploy window.
+            if (msg.Payload.Expiry < DateTime.UtcNow)
             {
                 await AckAsync(msg.DeliveryTag);
                 continue;
