@@ -85,9 +85,13 @@ spec:
             # challenge directories, which it has no business touching.
             runAsUser: 1106
             runAsGroup: 1106
-            fsGroup: 1106
             seccompProfile:
               type: RuntimeDefault
+          # No fsGroup on purpose. The NFS export runs root_squash, so the
+          # recursive chown the kubelet would attempt cannot succeed, and the
+          # ACL in nfs-setup.sh grants UID 1106 directly rather than by group -
+          # so fsGroup would buy nothing and add a way for the mount to
+          # complain.
           containers:
             - name: dump
               # Same image the server runs, so it is already on the node and
@@ -110,6 +114,11 @@ spec:
                       key: mariadb-root-password
                 - name: KEEP
                   value: "72"
+                # 1106 has no entry in /etc/passwd, so the client cannot look
+                # up a home directory. Pointing HOME at the writable emptyDir
+                # keeps it from probing an unreadable path for ~/.my.cnf.
+                - name: HOME
+                  value: /tmp
               command:
                 - /bin/bash
                 - -c
@@ -120,13 +129,27 @@ spec:
                   # writing a truncated dump.
                   set -euo pipefail
 
+                  # MariaDB renamed mysqldump to mariadb-dump in 11.x, and the
+                  # image tag above will move eventually. Resolve it rather
+                  # than assume, and say so plainly if neither is here - the
+                  # alternative is an hourly failure whose log reads
+                  # "command not found" with no hint of which command mattered.
+                  if command -v mariadb-dump >/dev/null 2>&1; then
+                    DUMP=mariadb-dump
+                  elif command -v mysqldump >/dev/null 2>&1; then
+                    DUMP=mysqldump
+                  else
+                    echo "Neither mariadb-dump nor mysqldump exists in this image." >&2
+                    exit 1
+                  fi
+
                   ts="$(date -u +%Y%m%dT%H%M%SZ)"
                   out="/backup/mariadb-${ts}.sql.gz"
 
                   # Written under a .partial name and renamed only once the
                   # dump and the integrity check both pass, so an interrupted
                   # run can never leave something that looks restorable.
-                  mariadb-dump \
+                  "${DUMP}" \
                     --host=mariadb-headless.db.svc.cluster.local \
                     --port=3306 \
                     --user=root \
