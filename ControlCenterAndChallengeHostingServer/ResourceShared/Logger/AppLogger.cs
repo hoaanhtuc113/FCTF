@@ -41,6 +41,13 @@ namespace ResourceShared.Logger
         // keep compiling; pass it by name. It is emitted even when null so the
         // field is always present in the JSON, which keeps Promtail's label
         // extraction uniform across log lines.
+        //
+        // correlationId falls back to the ambient one for the request being
+        // served. It was a parameter no caller ever passed, so every line the
+        // platform has written carries a null there - including the ones
+        // audit-policy.yaml expects an investigator to join K8s audit events
+        // against. The default makes the field mean something without touching
+        // the call sites.
         public void Log(string action, int? userId, int? teamId, object? data = null, LogLevel level = LogLevel.Information, string? correlationId = null, int? contestId = null)
         {
              Write(new
@@ -51,7 +58,7 @@ namespace ResourceShared.Logger
                 userId,
                 teamId,
                 contestId,
-                correlationId,
+                correlationId = correlationId ?? CorrelationContext.Current,
                 data,
                 timestamp = DateTime.UtcNow.ToString("o")
             }, level: level);
@@ -65,7 +72,7 @@ namespace ResourceShared.Logger
                 type = "debug",
                 message,
                 contestId,
-                correlationId,
+                correlationId = correlationId ?? CorrelationContext.Current,
                 data,
                 timestamp = DateTime.UtcNow.ToString("o")
             }, level: level);
@@ -83,7 +90,7 @@ namespace ResourceShared.Logger
                 userId,
                 teamId,
                 contestId,
-                correlationId,
+                correlationId = correlationId ?? CorrelationContext.Current,
                 data,
                 timestamp = DateTime.UtcNow.ToString("o")
             }, level: logLevel);
@@ -103,7 +110,7 @@ namespace ResourceShared.Logger
                 userId,
                 teamId,
                 contestId,
-                correlationId,
+                correlationId = correlationId ?? CorrelationContext.Current,
                 before,
                 after,
                 timestamp = DateTime.UtcNow.ToString("o")

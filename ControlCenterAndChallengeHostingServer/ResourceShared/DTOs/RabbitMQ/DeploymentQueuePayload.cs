@@ -24,6 +24,10 @@ namespace ResourceShared.DTOs.RabbitMQ
         // where a failure has no delivery tag to settle.
         public ChallengeStartStopReqDTO Request { get; set; } = new();
 
-        public IDictionary<string, object?>? Headers { get; set; }
+        // Read from the message's MessageId: the id of the HTTP request that
+        // enqueued this, which is what ties the worker's log lines back to the
+        // caller. Replaces a Headers dictionary that was copied off every message
+        // and read by nobody - the producer never set any headers to begin with.
+        public string CorrelationId { get; set; } = string.Empty;
     }
 }

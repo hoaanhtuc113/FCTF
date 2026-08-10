@@ -213,6 +213,12 @@ namespace ResourceShared.Utils
                 .AddHeader("Content-Type", "application/json")
                 .AddJsonBody(body);
 
+            // Carry the caller's correlation id across the hop so the receiving
+            // service logs under the same id instead of starting its own chain.
+            var correlationId = Logger.CorrelationContext.Current;
+            if (!string.IsNullOrEmpty(correlationId))
+                request.AddHeader(Middlewares.CorrelationIdMiddleware.HeaderName, correlationId);
+
             if (headers != null)
                 foreach (var h in headers)
                     request.AddHeader(h.Key, h.Value);

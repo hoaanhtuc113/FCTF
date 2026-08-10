@@ -14,6 +14,12 @@
 # HTTP request/admin* triggered it still requires joining with the app-level
 # correlationId (see AppLogger) - K8s audit log cannot know that on its own,
 # since it only ever sees the shared SA identity.
+#
+# That join is: the workflow carries the same id as the label
+# fctf.correlation-id, applied at submit time by ChallengeHelper.BuildArgoPayload,
+# and every app log line for the request carries it in its correlationId field.
+# Both come from the X-Correlation-Id header minted when the contestant's request
+# first reached the platform.
 apiVersion: audit.k8s.io/v1
 kind: Policy
 omitStages:

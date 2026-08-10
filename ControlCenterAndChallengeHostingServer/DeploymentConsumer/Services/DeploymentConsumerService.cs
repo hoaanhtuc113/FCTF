@@ -2,6 +2,7 @@
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using ResourceShared.DTOs.RabbitMQ;
+using ResourceShared.Logger;
 using System.Text;
 using System.Threading.Channels;
 
@@ -85,6 +86,11 @@ public class DeploymentConsumerService : IDeploymentConsumerService, IAsyncDispo
 
     private async Task OnMessageReceivedAsync(object sender, BasicDeliverEventArgs ea)
     {
+        // Adopted before anything else runs, so even a rejection logs under the
+        // id of the request that produced the message rather than under nothing.
+        var correlationId = CorrelationContext.Accept(ea.BasicProperties?.MessageId);
+        CorrelationContext.Current = correlationId;
+
         try
         {
             if (!DeploymentMessageValidator.TryParseEnvelope(ea.Body.ToArray(), out var payload, out var envelopeError))
@@ -100,8 +106,8 @@ public class DeploymentConsumerService : IDeploymentConsumerService, IAsyncDispo
                 // it expire again. Logged because it used to pass silently, and a
                 // run of these is how an overloaded deploy pipeline shows itself.
                 _logger.LogInformation(
-                    "Dropping deployment message {DeliveryTag}: expired at {Expiry:O}, queued at {CreatedAt:O}",
-                    ea.DeliveryTag, payload.Expiry, payload.CreatedAt);
+                    "Dropping deployment message {DeliveryTag}: expired at {Expiry:O}, queued at {CreatedAt:O}. CorrelationId={CorrelationId}",
+                    ea.DeliveryTag, payload.Expiry, payload.CreatedAt, correlationId);
 
                 await _channel!.BasicAckAsync(ea.DeliveryTag, false);
                 return;
@@ -119,13 +125,12 @@ public class DeploymentConsumerService : IDeploymentConsumerService, IAsyncDispo
 
             LogIfRedelivered(ea);
 
-            // Preserve message headers (contains tracing context) so downstream worker can extract propagation context
             await _messageBuffer.Writer.WriteAsync(new DequeuedMessage
             {
                 DeliveryTag = ea.DeliveryTag,
                 Payload = payload,
                 Request = request,
-                Headers = ea.BasicProperties?.Headers ?? new Dictionary<string, object?>()
+                CorrelationId = correlationId
             });
         }
         catch (Exception ex)
@@ -140,7 +145,9 @@ public class DeploymentConsumerService : IDeploymentConsumerService, IAsyncDispo
     // message was rejected, not what this service objected to.
     private async Task RejectAsync(ulong deliveryTag, string reason)
     {
-        _logger.LogWarning("Rejecting deployment message {DeliveryTag}: {Reason}", deliveryTag, reason);
+        _logger.LogWarning(
+            "Rejecting deployment message {DeliveryTag}: {Reason}. CorrelationId={CorrelationId}",
+            deliveryTag, reason, CorrelationContext.Current);
 
         if (_channel is { IsOpen: true })
             await _channel.BasicNackAsync(deliveryTag, false, false);
@@ -157,8 +164,8 @@ public class DeploymentConsumerService : IDeploymentConsumerService, IAsyncDispo
             return;
 
         _logger.LogWarning(
-            "Deployment message {DeliveryTag} was dead-lettered before: {Death}",
-            ea.DeliveryTag, DescribeDeath(death));
+            "Deployment message {DeliveryTag} was dead-lettered before: {Death}. CorrelationId={CorrelationId}",
+            ea.DeliveryTag, DescribeDeath(death), CorrelationContext.Current);
     }
 
     private static string DescribeDeath(object? death)
@@ -198,8 +205,8 @@ public class DeploymentConsumerService : IDeploymentConsumerService, IAsyncDispo
             if (msg.Payload.Expiry < DateTime.UtcNow)
             {
                 _logger.LogInformation(
-                    "Dropping buffered deployment message {DeliveryTag}: expired at {Expiry:O}. ChallengeId={ChallengeId}, TeamId={TeamId}",
-                    msg.DeliveryTag, msg.Payload.Expiry, msg.Request.challengeId, msg.Request.teamId);
+                    "Dropping buffered deployment message {DeliveryTag}: expired at {Expiry:O}. ChallengeId={ChallengeId}, TeamId={TeamId}, CorrelationId={CorrelationId}",
+                    msg.DeliveryTag, msg.Payload.Expiry, msg.Request.challengeId, msg.Request.teamId, msg.CorrelationId);
 
                 await AckAsync(msg.DeliveryTag);
                 continue;
