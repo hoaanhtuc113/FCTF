@@ -320,6 +320,77 @@ public class RedisHelper
     }
 
     /// <summary>
+    /// Giữ một chỗ trong hạn ngạch hàng đợi deploy của MỘT cuộc thi.
+    ///
+    /// deployment_queue là hàng đợi dùng chung cho mọi cuộc thi và có x-max-length,
+    /// nên khi nó đầy thì broker từ chối publish của tất cả - một cuộc thi đông
+    /// người chơi đẩy các cuộc thi còn lại vào 429 dù chúng chưa deploy gì. Hạn
+    /// ngạch này chặn ở khâu nạp hàng: mỗi cuộc thi chỉ chiếm được phần của mình,
+    /// nên luôn còn chỗ trống cho những cuộc thi khác publish.
+    ///
+    /// Chỗ giữ tự rụng theo score chứ không cần trả lại: thời gian sống của nó
+    /// đúng bằng TTL của message, mà một message nằm quá TTL thì broker cũng đã
+    /// vứt đi rồi - giữ chỗ cho nó không còn ý nghĩa gì.
+    /// </summary>
+    /// <param name="contestId">ID cuộc thi, tra từ DB chứ không lấy từ request</param>
+    /// <param name="member">ID duy nhất của lượt deploy (dùng deploymentKey)</param>
+    /// <param name="maxInflight">Số message tối đa một cuộc thi được chiếm. &lt;= 0 là không giới hạn</param>
+    /// <param name="ttlSeconds">Thời gian giữ chỗ, đặt bằng TTL của message</param>
+    /// <returns>true nếu giữ được chỗ (hoặc đang giữ sẵn), false nếu cuộc thi đã hết hạn ngạch</returns>
+    public async Task<bool> AtomicTryReserveContestSlot(
+        string contestId,
+        string member,
+        long maxInflight,
+        int ttlSeconds)
+    {
+        if (maxInflight <= 0) return true;
+
+        var zsetKey = $"contest_queue_slots_{contestId}";
+        var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        var expireAt = now + ttlSeconds;
+
+        var script = @"
+                    local zsetKey = KEYS[1]
+
+                    local member = ARGV[1]
+                    local maxInflight = tonumber(ARGV[2])
+                    local now = tonumber(ARGV[3])
+                    local expireAt = tonumber(ARGV[4])
+
+                    -- Dọn các chỗ đã quá hạn trước khi đếm
+                    redis.call('ZREMRANGEBYSCORE', zsetKey, '-inf', now)
+
+                    -- Đang giữ sẵn thì coi như thành công, không tính thêm một chỗ nữa
+                    if redis.call('ZSCORE', zsetKey, member) then
+                        return 1
+                    end
+
+                    if redis.call('ZCARD', zsetKey) >= maxInflight then
+                        return 0
+                    end
+
+                    redis.call('ZADD', zsetKey, expireAt, member)
+                    redis.call('EXPIRE', zsetKey, expireAt - now)
+                    return 1
+                ";
+
+        try
+        {
+            var result = await _cache.ScriptEvaluateAsync(
+                script,
+                keys: new RedisKey[] { zsetKey },
+                values: new RedisValue[] { member, maxInflight, now, expireAt }
+            );
+            return (int)result == 1;
+        }
+        catch (Exception ex)
+        {
+            await Console.Error.WriteLineAsync($"[Redis] Contest slot reservation failed: {ex.Message}");
+            throw;
+        }
+    }
+
+    /// <summary>
     /// Hàm này dành cho WORKER.
     /// Khi K8s Pod đã Ready, gọi hàm này để gia hạn thời gian sống chính thức (ví dụ 2h).
     /// </summary>

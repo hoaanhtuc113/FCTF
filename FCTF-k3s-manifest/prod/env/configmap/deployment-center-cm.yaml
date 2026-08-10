@@ -18,6 +18,11 @@ data:
 
   DEPLOYMENT_QUEUE_TIMEOUT_MINUTES: "5"
 
+  # Share of deployment_queue (x-max-length 300) any single contest may hold.
+  # Keeps a busy contest from filling the shared queue and pushing every other
+  # contest into 429. 0 disables the quota.
+  MAX_QUEUED_PER_CONTEST: "100"
+
   POW_DIFFICULTY_SECONDS: "5" 
 
   LOKI_BASE_URL: "http://loki-stack.monitoring.svc.cluster.local:3100"

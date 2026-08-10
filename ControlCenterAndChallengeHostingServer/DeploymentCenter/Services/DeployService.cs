@@ -140,6 +140,39 @@ public class DeployService : IDeployService
         try
         {
             var expirySeconds = DeploymentCenterConfigHelper.DEPLOYMENT_QUEUE_TIMEOUT_MINUTES * 60;
+
+            // Which contest this deploy belongs to decides how much of the shared
+            // queue it may take, so it is read from the challenge row rather than
+            // from the request - a caller that picks its own contest picks its own
+            // quota. deployment_center already holds SELECT on challenges.
+            var contestId = await _dbContext.Challenges
+                .AsNoTracking()
+                .Where(c => c.Id == startReq.challengeId)
+                .Select(c => c.ContestId)
+                .FirstOrDefaultAsync();
+
+            var slotReserved = await _redisHelper.AtomicTryReserveContestSlot(
+                contestId.ToString(),
+                deploymentKey,
+                DeploymentCenterConfigHelper.MAX_QUEUED_PER_CONTEST,
+                expirySeconds);
+
+            if (!slotReserved)
+            {
+                // Refused before publishing, so the queue keeps room for the other
+                // contests. Without this the broker refuses whoever publishes next,
+                // which is not the same thing: the contest that filled the queue is
+                // rarely the one that gets turned away.
+                await _redisHelper.RemoveCacheAsync(deploymentKey);
+
+                return new ChallengeDeployResponeDTO
+                {
+                    status = (int)HttpStatusCode.TooManyRequests,
+                    success = false,
+                    message = "This contest has too many deployments queued. Please retry in a moment."
+                };
+            }
+
             await _deploymentProducerService.EnqueueDeploymentAsync(startReq, expirySeconds);
 
             deploymentCache = new ChallengeDeploymentCacheDTO

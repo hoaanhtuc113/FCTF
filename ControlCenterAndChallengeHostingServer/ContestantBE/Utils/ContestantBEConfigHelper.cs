@@ -21,6 +21,12 @@ public class ContestantBEConfigHelper
     // Polling interval cho KypoTimeoutWatcher (giây)
     public static int KypoPollIntervalSeconds = 10;
 
+    // Số challenge một team được deploy đồng thời khi cuộc thi để limit_challenges
+    // bằng 0. Cột đó mặc định là 0 và 0 được hiểu là KHÔNG giới hạn, nên một cuộc
+    // thi chưa cấu hình cho phép một team giữ bao nhiêu deployment tùy thích - đủ
+    // để lấp hàng đợi deploy dùng chung. Đặt 0 để quay lại hành vi cũ.
+    public static long DEFAULT_LIMIT_CHALLENGES = 5;
+
     public static bool IsTurnstileEnabled => !string.IsNullOrWhiteSpace(CLOUDFLARE_TURNSTILE_SECRET_KEY);
 
     /// <summary>
@@ -50,5 +56,8 @@ public class ContestantBEConfigHelper
 
         var pollStr = DbConfigReader.GetOptional(db, "kypo_poll_interval_seconds", "KYPO_POLL_INTERVAL_SECONDS");
         KypoPollIntervalSeconds = int.TryParse(pollStr, out var kpi) ? kpi : 10;
+
+        var defaultLimitStr = DbConfigReader.GetOptional(db, "default_limit_challenges", "DEFAULT_LIMIT_CHALLENGES");
+        DEFAULT_LIMIT_CHALLENGES = long.TryParse(defaultLimitStr, out var dlc) && dlc >= 0 ? dlc : 5;
     }
 }

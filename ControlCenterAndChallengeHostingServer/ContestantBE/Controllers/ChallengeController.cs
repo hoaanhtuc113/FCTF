@@ -1059,9 +1059,19 @@ public class ChallengeController : BaseController
 
         await Console.Out.WriteLineAsync($"[Requesst Start Challenge] User {userId} : Team {teamId} : Challenge {challenge.Name}");
 
-        // Check limit_challenges — per-contest setting
+        // Check limit_challenges — per-contest setting, counted per team
         var limitContest = await _context.Contests.AsNoTracking().FirstOrDefaultAsync(c => c.Id == contestId);
         var limit_challenges = (long)(limitContest?.LimitChallenges ?? 0);
+
+        // A contest that never set the column reads 0, and 0 means unlimited to
+        // the Lua script below - so the default was "one team may hold as many
+        // deployments as it likes", which is enough to fill the shared deploy
+        // queue on its own. Fall back to a finite default instead; setting
+        // DEFAULT_LIMIT_CHALLENGES to 0 restores the old behaviour.
+        if (limit_challenges <= 0)
+        {
+            limit_challenges = ContestantBEConfigHelper.DEFAULT_LIMIT_CHALLENGES;
+        }
 
         var deploymentTeamId = challenge.SharedInstant ? -2 : teamId;
         var deploymentKey = ChallengeHelper.GetCacheKey(challengeStartReq.challengeId, deploymentTeamId);
