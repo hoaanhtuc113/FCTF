@@ -537,6 +537,39 @@ public class ChallengeService : IChallengeService
             return result;
 
         }
+        catch (UpstreamHttpException ex)
+        {
+            // DeploymentCenter answered, it just said no - the queue is full, this
+            // contest is over its share, a previous session is still stopping. Those
+            // replies are written for the contestant to read and carry the status
+            // that goes with them, so they are passed through. Letting them fall to
+            // the catch-all below turned every one of them into the same 500
+            // "An unexpected error occurred", which tells the contestant nothing and
+            // hides a retryable condition behind what looks like a platform fault.
+            _logger.LogError(ex, user?.Id, teamId, new { challengeId = challenge.Id }, contestId: contestId);
+
+            ChallengeDeployResponeDTO? upstream = null;
+            try
+            {
+                upstream = JsonConvert.DeserializeObject<ChallengeDeployResponeDTO>(ex.ResponseContent ?? string.Empty);
+            }
+            catch (JsonException)
+            {
+                // Not our DTO - an ingress error page, a proxy timeout. Fall through.
+            }
+
+            if (upstream != null && !string.IsNullOrWhiteSpace(upstream.message))
+            {
+                return upstream;
+            }
+
+            return new ChallengeDeployResponeDTO
+            {
+                status = ex.StatusCode,
+                success = false,
+                message = "Deployment service rejected the request. Please try again shortly."
+            };
+        }
         catch (HttpRequestException ex)
         {
             _logger.LogError(ex, contestId: contestId);
