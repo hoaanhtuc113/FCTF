@@ -409,10 +409,19 @@ kubectl apply -f ./prod/ingress/nginx/
 - Queue: `deployment_queue`
 - Exchange: `deployment_exchange` (direct)
 - Binding: `deployment_exchange` -> `deployment_queue` với routing key `deploy`
+- Dead letter: `deployment_queue` -> `deployment_dlx` (direct) -> `deployment_dlq`, routing key `deploy`.
+  Message bị nack hoặc hết TTL rơi vào đây kèm header `x-death` (lý do, số lần, thời điểm)
+  thay vì biến mất. DLQ giữ 7 ngày, tối đa 1000 message, đầy thì bỏ message cũ nhất.
 - Vhost: `fctf_deploy`
 - Users:
   - `deployment-producer` (chỉ publish vào `deployment_exchange`)
   - `deployment-consumer` (chỉ consume từ `deployment_queue`)
+  - `deployment_dlq` chỉ đọc bằng tài khoản `admin`: không service nào consume nó,
+    nên không cấp thêm quyền cho hai tài khoản trên
+
+> Queue argument là immutable. Muốn đổi `x-dead-letter-exchange` trên `deployment_queue`
+> thì phải xoá và tạo lại queue — làm lúc queue rỗng, ngoài giờ thi, vì thao tác này
+> mất sạch message đang chờ.
 
 Cấu hình nằm trong file [prod/helm/db/rabbitmq/rabbitmq-values.yaml](prod/helm/db/rabbitmq/rabbitmq-values.yaml) (`extraDeploy` + `loadDefinition`).
 

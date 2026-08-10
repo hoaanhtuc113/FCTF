@@ -2,6 +2,7 @@
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using ResourceShared.DTOs.RabbitMQ;
+using System.Text;
 using System.Threading.Channels;
 
 namespace DeploymentConsumer.Services;
@@ -94,6 +95,14 @@ public class DeploymentConsumerService : IDeploymentConsumerService, IAsyncDispo
 
             if (payload.Expiry < DateTime.UtcNow)
             {
+                // Acked rather than dead-lettered: the request is simply too old
+                // to act on, which is ordinary, and requeueing it would only have
+                // it expire again. Logged because it used to pass silently, and a
+                // run of these is how an overloaded deploy pipeline shows itself.
+                _logger.LogInformation(
+                    "Dropping deployment message {DeliveryTag}: expired at {Expiry:O}, queued at {CreatedAt:O}",
+                    ea.DeliveryTag, payload.Expiry, payload.CreatedAt);
+
                 await _channel!.BasicAckAsync(ea.DeliveryTag, false);
                 return;
             }
@@ -107,6 +116,8 @@ public class DeploymentConsumerService : IDeploymentConsumerService, IAsyncDispo
                 await RejectAsync(ea.DeliveryTag, requestError);
                 return;
             }
+
+            LogIfRedelivered(ea);
 
             // Preserve message headers (contains tracing context) so downstream worker can extract propagation context
             await _messageBuffer.Writer.WriteAsync(new DequeuedMessage
@@ -124,8 +135,9 @@ public class DeploymentConsumerService : IDeploymentConsumerService, IAsyncDispo
     }
 
     // A message rejected here will not parse differently on a second attempt, so
-    // it is dropped instead of requeued. The reason is logged because the queue
-    // has no dead-letter exchange to inspect it in afterwards.
+    // it is not requeued. It lands in deployment_dlq, where the body survives for
+    // a week; the reason is logged here because the queue records only that the
+    // message was rejected, not what this service objected to.
     private async Task RejectAsync(ulong deliveryTag, string reason)
     {
         _logger.LogWarning("Rejecting deployment message {DeliveryTag}: {Reason}", deliveryTag, reason);
@@ -133,6 +145,44 @@ public class DeploymentConsumerService : IDeploymentConsumerService, IAsyncDispo
         if (_channel is { IsOpen: true })
             await _channel.BasicNackAsync(deliveryTag, false, false);
     }
+
+    // x-death is written by the broker when a message has been dead-lettered
+    // before, so its presence means this message already failed somewhere and was
+    // put back by hand. Worth saying out loud - it is the difference between a
+    // first attempt and a replay of one that was already investigated.
+    private void LogIfRedelivered(BasicDeliverEventArgs ea)
+    {
+        if (ea.BasicProperties?.Headers == null
+            || !ea.BasicProperties.Headers.TryGetValue("x-death", out var death))
+            return;
+
+        _logger.LogWarning(
+            "Deployment message {DeliveryTag} was dead-lettered before: {Death}",
+            ea.DeliveryTag, DescribeDeath(death));
+    }
+
+    private static string DescribeDeath(object? death)
+    {
+        // x-death arrives as an array of tables, one per queue the message died
+        // in, with byte-array values for the string fields.
+        if (death is not IEnumerable<object?> entries)
+            return "unreadable";
+
+        var described = entries
+            .OfType<IDictionary<string, object?>>()
+            .Select(entry => string.Join(
+                " ",
+                entry.Select(field => $"{field.Key}={Stringify(field.Value)}")));
+
+        return string.Join(" | ", described);
+    }
+
+    private static string Stringify(object? value) => value switch
+    {
+        byte[] bytes => Encoding.UTF8.GetString(bytes),
+        null => string.Empty,
+        _ => value.ToString() ?? string.Empty
+    };
 
     public async Task<List<DequeuedMessage>> DequeueAvailableBatchAsync(int count)
     {
@@ -143,9 +193,14 @@ public class DeploymentConsumerService : IDeploymentConsumerService, IAsyncDispo
         {
             // Buffered messages only reach here after passing validation, so the
             // one thing left to recheck is whether the wait in the buffer outlived
-            // the deploy window.
+            // the deploy window. Logged with the request it belonged to: this is
+            // the deploy the player asked for and is not going to get.
             if (msg.Payload.Expiry < DateTime.UtcNow)
             {
+                _logger.LogInformation(
+                    "Dropping buffered deployment message {DeliveryTag}: expired at {Expiry:O}. ChallengeId={ChallengeId}, TeamId={TeamId}",
+                    msg.DeliveryTag, msg.Payload.Expiry, msg.Request.challengeId, msg.Request.teamId);
+
                 await AckAsync(msg.DeliveryTag);
                 continue;
             }
