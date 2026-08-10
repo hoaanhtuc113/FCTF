@@ -14,11 +14,15 @@ namespace ResourceShared.DTOs.Challenge
         public int? userId { get; set; }
         public string? unixTime { get; set; }
         public string? ns { get; set; }
-        /// <summary>
-        /// Pre-generated flag value for dynamic-flag challenges. Null for static/regex flags.
-        /// Injected into the K8s pod as the FLAG environment variable.
-        /// </summary>
-        public string? flagValue { get; set; }
         public int? contestId { get; set; }
+
+        // There is deliberately no flag field here. The dynamic flag for a
+        // (challenge, team) already lives in dynamic_flag_instances by the time
+        // this request is sent, so DeploymentConsumer reads it from there when
+        // it builds the Argo payload. Carrying it in the body would make the
+        // value something the consumer has to trust: the request travels over
+        // the deployment exchange, and anything able to publish there would get
+        // to choose the string that ends up inside the challenge pod - and, via
+        // the workflow template, on the command line that renders its manifest.
     }
 }

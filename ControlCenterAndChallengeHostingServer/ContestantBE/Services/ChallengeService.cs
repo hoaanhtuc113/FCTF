@@ -460,32 +460,30 @@ public class ChallengeService : IChallengeService
         var teamId = deploymentTeamId ?? userTeamId;
         try
         {
-            // Generate dynamic flag per team (idempotent: reuse if already created)
-            string? flagValue = null;
-            var dynamicFlags = await _dbContext.Flags
+            // Make sure the team's dynamic flag exists (idempotent: reuse if already
+            // created). The value stays in dynamic_flag_instances and is not passed
+            // along with the start request - DeploymentConsumer looks it up by
+            // (challenge, team) when it builds the Argo payload, so the only copy
+            // that decides what the pod gets is the one this row holds.
+            var dynFlag = await _dbContext.Flags
                 .Where(f => f.ChallengeId == challenge.Id && f.Type == "dynamic")
-                .ToListAsync();
+                .OrderBy(f => f.Id)
+                .FirstOrDefaultAsync();
 
-            if (dynamicFlags.Count > 0)
+            if (dynFlag != null)
             {
-                var dynFlag = dynamicFlags[0];
-                var existing = await _dbContext.DynamicFlagInstances
-                    .FirstOrDefaultAsync(d => d.FlagId == dynFlag.Id && d.TeamId == teamId);
+                var alreadyIssued = await _dbContext.DynamicFlagInstances
+                    .AnyAsync(d => d.FlagId == dynFlag.Id && d.TeamId == teamId);
 
-                if (existing != null)
-                {
-                    flagValue = existing.Value;
-                }
-                else
+                if (!alreadyIssued)
                 {
                     var prefix = string.IsNullOrEmpty(dynFlag.Content) ? "FCTF{" : dynFlag.Content;
-                    flagValue = $"{prefix}{Guid.NewGuid():N}}}";
                     _dbContext.DynamicFlagInstances.Add(new ResourceShared.Models.DynamicFlagInstance
                     {
                         FlagId = dynFlag.Id,
                         ChallengeId = challenge.Id,
                         TeamId = teamId,
-                        Value = flagValue,
+                        Value = $"{prefix}{Guid.NewGuid():N}}}",
                     });
                     await _dbContext.SaveChangesAsync();
                 }
@@ -498,7 +496,6 @@ public class ChallengeService : IChallengeService
                 teamId = teamId,
                 userId = user.Id,
                 unixTime = unixTime.ToString(),
-                flagValue = flagValue,
             };
             // Sign the exact payload being sent — not a hand-picked subset of its fields —
             // since RequireSecretKeyAttribute on the receiving side recomputes the hash from
