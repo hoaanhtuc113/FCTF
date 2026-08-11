@@ -1207,7 +1207,7 @@ public class ChallengeController : BaseController
         if (teamId == null || user == null)
             return BadRequest(new { error = "User no join team in this contest" });
 
-        _userBehaviorLogger.Log("STOP_CHALLENGE", userId, teamId, new { challengeStartReq.challengeId });
+        _userBehaviorLogger.Log("STOP_CHALLENGE", userId, teamId, new { challengeStartReq.challengeId }, contestId: contestId);
 
         var challenge = await _context.Challenges
             .AsNoTracking()
@@ -1275,6 +1275,8 @@ public class ChallengeController : BaseController
 
                 await _redisHelper.RemoveCacheAsync(cache_key);
 
+                await SaveStopActionLogAsync(challenge, user.Id, $"Stopped KYPO sandbox challenge \"{challenge.Name}\"");
+
                 var solved = lockResult == KypoLockResult.Solved || lockResult == KypoLockResult.AlreadySolved;
                 return Ok(new ChallengeDeployResponeDTO
                 {
@@ -1294,6 +1296,9 @@ public class ChallengeController : BaseController
             if (sandboxTrackings.Count > 0) await _context.SaveChangesAsync();
 
             await _redisHelper.RemoveCacheAsync(cache_key);
+
+            await SaveStopActionLogAsync(challenge, user.Id, $"Stopped sandbox challenge \"{challenge.Name}\"");
+
             return Ok(new ChallengeDeployResponeDTO
             {
                 status  = (int)HttpStatusCode.OK,
@@ -1308,6 +1313,12 @@ public class ChallengeController : BaseController
             await Console.Out.WriteLineAsync($"[Requesst Stop Challenge] User {userId} : Team {teamId} : Challenge {challenge.Name}");
 
             var response = await _challengeServices.ForceStopChallenge(challenge.Id, user, contestId);
+
+            if (response.status == (int)HttpStatusCode.OK)
+            {
+                await SaveStopActionLogAsync(challenge, user.Id, $"Stopped challenge \"{challenge.Name}\"");
+            }
+
             return response.status switch
             {
                 (int)HttpStatusCode.OK => Ok(response),
@@ -1324,6 +1335,33 @@ public class ChallengeController : BaseController
                 error = "Failed to connect to stop API",
                 error_detail = e.ToString(),
             });
+        }
+    }
+
+    // A stop erases its own evidence: the namespace goes, the Redis key goes,
+    // and the only trace left was a Console.WriteLine that nothing queries. So a
+    // session that ran and was stopped looked the same afterwards as one that
+    // never started, and no contestant could be shown to have ended their own
+    // run. Start, submit, hints and flag attempts all leave a row in ActionLogs;
+    // stop is the one that did not, and it is called from three places here.
+    //
+    // A failed write is reported and swallowed, as at the other call sites: the
+    // instance is already gone by this point, so failing the request would tell
+    // the contestant the stop did not happen when it did.
+    private async Task SaveStopActionLogAsync(Challenge challenge, int userId, string detail)
+    {
+        try
+        {
+            await _actionLogsServices.SaveActionLogs(new ActionLogsReq
+            {
+                ActionType = 7, // STOP_CHALLENGE
+                ActionDetail = detail,
+                ChallengeId = challenge.Id,
+            }, userId);
+        }
+        catch (Exception ex)
+        {
+            await Console.Error.WriteLineAsync($"[ActionLog] Failed to save STOP_CHALLENGE log for challenge {challenge.Id}: {ex.Message}");
         }
     }
 
