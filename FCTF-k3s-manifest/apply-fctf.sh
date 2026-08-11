@@ -618,6 +618,19 @@ if [[ "${DEPLOY_APP_SERVICES}" == "true" ]]; then
   echo "==> Applying namespace delete scope admission policy"
   kubectl apply -f "${PROD_DIR}/app/namespace-delete-policy.yaml"
 
+  # Rebuilt from /etc/fctf/kypo.env, which is the record of what an operator set
+  # with manage.sh option 11. Nothing is applied if that file does not exist, and
+  # both envFrom entries are optional, so an install with no KYPO range still
+  # comes up. No restart here: the deployments are applied fresh above anyway.
+  echo "==> Applying KYPO integration settings"
+  KYPO_CONFIG_SH="${SCRIPT_DIR}/kypo-config.sh"
+  if [[ -f "${KYPO_CONFIG_SH}" ]]; then
+    chmod +x "${KYPO_CONFIG_SH}" || true
+    bash "${KYPO_CONFIG_SH}" --apply
+  else
+    echo "Warning: kypo-config.sh not found; skipping."
+  fi
+
   if [[ "${SERVICE_MODE}" == "clusterip" ]]; then
     echo "==> Applying ClusterIP service mode"
     kubectl delete -f "${PROD_DIR}/app/service-nodeport.yaml" --ignore-not-found
