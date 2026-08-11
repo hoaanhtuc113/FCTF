@@ -284,7 +284,9 @@ def get_kypo_challenge_config(challenge_id):
             "kypo_instance_id": config.kypo_instance_id if config else None,
             "kypo_access_token": config.kypo_access_token if config else None,
             "kypo_instance_type": config.kypo_instance_type if config else None,
-            "kypo_base_url": config.kypo_base_url if config else None,
+            # Server config, not the challenge row - the row's copy is no longer
+            # read by anything that builds a redirect.
+            "kypo_base_url": get_kypo_config("kypo_base_url"),
         },
     })
 

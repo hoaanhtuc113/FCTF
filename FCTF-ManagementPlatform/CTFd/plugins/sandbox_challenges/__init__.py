@@ -83,7 +83,13 @@ class SandboxChallengeClass(BaseChallenge):
         kypo_instance_id = data.pop("kypo_instance_id", None)
         kypo_access_token = data.pop("kypo_access_token", None)
         kypo_instance_type = data.pop("kypo_instance_type", None)
-        kypo_base_url = data.pop("kypo_base_url", "https://vuontre.iahn.hanoi.vn")
+
+        # Popped and dropped. The KYPO host comes from KYPO_BASE_URL on the server,
+        # not from whoever is filling in this form: it is the host that receives the
+        # contestant's Keycloak tokens in the redirect, so it is a deployment
+        # decision, not a challenge one. Still popped so it cannot reach the
+        # Challenges constructor as an unknown column.
+        data.pop("kypo_base_url", None)
 
         # Remove deploy-related and form-meta fields not relevant to sandbox
         for field in _DEPLOY_FIELDS | _FORM_META_FIELDS:
@@ -121,7 +127,6 @@ class SandboxChallengeClass(BaseChallenge):
                     kypo_instance_id=int(kypo_instance_id),
                     kypo_access_token=kypo_access_token or "",
                     kypo_instance_type=kypo_instance_type or "linear",
-                    kypo_base_url=kypo_base_url or "https://vuontre.iahn.hanoi.vn",
                 )
                 db.session.add(kypo_config)
 
@@ -133,6 +138,8 @@ class SandboxChallengeClass(BaseChallenge):
 
     @classmethod
     def read(cls, challenge):
+        from CTFd.utils.kypo_config import get_kypo_config
+
         kypo_config = KypoChallengeConfig.query.filter_by(challenge_id=challenge.id).first()
 
         return {
@@ -149,7 +156,10 @@ class SandboxChallengeClass(BaseChallenge):
             "kypo_instance_id": kypo_config.kypo_instance_id if kypo_config else None,
             "kypo_access_token": kypo_config.kypo_access_token if kypo_config else None,
             "kypo_instance_type": kypo_config.kypo_instance_type if kypo_config else None,
-            "kypo_base_url": kypo_config.kypo_base_url if kypo_config else None,
+            # Reported from server config, so the admin sees the host that is
+            # actually in effect rather than a leftover value on the row that
+            # nothing reads any more.
+            "kypo_base_url": get_kypo_config("kypo_base_url"),
             "type_data": {
                 "id": cls.id,
                 "name": cls.name,
@@ -167,7 +177,11 @@ class SandboxChallengeClass(BaseChallenge):
         kypo_instance_id = data.pop("kypo_instance_id", None)
         kypo_access_token = data.pop("kypo_access_token", None)
         kypo_instance_type = data.pop("kypo_instance_type", None)
-        kypo_base_url = data.pop("kypo_base_url", None)
+
+        # Dropped, not applied - see create(). This is the field that made editing a
+        # visible challenge dangerous, since it decides which host the contestant's
+        # Keycloak tokens are handed to.
+        data.pop("kypo_base_url", None)
 
         # Drop deploy and form-meta fields
         for field in _DEPLOY_FIELDS | _FORM_META_FIELDS:
@@ -202,15 +216,12 @@ class SandboxChallengeClass(BaseChallenge):
                     kypo_config.kypo_access_token = kypo_access_token
                 if kypo_instance_type:
                     kypo_config.kypo_instance_type = kypo_instance_type
-                if kypo_base_url:
-                    kypo_config.kypo_base_url = kypo_base_url
             else:
                 kypo_config = KypoChallengeConfig(
                     challenge_id=challenge.id,
                     kypo_instance_id=int(kypo_instance_id),
                     kypo_access_token=kypo_access_token or "",
                     kypo_instance_type=kypo_instance_type or "linear",
-                    kypo_base_url=kypo_base_url or "https://vuontre.iahn.hanoi.vn",
                 )
                 db.session.add(kypo_config)
             db.session.commit()

@@ -819,9 +819,18 @@ public class ChallengeController : BaseController
 
             var kypoAccount = await GetKypoTeamAccountRawAsync(teamId);
 
-            var baseUrl = !string.IsNullOrEmpty(kypoConfig?.kypo_base_url)
-                ? kypoConfig!.kypo_base_url!.TrimEnd('/')
-                : ContestantBEConfigHelper.KypoBaseUrl.TrimEnd('/');
+            // The server's KYPO host, never the one stored on the challenge row.
+            // A few lines down this host receives the contestant's Keycloak access,
+            // refresh and id tokens in the URL fragment, so whoever chooses it
+            // chooses who gets those tokens. That is not a per-challenge decision
+            // and it does not belong to anyone who can edit a challenge; it belongs
+            // to whoever deploys the platform, which is what KYPO_BASE_URL is.
+            //
+            // kypo_challenge_configs.kypo_base_url is left unread rather than
+            // dropped, so an install carrying old rows is not depending on a
+            // migration having run. Instance id and access token stay per challenge:
+            // those genuinely differ per challenge and cannot come from config.
+            var baseUrl = ContestantBEConfigHelper.KypoBaseUrl.TrimEnd('/');
 
             string bridgeUrl;
 

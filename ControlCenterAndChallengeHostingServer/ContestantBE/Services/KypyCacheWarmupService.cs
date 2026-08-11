@@ -36,6 +36,11 @@ public class KypyCacheWarmupService : BackgroundService
         }
     }
 
+    // NOTE: this service is not registered in Program.cs and does not run. If it is
+    // ever brought back, the kypo_base_url it groups and filters on below is a
+    // column nothing else reads any more - the KYPO host now comes from server
+    // config, and new rows leave the column null, so this would silently warm
+    // nothing. Read ContestantBEConfigHelper.KypoBaseUrl instead.
     private async Task WarmupAsync(CancellationToken ct)
     {
         using var scope = _scopeFactory.CreateScope();

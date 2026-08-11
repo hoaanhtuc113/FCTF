@@ -52,7 +52,10 @@ public class KypoScoreLockService
             return KypoLockResult.AlreadySolved;
         }
 
-        var baseUrl = config.kypo_base_url ?? ContestantBEConfigHelper.KypoBaseUrl;
+        // Server config only - see the note in ChallengeController on why the host
+        // is not read from the challenge row. Scoring reads the same KYPO the
+        // contestant was sent to, so the two have to resolve it the same way.
+        var baseUrl = ContestantBEConfigHelper.KypoBaseUrl;
         if (string.IsNullOrWhiteSpace(baseUrl))
         {
             _logger.LogWarning("[KYPO LOCK] Challenge {ChallengeId}: KypoBaseUrl trống", challengeId);
