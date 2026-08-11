@@ -24,6 +24,7 @@ from CTFd.models import (
     Users,
     DeployedChallenge,
     ChallengeVersion,
+    KypoChallengeConfig,
 )
 from CTFd.models import Challenges, Contests, ContestParticipant
 from CTFd.models import ChallengeTopics as ChallengeTopicsModel
@@ -742,6 +743,48 @@ class Challenge(Resource):
                 return {
                     "success": False,
                     "error": "Cannot update: one or more teams have already started this challenge.",
+                }, 403
+
+        # The KYPO fields decide which host a contestant is sent to and with what
+        # token. Changing them on a challenge that is currently visible re-points a
+        # live redirect: everyone who opens it from that moment lands somewhere else,
+        # with nothing on their side showing that anything changed. Editing them is
+        # legitimate - it just has to happen while the challenge is out of reach, so
+        # hiding it first is the price.
+        #
+        # Checked against the state stored on the row, not the state in this request,
+        # so hiding and re-pointing cannot be done in one call. Only a field whose
+        # value actually differs counts: the update form resubmits every field it
+        # rendered, and refusing an edit to the description because the unchanged
+        # KYPO host came along with it would be its own kind of wrong. Empty values
+        # are ignored for the same reason SandboxChallengeClass.update ignores them -
+        # they are not a change, they are an absent field.
+        if challenge.type == "sandbox" and challenge.state == "visible":
+            kypo_config = KypoChallengeConfig.query.filter_by(
+                challenge_id=challenge.id
+            ).first()
+
+            current_kypo = {
+                "kypo_instance_id": kypo_config.kypo_instance_id if kypo_config else None,
+                "kypo_base_url": kypo_config.kypo_base_url if kypo_config else None,
+                "kypo_access_token": kypo_config.kypo_access_token if kypo_config else None,
+            }
+
+            repointed = [
+                field
+                for field, current in current_kypo.items()
+                if data.get(field) not in (None, "")
+                and str(data[field]) != ("" if current is None else str(current))
+            ]
+
+            if repointed:
+                return {
+                    "success": False,
+                    "error": (
+                        "Cannot change "
+                        + ", ".join(sorted(repointed))
+                        + " while the challenge is visible. Hide it first, then edit."
+                    ),
                 }, 403
 
         if scoringType == "standard" and challenge.type == "dynamic":
