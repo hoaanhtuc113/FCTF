@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, timezone
 import hashlib
+import hmac
 import io
 import json
 import os
@@ -52,12 +53,31 @@ def get_token_from_header():
     return None
 
 
+def build_signing_message(unix_time: int, data: dict) -> bytes:
+    """Chuỗi được ký cho SecretKey.
+
+    Mỗi field được nêu tên kèm độ dài, nên ranh giới giữa các field cũng nằm
+    trong phần được ký. Cách cũ nối các giá trị đã sort lại với nhau thì không:
+    challengeId=12,teamId=34 và challengeId=1,teamId=234 cùng cho ra "1234", nên
+    chữ ký bắt được của request này vẫn hợp lệ cho request kia và ai nằm trong
+    đường truyền cũng dịch được ranh giới mà không cần biết PRIVATE_KEY.
+
+    Phải khớp tuyệt đối với SecretKeyHelper.CreateSecretKey (C#) và khối ký
+    trong up-challenge Argo template (sh).
+    """
+    parts = [f"{unix_time}\n"]
+    for key in sorted(data.keys()):
+        value = str(data[key])
+        parts.append(f"{key}={len(value.encode())}:{value}\n")
+    return "".join(parts).encode()
+
+
 def create_secret_key(private_key: str, unix_time: int, data: dict) -> str:
-    sorted_key = sorted(data.keys())
-    combine_string = str(unix_time) + private_key
-    for key in sorted_key:
-        combine_string += str(data.get(key, "1"))
-    return hashlib.md5(combine_string.encode()).hexdigest()
+    # HMAC-SHA256 thay cho MD5 của key-rồi-data: cách cũ đặt secret vào giữa một
+    # hash mà output được gửi kèm request, đúng hình dạng mà length extension cần.
+    return hmac.new(
+        private_key.encode(), build_signing_message(unix_time, data), hashlib.sha256
+    ).hexdigest()
 
 
 def generate_cache_key(challenge_id, team_id):
@@ -65,7 +85,10 @@ def generate_cache_key(challenge_id, team_id):
     return raw_key
 
 def get_workflow_key(challenge_id):
-    key = f"challenge_up_workflow_{challenge_id}"
+    # Under the fctf:admin: namespace rather than a key family of its own:
+    # nothing outside CTFd reads it, so it needs no shared pattern in the Redis
+    # ACL. Existing keys carry a one day TTL and simply age out after a deploy.
+    key = f"fctf:admin:workflow:{challenge_id}"
     return key
 
 def get_workflow_name(challenge_id):
@@ -359,6 +382,32 @@ def handle_zip_file_upload(challenge, file_path, challenge_id):
         else:
             return jsonify({"error": "Challenge already pending deploy"}), 400
 
+def discard_failed_upload(challenge, nfs_destination):
+    """
+    Undo what handle_challenge_upload() already did when the deploy workflow
+    never got submitted: remove the copied folder from the share and put the
+    challenge back into a state the admin can retry from.
+
+    Only safe on paths where nothing was handed to the deployment service yet -
+    once a workflow is running it reads that folder.
+    """
+    try:
+        if nfs_destination and os.path.exists(nfs_destination):
+            shutil.rmtree(nfs_destination)
+            print(f"Removed orphaned challenge folder: {nfs_destination}")
+    except OSError as exc:
+        print(f"Could not remove orphaned challenge folder {nfs_destination}: {exc}")
+
+    try:
+        db.session.rollback()
+        challenge.deploy_file = None
+        challenge.deploy_status = "FILE_UPLOAD_FAILED"
+        db.session.commit()
+    except Exception as exc:
+        db.session.rollback()
+        print(f"Could not mark challenge {challenge.id} as failed: {exc}")
+
+
 def handle_challenge_upload(challenge, file_path, expose_port=None):
     """
     Handle the challenge upload process
@@ -443,8 +492,11 @@ def handle_challenge_upload(challenge, file_path, expose_port=None):
 
                 if response.status_code != 200:
                     print(f"Error uploading challenge: {response.text}")
+                    # Nothing was submitted, so the folder we just copied is dead
+                    # weight - drop it instead of leaving it on the share forever.
+                    discard_failed_upload(challenge, nfs_destination)
                     return {"success": False, "error": f"Deployment service error: {response.text}"}, 500
-                    
+
                 result = response.json()
                 workflow_name = result.get("metadata", {}).get("name")
 

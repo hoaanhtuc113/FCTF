@@ -62,6 +62,10 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
+// First in the pipeline: everything after it logs, and a correlation id that
+// arrives late covers only part of the request it was supposed to identify.
+app.UseMiddleware<CorrelationIdMiddleware>();
+
 // Enable buffering for all requests để có thể đọc body nhiều lần
 app.Use(async (context, next) =>
 {

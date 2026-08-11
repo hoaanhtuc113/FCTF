@@ -197,7 +197,8 @@ namespace ResourceShared.Utils
             bool use_gvisor,
             bool harden_container,
             string pow_difficulty,
-            string? flagValue = null)
+            string? flagValue = null,
+            string? correlationId = null)
         {
             var isTemp = true;
             if (challenge.TimeLimit.HasValue && challenge.TimeLimit.Value <= 0)
@@ -236,6 +237,17 @@ namespace ResourceShared.Utils
             if (!string.IsNullOrEmpty(flagValue))
                 parameters.Add($"CHALLENGE_FLAG={flagValue}");
 
+            // Carried as a submit-time label rather than a workflow parameter: a
+            // parameter would have to be declared and threaded through every
+            // template that takes it, while a label lands on the workflow object
+            // itself. That is what the Kubernetes audit log records, so it is the
+            // join that turns "some shared ServiceAccount acted on this namespace"
+            // into "this request, from this user, did it" - the one audit-policy.yaml
+            // describes and until now had no field to perform.
+            var labels = string.IsNullOrEmpty(correlationId)
+                ? null
+                : $"fctf.correlation-id={correlationId}";
+
             return (new
             {
                 resourceKind = "WorkflowTemplate",
@@ -243,7 +255,8 @@ namespace ResourceShared.Utils
                 submitOptions = new
                 {
                     entryPoint = "main",
-                    parameters
+                    parameters,
+                    labels
                 }
             },
             deploymentAppName);

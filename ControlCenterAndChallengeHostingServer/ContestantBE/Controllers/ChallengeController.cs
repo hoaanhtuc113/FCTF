@@ -109,6 +109,9 @@ public class ChallengeController : BaseController
                 return NotFound(new { error = "User not found" });
 
             var teamId = GetUserTeamForContest(user, contestId)?.Id;
+            if (teamId == null)
+                return Forbid();
+
             _userBehaviorLogger.Log("VIEW_CHALLENGE", user.Id, teamId, new { challengeId = id });
 
             var result = await _challengeServices.GetById(id, user, contestId);
@@ -172,6 +175,9 @@ public class ChallengeController : BaseController
         try
         {
             var topicTeamId = GetUserTeamForContest(user, contestId)?.Id;
+            if (topicTeamId == null)
+                return Forbid();
+
             _userBehaviorLogger.Log("VIEW_All_TOPIC", user.Id, topicTeamId, null);
             var result = await _challengeServices.GetTopic(user, contestId);
             return Ok(new
@@ -200,6 +206,9 @@ public class ChallengeController : BaseController
             .AsNoTracking()
             .FirstOrDefaultAsync(u => u.Id == userId);
         var teamId = (int?)GetUserTeamForContest(user, contestId)?.Id;
+        if (teamId == null)
+            return Forbid();
+
         _userBehaviorLogger.Log("VIEW_CHALLENGES_BY_CATEGORY", userId, teamId, new { category = category_name });
         var challenges = await _challengeServices.GetChallengeByCategories(category_name, teamId, contestId);
         return Ok(new
@@ -1050,9 +1059,19 @@ public class ChallengeController : BaseController
 
         await Console.Out.WriteLineAsync($"[Requesst Start Challenge] User {userId} : Team {teamId} : Challenge {challenge.Name}");
 
-        // Check limit_challenges — per-contest setting
+        // Check limit_challenges — per-contest setting, counted per team
         var limitContest = await _context.Contests.AsNoTracking().FirstOrDefaultAsync(c => c.Id == contestId);
         var limit_challenges = (long)(limitContest?.LimitChallenges ?? 0);
+
+        // A contest that never set the column reads 0, and 0 means unlimited to
+        // the Lua script below - so the default was "one team may hold as many
+        // deployments as it likes", which is enough to fill the shared deploy
+        // queue on its own. Fall back to a finite default instead; setting
+        // DEFAULT_LIMIT_CHALLENGES to 0 restores the old behaviour.
+        if (limit_challenges <= 0)
+        {
+            limit_challenges = ContestantBEConfigHelper.DEFAULT_LIMIT_CHALLENGES;
+        }
 
         var deploymentTeamId = challenge.SharedInstant ? -2 : teamId;
         var deploymentKey = ChallengeHelper.GetCacheKey(challengeStartReq.challengeId, deploymentTeamId);

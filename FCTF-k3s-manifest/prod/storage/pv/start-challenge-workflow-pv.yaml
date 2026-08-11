@@ -9,7 +9,7 @@ spec:
     storage: 20Gi
   accessModes:
     - ReadWriteMany
-  persistentVolumeReclaimPolicy: Delete
+  persistentVolumeReclaimPolicy: Retain
   mountOptions:
     - noexec
   nfs:

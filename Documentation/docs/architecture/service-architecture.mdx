@@ -94,6 +94,10 @@ Deployment Center should remain the single control API for start and stop orches
 - Queue: deployment_queue.
 - Binding: routing key deploy.
 - Queue policy includes x-max-length=300 with reject-publish overflow behavior.
+- Dead letter exchange deployment_dlx (direct) routes rejected and expired messages
+  to deployment_dlq, which holds them for 7 days or 1000 messages, dropping the
+  oldest first. Overflow rejections are not dead-lettered: they are refused at
+  publish time and surface to the caller as a 429 instead.
 
 #### Deployment Consumer
 

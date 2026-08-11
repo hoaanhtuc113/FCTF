@@ -19,6 +19,12 @@ public class DeploymentCenterConfigHelper
 
     public static int DEPLOYMENT_QUEUE_TIMEOUT_MINUTES = 5;
 
+    // How many messages one contest may hold in deployment_queue. The queue is
+    // shared by every contest and capped by x-max-length, so without a per-contest
+    // ceiling a busy contest fills it and the others are refused with 429 without
+    // having deployed anything. 0 disables the quota (previous behaviour).
+    public static int MAX_QUEUED_PER_CONTEST = 100;
+
     public void InitConfig()
     {
         REDIS_CONNECTION_STRING = GetRequiredEnv("REDIS_CONNECTION");
@@ -53,6 +59,16 @@ public class DeploymentCenterConfigHelper
         }
 
         DEPLOYMENT_QUEUE_TIMEOUT_MINUTES = deploymentQueueTimeoutMinutes;
+
+        // A negative value means nothing here, so it falls back to the default
+        // rather than being read as "disabled" - only an explicit 0 disables.
+        var maxQueuedPerContestRaw = Environment.GetEnvironmentVariable("MAX_QUEUED_PER_CONTEST");
+        if (!int.TryParse(maxQueuedPerContestRaw, out var maxQueuedPerContest) || maxQueuedPerContest < 0)
+        {
+            maxQueuedPerContest = 100;
+        }
+
+        MAX_QUEUED_PER_CONTEST = maxQueuedPerContest;
     }
 
     private static string GetRequiredEnv(string key)

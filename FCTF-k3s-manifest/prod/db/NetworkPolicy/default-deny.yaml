@@ -1,0 +1,17 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: db
+spec:
+  # Empty selector = every pod in this namespace. Everything running here today
+  # (redis, mariadb, rabbitmq) is already selected by a NetworkPolicy rendered
+  # from its own Helm chart, and policies are additive, so this changes nothing
+  # for them. What it closes is the gap those charts leave: the namespace has no
+  # policy of its own, so anything added here later - a restore job, a debug
+  # pod, a chart installed with networkPolicy.enabled false - would otherwise be
+  # reachable from every pod in the cluster and able to dial out anywhere.
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress

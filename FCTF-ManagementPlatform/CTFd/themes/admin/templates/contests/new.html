@@ -590,6 +590,7 @@
         .then(function (res) { return res.json(); })
         .then(function (json) {
             if (json.success) {
+                sessionStorage.setItem('contestCreatedMsg', 'Contest "' + data.name + '" has been created successfully.');
                 window.location.href = '/admin/contests';
             } else {
                 var errors = json.errors || {};

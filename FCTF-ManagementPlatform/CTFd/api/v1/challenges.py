@@ -315,6 +315,18 @@ class ChallengeList(Resource):
         # Validate name and category are not empty after trim
         if not data.get("name"):
             return {"success": False, "errors": {"name": ["Name cannot be empty"]}}, 400
+
+        # Reject duplicate challenge name within the same contest
+        from CTFd.models import Challenges as ChallengesModel
+        duplicate = ChallengesModel.query.filter_by(
+            name=data["name"], contest_id=validated_contest_id
+        ).first()
+        if duplicate:
+            return {
+                "success": False,
+                "errors": {"name": ["A challenge with this name already exists in this contest"]},
+            }, 400
+
         if not data.get("category"):
             return {"success": False, "errors": {"category": ["Category cannot be empty"]}}, 400
 
@@ -844,6 +856,9 @@ class Challenge(Resource):
         # Store challenge info before deletion for audit
         challenge_info = {
             "challenge_id": challenge.id,
+            # Captured before the delete: once the row is gone the audit entry
+            # has no other way to say which contest lost the challenge.
+            "contest_id": challenge.contest_id,
             "name": challenge.name,
             "description": challenge.description,
             "category": challenge.category,
@@ -893,7 +908,8 @@ class Challenge(Resource):
         log_audit(
             action="challenge_delete",
             before=challenge_info,
-            data={"challenge_id": challenge_id, "name": challenge_info["name"]}
+            data={"challenge_id": challenge_id, "name": challenge_info["name"]},
+            contest_id=challenge_info["contest_id"],
         )
         
         if(challenge.state == "visible"):
@@ -1047,7 +1063,15 @@ class ChallengeAttempt(Resource):
                         429,
                     )
             
-            redis_client.set(cooldown_key, str(time.time()))
+            # The expiry is not optional. A bare SET drops whatever TTL the key
+            # had, and ContestantBE - which writes this same key - always pairs
+            # its SET with an EXPIRE. So every submission through this path
+            # turned a expiring key into a permanent one, and permanent keys are
+            # exactly the ones maxmemory-policy volatile-lru will never evict:
+            # they accumulate one per (challenge, team) forever and survive the
+            # memory pressure everything else absorbs. Past cooldown_seconds the
+            # value cannot change any decision here, so that is the lifetime.
+            redis_client.set(cooldown_key, str(time.time()), ex=cooldown_seconds)
         
         # TODO: Convert this into a re-useable decorator
         if config.is_teams_mode() and team is None:

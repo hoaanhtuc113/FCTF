@@ -1,6 +1,10 @@
 hostname: <RANCHER_DOMAIN>
 replicas: 1
-bootstrapPassword: "Fctf@2026"
+# bootstrapPassword is deliberately absent - helm.sh passes it with --set from
+# a password generated on the machine (see platform-credentials.sh). Retrieve
+# it with `manage.sh` -> "Get platform credentials", or straight from the
+# secret: kubectl -n cattle-system get secret bootstrap-secret \
+#   -o jsonpath='{.data.bootstrapPassword}' | base64 -d
 tolerations:
   - key: "node-role.kubernetes.io/control-plane"
     operator: "Exists"

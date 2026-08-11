@@ -91,13 +91,15 @@ controller:
     # -- Image tag for the workflow controller. Defaults to `.Values.images.tag`.
     tag: ""
   # -- parallelism dictates how many workflows can be running at the same time
-  parallelism: 30
+  parallelism: 50
   # -- Globally limits the rate at which pods are created.
   # This is intended to mitigate flooding of the Kubernetes API server by workflows with a large amount of
-  # parallel nodes.
-  resourceRateLimit: {}
-    # limit: 10
-    # burst: 1
+  # parallel nodes. burst=20 lets a real "everyone deploys at once" spike (contest with a few dozen
+  # teams) through instantly; sustained load above limit=20/s still gets throttled, which only a
+  # runaway/malicious loop would ever hit.
+  resourceRateLimit:
+    limit: 20
+    burst: 20
 
   rbac:
     # -- Adds Role and RoleBinding for the controller.
@@ -118,7 +120,7 @@ controller:
     annotations: {}
 
   # -- Limits the maximum number of incomplete workflows in a namespace
-  namespaceParallelism:
+  namespaceParallelism: 50
   # -- Resolves ongoing, uncommon AWS EKS bug: https://github.com/argoproj/argo-workflows/pull/4224
   initialDelay:
   # -- deploymentAnnotations is an optional map of annotations to be applied to the controller Deployment

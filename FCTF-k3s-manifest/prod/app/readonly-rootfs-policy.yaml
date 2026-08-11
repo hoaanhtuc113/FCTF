@@ -1,0 +1,47 @@
+# Pod Security Admission's "restricted" profile (enforced via namespace
+# labels on app/namespace.yaml and cron-job/delete-chal-job.yaml) covers
+# non-root, no privileged, no hostPath, no privilege escalation - but it
+# does NOT check readOnlyRootFilesystem, which isn't part of the Pod
+# Security Standards. This policy closes that specific gap for the two
+# namespaces where every current workload already sets it, so a future
+# pod that omits it gets rejected at admission instead of silently
+# running with a writable root filesystem.
+#
+# Deliberately scoped to app/cron-job only, not cluster-wide: the argo
+# namespace's Kaniko builder needs a writable rootfs to build image
+# layers, and db/monitoring run third-party Helm charts (Bitnami,
+# kube-prometheus-stack) not yet verified compliant.
+#
+# Requires Kubernetes >=1.30 (ValidatingAdmissionPolicy GA) or >=1.28 with
+# the ValidatingAdmissionPolicy feature gate enabled.
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: app-require-readonly-rootfs
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+      - apiGroups: [""]
+        apiVersions: ["v1"]
+        operations: ["CREATE"]
+        resources: ["pods"]
+  matchConditions:
+    - name: scoped-to-app-and-cronjob-namespaces
+      expression: >-
+        object.metadata.namespace in ['app', 'cron-job']
+  validations:
+    - expression: >-
+        object.spec.containers.all(c,
+          has(c.securityContext) &&
+          has(c.securityContext.readOnlyRootFilesystem) &&
+          c.securityContext.readOnlyRootFilesystem == true)
+      message: "containers in the app/cron-job namespaces must set securityContext.readOnlyRootFilesystem: true"
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: app-require-readonly-rootfs-binding
+spec:
+  policyName: app-require-readonly-rootfs
+  validationActions: ["Deny"]

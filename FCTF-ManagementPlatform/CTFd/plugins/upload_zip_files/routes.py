@@ -5,7 +5,7 @@ import zipfile
 import io
 from CTFd.plugins import bypass_csrf_protection
 import time
-import hashlib
+import hmac
 from CTFd.models import Challenges, DeployedChallenge, Users, db
 from CTFd.plugins.challenges import get_chal_class
 from CTFd.schemas.challenges import ChallengeSchema
@@ -15,6 +15,7 @@ from CTFd.constants.status_challenge import STATUS
 from CTFd.constants.envvars import API_URL_CONTROLSERVER, PRIVATE_KEY
 from CTFd.utils.security.auth import generate_user_token
 from CTFd.utils.connector.multiservice_connector import (
+    create_secret_key,
     delete_cached_files,
     redeploy,
     handle_challenge_upload,
@@ -27,18 +28,6 @@ file_app = Blueprint("upload_zip_files", __name__)
 def allowed_file(filename):
     # Chỉ chấp nhận tệp có phần mở rộng là '.zip'
     return "." in filename and filename.rsplit(".", 1)[1].lower() == "zip"
-
-
-def create_secret_key(
-    private_key: str, unix_time: int, data: dict, default_value: str = "1"
-) -> str:
-    sorted_key = sorted(data.keys())
-    combineString = str(unix_time) + private_key
-
-    for key in sorted_key:
-        combineString += str(data.get(key, default_value))
-    md5_hash = hashlib.md5(combineString.encode()).hexdigest()
-    return md5_hash
 
 
 import os
@@ -88,7 +77,6 @@ def update_challenge_info():
     secret_key_request = request.headers.get("SecretKey")
     if not secret_key_request:
         return jsonify({"error": "SecretKey is required"}), 400
-    print(secret_key_request)
     data = request.form.to_dict() or request.get_json()
 
     challenge_id = data.get("ChallengeId")
@@ -103,10 +91,10 @@ def update_challenge_info():
 
     data.pop("UnixTime", None)
     secret_key = create_secret_key(private_key, unix_time, data)
-    print(secret_key)
-    print(secret_key)
 
-    if secret_key_request != secret_key:
+    # So sánh constant-time: phép so sánh chuỗi thường dừng ở ký tự sai đầu tiên,
+    # để lộ đoán được bao nhiêu ký tự và biến việc giả chữ ký thành dò từng ký tự.
+    if not hmac.compare_digest(secret_key_request, secret_key):
         return jsonify({"error": "SecretKey is not correct"}), 400
     challenge = Challenges.query.filter_by(id=challenge_id).first()
     print("challlegengeee" + str(challenge))

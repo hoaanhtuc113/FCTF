@@ -409,10 +409,19 @@ kubectl apply -f ./prod/ingress/nginx/
 - Queue: `deployment_queue`
 - Exchange: `deployment_exchange` (direct)
 - Binding: `deployment_exchange` -> `deployment_queue` với routing key `deploy`
+- Dead letter: `deployment_queue` -> `deployment_dlx` (direct) -> `deployment_dlq`, routing key `deploy`.
+  Message bị nack hoặc hết TTL rơi vào đây kèm header `x-death` (lý do, số lần, thời điểm)
+  thay vì biến mất. DLQ giữ 7 ngày, tối đa 1000 message, đầy thì bỏ message cũ nhất.
 - Vhost: `fctf_deploy`
 - Users:
   - `deployment-producer` (chỉ publish vào `deployment_exchange`)
   - `deployment-consumer` (chỉ consume từ `deployment_queue`)
+  - `deployment_dlq` chỉ đọc bằng tài khoản `admin`: không service nào consume nó,
+    nên không cấp thêm quyền cho hai tài khoản trên
+
+> Queue argument là immutable. Muốn đổi `x-dead-letter-exchange` trên `deployment_queue`
+> thì phải xoá và tạo lại queue — làm lúc queue rỗng, ngoài giờ thi, vì thao tác này
+> mất sạch message đang chờ.
 
 Cấu hình nằm trong file [prod/helm/db/rabbitmq/rabbitmq-values.yaml](prod/helm/db/rabbitmq/rabbitmq-values.yaml) (`extraDeploy` + `loadDefinition`).
 
@@ -516,6 +525,17 @@ kubectl delete pod -n storage -l app.kubernetes.io/name=filebrowser
 ``` bash
 # nếu xử dụng firewall mở các port 80, 443, 30037, 30038
 ```
+
+Cổng 30320 (Redis NodePort) **không** nằm trong danh sách mở cho tất cả. Nó chỉ
+được mở cho dải IP quản trị/VPN, chạy trên **từng node**:
+
+```bash
+sudo ./prod/db/redis-nodeport-firewall.sh <dải-IP-quản-trị>
+```
+
+Kèm theo đó phải apply `prod/db/redis-nodeport-admin-policy.yaml` (sau khi điền
+CIDR) — chi tiết trong phần đầu `prod/db-nodeport.yaml`. Thiếu một trong hai thì
+Redis nằm trên một cổng công khai.
 
 ### Pod pending hoặc CrashLoopBackOff
 ```bash

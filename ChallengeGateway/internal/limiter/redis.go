@@ -3,7 +3,11 @@ package limiter
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
+	"fmt"
 	"log"
+	"net"
+	"os"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -17,11 +21,48 @@ type RedisClient interface {
 	Ping(ctx context.Context) *redis.StatusCmd
 }
 
+// redisTLSConfig builds the TLS settings for the Redis connection.
+//
+// Without a CA the best available option is an encrypted-but-unauthenticated
+// connection: it stops passive sniffing of the ACL password and the rate-limit
+// keys, but an attacker able to redirect the traffic can still present its own
+// certificate. Pointing REDIS_TLS_CA_FILE at the CA that signed the Redis
+// server certificate closes that hole, and takes precedence over
+// REDIS_TLS_INSECURE_SKIP_VERIFY so the two settings can't contradict.
+func redisTLSConfig(cfg config.Config) (*tls.Config, error) {
+	tlsConfig := &tls.Config{
+		MinVersion:         tls.VersionTLS12,
+		InsecureSkipVerify: cfg.RedisTLSInsecureSkipVerify,
+	}
+	if host, _, err := net.SplitHostPort(cfg.RedisAddr); err == nil {
+		tlsConfig.ServerName = host
+	}
+
+	if cfg.RedisTLSCAFile == "" {
+		return tlsConfig, nil
+	}
+
+	pemBytes, err := os.ReadFile(cfg.RedisTLSCAFile)
+	if err != nil {
+		return nil, fmt.Errorf("read REDIS_TLS_CA_FILE: %w", err)
+	}
+	pool := x509.NewCertPool()
+	if !pool.AppendCertsFromPEM(pemBytes) {
+		return nil, fmt.Errorf("REDIS_TLS_CA_FILE %q holds no usable certificate", cfg.RedisTLSCAFile)
+	}
+	tlsConfig.RootCAs = pool
+	tlsConfig.InsecureSkipVerify = false
+
+	return tlsConfig, nil
+}
+
 // InitRedis creates a Redis client from config and verifies connectivity.
-// Returns nil when Redis is unavailable and RedisFailClosed is false.
-func InitRedis(cfg config.Config) RedisClient {
+// Returns a nil client when Redis is unavailable and RedisFailClosed is false;
+// returns an error only for a TLS configuration the operator got wrong, which
+// is worth refusing to start over rather than quietly downgrading.
+func InitRedis(cfg config.Config) (RedisClient, error) {
 	if cfg.RedisAddr == "" {
-		return nil
+		return nil, nil
 	}
 
 	opts := &redis.Options{
@@ -36,9 +77,22 @@ func InitRedis(cfg config.Config) RedisClient {
 		WriteTimeout: 2 * time.Second,
 	}
 	if cfg.RedisTLS {
-		opts.TLSConfig = &tls.Config{
-			InsecureSkipVerify: true,
+		tlsConfig, err := redisTLSConfig(cfg)
+		if err != nil {
+			return nil, err
 		}
+		opts.TLSConfig = tlsConfig
+	} else if cfg.IsProduction() {
+		// Deployed Redis listens on a TLS port only (the chart starts it with
+		// --port 0 --tls-port 6379), so a plaintext client here would not even
+		// connect - but failing on the configuration is clearer than failing on
+		// the handshake, and it keeps a copied .env from quietly disabling
+		// transport security on a live contest.
+		return nil, fmt.Errorf(
+			"APP_ENV=%s with REDIS_TLS off: refusing to start rather than send credentials to %s in cleartext",
+			cfg.AppEnv, cfg.RedisAddr)
+	} else {
+		log.Printf("WARNING: REDIS_TLS is off - credentials and rate-limit traffic to %s travel in cleartext", cfg.RedisAddr)
 	}
 	client := redis.NewClient(opts)
 
@@ -47,12 +101,12 @@ func InitRedis(cfg config.Config) RedisClient {
 	if err := client.Ping(ctx).Err(); err != nil {
 		log.Printf("redis unavailable: %v", err)
 		if cfg.RedisFailClosed {
-			return client
+			return client, nil
 		}
-		return nil
+		return nil, nil
 	}
 
-	return client
+	return client, nil
 }
 
 // ── rate limiter ──────────────────────────────────────────────────────────────

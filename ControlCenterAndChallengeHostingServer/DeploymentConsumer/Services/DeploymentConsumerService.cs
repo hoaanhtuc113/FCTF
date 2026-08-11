@@ -1,8 +1,9 @@
-﻿using RabbitMQ.Client;
+﻿using Microsoft.Extensions.Logging;
+using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using ResourceShared.DTOs.RabbitMQ;
+using ResourceShared.Logger;
 using System.Text;
-using System.Text.Json;
 using System.Threading.Channels;
 
 namespace DeploymentConsumer.Services;
@@ -21,10 +22,12 @@ public class DeploymentConsumerService : IDeploymentConsumerService, IAsyncDispo
     private string? _consumerTag;
     private readonly ConnectionFactory _factory;
     private readonly Channel<DequeuedMessage> _messageBuffer;
+    private readonly ILogger<DeploymentConsumerService> _logger;
 
     private const string QueueName = "deployment_queue";
 
     public DeploymentConsumerService(
+        ILogger<DeploymentConsumerService> logger,
         string host,
         string username,
         string password,
@@ -33,6 +36,8 @@ public class DeploymentConsumerService : IDeploymentConsumerService, IAsyncDispo
         bool useTls = false,
         string? sslServerName = null)
     {
+        _logger = logger;
+
         _factory = new ConnectionFactory
         {
             HostName = host,
@@ -81,31 +86,110 @@ public class DeploymentConsumerService : IDeploymentConsumerService, IAsyncDispo
 
     private async Task OnMessageReceivedAsync(object sender, BasicDeliverEventArgs ea)
     {
+        // Adopted before anything else runs, so even a rejection logs under the
+        // id of the request that produced the message rather than under nothing.
+        var correlationId = CorrelationContext.Accept(ea.BasicProperties?.MessageId);
+        CorrelationContext.Current = correlationId;
+
         try
         {
-            var body = Encoding.UTF8.GetString(ea.Body.ToArray());
-            var payload = JsonSerializer.Deserialize<DeploymentQueuePayload>(body);
-
-            if (payload != null && payload.Expiry < DateTime.UtcNow)
+            if (!DeploymentMessageValidator.TryParseEnvelope(ea.Body.ToArray(), out var payload, out var envelopeError))
             {
+                await RejectAsync(ea.DeliveryTag, envelopeError);
+                return;
+            }
+
+            if (payload.Expiry < DateTime.UtcNow)
+            {
+                // Acked rather than dead-lettered: the request is simply too old
+                // to act on, which is ordinary, and requeueing it would only have
+                // it expire again. Logged because it used to pass silently, and a
+                // run of these is how an overloaded deploy pipeline shows itself.
+                _logger.LogInformation(
+                    "Dropping deployment message {DeliveryTag}: expired at {Expiry:O}, queued at {CreatedAt:O}. CorrelationId={CorrelationId}",
+                    ea.DeliveryTag, payload.Expiry, payload.CreatedAt, correlationId);
+
                 await _channel!.BasicAckAsync(ea.DeliveryTag, false);
                 return;
             }
 
-            // Preserve message headers (contains tracing context) so downstream worker can extract propagation context
+            // Parsed and checked here rather than in the worker loop: a message
+            // that cannot produce a usable request must be settled while its
+            // delivery tag is still in hand, otherwise it holds a prefetch slot
+            // for the lifetime of the channel.
+            if (!DeploymentMessageValidator.TryParseRequest(payload.Data, out var request, out var requestError))
+            {
+                await RejectAsync(ea.DeliveryTag, requestError);
+                return;
+            }
+
+            LogIfRedelivered(ea);
+
             await _messageBuffer.Writer.WriteAsync(new DequeuedMessage
             {
                 DeliveryTag = ea.DeliveryTag,
-                Payload = payload!,
-                Headers = ea.BasicProperties?.Headers ?? new Dictionary<string, object?>()
+                Payload = payload,
+                Request = request,
+                CorrelationId = correlationId
             });
         }
-        catch
+        catch (Exception ex)
         {
-            if (_channel is { IsOpen: true })
-                await _channel.BasicNackAsync(ea.DeliveryTag, false, false);
+            await RejectAsync(ea.DeliveryTag, $"unhandled error: {ex.Message}");
         }
     }
+
+    // A message rejected here will not parse differently on a second attempt, so
+    // it is not requeued. It lands in deployment_dlq, where the body survives for
+    // a week; the reason is logged here because the queue records only that the
+    // message was rejected, not what this service objected to.
+    private async Task RejectAsync(ulong deliveryTag, string reason)
+    {
+        _logger.LogWarning(
+            "Rejecting deployment message {DeliveryTag}: {Reason}. CorrelationId={CorrelationId}",
+            deliveryTag, reason, CorrelationContext.Current);
+
+        if (_channel is { IsOpen: true })
+            await _channel.BasicNackAsync(deliveryTag, false, false);
+    }
+
+    // x-death is written by the broker when a message has been dead-lettered
+    // before, so its presence means this message already failed somewhere and was
+    // put back by hand. Worth saying out loud - it is the difference between a
+    // first attempt and a replay of one that was already investigated.
+    private void LogIfRedelivered(BasicDeliverEventArgs ea)
+    {
+        if (ea.BasicProperties?.Headers == null
+            || !ea.BasicProperties.Headers.TryGetValue("x-death", out var death))
+            return;
+
+        _logger.LogWarning(
+            "Deployment message {DeliveryTag} was dead-lettered before: {Death}. CorrelationId={CorrelationId}",
+            ea.DeliveryTag, DescribeDeath(death), CorrelationContext.Current);
+    }
+
+    private static string DescribeDeath(object? death)
+    {
+        // x-death arrives as an array of tables, one per queue the message died
+        // in, with byte-array values for the string fields.
+        if (death is not IEnumerable<object?> entries)
+            return "unreadable";
+
+        var described = entries
+            .OfType<IDictionary<string, object?>>()
+            .Select(entry => string.Join(
+                " ",
+                entry.Select(field => $"{field.Key}={Stringify(field.Value)}")));
+
+        return string.Join(" | ", described);
+    }
+
+    private static string Stringify(object? value) => value switch
+    {
+        byte[] bytes => Encoding.UTF8.GetString(bytes),
+        null => string.Empty,
+        _ => value.ToString() ?? string.Empty
+    };
 
     public async Task<List<DequeuedMessage>> DequeueAvailableBatchAsync(int count)
     {
@@ -114,8 +198,16 @@ public class DeploymentConsumerService : IDeploymentConsumerService, IAsyncDispo
         var batch = new List<DequeuedMessage>();
         while (batch.Count < count && _messageBuffer.Reader.TryRead(out var msg))
         {
-            if (msg.Payload != null && msg.Payload.Expiry < DateTime.UtcNow)
+            // Buffered messages only reach here after passing validation, so the
+            // one thing left to recheck is whether the wait in the buffer outlived
+            // the deploy window. Logged with the request it belonged to: this is
+            // the deploy the player asked for and is not going to get.
+            if (msg.Payload.Expiry < DateTime.UtcNow)
             {
+                _logger.LogInformation(
+                    "Dropping buffered deployment message {DeliveryTag}: expired at {Expiry:O}. ChallengeId={ChallengeId}, TeamId={TeamId}, CorrelationId={CorrelationId}",
+                    msg.DeliveryTag, msg.Payload.Expiry, msg.Request.challengeId, msg.Request.teamId, msg.CorrelationId);
+
                 await AckAsync(msg.DeliveryTag);
                 continue;
             }

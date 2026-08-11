@@ -1,0 +1,38 @@
+# Mitigation for T-K8S-11 (see deployment-center-sa.yaml's equivalent policy
+# for T-K8S-1): deployment-listener-sa-role also needs `namespaces: delete`
+# (ContestEndCleanupService.CheckAndCleanupEndedContestsAsync /
+# ChallengesInformerService's stuck-pod cleanup both call
+# K8sService.DeleteNamespace / DeleteAllChallengeNamespaces), and that verb
+# is cluster-scoped - RBAC alone cannot restrict *which* namespaces. This
+# policy enforces that deployment-listener-sa can only delete namespaces
+# labeled ctf/kind=challenge, so a stolen/misused token cannot delete
+# kube-system, argo, app, db, monitoring, etc.
+#
+# Requires Kubernetes >=1.30 (ValidatingAdmissionPolicy GA) or >=1.28 with the
+# ValidatingAdmissionPolicy feature gate enabled. Verify the cluster's k3s
+# version supports admissionregistration.k8s.io/v1 before applying.
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: deployment-listener-sa-namespace-delete-scope
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+      - apiGroups: [""]
+        apiVersions: ["v1"]
+        operations: ["DELETE"]
+        resources: ["namespaces"]
+  validations:
+    - expression: >-
+        request.userInfo.username != 'system:serviceaccount:app:deployment-listener-sa' ||
+        (has(oldObject.metadata.labels) && oldObject.metadata.labels['ctf/kind'] == 'challenge')
+      message: "deployment-listener-sa may only delete namespaces labeled ctf/kind=challenge"
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: deployment-listener-sa-namespace-delete-scope-binding
+spec:
+  policyName: deployment-listener-sa-namespace-delete-scope
+  validationActions: ["Deny"]

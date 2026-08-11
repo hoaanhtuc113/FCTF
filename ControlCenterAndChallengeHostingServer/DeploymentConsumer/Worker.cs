@@ -5,6 +5,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using ResourceShared.DTOs.Challenge;
 using ResourceShared.DTOs.RabbitMQ;
+using ResourceShared.Logger;
 using ResourceShared.Models;
 using ResourceShared.Utils;
 using RestSharp;
@@ -19,18 +20,24 @@ internal class Worker : BackgroundService
     private readonly ILogger<Worker> _logger;
     private readonly RedisHelper _redisHelper;
     private readonly MultiServiceConnector _multiServiceConnector;
+    private readonly WorkerHeartbeat _heartbeat;
 
     public Worker(
         IServiceScopeFactory scopeFactory,
         ILogger<Worker> logger,
         RedisHelper redisHelper,
-        MultiServiceConnector multiServiceConnector)
+        MultiServiceConnector multiServiceConnector,
+        WorkerHeartbeat heartbeat)
     {
         _scopeFactory = scopeFactory;
         _logger = logger;
         _redisHelper = redisHelper;
         _multiServiceConnector = multiServiceConnector;
+        _heartbeat = heartbeat;
     }
+
+    private static readonly TimeSpan MaxRetryDelay = TimeSpan.FromSeconds(60);
+    private int _consecutiveFailures = 0;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -39,12 +46,23 @@ internal class Worker : BackgroundService
             try
             {
                 await ProcessAsync(stoppingToken);
+                _heartbeat.Ping();
+                _consecutiveFailures = 0;
                 await Task.Delay(TimeSpan.FromSeconds(DeploymentConsumerConfigHelper.WORKER_POLL_INTERVAL_SECONDS), stoppingToken);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error in DeploymentConsumer Worker");
-                await Task.Delay(TimeSpan.FromSeconds(DeploymentConsumerConfigHelper.WORKER_POLL_INTERVAL_SECONDS), stoppingToken);
+                _heartbeat.Ping();
+                _consecutiveFailures++;
+
+                // Exponential backoff on repeated failures instead of hammering
+                // Argo/K8s at a fixed interval while they're already struggling.
+                var backoff = TimeSpan.FromSeconds(
+                    DeploymentConsumerConfigHelper.WORKER_POLL_INTERVAL_SECONDS * Math.Pow(2, Math.Min(_consecutiveFailures, 8)));
+                var delay = backoff < MaxRetryDelay ? backoff : MaxRetryDelay;
+
+                await Task.Delay(delay, stoppingToken);
             }
         }
     }
@@ -73,14 +91,18 @@ internal class Worker : BackgroundService
 
         foreach (var mess in messages)
         {
-            _logger.LogInformation($"[Worker] Excuting message with tag {mess.DeliveryTag}");
+            // Each message carries the id of the request that enqueued it, so the
+            // work done for it is logged under that id rather than under whatever
+            // the previous message in the batch happened to leave behind.
+            CorrelationContext.Current = mess.CorrelationId;
 
-            var startReq = JsonSerializer.Deserialize<ChallengeStartStopReqDTO>(mess.Payload.Data);
-            if (startReq == null)
-            {
-                _logger.LogError("Invalid payload");
-                continue;
-            }
+            _logger.LogInformation("[Worker] Executing message with tag {DeliveryTag}. CorrelationId={CorrelationId}",
+                mess.DeliveryTag, mess.CorrelationId);
+
+            // Deserialized and validated by DeploymentConsumerService when the
+            // message came off the queue; anything that failed there was nacked
+            // there and never reached this batch.
+            var startReq = mess.Request;
 
             var deploymentKey = ChallengeHelper.GetCacheKey(startReq.challengeId, startReq.teamId);
             var deploymentCache = await _redisHelper.GetFromCacheAsync<ChallengeDeploymentCacheDTO>(deploymentKey);
@@ -108,6 +130,20 @@ internal class Worker : BackgroundService
                 var useGvisor = challenge.UseGvisor ?? true;
                 var hardenContainer = challenge.HardenContainer ?? true;
 
+                // Read the team's dynamic flag from the table that issued it instead of
+                // from the message. This value is interpolated into the challenge
+                // manifest by the Argo template, and the queue is the one hop into this
+                // service that something other than deployment-center could reach - a
+                // flag arriving in the payload would be a caller-chosen string landing
+                // in a rendered manifest. Null here is normal: static and regex flags
+                // have no per-team instance, and BuildArgoPayload then omits
+                // CHALLENGE_FLAG entirely.
+                var flagValue = await messageDbContext.DynamicFlagInstances
+                    .Where(d => d.ChallengeId == startReq.challengeId && d.TeamId == startReq.teamId)
+                    .OrderBy(d => d.FlagId)
+                    .Select(d => d.Value)
+                    .FirstOrDefaultAsync(cancellationToken: stoppingToken);
+
                 var cpuLimitValue = $"{cpuLimit}m";
                 var cpuRequestValue = $"{cpuRequest}m";
                 var memoryLimitValue = $"{memoryLimit}Mi";
@@ -124,7 +160,8 @@ internal class Worker : BackgroundService
                     useGvisor,
                     hardenContainer,
                     DeploymentConsumerConfigHelper.POD_START_TIMEOUT_MINUTES,
-                    startReq.flagValue);
+                    flagValue,
+                    mess.CorrelationId);
 
                 var response = await _multiServiceConnector.ExecuteRequest(
                     DeploymentConsumerConfigHelper.ARGO_WORKFLOWS_URL,
@@ -145,7 +182,7 @@ internal class Worker : BackgroundService
                         .GetString()!;
 
                     await queueService.AckAsync(mess.DeliveryTag);
-                    _logger.LogInformation("Request send to argo. ChallengeId={ChallengeId}, TeamId={TeamId}, WorkflowName={WorkflowName}", startReq.challengeId, startReq.teamId, workflowName);
+                    _logger.LogInformation("Request send to argo. ChallengeId={ChallengeId}, TeamId={TeamId}, WorkflowName={WorkflowName}, CorrelationId={CorrelationId}", startReq.challengeId, startReq.teamId, workflowName, mess.CorrelationId);
                     if (string.IsNullOrWhiteSpace(workflowName))
                         throw new InvalidOperationException("Workflow name is empty");
                 }
@@ -165,7 +202,7 @@ internal class Worker : BackgroundService
             catch (Exception ex)
             {
                 await queueService.NackAsync(mess.DeliveryTag);
-                _logger.LogError(ex, "Deploy failed. ChallengeId={ChallengeId}, TeamId={TeamId}", startReq.challengeId, startReq.teamId);
+                _logger.LogError(ex, "Deploy failed. ChallengeId={ChallengeId}, TeamId={TeamId}, CorrelationId={CorrelationId}", startReq.challengeId, startReq.teamId, mess.CorrelationId);
             }
         }
     }

@@ -62,27 +62,40 @@ class TeamSchema(ma.ModelSchema):
             return
         name = name.strip()
 
-        existing_team = Teams.query.filter_by(name=name).first()
         current_team = get_current_team()
         # Admins should be able to patch anyone but they cannot cause a collision.
         if is_admin():
             team_id = int(data.get("id", 0))
             if team_id:
+                # Editing an existing team: uniqueness is scoped to that team's own contest.
+                target_team = Teams.query.filter_by(id=team_id).first()
+                contest_id = target_team.contest_id if target_team else None
+            else:
+                # Creating a team with no ID yet: scope to the contest it's being created in.
+                contest_id = data.get("contest_id")
+
+            existing_team = Teams.query.filter_by(
+                name=name, contest_id=contest_id
+            ).first()
+
+            if team_id:
                 if existing_team and existing_team.id != team_id:
                     raise ValidationError(
-                        "Team name has already been taken", field_names=["name"]
+                        "A team with this name already exists in this contest",
+                        field_names=["name"],
                     )
             else:
-                # If there's no Team ID it means that the admin is creating a team with no ID.
                 if existing_team:
                     if current_team:
                         if current_team.id != existing_team.id:
                             raise ValidationError(
-                                "Team name has already been taken", field_names=["name"]
+                                "A team with this name already exists in this contest",
+                                field_names=["name"],
                             )
                     else:
                         raise ValidationError(
-                            "Team name has already been taken", field_names=["name"]
+                            "A team with this name already exists in this contest",
+                            field_names=["name"],
                         )
         else:
             # We need to allow teams to edit themselves and allow the "conflict"
@@ -95,9 +108,13 @@ class TeamSchema(ma.ModelSchema):
                         "Name changes are disabled", field_names=["name"]
                     )
 
+                existing_team = Teams.query.filter_by(
+                    name=name, contest_id=current_team.contest_id
+                ).first()
                 if existing_team:
                     raise ValidationError(
-                        "Team name has already been taken", field_names=["name"]
+                        "A team with this name already exists in this contest",
+                        field_names=["name"],
                     )
 
     @pre_load

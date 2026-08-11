@@ -285,7 +285,12 @@ persistence:
 # key in secret is given via (default to HARBOR_ADMIN_PASSWORD)
 existingSecretAdminPassword: ""
 existingSecretAdminPasswordKey: HARBOR_ADMIN_PASSWORD
-harborAdminPassword: "Fctf@2026"
+# harborAdminPassword is deliberately absent - helm.sh passes it with --set
+# from a password generated on the machine (see platform-credentials.sh), so
+# no console password lives in this repository. Retrieve it with `manage.sh`
+# -> "Get platform credentials". Note Harbor only applies this when it first
+# initialises its database: on an existing install, changing it updates the
+# secret but not the account you log in with.
 
 # The internal TLS used for harbor components secure communicating. In order to enable https
 # in each component tls cert files need to provided in advance.
@@ -1043,6 +1048,17 @@ redis:
   internal:
     image:
       repository: docker.io/goharbor/redis-photon
+      # Pinned because the chart's default does not exist. Every other Harbor
+      # component is published at the chart's appVersion, but redis-photon
+      # stops at v2.15.1 upstream, so a chart at 2.15.2 asks the kubelet for
+      # docker.io/goharbor/redis-photon:v2.15.2 and gets "not found" forever.
+      # harbor-redis then never starts, and harbor-core/harbor-jobservice sit
+      # in CrashLoopBackOff behind it.
+      #
+      # This is only Redis, not a Harbor component, so trailing the rest of the
+      # stack by a patch release is harmless. Re-check it when the Harbor chart
+      # version moves.
+      tag: v2.15.1
     # set the service account to be used, default if left empty
     serviceAccountName: ""
     # mount the service account token

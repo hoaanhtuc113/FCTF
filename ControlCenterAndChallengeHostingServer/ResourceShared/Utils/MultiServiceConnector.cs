@@ -3,6 +3,30 @@ using RestSharp;
 
 namespace ResourceShared.Utils
 {
+    /// <summary>
+    /// A call that reached the other service and came back with a non-2xx answer,
+    /// as opposed to one that never got there. The distinction matters because the
+    /// body of such a response usually carries a message meant for the end user -
+    /// "queue is full, retry shortly" and the like - and a caller that only sees a
+    /// bare Exception has no way to tell that apart from a genuine fault and ends
+    /// up reporting "an unexpected error occurred" for a perfectly ordinary answer.
+    ///
+    /// Message keeps the "[code] description\nbody" shape the previous plain
+    /// Exception used, so log output and anything grepping for it are unaffected.
+    /// </summary>
+    public sealed class UpstreamHttpException : Exception
+    {
+        public int StatusCode { get; }
+        public string? ResponseContent { get; }
+
+        public UpstreamHttpException(int statusCode, string? statusDescription, string? content)
+            : base($"[{statusCode}] {statusDescription}\n{content}")
+        {
+            StatusCode = statusCode;
+            ResponseContent = content;
+        }
+    }
+
     public class MultiServiceConnector
     {
         public MultiServiceConnector()
@@ -189,6 +213,12 @@ namespace ResourceShared.Utils
                 .AddHeader("Content-Type", "application/json")
                 .AddJsonBody(body);
 
+            // Carry the caller's correlation id across the hop so the receiving
+            // service logs under the same id instead of starting its own chain.
+            var correlationId = Logger.CorrelationContext.Current;
+            if (!string.IsNullOrEmpty(correlationId))
+                request.AddHeader(Middlewares.CorrelationIdMiddleware.HeaderName, correlationId);
+
             if (headers != null)
                 foreach (var h in headers)
                     request.AddHeader(h.Key, h.Value);
@@ -197,7 +227,7 @@ namespace ResourceShared.Utils
             if (response.ResponseStatus == ResponseStatus.TimedOut)
                 throw new TimeoutException($"Request to {baseUrl}{apiPath} timed out.");
             if (!response.IsSuccessful)
-                throw new Exception($"[{(int)response.StatusCode}] {response.StatusDescription}\n{response.Content}");
+                throw new UpstreamHttpException((int)response.StatusCode, response.StatusDescription, response.Content);
 
             return response.Content;
         }

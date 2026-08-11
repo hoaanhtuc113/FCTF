@@ -342,6 +342,9 @@ class TeamPublic(Resource):
         # Store team info before deletion for audit
         team_info = {
             "team_id": team.id,
+            # Captured before the delete for the same reason as challenge_info:
+            # afterwards there is no row left to read the contest from.
+            "contest_id": team.contest_id,
             "name": team.name,
             "email": team.email,
             "member_count": len(team.members),
@@ -370,7 +373,8 @@ class TeamPublic(Resource):
         log_audit(
             action="team_delete",
             before=team_info,
-            data={"team_id": team_id, "name": team_info["name"]}
+            data={"team_id": team_id, "name": team_info["name"]},
+            contest_id=team_info["contest_id"],
         )
 
         clear_team_session(team_id=team_id)

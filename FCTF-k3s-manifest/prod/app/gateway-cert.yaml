@@ -1,0 +1,27 @@
+# Lives here, not in ingress/certificate/, because nothing serves it through an
+# Ingress: challenge-gateway mounts the secret and terminates TLS itself. That
+# makes it an app dependency rather than an ingress one, and the difference is
+# not cosmetic - kubelet mounts volumes before it creates the pod sandbox, so
+# until this secret exists the gateway pods sit in ContainerCreating with no IP,
+# no restarts, and events that never mention a certificate.
+#
+# It stays on the public ACME issuer on purpose. Contestants reach the gateway
+# by name over the node ports, so the certificate has to be one their clients
+# already trust; an internal CA would only work for someone who had installed
+# fctf-internal-ca first.
+#
+# apply-fctf.sh applies this before it deploys the app services and then waits
+# for it, so a certificate that cannot be issued shows up during the install
+# rather than as pods stuck for hours afterwards.
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: gateway-tls
+  namespace: app
+spec:
+  secretName: gateway-tls
+  dnsNames:
+    - <GATEWAY_DOMAIN>
+  issuerRef:
+    name: letsencrypt-dev
+    kind: ClusterIssuer

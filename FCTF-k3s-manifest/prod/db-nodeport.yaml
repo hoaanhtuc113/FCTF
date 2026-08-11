@@ -1,3 +1,44 @@
+# Direct node-level access to the databases. Applied by hand, not by
+# apply-fctf.sh.
+#
+# The Redis NodePort is kept for remote operations, but it is only defensible
+# with all three of these in place. Applying this file alone puts Redis back on
+# a public port:
+#
+#   1. Host firewall. The NodePort is reachable before any Kubernetes rule gets
+#      a say, so this is the layer that actually gates it. Run
+#      db/redis-nodeport-firewall.sh on every node with your admin or VPN range.
+#   2. NetworkPolicy. Apply db/redis-nodeport-admin-policy.yaml with the same
+#      range filled in - it is kept out of db/NetworkPolicy/ precisely because
+#      it carries a placeholder and must not be applied unedited.
+#   3. TLS, which is already unavoidable: the chart starts Redis with
+#      `--port 0 --tls-port 6379`, so 6379 is the TLS port and no plaintext
+#      listener exists to reach. A client that does not speak TLS cannot
+#      connect through this NodePort or any other path.
+#
+# externalTrafficPolicy: Local is what makes step 2 possible. Under the default
+# (Cluster) kube-proxy SNATs the client to the node address, so a NetworkPolicy
+# sees the node rather than the admin and an ipBlock rule cannot tell an
+# administrator from an attacker - it can only allow all NodePort traffic or
+# none. Local preserves the source address so the policy can match it, and as a
+# side effect only nodes actually running a Redis pod answer on this port
+# (the chart pins the master to server-1-master), instead of all of them.
+#
+# The consequence to know: connecting to a node that has no Redis pod now fails
+# rather than being forwarded. Use the node the master runs on.
+#
+# If remote access stops being a requirement, delete this Service and use
+# port-forward instead, which needs no open port at all:
+#
+#   kubectl port-forward -n db svc/redis-master 6379:6379
+#
+# The MariaDB entry below has none of the above: no source restriction, no
+# TLS-only listener, and externalTrafficPolicy defaulting to Cluster, so the
+# whole contest database answers on port 30306 of every node. It is unchanged
+# only because it was not part of this mitigation, and it deserves the same
+# treatment or removal:
+#
+#   kubectl port-forward -n db svc/mariadb 3306:3306
 apiVersion: v1
 kind: Service
 metadata:
@@ -26,14 +67,24 @@ metadata:
   labels:
     app.kubernetes.io/name: redis
     app.kubernetes.io/component: master
+  annotations:
+    fctf.io/exposure: >-
+      Reachable from outside the cluster. Requires the host firewall rule and
+      redis-nodeport-admin-policy.yaml; see the header of this file.
 spec:
   type: NodePort
+  # Preserves the client source address so the NetworkPolicy can filter on it.
+  # Do not change to Cluster without also accepting that the policy stops being
+  # able to distinguish callers.
+  externalTrafficPolicy: Local
   selector:
     app.kubernetes.io/name: redis
     app.kubernetes.io/component: master
   ports:
-    - name: redis
+    - name: redis-tls
       protocol: TCP
       port: 6379
+      # The TLS port - Redis is started with --port 0, so this is the only
+      # listener there is.
       targetPort: 6379
       nodePort: 30320

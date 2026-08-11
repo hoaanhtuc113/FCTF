@@ -10,11 +10,22 @@ spec:
   policyTypes:
     - Ingress
     - Egress
-  ingress: []
+  ingress:
+    # kubelet readiness/liveness probes
+    - ports:
+        - protocol: TCP
+          port: 5040
   egress:
+    # Internet HTTPS only - excludes private ranges and link-local
+    # (blocks lateral movement to cluster/VPC and cloud metadata via SSRF)
     - to:
         - ipBlock:
             cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+              - 169.254.0.0/16
       ports:
         - port: 443
     # DNS

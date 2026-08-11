@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using ResourceShared;
 using ResourceShared.DTOs;
 using ResourceShared.DTOs.Challenge;
@@ -21,7 +22,8 @@ public interface IDeployService
 {
     Task<ChallengeDeployResponeDTO> Start(ChallengeStartStopReqDTO challengeStartReq);
     Task<ChallengeDeployResponeDTO> Stop(ChallengeStartStopReqDTO challengeStartReq);
-    Task<BaseResponseDTO> StopAll(int contestId = 0);
+    Task<BaseResponseDTO> StopAll(int contestId, int? userId);
+    Task<BaseResponseDTO> StopAllGlobal(int? userId);
     Task<ChallengeDeployResponeDTO> StatusCheck(ChallengCheckStatusReqDTO statusReq);
     Task<BaseResponseDTO> HandleMessageFromArgo(WorkflowStatusDTO message);
     Task<BaseResponseDTO<DeploymentLogsDTO>> GetDeploymentLogs(string workflowName);
@@ -138,6 +140,39 @@ public class DeployService : IDeployService
         try
         {
             var expirySeconds = DeploymentCenterConfigHelper.DEPLOYMENT_QUEUE_TIMEOUT_MINUTES * 60;
+
+            // Which contest this deploy belongs to decides how much of the shared
+            // queue it may take, so it is read from the challenge row rather than
+            // from the request - a caller that picks its own contest picks its own
+            // quota. deployment_center already holds SELECT on challenges.
+            var contestId = await _dbContext.Challenges
+                .AsNoTracking()
+                .Where(c => c.Id == startReq.challengeId)
+                .Select(c => c.ContestId)
+                .FirstOrDefaultAsync();
+
+            var slotReserved = await _redisHelper.AtomicTryReserveContestSlot(
+                contestId.ToString(),
+                deploymentKey,
+                DeploymentCenterConfigHelper.MAX_QUEUED_PER_CONTEST,
+                expirySeconds);
+
+            if (!slotReserved)
+            {
+                // Refused before publishing, so the queue keeps room for the other
+                // contests. Without this the broker refuses whoever publishes next,
+                // which is not the same thing: the contest that filled the queue is
+                // rarely the one that gets turned away.
+                await _redisHelper.RemoveCacheAsync(deploymentKey);
+
+                return new ChallengeDeployResponeDTO
+                {
+                    status = (int)HttpStatusCode.TooManyRequests,
+                    success = false,
+                    message = "This contest has too many deployments queued. Please retry in a moment."
+                };
+            }
+
             await _deploymentProducerService.EnqueueDeploymentAsync(startReq, expirySeconds);
 
             deploymentCache = new ChallengeDeploymentCacheDTO
@@ -182,7 +217,7 @@ public class DeployService : IDeployService
         {
             await _redisHelper.RemoveCacheAsync(deploymentKey);
 
-            _logger.LogError(ex, null, startReq.teamId, new { startReq.challengeId });
+            _logger.LogError(ex, null, startReq.teamId, new { startReq.challengeId }, contestId: startReq.contestId);
             return new ChallengeDeployResponeDTO
             {
                 status = (int)HttpStatusCode.InternalServerError,
@@ -194,7 +229,7 @@ public class DeployService : IDeployService
         {
             await _redisHelper.RemoveCacheAsync(deploymentKey);
 
-            _logger.LogError(ex, null, startReq.teamId, new { startReq.challengeId });
+            _logger.LogError(ex, null, startReq.teamId, new { startReq.challengeId }, contestId: startReq.contestId);
             return new ChallengeDeployResponeDTO
             {
                 status = (int)HttpStatusCode.TooManyRequests,
@@ -206,7 +241,7 @@ public class DeployService : IDeployService
         {
             await _redisHelper.RemoveCacheAsync(deploymentKey);
 
-            _logger.LogError(ex, null, startReq.teamId, new { startReq.challengeId });
+            _logger.LogError(ex, null, startReq.teamId, new { startReq.challengeId }, contestId: startReq.contestId);
             return new ChallengeDeployResponeDTO
             {
                 status = (int)HttpStatusCode.InternalServerError,
@@ -218,7 +253,7 @@ public class DeployService : IDeployService
         {
             await _redisHelper.RemoveCacheAsync(deploymentKey);
 
-            _logger.LogError(ex, null, startReq.teamId, new { startReq.challengeId });
+            _logger.LogError(ex, null, startReq.teamId, new { startReq.challengeId }, contestId: startReq.contestId);
 
             return new ChallengeDeployResponeDTO
             {
@@ -253,7 +288,12 @@ public class DeployService : IDeployService
             // Admin force delete: xóa namespace và cache ngay lập tức
             if (user != null && user.Type == UserType.Admin)
             {
-                await Console.Out.WriteLineAsync($"[Admin] Force deleting namespace {deployInfo._namespace}...");
+                _logger.LogAudit(
+                    "admin_force_delete_namespace",
+                    before: new { @namespace = deployInfo._namespace, stopReq.challengeId, stopReq.teamId },
+                    userId: user.Id,
+                    contestId: stopReq.contestId,
+                    teamId: stopReq.teamId);
                 await _k8SHealthService.DeleteNamespace(deployInfo._namespace ?? string.Empty);
 
                 deployInfo.status = DeploymentStatus.STOPPED;
@@ -298,7 +338,7 @@ public class DeployService : IDeployService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, null, stopReq.teamId, new { challengeId = stopReq.challengeId });
+            _logger.LogError(ex, null, stopReq.teamId, new { challengeId = stopReq.challengeId }, contestId: stopReq.contestId);
             await Console.Error.WriteLineAsync($"Error during stopping challenge: {ex.Message}");
             return new ChallengeDeployResponeDTO
             {
@@ -310,55 +350,131 @@ public class DeployService : IDeployService
     }
 
 
-    public async Task<BaseResponseDTO> StopAll(int contestId = 0)
+    public async Task<BaseResponseDTO> StopAll(int contestId, int? userId)
     {
-        await Console.Out.WriteLineAsync($"Stopping all challenges{(contestId > 0 ? $" for contest {contestId}" : "")}...");
+        if (contestId <= 0)
+        {
+            return new BaseResponseDTO
+            {
+                Success = false,
+                Message = "contestId is required. Use StopAllGlobal to stop every contest's challenges.",
+                HttpStatusCode = HttpStatusCode.BadRequest
+            };
+        }
+
+        await Console.Out.WriteLineAsync($"Stopping all challenges for contest {contestId}...");
         try
         {
-            HashSet<int>? challengeIdFilter = null;
+            var ids = await _dbContext.Challenges
+                .Where(c => c.ContestId == contestId)
+                .Select(c => c.Id)
+                .ToListAsync();
 
-            if (contestId > 0)
+            if (ids.Count == 0)
             {
-                var ids = await _dbContext.Challenges
-                    .Where(c => c.ContestId == contestId)
-                    .Select(c => c.Id)
-                    .ToListAsync();
-
-                if (ids.Count == 0)
+                return new BaseResponseDTO
                 {
-                    return new BaseResponseDTO
-                    {
-                        Success = true,
-                        Message = $"No challenges found for contest {contestId}.",
-                        HttpStatusCode = HttpStatusCode.OK
-                    };
-                }
-
-                challengeIdFilter = new HashSet<int>(ids);
+                    Success = true,
+                    Message = $"No challenges found for contest {contestId}.",
+                    HttpStatusCode = HttpStatusCode.OK
+                };
             }
+
+            // Recorded before the deletion, not after: this tears down every
+            // running instance for every team in the contest, and an audit
+            // trail that only exists when the operation finishes cleanly is not
+            // one. Console.Out goes to a container log that rotates away; this
+            // goes to the same action log as the rest of the admin actions.
+            var challengeIdFilter = new HashSet<int>(ids);
+            _logger.Log(
+                "stop_all_contest",
+                userId,
+                null,
+                new { contestId, challengeCount = challengeIdFilter.Count },
+                level: LogLevel.Warning,
+                contestId: contestId);
 
             var (successCount, failCount, errors) = await _k8SHealthService.DeleteAllChallengeNamespaces("ctf/kind=challenge", challengeIdFilter);
 
-            // Clear Redis cache scoped to the affected challenges only
-            if (challengeIdFilter != null)
-            {
-                foreach (var cid in challengeIdFilter)
-                    await _redisHelper.RemoveCacheByPattern($"deploy_challenge_{cid}_*");
-            }
-            else
-            {
-                await _redisHelper.RemoveCacheByPattern("deploy_challenge_*");
-                await _redisHelper.RemoveCacheByPattern("active_deploys_team_*");
-            }
+            // Clears the ZSET entries as well as the JSON keys. Dropping only
+            // the keys left every affected team holding slots against its
+            // concurrent-deployment limit for challenges that no longer exist.
+            foreach (var cid in challengeIdFilter)
+                await _redisHelper.RemoveDeploymentsForChallenge(cid);
 
-            var scope = contestId > 0 ? $" for contest {contestId}" : "";
-            var message = $"Stopped {successCount} challenge namespace(s){scope} successfully.";
+            var message = $"Stopped {successCount} challenge namespace(s) for contest {contestId} successfully.";
             if (failCount > 0)
             {
                 message += $" {failCount} failed. Errors: {string.Join("; ", errors)}";
-                var scopeDesc = contestId > 0 ? $"contest {contestId}" : "all contests";
                 await Console.Error.WriteLineAsync(
-                    $"[WARNING] StopAll partial failure for {scopeDesc}: {failCount} namespace(s) could not be deleted after retries. " +
+                    $"[WARNING] StopAll partial failure for contest {contestId}: {failCount} namespace(s) could not be deleted after retries. " +
+                    $"Retry the stop-all operation or delete manually. Errors: {string.Join("; ", errors)}");
+            }
+
+            return new BaseResponseDTO
+            {
+                Success = failCount == 0,
+                Message = message,
+                HttpStatusCode = failCount == 0 ? HttpStatusCode.OK : HttpStatusCode.PartialContent
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, contestId: contestId);
+            await Console.Error.WriteLineAsync($"Error during stopping all challenges: {ex.Message}");
+            return new BaseResponseDTO
+            {
+                Success = false,
+                Message = $"Error during stopping all challenges: {ex.Message}",
+                HttpStatusCode = HttpStatusCode.InternalServerError
+            };
+        }
+    }
+
+    // Deletes every ctf/kind=challenge namespace across every contest - no
+    // contestId filter. Kept as a distinct method (rather than StopAll's old
+    // contestId=0 fallback) so it can only be reached through the separate,
+    // extra-confirmation-gated /stop-all-global endpoint.
+    public async Task<BaseResponseDTO> StopAllGlobal(int? userId)
+    {
+        await Console.Out.WriteLineAsync("Stopping ALL challenges across ALL contests...");
+
+        // Stopping every contest at once is expected/low-risk when there's
+        // only ever one contest live. With 2+ running concurrently it means
+        // an admin just took down someone else's contest too - that's the
+        // scenario worth paging someone over, not just an info log line.
+        var now = DateTime.UtcNow;
+        var runningContestIds = await _dbContext.Contests
+            .AsNoTracking()
+            .Where(c => c.State != "paused" && c.State != "ended"
+                && (c.StartTime == null || now >= c.StartTime)
+                && (c.EndTime == null || now <= c.EndTime))
+            .Select(c => c.Id)
+            .ToListAsync();
+
+        if (runningContestIds.Count >= 2)
+        {
+            _logger.Log(
+                "stop_all_global_multi_contest",
+                userId,
+                null,
+                new { runningContestCount = runningContestIds.Count, runningContestIds },
+                level: LogLevel.Critical);
+        }
+
+        try
+        {
+            var (successCount, failCount, errors) = await _k8SHealthService.DeleteAllChallengeNamespaces("ctf/kind=challenge", null);
+
+            await _redisHelper.RemoveCacheByPattern("deploy_challenge_*");
+            await _redisHelper.RemoveCacheByPattern("active_deploys_team_*");
+
+            var message = $"Stopped {successCount} challenge namespace(s) across all contests successfully.";
+            if (failCount > 0)
+            {
+                message += $" {failCount} failed. Errors: {string.Join("; ", errors)}";
+                await Console.Error.WriteLineAsync(
+                    $"[WARNING] StopAllGlobal partial failure: {failCount} namespace(s) could not be deleted after retries. " +
                     $"Retry the stop-all operation or delete manually. Errors: {string.Join("; ", errors)}");
             }
 
@@ -623,7 +739,7 @@ public class DeployService : IDeployService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, null, challengeReq.teamId, new { challengeId = challengeReq.challengeId });
+            _logger.LogError(ex, null, challengeReq.teamId, new { challengeId = challengeReq.challengeId }, contestId: challengeReq.contestId);
             await Console.Error.WriteLineAsync($"Error retrieving pod logs: {ex.Message}");
             return new BaseResponseDTO<PodLogsDTO>
             {
@@ -638,6 +754,24 @@ public class DeployService : IDeployService
     {
         try
         {
+            // teamId/challengeId are ints, but ns is a free string that gets
+            // interpolated straight into the LogQL below. A value carrying a
+            // quote can close the ns matcher and append filters of its own -
+            // dropping the team filter to read another team's logs, or adding
+            // a line filter that makes Loki scan the whole retention window.
+            // The only legitimate value is a Kubernetes namespace name, so
+            // reject anything else instead of trying to escape it.
+            var ns = challengeReq.ns?.Trim();
+            if (!string.IsNullOrEmpty(ns) && !Regex.IsMatch(ns, @"^[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?$"))
+            {
+                return new BaseResponseDTO<PodLogsDTO>
+                {
+                    Success = false,
+                    HttpStatusCode = HttpStatusCode.BadRequest,
+                    Message = "Invalid namespace"
+                };
+            }
+
             var lokiBaseUrl = (DeploymentCenterConfigHelper.LOKI_BASE_URL ?? "http://loki-stack:3100").Trim();
             var lokiSelector = (DeploymentCenterConfigHelper.LOKI_QUERY_SELECTOR ?? "{app=\"challenge-gateway\"}").Trim();
 
@@ -676,9 +810,9 @@ public class DeployService : IDeployService
             var startNs = DateTimeOffset.UtcNow.AddHours(-6).ToUnixTimeMilliseconds() * 1_000_000;
 
             // Base filter: team + challenge. Optionally narrow to a specific namespace.
-            var logql = string.IsNullOrWhiteSpace(challengeReq.ns)
+            var logql = string.IsNullOrEmpty(ns)
                 ? $"{lokiSelector} | logfmt | team=\"{challengeReq.teamId}\" | challenge=\"{challengeReq.challengeId}\""
-                : $"{lokiSelector} | logfmt | team=\"{challengeReq.teamId}\" | challenge=\"{challengeReq.challengeId}\" | ns=\"{challengeReq.ns}\"";
+                : $"{lokiSelector} | logfmt | team=\"{challengeReq.teamId}\" | challenge=\"{challengeReq.challengeId}\" | ns=\"{ns}\"";
 
             var query = Uri.EscapeDataString(logql);
             var url = $"/loki/api/v1/query_range?query={query}&start={startNs}&end={endNs}&limit=2000&direction=backward";
@@ -768,7 +902,7 @@ public class DeployService : IDeployService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, null, challengeReq.teamId, new { challengeId = challengeReq.challengeId });
+            _logger.LogError(ex, null, challengeReq.teamId, new { challengeId = challengeReq.challengeId }, contestId: challengeReq.contestId);
             await Console.Error.WriteLineAsync($"Error retrieving request logs from Loki. BaseUrl={DeploymentCenterConfigHelper.LOKI_BASE_URL}, Selector={DeploymentCenterConfigHelper.LOKI_QUERY_SELECTOR}, Error={ex.Message}");
             return new BaseResponseDTO<PodLogsDTO>
             {
