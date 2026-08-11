@@ -88,13 +88,23 @@ spec:
             type: RuntimeDefault
 
         # Production-safe resources (tested range)
+        #
+        # ephemeral-storage is the one that was missing. Kaniko unpacks the base
+        # image and writes every snapshot layer into its own container filesystem,
+        # which comes out of the node's disk - and cpu and memory limits do nothing
+        # about that. Without a limit the kubelet has no reason to evict this pod
+        # before the disk fills, and a full node takes down whatever else is
+        # scheduled on it, not just the build. With one, an oversized build dies on
+        # its own and the node survives.
         resources:
           requests:
             cpu: "100m"
             memory: "256Mi"
+            ephemeral-storage: "1Gi"
           limits:
             cpu: "500m"
             memory: "1Gi"
+            ephemeral-storage: "4Gi"
 
         env:
           - name: DOCKER_CONFIG
@@ -171,6 +181,22 @@ spec:
 
             echo "📁 Build context: $CHALLENGE_DIR"
             cd "$CHALLENGE_DIR"
+
+            # Measure the context before Kaniko reads it. The uploader caps what a
+            # single archive expands to, but this folder is on a share several
+            # things can write to, and it is the node's disk that pays for whatever
+            # is there by the time the build runs. Refusing here names the reason;
+            # hitting the ephemeral-storage limit instead only says the pod died.
+            MAX_CONTEXT_KB=524288
+            CONTEXT_KB="$(du -sk . | cut -f1)"
+            echo "📦 Build context size: ${CONTEXT_KB} KiB"
+
+            if [ "$CONTEXT_KB" -gt "$MAX_CONTEXT_KB" ]; then
+              echo "❌ Build context is ${CONTEXT_KB} KiB, over the limit of ${MAX_CONTEXT_KB} KiB"
+              echo "   Trim the challenge folder, or raise MAX_CONTEXT_KB together with"
+              echo "   the ephemeral-storage limit on this step - they bound the same thing."
+              exit 1
+            fi
 
             /kaniko/executor \
               --dockerfile=Dockerfile \
