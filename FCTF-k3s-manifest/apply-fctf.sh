@@ -613,6 +613,11 @@ if [[ "${DEPLOY_APP_SERVICES}" == "true" ]]; then
   echo "==> Applying readOnlyRootFilesystem admission policy"
   kubectl apply -f "${PROD_DIR}/app/readonly-rootfs-policy.yaml"
 
+  # Named explicitly: the applies above reach prod/app/<service>/ directories, not
+  # loose files at the root of prod/app.
+  echo "==> Applying namespace delete scope admission policy"
+  kubectl apply -f "${PROD_DIR}/app/namespace-delete-policy.yaml"
+
   if [[ "${SERVICE_MODE}" == "clusterip" ]]; then
     echo "==> Applying ClusterIP service mode"
     kubectl delete -f "${PROD_DIR}/app/service-nodeport.yaml" --ignore-not-found
