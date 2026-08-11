@@ -151,6 +151,54 @@ public class DeployService : IDeployService
                 .Select(c => c.ContestId)
                 .FirstOrDefaultAsync();
 
+            // Both limits below are enforced on start rather than on stop, although the
+            // loop they bound is start/stop/start. Stopping is one API call; starting is
+            // an Argo workflow, a namespace and everything the workflow touches. Throttling
+            // the stop would only keep those alive longer, which is the opposite of what
+            // the pressure calls for.
+            var nowSeconds = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            var cooldownKey = $"deploy_cooldown_{startReq.challengeId}_{startReq.teamId}";
+
+            var cooldownRemaining = await _redisHelper.GetDeployCooldownRemaining(cooldownKey, nowSeconds);
+            if (cooldownRemaining > 0)
+            {
+                return new ChallengeDeployResponeDTO
+                {
+                    status = (int)HttpStatusCode.TooManyRequests,
+                    success = false,
+                    message = $"This challenge was stopped moments ago. Please wait {cooldownRemaining}s before starting it again."
+                };
+            }
+
+            // Unique per attempt, not per challenge: a member that repeats is read as a
+            // slot the team already holds and the start goes uncounted - which is exactly
+            // the repeated start this is here to count.
+            var startAttemptMember = $"{deploymentKey}:{Guid.NewGuid():N}";
+
+            var startSlotReserved = await _redisHelper.AtomicTryReserveStartSlot(
+                startReq.teamId.ToString(),
+                startAttemptMember,
+                DeploymentCenterConfigHelper.MAX_STARTS_PER_TEAM,
+                DeploymentCenterConfigHelper.START_WINDOW_MINUTES * 60);
+
+            if (!startSlotReserved)
+            {
+                _logger.Log(
+                    "DEPLOY_START_RATE_LIMITED",
+                    startReq.userId,
+                    startReq.teamId,
+                    new { startReq.challengeId },
+                    LogLevel.Warning,
+                    contestId: contestId);
+
+                return new ChallengeDeployResponeDTO
+                {
+                    status = (int)HttpStatusCode.TooManyRequests,
+                    success = false,
+                    message = $"Your team has started too many challenges in the last {DeploymentCenterConfigHelper.START_WINDOW_MINUTES} minutes. Please wait before starting another."
+                };
+            }
+
             var slotReserved = await _redisHelper.AtomicTryReserveContestSlot(
                 contestId.ToString(),
                 deploymentKey,
@@ -326,6 +374,23 @@ public class DeployService : IDeployService
             // Delete namespace - watcher sẽ bắn STOPPED event khi nhận Terminating
             var isDelete = await _k8SHealthService.DeleteNamespace(deployInfo._namespace);
 
+            // Đặt sau khi đã thực sự xoá namespace, và chỉ trên nhánh của user thường:
+            // nhánh admin ở trên là hành động của người khác, không phải của team, nên
+            // không có lý do gì phạt team bằng một khoảng chờ.
+            //
+            // Lỗi ở đây chỉ ghi lại rồi đi tiếp. Namespace đã mất, báo stop thất bại vì
+            // không ghi nổi một cái khoá chờ là báo sai thứ quan trọng hơn.
+            try
+            {
+                await _redisHelper.SetDeployCooldown(
+                    $"deploy_cooldown_{stopReq.challengeId}_{stopReq.teamId}",
+                    DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
+                    DeploymentCenterConfigHelper.DEPLOY_COOLDOWN_SECONDS);
+            }
+            catch (Exception ex)
+            {
+                await Console.Error.WriteLineAsync($"[Cooldown] Failed to set start cooldown for challenge {stopReq.challengeId}, team {stopReq.teamId}: {ex.Message}");
+            }
 
             return new ChallengeDeployResponeDTO
             {

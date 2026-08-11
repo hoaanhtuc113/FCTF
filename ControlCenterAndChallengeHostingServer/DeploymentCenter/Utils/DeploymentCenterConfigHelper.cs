@@ -25,6 +25,20 @@ public class DeploymentCenterConfigHelper
     // having deployed anything. 0 disables the quota (previous behaviour).
     public static int MAX_QUEUED_PER_CONTEST = 100;
 
+    // How long after stopping a challenge the same team must wait before starting
+    // that challenge again. Nothing else paces a team: the stop lock only keeps two
+    // concurrent stops apart, so a team could loop start/stop as fast as HTTP allows
+    // and every iteration is a real Argo workflow and a real namespace delete
+    // against the API server. 0 disables the wait.
+    public static int DEPLOY_COOLDOWN_SECONDS = 60;
+
+    // The cooldown above is per challenge, so a team holding several can sidestep it
+    // by rotating between them. This bounds the loop itself: how many starts one team
+    // may ask for within START_WINDOW_MINUTES, counted across every challenge.
+    // 0 disables the cap.
+    public static int MAX_STARTS_PER_TEAM = 20;
+    public static int START_WINDOW_MINUTES = 10;
+
     public void InitConfig()
     {
         REDIS_CONNECTION_STRING = GetRequiredEnv("REDIS_CONNECTION");
@@ -69,6 +83,35 @@ public class DeploymentCenterConfigHelper
         }
 
         MAX_QUEUED_PER_CONTEST = maxQueuedPerContest;
+
+        // Same rule as above for all three: negative is meaningless, so it falls back
+        // to the default instead of being read as "disabled". Only an explicit 0 turns
+        // a limit off.
+        var deployCooldownRaw = Environment.GetEnvironmentVariable("DEPLOY_COOLDOWN_SECONDS");
+        if (!int.TryParse(deployCooldownRaw, out var deployCooldown) || deployCooldown < 0)
+        {
+            deployCooldown = 60;
+        }
+
+        DEPLOY_COOLDOWN_SECONDS = deployCooldown;
+
+        var maxStartsPerTeamRaw = Environment.GetEnvironmentVariable("MAX_STARTS_PER_TEAM");
+        if (!int.TryParse(maxStartsPerTeamRaw, out var maxStartsPerTeam) || maxStartsPerTeam < 0)
+        {
+            maxStartsPerTeam = 20;
+        }
+
+        MAX_STARTS_PER_TEAM = maxStartsPerTeam;
+
+        // A zero-length window would expire every slot the moment it is written, so
+        // the cap would never bind. It is the one of the three where 0 is refused.
+        var startWindowRaw = Environment.GetEnvironmentVariable("START_WINDOW_MINUTES");
+        if (!int.TryParse(startWindowRaw, out var startWindowMinutes) || startWindowMinutes <= 0)
+        {
+            startWindowMinutes = 10;
+        }
+
+        START_WINDOW_MINUTES = startWindowMinutes;
     }
 
     private static string GetRequiredEnv(string key)

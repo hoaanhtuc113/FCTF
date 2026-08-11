@@ -23,6 +23,18 @@ data:
   # contest into 429. 0 disables the quota.
   MAX_QUEUED_PER_CONTEST: "100"
 
+  # Pacing for a single team. Nothing else bounds how fast a team may loop
+  # start/stop, and every start is a real Argo workflow and a real namespace.
+  # Both limits are checked on start, not on stop: throttling the stop would only
+  # keep the namespace alive longer.
+  #
+  # DEPLOY_COOLDOWN_SECONDS is the wait a team owes on one challenge after
+  # stopping it. MAX_STARTS_PER_TEAM bounds the loop across every challenge, so
+  # rotating between them does not sidestep the cooldown. 0 disables either one.
+  DEPLOY_COOLDOWN_SECONDS: "60"
+  MAX_STARTS_PER_TEAM: "20"
+  START_WINDOW_MINUTES: "10"
+
   POW_DIFFICULTY_SECONDS: "5" 
 
   LOKI_BASE_URL: "http://loki-stack.monitoring.svc.cluster.local:3100"

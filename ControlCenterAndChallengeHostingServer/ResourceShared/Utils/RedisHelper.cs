@@ -391,6 +391,101 @@ public class RedisHelper
     }
 
     /// <summary>
+    /// Đếm số lần một team xin start trong cửa sổ trượt gần nhất, cùng khuôn với
+    /// AtomicTryReserveContestSlot: score là thời điểm hết hạn nên các entry tự dọn,
+    /// và không có bước trả chỗ vì một suất sống lâu hơn cửa sổ thì không còn nghĩa gì.
+    /// </summary>
+    /// <remarks>
+    /// member phải là duy nhất cho mỗi lần gọi, không phải mỗi challenge: dùng lại một
+    /// member cũ sẽ trúng nhánh ZSCORE ở dưới và lần start đó không bị tính.
+    /// </remarks>
+    public async Task<bool> AtomicTryReserveStartSlot(
+        string teamId,
+        string member,
+        long maxStarts,
+        int windowSeconds)
+    {
+        if (maxStarts <= 0) return true;
+
+        var zsetKey = $"team_start_window_{teamId}";
+        var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        var expireAt = now + windowSeconds;
+
+        var script = @"
+                    local zsetKey = KEYS[1]
+
+                    local member = ARGV[1]
+                    local maxStarts = tonumber(ARGV[2])
+                    local now = tonumber(ARGV[3])
+                    local expireAt = tonumber(ARGV[4])
+
+                    -- Dọn các lần start đã ra khỏi cửa sổ trước khi đếm
+                    redis.call('ZREMRANGEBYSCORE', zsetKey, '-inf', now)
+
+                    if redis.call('ZSCORE', zsetKey, member) then
+                        return 1
+                    end
+
+                    if redis.call('ZCARD', zsetKey) >= maxStarts then
+                        return 0
+                    end
+
+                    redis.call('ZADD', zsetKey, expireAt, member)
+                    redis.call('EXPIRE', zsetKey, expireAt - now)
+                    return 1
+                ";
+
+        try
+        {
+            var result = await _cache.ScriptEvaluateAsync(
+                script,
+                keys: new RedisKey[] { zsetKey },
+                values: new RedisValue[] { member, maxStarts, now, expireAt }
+            );
+            return (int)result == 1;
+        }
+        catch (Exception ex)
+        {
+            await Console.Error.WriteLineAsync($"[Redis] Team start slot reservation failed: {ex.Message}");
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Số giây còn lại của cooldown sau khi stop, 0 nếu đã hết hoặc chưa từng đặt.
+    /// </summary>
+    /// <remarks>
+    /// Giá trị lưu là mốc hết hạn chứ không phải mốc bắt đầu, nên tính được số giây còn
+    /// lại mà không cần hỏi TTL - và cũng không cần cấp thêm quyền TTL cho tài khoản.
+    /// Một giá trị rác được đọc như hết cooldown: chặn nhầm một lần start hợp lệ tệ hơn
+    /// là bỏ lọt một lần, và key này có TTL nên rác không sống lâu.
+    /// </remarks>
+    public async Task<long> GetDeployCooldownRemaining(string key, long nowSeconds)
+    {
+        var value = await _cache.StringGetAsync(key);
+
+        if (value.IsNullOrEmpty) return 0;
+        if (!long.TryParse(value, out var until)) return 0;
+
+        var remaining = until - nowSeconds;
+        return remaining > 0 ? remaining : 0;
+    }
+
+    /// <summary>
+    /// Đặt cooldown tới mốc thời gian tuyệt đối; TTL của key trùng với chính cooldown đó
+    /// nên không có key nào ở lại sau khi nó hết hiệu lực.
+    /// </summary>
+    public async Task<bool> SetDeployCooldown(string key, long nowSeconds, int cooldownSeconds)
+    {
+        if (cooldownSeconds <= 0) return false;
+
+        return await _cache.StringSetAsync(
+            key,
+            nowSeconds + cooldownSeconds,
+            TimeSpan.FromSeconds(cooldownSeconds));
+    }
+
+    /// <summary>
     /// Hàm này dành cho WORKER.
     /// Khi K8s Pod đã Ready, gọi hàm này để gia hạn thời gian sống chính thức (ví dụ 2h).
     /// </summary>
