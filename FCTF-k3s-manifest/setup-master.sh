@@ -356,6 +356,14 @@ kind: KubeletConfiguration
 maxPods: ${MAX_PODS}
 EOF
 
+echo "==> Installing kube-apiserver audit policy"
+if [[ ! -f "${SCRIPT_DIR}/audit-policy.yaml" ]]; then
+  echo "Error: audit policy not found at ${SCRIPT_DIR}/audit-policy.yaml"
+  exit 1
+fi
+sudo cp "${SCRIPT_DIR}/audit-policy.yaml" /etc/rancher/k3s/audit-policy.yaml
+sudo mkdir -p /var/log/k3s-audit
+
 echo "==> Installing K3s server"
 curl -sfL https://get.k3s.io | K3S_NODE_NAME=server-1-master INSTALL_K3S_EXEC="server \
   --flannel-backend=none \
@@ -365,7 +373,12 @@ curl -sfL https://get.k3s.io | K3S_NODE_NAME=server-1-master INSTALL_K3S_EXEC="s
   --disable traefik \
   --kubelet-arg=config=/etc/rancher/k3s/kubelet.config \
   --write-kubeconfig-mode 644 \
-  --tls-san=${TLS_SAN}" sh -
+  --tls-san=${TLS_SAN} \
+  --kube-apiserver-arg=audit-policy-file=/etc/rancher/k3s/audit-policy.yaml \
+  --kube-apiserver-arg=audit-log-path=/var/log/k3s-audit/audit.log \
+  --kube-apiserver-arg=audit-log-maxage=30 \
+  --kube-apiserver-arg=audit-log-maxbackup=10 \
+  --kube-apiserver-arg=audit-log-maxsize=100" sh -
 
 echo "==> Waiting for k3s service"
 sudo systemctl enable --now k3s

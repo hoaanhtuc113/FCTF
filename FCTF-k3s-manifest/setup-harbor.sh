@@ -9,6 +9,7 @@ PROJECT_NAME="fctf"
 
 ARGO_NAMESPACE="argo"
 APP_NAMESPACE="app"
+CRONJOB_NAMESPACE="cron-job"
 
 INSTALL_DOCKER="${INSTALL_DOCKER:-true}"
 DOCKER_WAIT_SECONDS="${DOCKER_WAIT_SECONDS:-120}"
@@ -326,6 +327,13 @@ EOF
   apply_secret "global-regcred" "$ARGO_NAMESPACE"
   apply_secret "regcred" "$APP_NAMESPACE"
   apply_secret "docker-registry-creds" "$ARGO_NAMESPACE"
+
+  # The cleanup CronJob pulls kubectl-cli from the same private project.
+  if kubectl get namespace "$CRONJOB_NAMESPACE" >/dev/null 2>&1; then
+    apply_secret "regcred" "$CRONJOB_NAMESPACE"
+  else
+    echo "==> Namespace $CRONJOB_NAMESPACE not found, skipping its regcred (run Install FCTF first)"
+  fi
 }
 
 # ===== MAIN =====

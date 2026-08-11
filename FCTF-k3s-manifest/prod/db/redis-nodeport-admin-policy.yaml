@@ -1,0 +1,38 @@
+# Admits the administrative range to Redis, for the NodePort in
+# ../db-nodeport.yaml.
+#
+# Deliberately NOT in db/NetworkPolicy/, which apply-fctf.sh applies wholesale:
+# the CIDR below is a placeholder, and an unedited file would either fail the
+# whole directory apply or - worse, if someone "fixed" it with 0.0.0.0/0 - admit
+# the internet. Edit it, then apply this one file by hand alongside the Service.
+#
+# Replace <REDIS_ADMIN_CIDR> with the admin workstation or VPN range, e.g.
+# 10.8.0.0/24. Narrow it as far as it will go; this rule is what stands between
+# the open port and Redis once a packet is past the host firewall.
+#
+# This only has meaning because the Service sets externalTrafficPolicy: Local.
+# Under the default the client address is rewritten to the node's and this rule
+# would never match anything real - see the header of db-nodeport.yaml.
+#
+# It does not replace the firewall. A NetworkPolicy is enforced by the CNI after
+# the packet has already reached the node, and how faithfully external traffic
+# is matched varies between CNIs. The host firewall is the layer that keeps the
+# port from answering at all; this is the second one.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: redis-allow-admin-nodeport
+  namespace: db
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: redis
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - ipBlock:
+            cidr: <REDIS_ADMIN_CIDR>
+      ports:
+        - protocol: TCP
+          port: 6379

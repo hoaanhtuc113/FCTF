@@ -23,6 +23,19 @@ loki:
   datasource:
     jsonData: "{}"
     uid: ""
+  # Without these, Loki runs BestEffort - no CPU/memory ceiling at all. That
+  # matters more than it looks: Loki is infra-critical (priority 10000), so
+  # when a heavy LogQL query drives the node into memory pressure the kubelet
+  # evicts by priority and takes out the contestants' challenge pods
+  # (app-normal, 100) while Loki keeps running. A ceiling here means a bad
+  # query kills at most Loki itself.
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
   config:
     # Keep Loki auth disabled for single-tenant setup.
     auth_enabled: false
@@ -32,6 +45,22 @@ loki:
       per_stream_rate_limit: 3MB
       per_stream_rate_limit_burst: 10MB
       retention_period: 168h
+      # Query-side ceilings. The chart configures only ingestion limits, which
+      # leaves the read path on upstream defaults (max_query_length 721h,
+      # max_chunks_per_query 2M) - generous enough that a single Grafana
+      # Explore query can pin the process. Loki here is monolithic and shares
+      # one process between reads and ingestion, so a query that stalls it
+      # also stops log/audit collection.
+      max_query_length: 168h
+      max_query_lookback: 168h
+      max_query_parallelism: 8
+      max_query_series: 500
+      max_entries_limit_per_query: 5000
+      max_chunks_per_query: 200000
+      max_streams_matchers_per_query: 100
+      max_concurrent_tail_requests: 10
+      split_queries_by_interval: 30m
+      query_timeout: 1m
     table_manager:
       retention_deletes_enabled: true
       retention_period: 168h
@@ -40,6 +69,22 @@ loki:
 promtail:
   enabled: true
   priorityClassName: infra-critical
+  # k3s writes the kube-apiserver audit log to a plain file on the master
+  # node only (see setup-master.sh / audit-policy.yaml) - it isn't shipped
+  # anywhere by default, which is exactly why abuse of a broad-read SA (e.g.
+  # Prometheus's own cluster-wide list/watch) only ever shows up as a
+  # generic entry nobody can search. Mount that path and tail it so the
+  # audit log is queryable in Grafana/Loki instead of stuck on one node.
+  # On worker nodes the path won't exist; Promtail just finds nothing to
+  # tail there, which is expected.
+  extraVolumes:
+    - name: k3s-audit-log
+      hostPath:
+        path: /var/log/k3s-audit
+  extraVolumeMounts:
+    - name: k3s-audit-log
+      mountPath: /var/log/k3s-audit
+      readOnly: true
   config:
     logLevel: info
     serverPort: 3101
@@ -47,7 +92,14 @@ promtail:
       - url: http://{{ .Release.Name }}:3100/loki/api/v1/push
     snippets:
       logFormat: logfmt
-      extraScrapeConfigs: ""
+      extraScrapeConfigs: |
+        - job_name: k8s-audit-log
+          static_configs:
+            - targets:
+                - localhost
+              labels:
+                job: k8s-audit-log
+                __path__: /var/log/k3s-audit/audit.log
       pipelineStages:
         - cri: {}
 
@@ -59,6 +111,7 @@ promtail:
               action: action
               userId: userId
               teamId: teamId
+              contest_id: contestId
 
         - replace:
             source: level
@@ -81,11 +134,17 @@ promtail:
             expression: '(?i)("?(?:password|passwd|pwd|token|access_token|refresh_token|api[_-]?key|secret|authorization|cookie|set-cookie)"?\s*[:=]\s*)([^,\s}]+)'
             replace: '$1[REDACTED]'
 
-        # Gán labels
+        # Gán labels. contest_id is promoted to a label so a query can be
+        # scoped to one contest at the index level instead of relying on a
+        # `| logfmt | contest=...` line filter, which is a display filter and
+        # not a boundary. Cardinality stays tiny - one value per contest.
+        # userId/teamId are extracted above but deliberately NOT labels: they
+        # are unbounded and each new value creates a stream in Loki.
         - labels:
             level:
             type:
             action:
+            contest_id:
   extraObjects:
     - apiVersion: networking.k8s.io/v1
       kind: NetworkPolicy

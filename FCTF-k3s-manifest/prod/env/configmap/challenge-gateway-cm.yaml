@@ -32,3 +32,7 @@ data:
   REDIS_MIN_IDLE: "10"
   REDIS_FAIL_CLOSED: "true"
   REDIS_TLS: "true"
+  # Makes REDIS_TLS=false a startup failure instead of a warning, so this file
+  # losing the line above cannot silently downgrade a live contest. The .NET
+  # services get the same guard from ASPNETCORE_ENVIRONMENT=Production.
+  APP_ENV: "production"

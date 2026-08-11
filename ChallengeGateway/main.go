@@ -7,7 +7,9 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+
 	"github.com/joho/godotenv"
+
 	"challenge-gateway/internal/config"
 	"challenge-gateway/internal/gateway"
 	"challenge-gateway/internal/limiter"
@@ -20,7 +22,10 @@ func main() {
 
 	cfg := config.Load()
 
-	redisClient := limiter.InitRedis(cfg)
+	redisClient, err := limiter.InitRedis(cfg)
+	if err != nil {
+		log.Fatalf("Redis initialization failed: %v", err)
+	}
 	limiters, err := limiter.Init(cfg, redisClient)
 	if err != nil {
 		log.Fatalf("Limiter initialization failed: %v", err)

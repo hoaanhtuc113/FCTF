@@ -23,7 +23,9 @@ spec:
   ports:
     - protocol: TCP
       port: 5173
-      targetPort: 80
+      # The container listens on 8080, not 80 - it runs as uid 101 and cannot
+      # bind a privileged port. Same targetPort as the ClusterIP variant.
+      targetPort: 8080
       nodePort: 30517
   selector:
     app: contestant-portal

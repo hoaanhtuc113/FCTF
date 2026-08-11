@@ -50,7 +50,7 @@ public class ChallengeService : IChallengeService
         _multiServiceConnector = multiServiceConnector;
     }
 
-    private ChallengeRequirementsDTO? TryParseRequirements(string? requirementsJson, int challengeId, int? teamId)
+    private ChallengeRequirementsDTO? TryParseRequirements(string? requirementsJson, int challengeId, int? teamId, int contestId)
     {
         if (string.IsNullOrWhiteSpace(requirementsJson))
         {
@@ -63,7 +63,7 @@ public class ChallengeService : IChallengeService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, null, teamId, new { challengeId, requirements = requirementsJson });
+            _logger.LogError(ex, null, teamId, new { challengeId, requirements = requirementsJson }, contestId: contestId);
             return null;
         }
     }
@@ -125,7 +125,7 @@ public class ChallengeService : IChallengeService
             };
         }
 
-        var requirementsObj = TryParseRequirements(challenge.Requirements, challenge.Id, teamId);
+        var requirementsObj = TryParseRequirements(challenge.Requirements, challenge.Id, teamId, contestId);
 
         var solvedChallengeIds = await _dbContext.Solves
             .AsNoTracking()
@@ -357,7 +357,7 @@ public class ChallengeService : IChallengeService
 
         foreach (var challenge in challenges)
         {
-            var requirementsObj = TryParseRequirements(challenge.Requirements, challenge.Id, team_id);
+            var requirementsObj = TryParseRequirements(challenge.Requirements, challenge.Id, team_id, contestId);
 
             var isUnlocked = IsUnlockedByPrerequisites(requirementsObj, solvedChallengeIds, allChallengeIds);
             if (!isUnlocked && requirementsObj?.anonymize != true)
@@ -460,32 +460,30 @@ public class ChallengeService : IChallengeService
         var teamId = deploymentTeamId ?? userTeamId;
         try
         {
-            // Generate dynamic flag per team (idempotent: reuse if already created)
-            string? flagValue = null;
-            var dynamicFlags = await _dbContext.Flags
+            // Make sure the team's dynamic flag exists (idempotent: reuse if already
+            // created). The value stays in dynamic_flag_instances and is not passed
+            // along with the start request - DeploymentConsumer looks it up by
+            // (challenge, team) when it builds the Argo payload, so the only copy
+            // that decides what the pod gets is the one this row holds.
+            var dynFlag = await _dbContext.Flags
                 .Where(f => f.ChallengeId == challenge.Id && f.Type == "dynamic")
-                .ToListAsync();
+                .OrderBy(f => f.Id)
+                .FirstOrDefaultAsync();
 
-            if (dynamicFlags.Count > 0)
+            if (dynFlag != null)
             {
-                var dynFlag = dynamicFlags[0];
-                var existing = await _dbContext.DynamicFlagInstances
-                    .FirstOrDefaultAsync(d => d.FlagId == dynFlag.Id && d.TeamId == teamId);
+                var alreadyIssued = await _dbContext.DynamicFlagInstances
+                    .AnyAsync(d => d.FlagId == dynFlag.Id && d.TeamId == teamId);
 
-                if (existing != null)
-                {
-                    flagValue = existing.Value;
-                }
-                else
+                if (!alreadyIssued)
                 {
                     var prefix = string.IsNullOrEmpty(dynFlag.Content) ? "FCTF{" : dynFlag.Content;
-                    flagValue = $"{prefix}{Guid.NewGuid():N}}}";
                     _dbContext.DynamicFlagInstances.Add(new ResourceShared.Models.DynamicFlagInstance
                     {
                         FlagId = dynFlag.Id,
                         ChallengeId = challenge.Id,
                         TeamId = teamId,
-                        Value = flagValue,
+                        Value = $"{prefix}{Guid.NewGuid():N}}}",
                     });
                     await _dbContext.SaveChangesAsync();
                 }
@@ -498,7 +496,6 @@ public class ChallengeService : IChallengeService
                 teamId = teamId,
                 userId = user.Id,
                 unixTime = unixTime.ToString(),
-                flagValue = flagValue,
             };
             // Sign the exact payload being sent — not a hand-picked subset of its fields —
             // since RequireSecretKeyAttribute on the receiving side recomputes the hash from
@@ -540,9 +537,42 @@ public class ChallengeService : IChallengeService
             return result;
 
         }
+        catch (UpstreamHttpException ex)
+        {
+            // DeploymentCenter answered, it just said no - the queue is full, this
+            // contest is over its share, a previous session is still stopping. Those
+            // replies are written for the contestant to read and carry the status
+            // that goes with them, so they are passed through. Letting them fall to
+            // the catch-all below turned every one of them into the same 500
+            // "An unexpected error occurred", which tells the contestant nothing and
+            // hides a retryable condition behind what looks like a platform fault.
+            _logger.LogError(ex, user?.Id, teamId, new { challengeId = challenge.Id }, contestId: contestId);
+
+            ChallengeDeployResponeDTO? upstream = null;
+            try
+            {
+                upstream = JsonConvert.DeserializeObject<ChallengeDeployResponeDTO>(ex.ResponseContent ?? string.Empty);
+            }
+            catch (JsonException)
+            {
+                // Not our DTO - an ingress error page, a proxy timeout. Fall through.
+            }
+
+            if (upstream != null && !string.IsNullOrWhiteSpace(upstream.message))
+            {
+                return upstream;
+            }
+
+            return new ChallengeDeployResponeDTO
+            {
+                status = ex.StatusCode,
+                success = false,
+                message = "Deployment service rejected the request. Please try again shortly."
+            };
+        }
         catch (HttpRequestException ex)
         {
-            _logger.LogError(ex);
+            _logger.LogError(ex, contestId: contestId);
             return new ChallengeDeployResponeDTO
             {
                 status = (int)HttpStatusCode.BadGateway,
@@ -552,7 +582,7 @@ public class ChallengeService : IChallengeService
         }
         catch (TaskCanceledException ex)
         {
-            _logger.LogError(ex, user?.Id, teamId, new { challengeId = challenge.Id });
+            _logger.LogError(ex, user?.Id, teamId, new { challengeId = challenge.Id }, contestId: contestId);
             return new ChallengeDeployResponeDTO
             {
                 status = (int)HttpStatusCode.GatewayTimeout,
@@ -562,7 +592,7 @@ public class ChallengeService : IChallengeService
         }
         catch (TimeoutException ex)
         {
-            _logger.LogError(ex, user?.Id, teamId, new { challengeId = challenge.Id });
+            _logger.LogError(ex, user?.Id, teamId, new { challengeId = challenge.Id }, contestId: contestId);
             return new ChallengeDeployResponeDTO
             {
                 status = (int)HttpStatusCode.GatewayTimeout,
@@ -572,7 +602,7 @@ public class ChallengeService : IChallengeService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, user?.Id, teamId, new { challengeId = challenge.Id });
+            _logger.LogError(ex, user?.Id, teamId, new { challengeId = challenge.Id }, contestId: contestId);
             return new ChallengeDeployResponeDTO
             {
                 status = (int)HttpStatusCode.InternalServerError,
@@ -673,7 +703,7 @@ public class ChallengeService : IChallengeService
         }
         catch (HttpRequestException ex)
         {
-            _logger.LogError(ex);
+            _logger.LogError(ex, contestId: contestId);
             return new ChallengeDeployResponeDTO
             {
                 status = (int)HttpStatusCode.BadGateway,
@@ -683,7 +713,7 @@ public class ChallengeService : IChallengeService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, user?.Id, null, new { challengeId });
+            _logger.LogError(ex, user?.Id, null, new { challengeId }, contestId: contestId);
             return new ChallengeDeployResponeDTO
             {
                 status = (int)HttpStatusCode.InternalServerError,

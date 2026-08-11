@@ -11,6 +11,7 @@ SETUP_HARBOR_SH="${K3S_DIR}/setup-harbor.sh"
 CICD_SETUP_SH="${K3S_DIR}/cicd-setup.sh"
 GET_ARGO_TOKEN_SH="${K3S_DIR}/prod/sa/argo-workflow/get-token.sh"
 CONFIGURE_DOMAINS_SH="${K3S_DIR}/configure-domains.sh"
+PLATFORM_CREDENTIALS_SH="${K3S_DIR}/platform-credentials.sh"
 UNINSTALL_MASTER_SH="${K3S_DIR}/uninstall/uninstall.sh"
 UNINSTALL_WORKER_SH="${K3S_DIR}/uninstall/uninstall-worker.sh"
 
@@ -41,6 +42,7 @@ show_menu() {
 	echo "7) Get master token"
 	echo "8) Uninstall"
 	echo "9) Configure service domains/IP"
+	echo "10) Get platform credentials (Grafana / Rancher / Harbor)"
 	echo "0) Exit"
 	echo "============================================="
 }
@@ -67,6 +69,16 @@ uninstall_master() {
 get_master_token() {
 	echo "==> Master join token:"
 	sudo cat /var/lib/rancher/k3s/server/node-token
+}
+
+# The console passwords are generated at install time and never written to the
+# repository, so this is how an operator gets back the login for Grafana,
+# Rancher and Harbor. It reads them out of the cluster, which is what a login
+# actually checks.
+get_platform_credentials() {
+	require_script "${PLATFORM_CREDENTIALS_SH}"
+	chmod +x "${PLATFORM_CREDENTIALS_SH}" || true
+	bash "${PLATFORM_CREDENTIALS_SH}" --show
 }
 
 while true; do
@@ -129,12 +141,15 @@ while true; do
 			echo "==> Running configure-domains.sh"
 			run_script "${CONFIGURE_DOMAINS_SH}"
 			;;
+		10)
+			get_platform_credentials
+			;;
 		0)
 			echo "Bye."
 			exit 0
 			;;
 		*)
-			echo "Invalid option. Please choose 0-9."
+			echo "Invalid option. Please choose 0-10."
 			;;
 	esac
 done

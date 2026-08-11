@@ -86,7 +86,18 @@ kubeVersion: ""
 ##
 clusterDomain: cluster.local
 ## @param extraDeploy Array of extra objects to deploy with the release
-## 
+##
+## deployment_queue dead-letters into deployment_dlq. Without it a deploy request
+## that fails validation, fails to reach Argo, or simply outlives its per-message
+## TTL is erased with nothing left to look at - and the TTL case is invisible
+## even to the services, since the broker drops it on its own. Keeping the bodies
+## is what makes "the challenge never started" answerable after the fact, and it
+## is also the only way to replay a batch lost to an Argo outage.
+##
+## The DLQ caps itself: a week of TTL and 1000 messages, dropping the oldest,
+## since a full DLQ that refused writes would put us back to losing evidence.
+## Queue arguments are immutable, so deployment_queue has to be deleted and
+## recreated for the dead-letter settings to take - do it while it is empty.
 extraDeploy:
   - apiVersion: v1
     kind: Secret
@@ -115,6 +126,15 @@ extraDeploy:
               "auto_delete": false,
               "internal": false,
               "arguments": {}
+            },
+            {
+              "name": "deployment_dlx",
+              "vhost": "fctf_deploy",
+              "type": "direct",
+              "durable": true,
+              "auto_delete": false,
+              "internal": false,
+              "arguments": {}
             }
           ],
           "queues": [
@@ -125,7 +145,20 @@ extraDeploy:
               "auto_delete": false,
               "arguments": {
                 "x-max-length": 300,
-                "x-overflow": "reject-publish"
+                "x-overflow": "reject-publish",
+                "x-dead-letter-exchange": "deployment_dlx",
+                "x-dead-letter-routing-key": "deploy"
+              }
+            },
+            {
+              "name": "deployment_dlq",
+              "vhost": "fctf_deploy",
+              "durable": true,
+              "auto_delete": false,
+              "arguments": {
+                "x-message-ttl": 604800000,
+                "x-max-length": 1000,
+                "x-overflow": "drop-head"
               }
             }
           ],
@@ -134,6 +167,14 @@ extraDeploy:
               "source": "deployment_exchange",
               "vhost": "fctf_deploy",
               "destination": "deployment_queue",
+              "destination_type": "queue",
+              "routing_key": "deploy",
+              "arguments": {}
+            },
+            {
+              "source": "deployment_dlx",
+              "vhost": "fctf_deploy",
+              "destination": "deployment_dlq",
               "destination_type": "queue",
               "routing_key": "deploy",
               "arguments": {}
@@ -208,7 +249,12 @@ auth:
   ## @param auth.password RabbitMQ application password
   ## ref: https://github.com/bitnami/containers/tree/main/bitnami/rabbitmq#environment-variables
   ##
-  password: "Fctf@2026"
+  # Left empty deliberately - helm.sh passes it with --set from a password
+  # generated on the machine (see platform-credentials.sh), so no broker
+  # password is committed. loadDefinition below declares "users": [], so this
+  # really is the admin account's password rather than something a definitions
+  # import overrides afterwards.
+  password: ""
   ## @param auth.securePassword Whether to set the RabbitMQ password securely. This is incompatible with loading external RabbitMQ definitions and 'true' when not setting the auth.password parameter.
   ## ref: https://github.com/bitnami/containers/tree/main/bitnami/rabbitmq#environment-variables
   ##

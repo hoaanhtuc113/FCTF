@@ -90,7 +90,21 @@ public class K8sService : IK8sService
         string labelSelector = "ctf/kind=challenge",
         HashSet<int>? challengeIdFilter = null)
     {
-        _logger.LogDebug("Deleting all namespaces with label", new { labelSelector, filtered = challengeIdFilter != null });
+        // Every challenge namespace already carries ctf/challenge-id (see
+        // challenge-hardened.yaml/challenge-plain.yaml) matching Challenge.Id
+        // exactly, so a contest filter can be expressed as a server-side
+        // label selector instead of listing every challenge namespace and
+        // re-deriving the challenge id by parsing the namespace name.
+        var effectiveSelector = labelSelector;
+        if (challengeIdFilter != null)
+        {
+            if (challengeIdFilter.Count == 0)
+                return (0, 0, new List<string>());
+
+            effectiveSelector = $"{labelSelector},ctf/challenge-id in ({string.Join(",", challengeIdFilter)})";
+        }
+
+        _logger.LogDebug("Deleting all namespaces with label", new { labelSelector = effectiveSelector });
 
         int successCount = 0;
         int failCount = 0;
@@ -98,36 +112,20 @@ public class K8sService : IK8sService
 
         try
         {
-            // List all namespaces with the specified label
-            var namespaces = await _kubernetes.CoreV1.ListNamespaceAsync(labelSelector: labelSelector);
+            var namespaces = await _kubernetes.CoreV1.ListNamespaceAsync(labelSelector: effectiveSelector);
 
             if (namespaces.Items.Count == 0)
             {
-                _logger.LogDebug("No namespaces found with the specified label", new { labelSelector });
+                _logger.LogDebug("No namespaces found with the specified label", new { labelSelector = effectiveSelector });
                 return (0, 0, errors);
             }
 
-            _logger.LogDebug("Found namespaces to delete", new { count = namespaces.Items.Count, labelSelector });
+            _logger.LogDebug("Found namespaces to delete", new { count = namespaces.Items.Count, labelSelector = effectiveSelector });
 
             // Delete each namespace
             foreach (var ns in namespaces.Items)
             {
                 var namespaceName = ns.Metadata.Name;
-
-                // If a contest filter is specified, only delete namespaces belonging to that contest's challenges
-                if (challengeIdFilter != null)
-                {
-                    try
-                    {
-                        var (_, challengeId) = ChallengeHelper.ParseDeploymentAppName(namespaceName);
-                        if (!challengeIdFilter.Contains(challengeId))
-                            continue;
-                    }
-                    catch
-                    {
-                        continue;
-                    }
-                }
                 bool deleted = false;
                 string? lastError = null;
                 Exception? lastEx = null;
@@ -171,12 +169,12 @@ public class K8sService : IK8sService
                 }
             }
 
-            _logger.LogDebug("Delete all namespaces completed", new { successCount, failCount, labelSelector });
+            _logger.LogDebug("Delete all namespaces completed", new { successCount, failCount, labelSelector = effectiveSelector });
             return (successCount, failCount, errors);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, data: new { labelSelector, errorType = "DeleteAllNamespacesCriticalError" });
+            _logger.LogError(ex, data: new { labelSelector = effectiveSelector, errorType = "DeleteAllNamespacesCriticalError" });
             errors.Add($"Critical error while listing namespaces: {ex.Message}");
             return (successCount, failCount, errors);
         }

@@ -38,7 +38,7 @@ sudo apt update
 sudo apt install -y nfs-kernel-server nfs-common acl
 
 echo "==> Preparing share at ${SHARE_PATH}"
-sudo mkdir -p "${SHARE_PATH}/challenges" "${SHARE_PATH}/start-challenge" "${SHARE_PATH}/file"
+sudo mkdir -p "${SHARE_PATH}/challenges" "${SHARE_PATH}/start-challenge" "${SHARE_PATH}/file" "${SHARE_PATH}/backup"
 
 echo "==> Copying start-challenge templates"
 for workflow_file in challenge-hardened.yaml challenge-plain.yaml; do
@@ -53,7 +53,7 @@ for workflow_file in challenge-hardened.yaml challenge-plain.yaml; do
 done
 
 echo "==> Applying ACL model for service UIDs"
-sudo chmod 770 "${SHARE_PATH}/challenges" "${SHARE_PATH}/start-challenge" "${SHARE_PATH}/file"
+sudo chmod 770 "${SHARE_PATH}/challenges" "${SHARE_PATH}/start-challenge" "${SHARE_PATH}/file" "${SHARE_PATH}/backup"
 
 # admin-mvc: RWX on challenges + file
 sudo setfacl -R -m u:1101:rwx "${SHARE_PATH}/challenges" "${SHARE_PATH}/file"
@@ -78,6 +78,13 @@ sudo setfacl -R -m d:u:1104:rx "${SHARE_PATH}/start-challenge"
 # filebrowser: full RWX on all folders
 sudo setfacl -R -m u:1105:rwx "${SHARE_PATH}/challenges" "${SHARE_PATH}/start-challenge" "${SHARE_PATH}/file"
 sudo setfacl -R -m d:u:1105:rwx "${SHARE_PATH}/challenges" "${SHARE_PATH}/start-challenge" "${SHARE_PATH}/file"
+
+# mariadb-backup: RWX on backup only. Kept off the other three directories on
+# purpose - it writes database dumps and has no reason to read challenge
+# content, and filebrowser is deliberately not granted the backup directory
+# either, so a compromise of the file UI does not hand over the dumps.
+sudo setfacl -R -m u:1106:rwx "${SHARE_PATH}/backup"
+sudo setfacl -R -m d:u:1106:rwx "${SHARE_PATH}/backup"
 
 echo "==> Configuring /etc/exports for ${ALLOWED_SUBNET}"
 EXPORT_CLIENTS="$(build_export_clients "${ALLOWED_SUBNET}")"

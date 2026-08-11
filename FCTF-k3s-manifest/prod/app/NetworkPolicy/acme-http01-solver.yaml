@@ -1,0 +1,40 @@
+# cert-manager runs an HTTP-01 challenge in a throwaway pod, and it creates that
+# pod in the namespace of the Certificate - so solver pods for admin-tls,
+# api-backend-tls and contestant-tls all land here, where default-deny.yaml
+# selects every pod and denies all ingress. The ingress controller then cannot
+# reach the solver, cert-manager's self check never gets a response, and the
+# challenge stays pending until it gives up:
+#
+#   Waiting for HTTP-01 challenge propagation: failed to perform self check GET
+#   request 'http://admin.../.well-known/acme-challenge/...': context deadline
+#   exceeded (Client.Timeout exceeded while awaiting headers)
+#
+# A timeout rather than a refusal because a denied NetworkPolicy drops the
+# packets instead of rejecting them, so nginx sits on the upstream connection.
+#
+# Certificates in registry/monitoring/argo/cattle-system were unaffected, which
+# is what made this look like a certificate or DNS problem: same ClusterIssuer,
+# same public IP, same open ports, working everywhere without a default-deny.
+#
+# The source is deliberately unrestricted, matching every other policy in this
+# directory. ingress-nginx runs with hostNetwork: true, so its traffic reaches
+# pods with the node's address and belongs to no namespace - a namespaceSelector
+# for ingress-nginx silently matches nothing and the deny stands. Restricting it
+# would buy nothing anyway: an ACME HTTP-01 endpoint is public by design, since
+# Let's Encrypt fetches it from the internet, and it serves one thing, the key
+# authorization for a token that is itself public, for as long as issuance takes.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-acme-http01-solver
+  namespace: app
+spec:
+  podSelector:
+    matchLabels:
+      acme.cert-manager.io/http01-solver: "true"
+  policyTypes:
+    - Ingress
+  ingress:
+    - ports:
+        - protocol: TCP
+          port: 8089

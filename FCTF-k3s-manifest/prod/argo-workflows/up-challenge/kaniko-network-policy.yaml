@@ -1,0 +1,66 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: kaniko-builder-network-policy
+  namespace: argo
+spec:
+  podSelector:
+    matchLabels:
+      app: kaniko-builder
+  policyTypes:
+    - Ingress
+    - Egress
+  # No ingress rules - nothing needs to reach this pod, it only pushes out.
+  egress:
+    # DNS resolution
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # Kubernetes API. Argo injects a `wait` sidecar into this pod that posts the
+    # node's result to workflowtaskresults once the build container exits;
+    # blocking it leaves the sidecar retrying forever, so the pod stays Running
+    # and the workflow never leaves Running even though the image was pushed.
+    # Two destinations because Calico evaluates egress policy after service
+    # DNAT: the ClusterIP for the pre-DNAT path, the address the API server
+    # actually listens on for the post-DNAT one.
+    #
+    # Both are substituted by apply_kaniko_network_policy in apply-fctf.sh from
+    # the live cluster, NOT by configure-domains.sh. Neither can be written
+    # down here: the ClusterIP follows --service-cidr and the endpoint is
+    # whatever address k3s bound the API server to. Applying this file with
+    # `kubectl apply -f` instead of through the installer leaves the
+    # placeholders in and every challenge build hangs in Running.
+    - to:
+        - ipBlock:
+            cidr: <KUBERNETES_API_CLUSTER_IP>/32
+      ports:
+        - protocol: TCP
+          port: 443
+    - to:
+        - ipBlock:
+            cidr: <KUBERNETES_API_ENDPOINT_IP>/32
+      ports:
+        - protocol: TCP
+          port: <KUBERNETES_API_ENDPOINT_PORT>
+    # Registry push over HTTPS only - excludes private ranges and
+    # link-local (blocks lateral movement to cluster/VPC and cloud
+    # metadata via SSRF). The registry is an external SaaS (Docker Hub
+    # per docker-secret.yaml/README) fronted by a CDN with no stable
+    # IP range, so this can't be narrowed further than port 443 with a
+    # plain Kubernetes NetworkPolicy.
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+              - 169.254.0.0/16
+      ports:
+        - port: 443

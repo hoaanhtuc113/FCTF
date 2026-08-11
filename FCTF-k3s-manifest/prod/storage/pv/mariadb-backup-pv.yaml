@@ -1,0 +1,27 @@
+# PV cho bản dump định kỳ của MariaDB.
+#
+# Deliberately on NFS rather than the default local-path storage class. The
+# database itself lives on a local-path volume, which is a directory on
+# whichever node the pod landed on - a backup written to the same class would
+# sit on that same disk and die with it, which is the failure this exists to
+# survive.
+#
+# Retain, not Delete: this is the one volume in the platform whose contents
+# cannot be rebuilt from the repository. Deleting the claim must not take the
+# backups with it.
+
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: nfs-mariadb-backup-pv
+spec:
+  capacity:
+    storage: 20Gi
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  mountOptions:
+    - noexec
+  nfs:
+    server: <MASTER_NODE_PRIVATE_IP>
+    path: /srv/nfs/share/backup

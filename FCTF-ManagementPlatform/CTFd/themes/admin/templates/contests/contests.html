@@ -315,6 +315,24 @@
 {% block scripts %}
 <script>
 (function () {
+    var msg = sessionStorage.getItem('contestCreatedMsg');
+    if (msg) {
+        sessionStorage.removeItem('contestCreatedMsg');
+        var toast = document.createElement('div');
+        toast.textContent = msg;
+        toast.style.cssText = 'position:fixed;top:1.2rem;right:1.2rem;z-index:9999;background:#28a745;color:#fff;padding:0.75rem 1.25rem;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,0.15);font-size:0.9rem;font-weight:500;display:flex;align-items:center;gap:0.5rem;';
+        toast.innerHTML = '<i class="bx bx-check-circle" style="font-size:1.1rem;"></i> ' + msg;
+        document.body.appendChild(toast);
+        setTimeout(function () {
+            toast.style.transition = 'opacity 0.4s';
+            toast.style.opacity = '0';
+            setTimeout(function () { toast.remove(); }, 400);
+        }, 3000);
+    }
+})();
+</script>
+<script>
+(function () {
     const nonce = init.csrfNonce;
 
     // Row click → navigate to detail

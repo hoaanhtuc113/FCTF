@@ -141,7 +141,7 @@ public class HintService : IHintService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, user.Id, userTeamId, new { challengeId = challenge.Id, requirements = challenge.Requirements });
+            _logger.LogError(ex, user.Id, userTeamId, new { challengeId = challenge.Id, requirements = challenge.Requirements }, contestId: contestId);
         }
     }
 
@@ -228,7 +228,7 @@ public class HintService : IHintService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, userId, data: new { hintId = id });
+            _logger.LogError(ex, userId, data: new { hintId = id }, contestId: contestId);
             return null;
         }
     }
@@ -304,7 +304,7 @@ public class HintService : IHintService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, user, data: new { challengeId });
+            _logger.LogError(ex, user, data: new { challengeId }, contestId: contestId);
             return null;
         }
     }
@@ -470,7 +470,7 @@ public class HintService : IHintService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, userId, data: new { target = req.Target, type = req.Type });
+            _logger.LogError(ex, userId, data: new { target = req.Target, type = req.Type }, contestId: contestId);
             throw;
         }
     }

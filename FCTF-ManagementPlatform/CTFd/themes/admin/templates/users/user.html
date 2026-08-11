@@ -423,6 +423,10 @@
                 if (el && el.type === 'checkbox') { params[key] = el.checked; }
                 else { params[key] = value; }
             });
+            // FormData skips unchecked checkboxes — explicitly capture them
+            editForm.querySelectorAll('input[type=checkbox]').forEach(function (cb) {
+                if (cb.name && cb.name !== '_submit') { params[cb.name] = cb.checked; }
+            });
             params.id = USER_ID;
 
             var submitBtn = editForm.querySelector('[type=submit]');

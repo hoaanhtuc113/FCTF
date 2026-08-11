@@ -3,6 +3,7 @@ package limiter
 import (
 	"context"
 	"fmt"
+	"log"
 	"sync"
 
 	"challenge-gateway/internal/config"
@@ -34,6 +35,10 @@ type Set struct {
 func Init(cfg config.Config, redisClient RedisClient) (*Set, error) {
 	if redisClient == nil {
 		return nil, fmt.Errorf("redis limiter required: REDIS_ADDR is missing or Redis unavailable")
+	}
+
+	if !cfg.RedisFailClosed {
+		log.Printf("WARNING: REDIS_FAIL_CLOSED is off - every rate and connection limit is bypassed while Redis is unreachable")
 	}
 
 	return &Set{

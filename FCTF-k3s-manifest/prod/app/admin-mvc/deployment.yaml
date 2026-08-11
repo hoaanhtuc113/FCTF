@@ -14,6 +14,8 @@ spec:
         app: admin-mvc
     spec:
       priorityClassName: app-normal-preemption
+      # No K8s API calls made from this pod - don't hand it a token it has no use for.
+      automountServiceAccountToken: false
       tolerations:
         - key: "node-role.kubernetes.io/control-plane"
           operator: "Exists"
@@ -68,7 +70,7 @@ spec:
             privileged: false
             capabilities:
               drop:
-                - NET_RAW
+                - ALL
             seLinuxOptions:
               type: container_t
             seccompProfile:

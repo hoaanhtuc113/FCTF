@@ -1304,7 +1304,13 @@ grafana:
   defaultDashboardsInterval: 1m
 
   adminUser: admin
-  adminPassword: Fctf@2026
+  # adminPassword is deliberately absent. helm.sh passes it with --set from a
+  # password generated on the machine (see platform-credentials.sh), so the
+  # repository holds no console password.
+  #
+  # Install this chart by hand without that --set and the chart mints a random
+  # password of its own - a fresh one on every render, so the next upgrade
+  # silently changes the Grafana login out from under you. Go through helm.sh.
 
   grafana.ini:
     security:
@@ -3444,8 +3450,19 @@ prometheus:
   additionalLabels: {}
 
   ## Configure network policy for the prometheus
+  ## Prometheus itself had no NetworkPolicy, so its query API (port 9090) was
+  ## reachable by any pod in the cluster - the same recon data available via
+  ## kube-state-metrics (now restricted, see kube-state-metrics-network-policy)
+  ## is retrievable one hop over via Prometheus's own /api/v1/query, minus
+  ## whatever metricRelabelings dropped. Grafana is the only legitimate
+  ## consumer (no prometheus-ingress.yaml exists - it's never exposed
+  ## externally, only Grafana is). Label selectors below match both forms
+  ## seen elsewhere in this repo for the grafana subchart (loki-stack's
+  ## NetworkPolicy hedges the same way) - verify against the real deployed
+  ## labels (kubectl get pods -n monitoring --show-labels) before relying on
+  ## this.
   networkPolicy:
-    enabled: false
+    enabled: true
 
     ## Flavor of the network policy to use.
     #  Can be:
@@ -3458,10 +3475,18 @@ prometheus:
     #   egress:
     #   ingress:
 
-    # egress:
-    # - {}
-    # ingress:
-    # - {}
+    egress:
+      - {}
+    ingress:
+      - from:
+          - podSelector:
+              matchLabels:
+                app.kubernetes.io/name: grafana
+          - podSelector:
+              matchLabels:
+                app: prometheus-grafana
+        ports:
+          - port: 9090
     # podSelector:
     #   matchLabels:
     #     app: prometheus
@@ -4589,7 +4614,19 @@ prometheus:
 
     ## Containers allows injecting additional containers. This is meant to allow adding an authentication proxy to a Prometheus pod.
     ## if using proxy extraContainer update targetPort with proxy container port
-    containers: []
+    ## A container with the same name as an existing one (e.g. "prometheus") is
+    ## merged into it rather than added - used here to harden the main
+    ## container's securityContext, which prometheusSpec.securityContext
+    ## (pod-level) cannot express (readOnlyRootFilesystem/capabilities are
+    ## container-level fields). /prometheus (TSDB) and the config-reloader's
+    ## config path are both separate volume mounts, unaffected by this.
+    containers:
+      - name: prometheus
+        securityContext:
+          readOnlyRootFilesystem: true
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: ["ALL"]
     # containers:
     # - name: oauth-proxy
     #   image: quay.io/oauth2-proxy/oauth2-proxy:v7.12.0

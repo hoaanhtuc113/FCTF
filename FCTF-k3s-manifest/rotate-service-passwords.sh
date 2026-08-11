@@ -676,32 +676,46 @@ restart_harbor_workloads() {
   local -a statefulsets=("harbor-database" "harbor-redis")
   local name replicas
 
-  echo "==> Restarting Harbor workloads"
-  for name in "${deployments[@]}"; do
-    if kubectl -n "${ns}" get deployment "${name}" >/dev/null 2>&1; then
-      replicas="$(kubectl -n "${ns}" get deployment "${name}" -o jsonpath='{.spec.replicas}' 2>/dev/null || echo "1")"
-      if [[ "${replicas}" == "0" ]]; then
-        kubectl -n "${ns}" scale "deployment/${name}" --replicas=1 >/dev/null
-      fi
-      kubectl -n "${ns}" rollout restart "deployment/${name}"
-    fi
-  done
-
+  # Datastores first, and fully back before anything that talks to them. The
+  # other way round stalls the rollout: harbor-core cannot pass readiness while
+  # Postgres is restarting under it, so its replacement pod never goes
+  # Available, so the Deployment is not allowed to drop the pod it is replacing,
+  # and rollout status sits on "1 old replicas are pending termination" until it
+  # times out.
+  echo "==> Restarting Harbor datastores"
   for name in "${statefulsets[@]}"; do
     if kubectl -n "${ns}" get statefulset "${name}" >/dev/null 2>&1; then
       kubectl -n "${ns}" rollout restart "statefulset/${name}"
     fi
   done
 
-  for name in "${deployments[@]}"; do
-    if kubectl -n "${ns}" get deployment "${name}" >/dev/null 2>&1; then
-      kubectl -n "${ns}" rollout status "deployment/${name}" --timeout=600s
-    fi
-  done
-
   for name in "${statefulsets[@]}"; do
     if kubectl -n "${ns}" get statefulset "${name}" >/dev/null 2>&1; then
       kubectl -n "${ns}" rollout status "statefulset/${name}" --timeout=600s
+    fi
+  done
+
+  echo "==> Restarting Harbor components"
+  for name in "${deployments[@]}"; do
+    if ! kubectl -n "${ns}" get deployment "${name}" >/dev/null 2>&1; then
+      continue
+    fi
+
+    replicas="$(kubectl -n "${ns}" get deployment "${name}" -o jsonpath='{.spec.replicas}' 2>/dev/null || echo "1")"
+    if [[ "${replicas}" == "0" ]]; then
+      # scale_harbor_deployments_down already removed every pod, so scaling back
+      # up *is* the restart, and the pod it creates reads the patched secrets.
+      # Adding a rollout restart on top only builds a second ReplicaSet whose
+      # pod the first one now has to wait for.
+      kubectl -n "${ns}" scale "deployment/${name}" --replicas=1 >/dev/null
+    else
+      kubectl -n "${ns}" rollout restart "deployment/${name}"
+    fi
+  done
+
+  for name in "${deployments[@]}"; do
+    if kubectl -n "${ns}" get deployment "${name}" >/dev/null 2>&1; then
+      kubectl -n "${ns}" rollout status "deployment/${name}" --timeout=600s
     fi
   done
 }
@@ -733,14 +747,18 @@ patch_redis_acl_file_secret() {
     return 0
   fi
 
+  # Rotation replaces passwords only. The command/key/channel rules below must
+  # stay byte-for-byte in step with prod/env/secret/redis-acl-file-secret.yaml -
+  # this function rewrites the whole aclfile, so any rule that is broader here
+  # silently becomes the cluster's real ACL the moment a rotation runs.
   local new_usersacl
-  new_usersacl="user default on >${REDIS_ROOT_PASSWORD_NEW} ~* &* +@all
-user svc_admin_mvc on >${ADMIN_REDIS_PASSWORD} ~* &* +ping +echo +select +get +set +setex +del +unlink +exists +expire +ttl +pttl +persist +incr +decr +scan +keys +hget +hset +hmget +mget +hmset +hdel +publish +subscribe +psubscribe +unsubscribe +punsubscribe
-user svc_gateway on >${GATEWAY_REDIS_PASSWORD} ~fctf:gateway:* &* +ping +echo +select +get +set +time +exists +expire +del +incr +decr +hget +hset +hmget +hmset +eval +evalsha
-user svc_contestant_be on >${CONTESTANT_BE_REDIS_PASSWORD} ~submission_cooldown_* ~attempt_count_* ~deploy_challenge_* ~active_deploys_team_* ~auth:user:* ~challenge:* ~hint:* ~kpm_check_* ~fctf:contestant:* &* +ping +echo +select +get +set +setex +del +exists +expire +ttl +pttl +incr +decr +scan +hmget +mget +keys +zadd +zrem +zremrangebyscore +zscore +zcard +eval +evalsha +incrbyfloat
-user svc_deployment_center on >${DEPLOYMENT_CENTER_REDIS_PASSWORD} ~deploy_challenge_* ~active_deploys_team_* &* +ping +echo +select +get +set +setex +del +exists +expire +ttl +incr +decr +scan +keys +zadd +zrem +zremrangebyscore +zscore +zcard +eval +evalsha
-user svc_deployment_consumer on >${DEPLOYMENT_CONSUMER_REDIS_PASSWORD} ~deploy_challenge_* ~active_deploys_team_* &* +ping +echo +select +get +set +setex +del +exists +expire +ttl +incr +decr +scan +keys +zadd +zrem +zremrangebyscore +zscore +zcard +eval +evalsha
-user svc_deployment_listener on >${DEPLOYMENT_LISTENER_REDIS_PASSWORD} ~deploy_challenge_* ~active_deploys_team_* &* +ping +echo +select +get +set +setex +del +exists +expire +ttl +incr +decr +scan +keys +zadd +zrem +zremrangebyscore +zscore +zcard +eval +evalsha"
+  new_usersacl="user default on >${REDIS_ROOT_PASSWORD_NEW} resetkeys resetchannels -@all +ping
+user svc_admin_mvc on >${ADMIN_REDIS_PASSWORD} ~fctf:admin:* &ctf +ping +echo +select +get +set +setex +del +unlink +exists +expire +ttl +pttl +persist +incr +decr +scan +keys +hget +hset +hmget +mget +hmset +hdel +publish +subscribe +psubscribe +unsubscribe +punsubscribe (~deploy_challenge_* +get +exists +del +unlink) (~submission_cooldown_* +get +set) (~attempt_count_* +exists +decr +del)
+user svc_gateway on >${GATEWAY_REDIS_PASSWORD} ~fctf:gateway:* resetchannels +ping +echo +select +get +set +time +exists +expire +del +incr +decr +hget +hset +hmget +hmset +eval +evalsha
+user svc_contestant_be on >${CONTESTANT_BE_REDIS_PASSWORD} ~submission_cooldown_* ~attempt_count_* ~deploy_challenge_* ~active_deploys_team_* ~auth:user:* ~challenge:* ~hint:* ~kpm_check_* ~fctf:contestant:* resetchannels +ping +echo +select +get +set +setex +del +exists +expire +ttl +pttl +incr +decr +scan +hmget +mget +zadd +zrem +zremrangebyscore +zscore +zcard +eval +evalsha +incrbyfloat
+user svc_deployment_center on >${DEPLOYMENT_CENTER_REDIS_PASSWORD} ~deploy_challenge_* ~active_deploys_team_* resetchannels +ping +echo +select +get +set +setex +del +exists +expire +ttl +incr +decr +scan +zadd +zrem +zscore +eval +evalsha
+user svc_deployment_consumer on >${DEPLOYMENT_CONSUMER_REDIS_PASSWORD} ~deploy_challenge_* ~active_deploys_team_* resetchannels +ping +echo +select +get +set +setex +del +exists +expire +ttl +incr +decr +zadd +zscore +eval +evalsha
+user svc_deployment_listener on >${DEPLOYMENT_LISTENER_REDIS_PASSWORD} ~deploy_challenge_* ~active_deploys_team_* resetchannels +ping +echo +select +get +set +setex +del +exists +expire +ttl +incr +decr +scan +zadd +zrem +zscore +eval +evalsha"
 
   local acl_b64
   acl_b64="$(printf '%s' "${new_usersacl}" | base64 -w0)"
@@ -1170,15 +1188,37 @@ restart_deployments() {
     "deployment-consumer"
     "challenge-gateway"
   )
-  local dep
+  local dep available
+  local -a restarted=()
 
   echo "==> Restarting app deployments to reload env from Secret"
   for dep in "${deployments[@]}"; do
+    if ! kubectl -n "${APP_NAMESPACE}" get deployment "${dep}" >/dev/null 2>&1; then
+      echo "    skip ${dep}: deployment not found"
+      continue
+    fi
+
+    # On a first install the service images are not in the registry yet
+    # (setup-harbor.sh builds and pushes them after this runs), so these
+    # deployments have never had a ready pod. Restart them regardless, but only
+    # wait on the ones that were actually serving - blocking on a deployment
+    # that cannot pull its image just burns the timeout and fails the run.
+    available="$(kubectl -n "${APP_NAMESPACE}" get deployment "${dep}" -o jsonpath='{.status.availableReplicas}' 2>/dev/null || true)"
     kubectl -n "${APP_NAMESPACE}" rollout restart "deployment/${dep}"
+
+    if [[ -n "${available}" && "${available}" != "0" ]]; then
+      restarted+=("${dep}")
+    else
+      echo "    ${dep}: no ready replica before restart, not waiting on rollout"
+    fi
   done
 
+  if [[ ${#restarted[@]} -eq 0 ]]; then
+    return 0
+  fi
+
   echo "==> Waiting rollout status"
-  for dep in "${deployments[@]}"; do
+  for dep in "${restarted[@]}"; do
     kubectl -n "${APP_NAMESPACE}" rollout status "deployment/${dep}" --timeout=600s
   done
 }
@@ -1595,6 +1635,13 @@ if [[ "${SKIP_ROLLOUT_RESTART}" != "true" ]]; then
 
   if [[ "${ROTATE_RABBITMQ}" == "true" ]]; then
     restart_rabbitmq_workload
+  fi
+
+  # Last, once every backend is back on its new credentials: the app pods hold
+  # the old passwords in their env until they are recreated, so without this
+  # they keep failing auth against Redis/MariaDB/RabbitMQ after a rotation.
+  if [[ "${RESTART_APP_DEPLOYMENTS}" == "true" ]]; then
+    restart_deployments
   fi
 else
   echo "==> Skip rollout restart as requested"

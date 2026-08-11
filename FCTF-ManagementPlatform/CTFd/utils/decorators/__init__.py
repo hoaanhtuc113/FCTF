@@ -13,8 +13,10 @@ from CTFd.utils.user import (
     get_current_user,
     is_admin,
     is_challenge_writer,
+    is_challenge_writer_for_contest,
     is_conductor,
     is_jury,
+    is_jury_for_contest,
 )
 
 
@@ -172,13 +174,31 @@ def jury_only(f):
 def admin_or_challenge_writer_only_or_jury(f):
     @functools.wraps(f)
     def admin_or_challenge_writer_only_wrapper(*args, **kwargs):
-        if is_jury() or is_challenge_writer() or is_admin() or is_conductor():
+        # Platform-level roles bypass all contest-scoped checks
+        if is_admin() or is_conductor():
             return f(*args, **kwargs)
-        else:
-            if request.content_type == "application/json":
+
+        # When the route targets a specific challenge, verify the user has the
+        # required role for THAT challenge's contest — not just any contest.
+        challenge_id = kwargs.get("challenge_id")
+        if challenge_id is not None:
+            from CTFd.models import Challenges as _Challenges
+            challenge = _Challenges.query.filter_by(id=challenge_id).first()
+            if challenge and challenge.contest_id is not None:
+                if is_jury_for_contest(challenge.contest_id) or is_challenge_writer_for_contest(challenge.contest_id):
+                    return f(*args, **kwargs)
+                # User has no role in this contest → deny
                 abort(403)
-            else:
-                return redirect(url_for("auth.login", next=request.full_path))
+
+        # No challenge_id in route (e.g. POST /challenges, GET /challenges/types):
+        # fall back to any-contest check
+        if is_jury() or is_challenge_writer():
+            return f(*args, **kwargs)
+
+        if request.content_type == "application/json":
+            abort(403)
+        else:
+            return redirect(url_for("auth.login", next=request.full_path))
 
     return admin_or_challenge_writer_only_wrapper
 

@@ -47,10 +47,11 @@ spec:
           - name: IMAGE_REPO
           - name: IMAGE_TAG
       priorityClassName: lowest
+      metadata:
+        labels:
+          app: kaniko-builder
       podSpecPatch: |
         preemptionPolicy: Never
-        hostNetwork: true
-        dnsPolicy: ClusterFirstWithHostNet
         securityContext:
           fsGroup: 1103
           fsGroupChangePolicy: OnRootMismatch
@@ -59,13 +60,32 @@ spec:
         image: gcr.io/kaniko-project/executor:debug
         imagePullPolicy: IfNotPresent
 
-        # Kaniko REQUIRE root + writable FS
+        # Kaniko needs root to write build layers, but does NOT require
+        # privileged mode - that's the whole point of Kaniko vs Docker-in-Docker.
+        # It does need the filesystem-ownership capabilities: it chowns the
+        # Dockerfile it copies into /kaniko, and restores owner, mode, device
+        # nodes and file capabilities while extracting base image layers.
+        # Without them even uid 0 fails with EPERM. Everything dangerous
+        # (SYS_ADMIN, NET_RAW, NET_ADMIN, SYS_PTRACE, ...) stays dropped.
         securityContext:
           runAsUser: 0
           runAsGroup: 0
           runAsNonRoot: false
-          privileged: true
-          allowPrivilegeEscalation: true
+          privileged: false
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: ["ALL"]
+            add:
+              - CHOWN
+              - DAC_OVERRIDE
+              - FOWNER
+              - FSETID
+              - SETGID
+              - SETUID
+              - MKNOD
+              - SETFCAP
+          seccompProfile:
+            type: RuntimeDefault
 
         # Production-safe resources (tested range)
         resources:
@@ -207,6 +227,10 @@ spec:
             cpu: "250m"
             memory: "256Mi"
 
+        envFrom:
+          - secretRef:
+              name: common-private-key-secret
+
         command: ["/bin/sh", "-c"]
         args:
           - |
@@ -217,14 +241,49 @@ spec:
             WORKFLOW_TYPE="up"
             CHALLENGE_ID="{{workflow.parameters.CHALLENGE_ID}}"
             ENDPOINT="{{workflow.parameters.DEPLOYMENT_CENTER_API_ENDPOINT}}"
+            UNIX_TIME="$(date +%s)"
+
+            # /api/statuscheck/message requires [RequireSecretKey]: HMAC-SHA256
+            # keyed with PRIVATE_KEY over unixTime followed by one line per
+            # field, sorted by field name and written as name=bytelength:value.
+            # The length is what keeps the field boundaries inside the signature
+            # - concatenating the values alone let anyone in the path move a
+            # digit from one field to the next and keep the signature valid.
+            # Must match SecretKeyHelper.CreateSecretKey (C#) and CTFd's
+            # create_secret_key (Python) exactly.
+            sign_field() {
+              printf '%s=%s:%s\n' "$1" "$(printf '%s' "$2" | wc -c | tr -d ' ')" "$2"
+            }
+
+            # Command substitution eats the trailing newline of the last field,
+            # so it is put back below - the signed message ends with one.
+            SIGN_INPUT="$(
+              printf '%s\n' "${UNIX_TIME}"
+              sign_field ChallengeId "${CHALLENGE_ID}"
+              sign_field Status "${WORKFLOW_STATUS}"
+              sign_field Type "${WORKFLOW_TYPE}"
+              sign_field WorkFlowName "${WORKFLOW_NAME}"
+            )"
+
+            if command -v openssl >/dev/null 2>&1; then
+              SECRET_KEY="$(printf '%s\n' "${SIGN_INPUT}" \
+                | openssl dgst -sha256 -hmac "${PRIVATE_KEY}" -r | awk '{print $1}')"
+            else
+              echo "ERROR: openssl not available in this image - cannot sign status callback, skipping"
+              SECRET_KEY=""
+            fi
 
             echo "Posting workflow status to deployment center"
 
-            curl -sS -X POST "${ENDPOINT}" \
-              -H 'Content-Type: application/json' \
-              -d '{
-                "WorkFlowName": "'"${WORKFLOW_NAME}"'",
-                "ChallengeId": '"${CHALLENGE_ID}"',
-                "Status": "'"${WORKFLOW_STATUS}"'",
-                "Type": "'"${WORKFLOW_TYPE}"'"
-              }' || true
+            if [ -n "${SECRET_KEY}" ]; then
+              curl -sS -X POST "${ENDPOINT}" \
+                -H 'Content-Type: application/json' \
+                -H "SecretKey: ${SECRET_KEY}" \
+                -d '{
+                  "WorkFlowName": "'"${WORKFLOW_NAME}"'",
+                  "ChallengeId": '"${CHALLENGE_ID}"',
+                  "Status": "'"${WORKFLOW_STATUS}"'",
+                  "Type": "'"${WORKFLOW_TYPE}"'",
+                  "unixTime": "'"${UNIX_TIME}"'"
+                }' || true
+            fi

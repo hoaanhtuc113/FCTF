@@ -122,6 +122,13 @@ class ServerConfig(object):
         CACHE_REDIS_URL += f"@{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
 
     SQLALCHEMY_DATABASE_URI = DATABASE_URL
+    # Flask-Caching defaults this to "flask_cache_", which put CTFd's keys
+    # outside the fctf: namespace every other service uses (fctf:gateway:*,
+    # fctf:contestant:*). Naming them consistently means the Redis ACL grants
+    # one auditable pattern instead of a library-specific one. Note this
+    # renames every cache key: after a deploy the old flask_cache_* entries are
+    # unreachable and age out, so the first requests run against a cold cache.
+    CACHE_KEY_PREFIX: str = "fctf:admin:"
     if CACHE_REDIS_URL:
         CACHE_TYPE: str = "redis"
     else:

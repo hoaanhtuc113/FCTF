@@ -80,14 +80,7 @@ new ContestantBEConfigHelper().InitConfig(connectionString!);
 
 builder.Services.AddStackExchangeRedisCache(options =>
 {
-    var redisOptions = ConfigurationOptions.Parse(ContestantBEConfigHelper.REDIS_CONNECTION_STRING);
-    var redisTlsInsecureSkipVerify = (Environment.GetEnvironmentVariable("REDIS_TLS_INSECURE_SKIP_VERIFY") ?? "true")
-        .Equals("true", StringComparison.OrdinalIgnoreCase);
-    if (redisOptions.Ssl && redisTlsInsecureSkipVerify)
-    {
-        redisOptions.CertificateValidation += (_, _, _, _) => true;
-    }
-    options.ConfigurationOptions = redisOptions;
+    options.ConfigurationOptions = RedisOptionsFactory.Build(ContestantBEConfigHelper.REDIS_CONNECTION_STRING);
 });
 builder.Services.Configure<IpRateLimitOptions>(builder.Configuration.GetSection("IpRateLimiting"));
 builder.Services.Configure<IpRateLimitPolicies>(builder.Configuration.GetSection("IpRateLimitPolicies"));
@@ -134,6 +127,9 @@ builder.Services.AddOutputCache();
 
 var app = builder.Build();
 
+// First in the pipeline: this is where a contestant's request enters the
+// platform, so the id minted here is the one every later hop inherits.
+app.UseMiddleware<CorrelationIdMiddleware>();
 
 if (app.Environment.IsDevelopment())
 {

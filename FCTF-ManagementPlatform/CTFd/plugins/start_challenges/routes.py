@@ -5,10 +5,10 @@ from datetime import datetime
 import logging
 from flask_cors import CORS  # type: ignore
 import requests
-import hashlib
 from CTFd.plugins import bypass_csrf_protection
 
 from CTFd.constants.envvars import PRIVATE_KEY
+from CTFd.utils.connector.multiservice_connector import create_secret_key
 
 
 logging.basicConfig(
@@ -18,19 +18,6 @@ logging.basicConfig(
 
 
 start_challenge_api = Blueprint("start_challenge_api", __name__, url_prefix="/api/v1")
-
-
-def create_secret_key(
-    private_key: str, unix_time: int, data: dict, default_value: str = "1"
-) -> str:
-    sorted_key = sorted(data.keys())
-    combineString = str(unix_time) + private_key
-
-    for key in sorted_key:
-        combineString += str(data.get(key, default_value))
-    print(f"RAW KEY DATA: {combineString}")
-    md5_hash = hashlib.md5(combineString.encode()).hexdigest()
-    return md5_hash
 
 
 @start_challenge_api.route("/start_challenge/<int:challenge_id>", methods=["POST"])
