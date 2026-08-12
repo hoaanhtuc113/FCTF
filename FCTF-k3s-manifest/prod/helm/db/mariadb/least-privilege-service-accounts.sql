@@ -82,6 +82,11 @@ GRANT UPDATE ON ctfd.contests TO 'deployment_listener'@'%';
 
 -- DeploymentConsumer
 GRANT SELECT ON ctfd.challenges TO 'deployment_consumer'@'%';
+-- The dynamic flag reaches the challenge pod through this service, and it now
+-- reads the value here rather than accepting whatever the queue message carried.
+-- Read-only and read-only on this table alone: the consumer never issues a flag,
+-- that stays with ContestantBE, which is the only account holding INSERT.
+GRANT SELECT ON ctfd.dynamic_flag_instances TO 'deployment_consumer'@'%';
 
 FLUSH PRIVILEGES;
 

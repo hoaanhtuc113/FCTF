@@ -1,0 +1,62 @@
+# deployment-center-sa and deployment-listener-sa each hold delete on namespaces
+# at cluster scope, because the namespace they have to delete is named after a
+# challenge and a team and does not exist when the ClusterRole is written.
+# resourceNames cannot express that - it needs the names up front - and RBAC has
+# no way to say "only the ones carrying this label". So the grant reads: delete
+# any namespace in the cluster, kube-system and argo and db included.
+#
+# Neither service ever deletes anything but a challenge namespace: DeployService
+# deletes the one recorded in the deployment's own cache entry, and the listener
+# deletes the one whose pod it just watched terminate. Both were created by
+# deploy-challenge-v2 from challenge-hardened.yaml / challenge-plain.yaml, which
+# label every one of them ctf/kind=challenge. This says so at admission, where
+# RBAC could not.
+#
+# On the collection delete specifically: no role in this cluster grants the
+# deletecollection verb, and delete does not imply it, so a single labelled
+# request that wipes every challenge at once is already refused by the API
+# server. What was left is the same outcome one call at a time, which nothing
+# stopped - and the same grant reaching namespaces that have nothing to do with
+# challenges. Both are covered here.
+#
+# This mirrors cleanup-sa-namespace-delete-scope in cron-job/delete-chal-job.yaml,
+# which does the same for the cleanup CronJob against ctf/temporary=true. The
+# label differs on purpose: the CronJob only ever sweeps expiring instances,
+# while these two stop challenges whether or not they carry a timeout.
+#
+# Requires Kubernetes >=1.30 (ValidatingAdmissionPolicy GA) or >=1.28 with the
+# ValidatingAdmissionPolicy feature gate enabled. Verify the cluster's k3s
+# version supports admissionregistration.k8s.io/v1 before applying.
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: deploy-sa-namespace-delete-scope
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+      - apiGroups: [""]
+        apiVersions: ["v1"]
+        operations: ["DELETE"]
+        resources: ["namespaces"]
+  matchConditions:
+    - name: only-the-two-deploy-service-accounts
+      expression: >-
+        request.userInfo.username in [
+          'system:serviceaccount:app:deployment-center-sa',
+          'system:serviceaccount:app:deployment-listener-sa'
+        ]
+  validations:
+    - expression: >-
+        has(oldObject.metadata.labels) &&
+        'ctf/kind' in oldObject.metadata.labels &&
+        oldObject.metadata.labels['ctf/kind'] == 'challenge'
+      message: "deployment-center-sa and deployment-listener-sa may only delete namespaces labeled ctf/kind=challenge"
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: deploy-sa-namespace-delete-scope-binding
+spec:
+  policyName: deploy-sa-namespace-delete-scope
+  validationActions: ["Deny"]

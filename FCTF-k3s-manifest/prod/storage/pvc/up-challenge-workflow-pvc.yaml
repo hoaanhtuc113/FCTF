@@ -1,4 +1,16 @@
 # PVC cho workflow up-challenge
+#
+# The 5Gi below is not a limit. For an NFS PersistentVolume, Kubernetes matches
+# the claim to the volume by capacity and then stops caring: nothing measures or
+# caps what is actually written, so a challenge folder can grow past this number
+# without anything refusing a write. Treat it as documentation of the size the
+# export was provisioned at, not as a control.
+#
+# What actually bounds the share is upstream of it: the uploader refuses an
+# archive that expands past its own ceiling, and the build step refuses a context
+# larger than the same figure. Enforcing it here instead would mean a quota on the
+# NFS export itself (an XFS project quota on the server's export directory), which
+# lives outside this cluster and has to be set on the NFS host.
 
 apiVersion: v1
 kind: PersistentVolumeClaim

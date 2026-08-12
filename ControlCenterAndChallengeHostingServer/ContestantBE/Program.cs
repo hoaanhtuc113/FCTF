@@ -127,6 +127,9 @@ builder.Services.AddOutputCache();
 
 var app = builder.Build();
 
+// First in the pipeline: this is where a contestant's request enters the
+// platform, so the id minted here is the one every later hop inherits.
+app.UseMiddleware<CorrelationIdMiddleware>();
 
 if (app.Environment.IsDevelopment())
 {

@@ -1304,7 +1304,13 @@ grafana:
   defaultDashboardsInterval: 1m
 
   adminUser: admin
-  adminPassword: Fctf@2026
+  # adminPassword is deliberately absent. helm.sh passes it with --set from a
+  # password generated on the machine (see platform-credentials.sh), so the
+  # repository holds no console password.
+  #
+  # Install this chart by hand without that --set and the chart mints a random
+  # password of its own - a fresh one on every render, so the next upgrade
+  # silently changes the Grafana login out from under you. Go through helm.sh.
 
   grafana.ini:
     security:

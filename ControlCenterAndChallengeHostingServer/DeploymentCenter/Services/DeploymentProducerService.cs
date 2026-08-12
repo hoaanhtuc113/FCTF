@@ -1,6 +1,7 @@
 ﻿using RabbitMQ.Client;
 using RabbitMQ.Client.Exceptions;
 using ResourceShared.DTOs.Challenge;
+using ResourceShared.Logger;
 using ResourceShared.DTOs.RabbitMQ;
 using System.Text;
 using System.Text.Json;
@@ -100,12 +101,19 @@ public class DeploymentProducerService : IDeploymentProducerService, IAsyncDispo
         };
 
         var body = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(payload));
+
+        // MessageId is the correlation id of the request that enqueued this, not
+        // a fresh Guid nobody can look up. It used to be the latter, which made
+        // it impossible to say which HTTP request a message - or a body sitting
+        // in deployment_dlq - had come from.
+        var correlationId = CorrelationContext.Current ?? CorrelationContext.New();
+
         var properties = new BasicProperties
         {
             Persistent = true,
             Expiration = (expirySeconds * 1000).ToString(),
             ContentType = "application/json",
-            MessageId = Guid.NewGuid().ToString()
+            MessageId = correlationId
         };
 
         await PublishOrThrowAsync(body, properties);

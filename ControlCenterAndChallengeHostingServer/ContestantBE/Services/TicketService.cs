@@ -70,7 +70,7 @@ public class TicketService : ITicketService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, userId, data: new { title = request.title, type = request.type });
+            _logger.LogError(ex, userId, data: new { title = request.title, type = request.type }, contestId: contestId);
             return BaseResponseDTO<TicketResponseDTO>.Fail("An error occurred while creating ticket");
         }
     }
@@ -101,7 +101,7 @@ public class TicketService : ITicketService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, user);
+            _logger.LogError(ex, user, contestId: contestId);
             return [];
         }
     }

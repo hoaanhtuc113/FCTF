@@ -3,14 +3,14 @@ using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.Extensions.DependencyInjection;
 using ResourceShared.Utils;
 using StackExchange.Redis;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 
 namespace DeploymentCenter.Middlewares;
 
 public class RequireSecretKeyAttribute : Attribute, IAsyncResourceFilter
 {
-    private readonly HashSet<string> _requiredFields = [];
-
     // unixTime is part of what gets signed, but the signature alone only
     // proves "this (unixTime, data) pair was signed with PRIVATE_KEY" - it
     // says nothing about *when*. Without this window, a single captured
@@ -52,10 +52,14 @@ public class RequireSecretKeyAttribute : Attribute, IAsyncResourceFilter
         if (context.HttpContext.Request.HasFormContentType)
         {
             var form = context.HttpContext.Request.Form;
-            _requiredFields.UnionWith(form.Keys);
+
+            // Local, not a field on the attribute: one attribute instance serves
+            // every request to the action, so a field here accumulates keys from
+            // earlier requests and is written from several threads at once.
+            var formFields = new HashSet<string>(form.Keys);
 
             data = form
-                .Where(kv => _requiredFields.Contains(kv.Key) && !context.HttpContext.Request.Form.Files.Any(f => f.Name == kv.Key))
+                .Where(kv => formFields.Contains(kv.Key) && !context.HttpContext.Request.Form.Files.Any(f => f.Name == kv.Key))
                 .ToDictionary(k => k.Key, v => v.Value.ToString());
 
             if (form.ContainsKey("unixTime"))
@@ -131,7 +135,12 @@ public class RequireSecretKeyAttribute : Attribute, IAsyncResourceFilter
 
         string generatedSecretKey = SecretKeyHelper.CreateSecretKey(unixTime, data);
 
-        if (receivedSecretKey != generatedSecretKey)
+        // Compared in constant time: an ordinary string comparison stops at the
+        // first wrong character, which tells a caller how much of a guessed
+        // signature was right and turns forgery into a per-character search.
+        if (!CryptographicOperations.FixedTimeEquals(
+                Encoding.UTF8.GetBytes(receivedSecretKey),
+                Encoding.UTF8.GetBytes(generatedSecretKey)))
         {
             context.Result = new ContentResult()
             {

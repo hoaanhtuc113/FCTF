@@ -819,9 +819,18 @@ public class ChallengeController : BaseController
 
             var kypoAccount = await GetKypoTeamAccountRawAsync(teamId);
 
-            var baseUrl = !string.IsNullOrEmpty(kypoConfig?.kypo_base_url)
-                ? kypoConfig!.kypo_base_url!.TrimEnd('/')
-                : ContestantBEConfigHelper.KypoBaseUrl.TrimEnd('/');
+            // The server's KYPO host, never the one stored on the challenge row.
+            // A few lines down this host receives the contestant's Keycloak access,
+            // refresh and id tokens in the URL fragment, so whoever chooses it
+            // chooses who gets those tokens. That is not a per-challenge decision
+            // and it does not belong to anyone who can edit a challenge; it belongs
+            // to whoever deploys the platform, which is what KYPO_BASE_URL is.
+            //
+            // kypo_challenge_configs.kypo_base_url is left unread rather than
+            // dropped, so an install carrying old rows is not depending on a
+            // migration having run. Instance id and access token stay per challenge:
+            // those genuinely differ per challenge and cannot come from config.
+            var baseUrl = ContestantBEConfigHelper.KypoBaseUrl.TrimEnd('/');
 
             string bridgeUrl;
 
@@ -1059,9 +1068,19 @@ public class ChallengeController : BaseController
 
         await Console.Out.WriteLineAsync($"[Requesst Start Challenge] User {userId} : Team {teamId} : Challenge {challenge.Name}");
 
-        // Check limit_challenges — per-contest setting
+        // Check limit_challenges — per-contest setting, counted per team
         var limitContest = await _context.Contests.AsNoTracking().FirstOrDefaultAsync(c => c.Id == contestId);
         var limit_challenges = (long)(limitContest?.LimitChallenges ?? 0);
+
+        // A contest that never set the column reads 0, and 0 means unlimited to
+        // the Lua script below - so the default was "one team may hold as many
+        // deployments as it likes", which is enough to fill the shared deploy
+        // queue on its own. Fall back to a finite default instead; setting
+        // DEFAULT_LIMIT_CHALLENGES to 0 restores the old behaviour.
+        if (limit_challenges <= 0)
+        {
+            limit_challenges = ContestantBEConfigHelper.DEFAULT_LIMIT_CHALLENGES;
+        }
 
         var deploymentTeamId = challenge.SharedInstant ? -2 : teamId;
         var deploymentKey = ChallengeHelper.GetCacheKey(challengeStartReq.challengeId, deploymentTeamId);
@@ -1197,7 +1216,7 @@ public class ChallengeController : BaseController
         if (teamId == null || user == null)
             return BadRequest(new { error = "User no join team in this contest" });
 
-        _userBehaviorLogger.Log("STOP_CHALLENGE", userId, teamId, new { challengeStartReq.challengeId });
+        _userBehaviorLogger.Log("STOP_CHALLENGE", userId, teamId, new { challengeStartReq.challengeId }, contestId: contestId);
 
         var challenge = await _context.Challenges
             .AsNoTracking()
@@ -1265,6 +1284,8 @@ public class ChallengeController : BaseController
 
                 await _redisHelper.RemoveCacheAsync(cache_key);
 
+                await SaveStopActionLogAsync(challenge, user.Id, $"Stopped KYPO sandbox challenge \"{challenge.Name}\"");
+
                 var solved = lockResult == KypoLockResult.Solved || lockResult == KypoLockResult.AlreadySolved;
                 return Ok(new ChallengeDeployResponeDTO
                 {
@@ -1284,6 +1305,9 @@ public class ChallengeController : BaseController
             if (sandboxTrackings.Count > 0) await _context.SaveChangesAsync();
 
             await _redisHelper.RemoveCacheAsync(cache_key);
+
+            await SaveStopActionLogAsync(challenge, user.Id, $"Stopped sandbox challenge \"{challenge.Name}\"");
+
             return Ok(new ChallengeDeployResponeDTO
             {
                 status  = (int)HttpStatusCode.OK,
@@ -1298,6 +1322,12 @@ public class ChallengeController : BaseController
             await Console.Out.WriteLineAsync($"[Requesst Stop Challenge] User {userId} : Team {teamId} : Challenge {challenge.Name}");
 
             var response = await _challengeServices.ForceStopChallenge(challenge.Id, user, contestId);
+
+            if (response.status == (int)HttpStatusCode.OK)
+            {
+                await SaveStopActionLogAsync(challenge, user.Id, $"Stopped challenge \"{challenge.Name}\"");
+            }
+
             return response.status switch
             {
                 (int)HttpStatusCode.OK => Ok(response),
@@ -1314,6 +1344,33 @@ public class ChallengeController : BaseController
                 error = "Failed to connect to stop API",
                 error_detail = e.ToString(),
             });
+        }
+    }
+
+    // A stop erases its own evidence: the namespace goes, the Redis key goes,
+    // and the only trace left was a Console.WriteLine that nothing queries. So a
+    // session that ran and was stopped looked the same afterwards as one that
+    // never started, and no contestant could be shown to have ended their own
+    // run. Start, submit, hints and flag attempts all leave a row in ActionLogs;
+    // stop is the one that did not, and it is called from three places here.
+    //
+    // A failed write is reported and swallowed, as at the other call sites: the
+    // instance is already gone by this point, so failing the request would tell
+    // the contestant the stop did not happen when it did.
+    private async Task SaveStopActionLogAsync(Challenge challenge, int userId, string detail)
+    {
+        try
+        {
+            await _actionLogsServices.SaveActionLogs(new ActionLogsReq
+            {
+                ActionType = 7, // STOP_CHALLENGE
+                ActionDetail = detail,
+                ChallengeId = challenge.Id,
+            }, userId);
+        }
+        catch (Exception ex)
+        {
+            await Console.Error.WriteLineAsync($"[ActionLog] Failed to save STOP_CHALLENGE log for challenge {challenge.Id}: {ex.Message}");
         }
     }
 

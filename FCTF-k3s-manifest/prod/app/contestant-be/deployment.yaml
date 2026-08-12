@@ -37,6 +37,17 @@ spec:
                 name: contestant-be-secret
             - secretRef:
                 name: common-private-key-secret
+            # KYPO connection settings. Not tracked in this repository: they are
+            # written by kypo-config.sh from /etc/fctf/kypo.env on the master, so
+            # the credentials are never committed and re-applying prod/env/ cannot
+            # reset them. Optional, because an install with no KYPO range should
+            # still start - the service falls back to its own defaults.
+            - configMapRef:
+                name: kypo-cm
+                optional: true
+            - secretRef:
+                name: kypo-secret
+                optional: true
           env:
             # CA that signed the Redis server certificate. Without it the
             # service falls back to the container trust store, which does not

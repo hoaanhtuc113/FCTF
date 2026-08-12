@@ -37,6 +37,15 @@ spec:
                 name: admin-mvc-secret
             - secretRef:
                 name: common-private-key-secret
+            # KYPO connection settings, written by kypo-config.sh from
+            # /etc/fctf/kypo.env - see the same block on contestant-be, which reads
+            # the identical values under its own variable names.
+            - configMapRef:
+                name: kypo-cm
+                optional: true
+            - secretRef:
+                name: kypo-secret
+                optional: true
           resources:
             requests:
               cpu: 1

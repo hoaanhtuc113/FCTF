@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, timezone
 import hashlib
+import hmac
 import io
 import json
 import os
@@ -52,12 +53,31 @@ def get_token_from_header():
     return None
 
 
+def build_signing_message(unix_time: int, data: dict) -> bytes:
+    """Chuỗi được ký cho SecretKey.
+
+    Mỗi field được nêu tên kèm độ dài, nên ranh giới giữa các field cũng nằm
+    trong phần được ký. Cách cũ nối các giá trị đã sort lại với nhau thì không:
+    challengeId=12,teamId=34 và challengeId=1,teamId=234 cùng cho ra "1234", nên
+    chữ ký bắt được của request này vẫn hợp lệ cho request kia và ai nằm trong
+    đường truyền cũng dịch được ranh giới mà không cần biết PRIVATE_KEY.
+
+    Phải khớp tuyệt đối với SecretKeyHelper.CreateSecretKey (C#) và khối ký
+    trong up-challenge Argo template (sh).
+    """
+    parts = [f"{unix_time}\n"]
+    for key in sorted(data.keys()):
+        value = str(data[key])
+        parts.append(f"{key}={len(value.encode())}:{value}\n")
+    return "".join(parts).encode()
+
+
 def create_secret_key(private_key: str, unix_time: int, data: dict) -> str:
-    sorted_key = sorted(data.keys())
-    combine_string = str(unix_time) + private_key
-    for key in sorted_key:
-        combine_string += str(data.get(key, "1"))
-    return hashlib.md5(combine_string.encode()).hexdigest()
+    # HMAC-SHA256 thay cho MD5 của key-rồi-data: cách cũ đặt secret vào giữa một
+    # hash mà output được gửi kèm request, đúng hình dạng mà length extension cần.
+    return hmac.new(
+        private_key.encode(), build_signing_message(unix_time, data), hashlib.sha256
+    ).hexdigest()
 
 
 def generate_cache_key(challenge_id, team_id):
@@ -388,6 +408,89 @@ def discard_failed_upload(challenge, nfs_destination):
         print(f"Could not mark challenge {challenge.id} as failed: {exc}")
 
 
+# Bounds for an uploaded challenge archive. What comes out of it is copied onto
+# NFS_MOUNT_PATH, one share holding every challenge of every contest, so an archive
+# that expands without limit takes the whole platform's storage down rather than
+# just its own contest's. The entry count bounds the inode side of the same thing.
+MAX_ZIP_ENTRIES = 2000
+MAX_EXTRACTED_BYTES = 512 * 1024 * 1024
+EXTRACT_CHUNK_BYTES = 64 * 1024
+
+
+def safe_extract_zip(zip_path, extract_path):
+    """
+    Extract a challenge archive, refusing anything whose entries would not land
+    inside extract_path. Raises ValueError with the reason; the caller turns that
+    into a 400 so the author is told which entry was refused.
+
+    On the traversal itself: CPython's extractall() has dropped ".." components
+    and leading separators since 2.7.4, so "../../x" does not escape - it is
+    silently rewritten to "x". That is the reason to check here rather than a
+    reason not to. An archive built with a layout that needs those components
+    unpacks into a different tree than the author built, with nothing said about
+    it, and the guarantee itself rests on an implementation detail of the stdlib
+    rather than on anything this code states. Refusing is both safer and
+    debuggable.
+
+    Two things extractall says nothing about are checked too: symlink entries,
+    and an archive whose contents dwarf the archive.
+    """
+    extract_root = os.path.realpath(extract_path)
+    written_bytes = 0
+
+    with zipfile.ZipFile(zip_path) as zip_ref:
+        if zip_ref.testzip() is not None:
+            raise ValueError("Archive contains a corrupt entry")
+
+        members = zip_ref.infolist()
+        if len(members) > MAX_ZIP_ENTRIES:
+            raise ValueError(f"Archive has {len(members)} entries, more than the limit of {MAX_ZIP_ENTRIES}")
+
+        # Cheap upfront reject on the declared sizes, so an obviously oversized
+        # archive costs nothing. The declared size is the archive's own claim, so
+        # it decides nothing on its own - the real count below is what enforces.
+        declared_total = sum(member.file_size for member in members)
+        if declared_total > MAX_EXTRACTED_BYTES:
+            raise ValueError(f"Archive declares {declared_total} bytes of content, more than the limit of {MAX_EXTRACTED_BYTES}")
+
+        for member in members:
+            # For archives written on Unix the mode sits in the top 16 bits of
+            # external_attr. Python writes a symlink out as a plain file holding
+            # its target, which is harmless in itself - but the folder is copied
+            # to NFS and read by the build, and any tool along the way that does
+            # honour the bit follows the link wherever it points.
+            mode = member.external_attr >> 16
+            if mode and (mode & 0o170000) == 0o120000:
+                raise ValueError(f"Archive contains a symbolic link, which is not allowed: {member.filename}")
+
+            target = os.path.realpath(os.path.join(extract_root, member.filename))
+            inside_root = target == extract_root or target.startswith(extract_root + os.sep)
+
+            if not inside_root:
+                raise ValueError(f"Archive entry would be written outside the challenge folder: {member.filename}")
+
+            if member.is_dir():
+                os.makedirs(target, exist_ok=True)
+                continue
+
+            if target == extract_root:
+                raise ValueError(f"Archive entry has no usable name: {member.filename!r}")
+
+            os.makedirs(os.path.dirname(target), exist_ok=True)
+
+            with zip_ref.open(member) as source, open(target, "wb") as sink:
+                while True:
+                    chunk = source.read(EXTRACT_CHUNK_BYTES)
+                    if not chunk:
+                        break
+
+                    written_bytes += len(chunk)
+                    if written_bytes > MAX_EXTRACTED_BYTES:
+                        raise ValueError(f"Archive expands past the limit of {MAX_EXTRACTED_BYTES} bytes")
+
+                    sink.write(chunk)
+
+
 def handle_challenge_upload(challenge, file_path, expose_port=None):
     """
     Handle the challenge upload process
@@ -402,23 +505,21 @@ def handle_challenge_upload(challenge, file_path, expose_port=None):
     temp_dir = tempfile.mkdtemp()
     
     try:
-        with open(file_path, "rb") as file:
-            zip_content = file.read()
-            
-            try:
-                with zipfile.ZipFile(io.BytesIO(zip_content)) as z:
-                    if z.testzip() is not None:
-                        return {"success": False, "error": "Invalid Zip file"}, 400
-            except zipfile.BadZipFile:
-                return {"success": False, "error": "Invalid zip file format"}, 400
-        
         # Extract the zip file to temporary directory
         extract_path = os.path.join(temp_dir, f"challenge_{challenge.id}")
         os.makedirs(extract_path, exist_ok=True)
-        
-        with zipfile.ZipFile(file_path, 'r') as zip_ref:
-            zip_ref.extractall(extract_path)
-        
+
+        try:
+            safe_extract_zip(file_path, extract_path)
+        except zipfile.BadZipFile:
+            return {"success": False, "error": "Invalid zip file format"}, 400
+        except ValueError as exc:
+            # The message names the entry that was refused. Returned rather than
+            # logged because the person who packed the archive is the only one who
+            # can repack it, and a bare 400 leaves them guessing.
+            print(f"Rejected challenge archive for challenge {challenge.id}: {exc}")
+            return {"success": False, "error": str(exc)}, 400
+
         print(f"Extracted challenge files to: {extract_path}")
         
         # Create challenges directory if it doesn't exist

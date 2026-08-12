@@ -97,7 +97,8 @@
 <input type="hidden" name="kypo_instance_id" id="kypo-instance-id">
 <input type="hidden" name="kypo_access_token" id="kypo-access-token">
 <input type="hidden" name="kypo_instance_type" id="kypo-instance-type">
-<input type="hidden" name="kypo_base_url" id="kypo-base-url" value="https://vuontre.iahn.hanoi.vn">
+{# No kypo_base_url field: the KYPO host is set once for the platform, under
+   Platform Settings, and is not something a challenge carries its own copy of. #}
 
 <div class="form-group mt-3">
     <button class="btn btn-primary float-right create-challenge-submit" type="submit">

@@ -54,10 +54,9 @@
             <div class="col-sm-4 text-muted small">Access Token</div>
             <div class="col-sm-8 small"><code>{{ challenge.kypo_config.kypo_access_token }}</code></div>
         </div>
-        <div class="row mt-1">
-            <div class="col-sm-4 text-muted small">Base URL</div>
-            <div class="col-sm-8 small">{{ challenge.kypo_config.kypo_base_url }}</div>
-        </div>
+        {# Base URL is not shown here any more: it is one value for the whole
+           platform, shown and edited under Platform Settings. Printing the column
+           on this row would show a leftover nothing reads. #}
     </div>
 </div>
 {% endif %}
@@ -103,8 +102,9 @@
     value="{{ challenge.kypo_config.kypo_access_token if challenge.kypo_config else '' }}">
 <input type="hidden" name="kypo_instance_type" id="kypo-instance-type-update"
     value="{{ challenge.kypo_config.kypo_instance_type if challenge.kypo_config else 'linear' }}">
-<input type="hidden" name="kypo_base_url" id="kypo-base-url-update"
-    value="{{ challenge.kypo_config.kypo_base_url if challenge.kypo_config else 'https://vuontre.iahn.hanoi.vn' }}">
+{# No kypo_base_url field: the KYPO host is set once for the platform, under
+   Platform Settings. Submitting one here used to re-point where contestants are
+   sent - and where their Keycloak tokens go with them. #}
 <input type="hidden" id="kypo-current-instance-id"
     value="{{ challenge.kypo_config.kypo_instance_id if challenge.kypo_config else '' }}">
 {% endblock %}

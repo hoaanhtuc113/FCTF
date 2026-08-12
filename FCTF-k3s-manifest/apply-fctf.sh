@@ -28,13 +28,18 @@ REDIS_ACL_FILE_SECRET_FILE="${PROD_DIR}/env/secret/redis-acl-file-secret.yaml"
 MARIADB_POST_INIT_GRANTS_SQL="${PROD_DIR}/helm/db/mariadb/least-privilege-service-accounts.sql"
 RABBIT_DEPLOY_PRODUCER_BOOTSTRAP_PASSWORD="Fctf2025@producer"
 RABBIT_DEPLOY_CONSUMER_BOOTSTRAP_PASSWORD="Fctf2025@consumer"
-RABBIT_ADMIN_BOOTSTRAP_PASSWORD="Fctf@2026"
+
+# shellcheck source=platform-credentials.sh
+source "${SCRIPT_DIR}/platform-credentials.sh"
+fctf_ensure_platform_credentials
+RABBIT_ADMIN_BOOTSTRAP_PASSWORD="${RABBITMQ_ADMIN_PASSWORD}"
 
 STORAGE_PV_FILES=(
   "${PROD_DIR}/storage/pv/admin-mvc-pv.yaml"
   "${PROD_DIR}/storage/pv/contestant-be-pv.yaml"
   "${PROD_DIR}/storage/pv/up-challenge-workflow-pv.yaml"
   "${PROD_DIR}/storage/pv/start-challenge-workflow-pv.yaml"
+  "${PROD_DIR}/storage/pv/mariadb-backup-pv.yaml"
 )
 
 STORAGE_PVC_FILES=(
@@ -42,6 +47,7 @@ STORAGE_PVC_FILES=(
   "${PROD_DIR}/storage/pvc/contestant-be-pvc.yaml"
   "${PROD_DIR}/storage/pvc/up-challenge-workflow-pvc.yaml"
   "${PROD_DIR}/storage/pvc/start-challenge-workflow-pvc.yaml"
+  "${PROD_DIR}/storage/pvc/mariadb-backup-pvc.yaml"
 )
 
 # Same list configure-domains.sh substitutes. REDIS_ADMIN_CIDR is deliberately
@@ -536,6 +542,9 @@ if [[ "${APPLY_HELM}" == "true" ]]; then
   echo "==> Applying db NetworkPolicy"
   kubectl apply -f "${PROD_DIR}/db/NetworkPolicy/"
 
+  echo "==> Applying MariaDB backup CronJob"
+  kubectl apply -f "${PROD_DIR}/db/mariadb-backup-cronjob.yaml"
+
   # The Redis NodePort is not applied or removed here. It lives in
   # prod/db-nodeport.yaml and is applied by hand together with its firewall rule
   # and admin NetworkPolicy - see that file's header. Applying it without both
@@ -598,8 +607,29 @@ if [[ "${DEPLOY_APP_SERVICES}" == "true" ]]; then
   echo "==> Applying db NetworkPolicy"
   kubectl apply -f "${PROD_DIR}/db/NetworkPolicy/"
 
+  echo "==> Applying MariaDB backup CronJob"
+  kubectl apply -f "${PROD_DIR}/db/mariadb-backup-cronjob.yaml"
+
   echo "==> Applying readOnlyRootFilesystem admission policy"
   kubectl apply -f "${PROD_DIR}/app/readonly-rootfs-policy.yaml"
+
+  # Named explicitly: the applies above reach prod/app/<service>/ directories, not
+  # loose files at the root of prod/app.
+  echo "==> Applying namespace delete scope admission policy"
+  kubectl apply -f "${PROD_DIR}/app/namespace-delete-policy.yaml"
+
+  # Rebuilt from /etc/fctf/kypo.env, which is the record of what an operator set
+  # with manage.sh option 11. Nothing is applied if that file does not exist, and
+  # both envFrom entries are optional, so an install with no KYPO range still
+  # comes up. No restart here: the deployments are applied fresh above anyway.
+  echo "==> Applying KYPO integration settings"
+  KYPO_CONFIG_SH="${SCRIPT_DIR}/kypo-config.sh"
+  if [[ -f "${KYPO_CONFIG_SH}" ]]; then
+    chmod +x "${KYPO_CONFIG_SH}" || true
+    bash "${KYPO_CONFIG_SH}" --apply
+  else
+    echo "Warning: kypo-config.sh not found; skipping."
+  fi
 
   if [[ "${SERVICE_MODE}" == "clusterip" ]]; then
     echo "==> Applying ClusterIP service mode"

@@ -131,34 +131,63 @@ spec:
           - name: nfs-shared-data
             mountPath: /mnt/nfs/data
             readOnly: true
+        # Every parameter is delivered as an environment variable, not spliced
+        # into the script below. Argo resolves {{...}} by string substitution
+        # wherever it appears, so a parameter written into `args` becomes part
+        # of the shell source itself: a value carrying a quote and a semicolon
+        # stops being a value and starts being the next command, running with
+        # this pod's kubectl and its service account. Placed here instead, the
+        # value goes into the pod spec as a field, the kubelet hands it over
+        # through environ, and no shell ever parses it. envsubst still picks
+        # these up when it renders the manifest - they are real environment
+        # variables now, so the `export` lines the script used to carry are
+        # redundant rather than missing.
+        env:
+          - name: CHALLENGE_NAME
+            value: "{{inputs.parameters.CHALLENGE_NAME}}"
+          - name: CONTAINER_PORT
+            value: "{{inputs.parameters.CONTAINER_PORT}}"
+          - name: CONTAINER_IMAGE
+            value: "{{inputs.parameters.CONTAINER_IMAGE}}"
+          - name: CPU_LIMIT
+            value: "{{inputs.parameters.CPU_LIMIT}}"
+          - name: CPU_REQUEST
+            value: "{{inputs.parameters.CPU_REQUEST}}"
+          - name: MEMORY_LIMIT
+            value: "{{inputs.parameters.MEMORY_LIMIT}}"
+          - name: MEMORY_REQUEST
+            value: "{{inputs.parameters.MEMORY_REQUEST}}"
+          - name: IS_TEMPORARY
+            value: "{{inputs.parameters.IS_TEMPORARY}}"
+          - name: CHALLENGE_TIMEOUT
+            value: "{{inputs.parameters.CHALLENGE_TIMEOUT}}"
+          - name: CHALLENGE_FLAG
+            value: "{{inputs.parameters.CHALLENGE_FLAG}}"
+          - name: CONTEST_ID
+            value: "{{inputs.parameters.CONTEST_ID}}"
+          - name: CHALLENGE_ID
+            value: "{{inputs.parameters.CHALLENGE_ID}}"
+          - name: TEAM_ID
+            value: "{{inputs.parameters.TEAM_ID}}"
+          - name: USE_GVISOR
+            value: "{{inputs.parameters.USE_GVISOR}}"
+          - name: HARDEN_CONTAINER
+            value: "{{inputs.parameters.HARDEN_CONTAINER}}"
+          - name: WORKFLOW_NAME
+            value: "{{workflow.name}}"
         command: [sh, -c]
         args:
           - |
             set -e
             echo "=== Deploying Challenge v2 with parameters ==="
 
-            export CHALLENGE_NAME="{{inputs.parameters.CHALLENGE_NAME}}"
-            export CONTAINER_PORT="{{inputs.parameters.CONTAINER_PORT}}"
-            export CONTAINER_IMAGE="{{inputs.parameters.CONTAINER_IMAGE}}"
-            export CPU_LIMIT="{{inputs.parameters.CPU_LIMIT}}"
-            export CPU_REQUEST="{{inputs.parameters.CPU_REQUEST}}"
-            export MEMORY_LIMIT="{{inputs.parameters.MEMORY_LIMIT}}"
-            export MEMORY_REQUEST="{{inputs.parameters.MEMORY_REQUEST}}"
-            export IS_TEMPORARY="{{inputs.parameters.IS_TEMPORARY}}"
-            export CHALLENGE_TIMEOUT="{{inputs.parameters.CHALLENGE_TIMEOUT}}"
-            export CHALLENGE_FLAG="{{inputs.parameters.CHALLENGE_FLAG}}"
-            export CONTEST_ID="{{inputs.parameters.CONTEST_ID}}"
-            export CHALLENGE_ID="{{inputs.parameters.CHALLENGE_ID}}"
-            export TEAM_ID="{{inputs.parameters.TEAM_ID}}"
-            export WORKFLOW_NAME="{{workflow.name}}"
-
-            if [ "{{inputs.parameters.USE_GVISOR}}" = "true" ]; then
+            if [ "${USE_GVISOR}" = "true" ]; then
               export RUNTIME_CLASS_NAME_LINE="runtimeClassName: gvisor"
             else
               export RUNTIME_CLASS_NAME_LINE=""
             fi
 
-            if [ "{{inputs.parameters.HARDEN_CONTAINER}}" = "true" ]; then
+            if [ "${HARDEN_CONTAINER}" = "true" ]; then
               export NFS_DATA_PATH="/mnt/nfs/data/challenge-hardened.yaml"
             else
               export NFS_DATA_PATH="/mnt/nfs/data/challenge-plain.yaml"

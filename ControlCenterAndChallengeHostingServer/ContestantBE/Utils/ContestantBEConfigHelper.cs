@@ -21,6 +21,12 @@ public class ContestantBEConfigHelper
     // Polling interval cho KypoTimeoutWatcher (giây)
     public static int KypoPollIntervalSeconds = 10;
 
+    // Số challenge một team được deploy đồng thời khi cuộc thi để limit_challenges
+    // bằng 0. Cột đó mặc định là 0 và 0 được hiểu là KHÔNG giới hạn, nên một cuộc
+    // thi chưa cấu hình cho phép một team giữ bao nhiêu deployment tùy thích - đủ
+    // để lấp hàng đợi deploy dùng chung. Đặt 0 để quay lại hành vi cũ.
+    public static long DEFAULT_LIMIT_CHALLENGES = 5;
+
     public static bool IsTurnstileEnabled => !string.IsNullOrWhiteSpace(CLOUDFLARE_TURNSTILE_SECRET_KEY);
 
     /// <summary>
@@ -39,16 +45,28 @@ public class ContestantBEConfigHelper
                                               "CLOUDFLARE_TURNSTILE_SECRET_KEY", "TURNSTILE_SECRET_KEY")
                                           ?? string.Empty;
 
-        KypoBaseUrl             = DbConfigReader.GetOptional(db, "kypo_base_url",      "KYPO_BASE_URL")      ?? KypoBaseUrl;
-        KypoRealm               = DbConfigReader.GetOptional(db, "kypo_realm",         "KYPO_REALM")         ?? KypoRealm;
-        KypoClientId            = DbConfigReader.GetOptional(db, "kypo_client_id",     "KYPO_CLIENT_ID")     ?? KypoClientId;
-        KypoClientSecret        = DbConfigReader.GetOptional(db, "kypo_client_secret", "KYPO_CLIENT_SECRET") ?? "";
-        KypoAdminUser           = DbConfigReader.GetOptional(db, "kypo_username",      "KYPO_ADMIN_USER")    ?? "";
-        KypoAdminPass           = DbConfigReader.GetOptional(db, "kypo_password",      "KYPO_ADMIN_PASS")    ?? "";
-        KypoKeycloakAdminUser   = DbConfigReader.GetOptional(db, "kypo_admin_username","KYPO_KEYCLOAK_ADMIN_USER") ?? "admin";
-        KypoKeycloakAdminPass   = DbConfigReader.GetOptional(db, "kypo_admin_password","KYPO_KEYCLOAK_ADMIN_PASS") ?? "";
+        // Environment first for every KYPO setting: which range the platform talks
+        // to, and with what credentials, is a property of the install and belongs to
+        // whoever deploys it. manage.sh option 11 is what writes these. The config
+        // table stays as a fallback for installs that predate them, and each such
+        // read says so on startup.
+        //
+        // The C# names differ from the ones admin-mvc reads for the same values
+        // (KYPO_ADMIN_USER here, KYPO_USERNAME there); kypo-config.sh writes both
+        // from one answer so the two services cannot drift apart.
+        KypoBaseUrl             = DbConfigReader.GetEnvFirst(db, "kypo_base_url",      "KYPO_BASE_URL")      ?? KypoBaseUrl;
+        KypoRealm               = DbConfigReader.GetEnvFirst(db, "kypo_realm",         "KYPO_REALM")         ?? KypoRealm;
+        KypoClientId            = DbConfigReader.GetEnvFirst(db, "kypo_client_id",     "KYPO_CLIENT_ID")     ?? KypoClientId;
+        KypoClientSecret        = DbConfigReader.GetEnvFirst(db, "kypo_client_secret", "KYPO_CLIENT_SECRET") ?? "";
+        KypoAdminUser           = DbConfigReader.GetEnvFirst(db, "kypo_username",      "KYPO_ADMIN_USER")    ?? "";
+        KypoAdminPass           = DbConfigReader.GetEnvFirst(db, "kypo_password",      "KYPO_ADMIN_PASS")    ?? "";
+        KypoKeycloakAdminUser   = DbConfigReader.GetEnvFirst(db, "kypo_admin_username","KYPO_KEYCLOAK_ADMIN_USER") ?? "admin";
+        KypoKeycloakAdminPass   = DbConfigReader.GetEnvFirst(db, "kypo_admin_password","KYPO_KEYCLOAK_ADMIN_PASS") ?? "";
 
         var pollStr = DbConfigReader.GetOptional(db, "kypo_poll_interval_seconds", "KYPO_POLL_INTERVAL_SECONDS");
         KypoPollIntervalSeconds = int.TryParse(pollStr, out var kpi) ? kpi : 10;
+
+        var defaultLimitStr = DbConfigReader.GetOptional(db, "default_limit_challenges", "DEFAULT_LIMIT_CHALLENGES");
+        DEFAULT_LIMIT_CHALLENGES = long.TryParse(defaultLimitStr, out var dlc) && dlc >= 0 ? dlc : 5;
     }
 }

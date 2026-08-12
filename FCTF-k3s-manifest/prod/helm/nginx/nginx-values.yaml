@@ -62,9 +62,38 @@ controller:
       limit_req_zone $binary_remote_addr zone=global_rate:20m rate=100r/s;
       limit_conn_zone $binary_remote_addr zone=global_conn:20m;
 
+    # Every ingress under prod/ingress/nginx routes `path: /` (Prefix), so a
+    # backend's own unauthenticated endpoints get proxied to the Internet
+    # along with the app. Grafana is the case that matters: it serves
+    # /metrics with no auth (there is no [metrics] basic_auth_* in its
+    # grafana.ini), which hands out active-user counts, login totals, restart
+    # time, and - through grafana_build_info - the exact version that
+    # hide_version was set to keep quiet.
+    #
+    # Blocked at the edge rather than inside Grafana on purpose: Prometheus
+    # scrapes the ClusterIP service directly and never traverses this
+    # ingress, so the ServiceMonitor keeps working. Turning on Grafana's own
+    # [metrics] basic auth would instead break that scrape, since the chart's
+    # grafana.serviceMonitor block has no basicAuth field to match it.
+    #
+    # An exact-match location outranks the `location /` the controller
+    # generates, and no ingress here declares /metrics, so nothing collides.
+    # 404 rather than 403 so the response does not confirm the endpoint.
+    #
+    # /rancherversion is the same shape of leak: Rancher answers it without
+    # authentication with its exact build, which is all anyone needs to look up
+    # which CVEs apply to the cluster-admin surface.
+    #
+    # This raises the cost of asking, it does not hide the answer - Rancher's
+    # login page still gives the version away through its static asset paths.
+    # Nothing here bounds which version is installed either, since helm.sh
+    # tracks the rancher-latest channel rather than a pinned chart, so what is
+    # running is whatever that channel served on install day.
     server-snippet: |
       limit_req zone=global_rate burst=200 nodelay;
       limit_conn global_conn 100;
+      location = /metrics { return 404; }
+      location = /rancherversion { return 404; }
     
   # -- Annotations to be added to the controller config configuration configmap.
   configAnnotations: {}

@@ -7,7 +7,9 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+
 	"github.com/joho/godotenv"
+
 	"challenge-gateway/internal/config"
 	"challenge-gateway/internal/gateway"
 	"challenge-gateway/internal/limiter"

@@ -640,7 +640,12 @@ def platform_settings():
     from CTFd.utils.kypo_config import KYPO_CONFIG_KEYS
 
     if request.method == "POST":
-        allowed_keys = {"registration_visibility", "html_sanitization"} | set(KYPO_CONFIG_KEYS)
+        # KYPO keys are deliberately absent from this set. They now come from the
+        # environment, written by kypo-config.sh at install time, and are shown on
+        # this page read-only. Accepting a POST for them would write a config row
+        # that nothing reads while the form went on displaying the environment's
+        # value - an edit that appears to succeed and changes nothing.
+        allowed_keys = {"registration_visibility", "html_sanitization"}
         for key, values in request.form.lists():
             if key == "nonce" or key not in allowed_keys:
                 continue
@@ -665,9 +670,23 @@ def platform_settings():
     ctf_logo_val = get_ctf_logo()
     ctf_small_icon_val = get_config("ctf_small_icon")
 
-    from CTFd.utils.kypo_config import get_kypo_config, get_kypo_verify_ssl
+    from CTFd.utils.kypo_config import (
+        get_kypo_config,
+        get_kypo_config_source,
+        get_kypo_verify_ssl,
+    )
     kypo_settings = {k: get_kypo_config(k) for k in KYPO_CONFIG_KEYS}
     kypo_settings["kypo_verify_ssl"] = "true" if get_kypo_verify_ssl() else "false"
+
+    # Passwords are rendered as a placeholder, never as their value: this page is
+    # read-only now, so there is nothing here that needs the secret back.
+    for key in list(kypo_settings):
+        if "password" in key and kypo_settings[key]:
+            kypo_settings[key] = "********"
+
+    # So the page can say where each value came from, and name the ones still
+    # being read out of the database rather than the environment.
+    kypo_sources = {k: get_kypo_config_source(k) for k in KYPO_CONFIG_KEYS}
 
     return render_template(
         "admin/platform_settings.html",
@@ -676,6 +695,7 @@ def platform_settings():
         force_html_sanitization=force_html_sanitization,
         ctf_logo=ctf_logo_val,
         ctf_small_icon=ctf_small_icon_val,
+        kypo_sources=kypo_sources,
         **kypo_settings,
     )
 

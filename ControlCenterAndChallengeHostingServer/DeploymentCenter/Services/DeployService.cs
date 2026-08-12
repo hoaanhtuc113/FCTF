@@ -140,6 +140,87 @@ public class DeployService : IDeployService
         try
         {
             var expirySeconds = DeploymentCenterConfigHelper.DEPLOYMENT_QUEUE_TIMEOUT_MINUTES * 60;
+
+            // Which contest this deploy belongs to decides how much of the shared
+            // queue it may take, so it is read from the challenge row rather than
+            // from the request - a caller that picks its own contest picks its own
+            // quota. deployment_center already holds SELECT on challenges.
+            var contestId = await _dbContext.Challenges
+                .AsNoTracking()
+                .Where(c => c.Id == startReq.challengeId)
+                .Select(c => c.ContestId)
+                .FirstOrDefaultAsync();
+
+            // Both limits below are enforced on start rather than on stop, although the
+            // loop they bound is start/stop/start. Stopping is one API call; starting is
+            // an Argo workflow, a namespace and everything the workflow touches. Throttling
+            // the stop would only keep those alive longer, which is the opposite of what
+            // the pressure calls for.
+            var nowSeconds = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            var cooldownKey = $"deploy_cooldown_{startReq.challengeId}_{startReq.teamId}";
+
+            var cooldownRemaining = await _redisHelper.GetDeployCooldownRemaining(cooldownKey, nowSeconds);
+            if (cooldownRemaining > 0)
+            {
+                return new ChallengeDeployResponeDTO
+                {
+                    status = (int)HttpStatusCode.TooManyRequests,
+                    success = false,
+                    message = $"This challenge was stopped moments ago. Please wait {cooldownRemaining}s before starting it again."
+                };
+            }
+
+            // Unique per attempt, not per challenge: a member that repeats is read as a
+            // slot the team already holds and the start goes uncounted - which is exactly
+            // the repeated start this is here to count.
+            var startAttemptMember = $"{deploymentKey}:{Guid.NewGuid():N}";
+
+            var startSlotReserved = await _redisHelper.AtomicTryReserveStartSlot(
+                startReq.teamId.ToString(),
+                startAttemptMember,
+                DeploymentCenterConfigHelper.MAX_STARTS_PER_TEAM,
+                DeploymentCenterConfigHelper.START_WINDOW_MINUTES * 60);
+
+            if (!startSlotReserved)
+            {
+                _logger.Log(
+                    "DEPLOY_START_RATE_LIMITED",
+                    startReq.userId,
+                    startReq.teamId,
+                    new { startReq.challengeId },
+                    LogLevel.Warning,
+                    contestId: contestId);
+
+                return new ChallengeDeployResponeDTO
+                {
+                    status = (int)HttpStatusCode.TooManyRequests,
+                    success = false,
+                    message = $"Your team has started too many challenges in the last {DeploymentCenterConfigHelper.START_WINDOW_MINUTES} minutes. Please wait before starting another."
+                };
+            }
+
+            var slotReserved = await _redisHelper.AtomicTryReserveContestSlot(
+                contestId.ToString(),
+                deploymentKey,
+                DeploymentCenterConfigHelper.MAX_QUEUED_PER_CONTEST,
+                expirySeconds);
+
+            if (!slotReserved)
+            {
+                // Refused before publishing, so the queue keeps room for the other
+                // contests. Without this the broker refuses whoever publishes next,
+                // which is not the same thing: the contest that filled the queue is
+                // rarely the one that gets turned away.
+                await _redisHelper.RemoveCacheAsync(deploymentKey);
+
+                return new ChallengeDeployResponeDTO
+                {
+                    status = (int)HttpStatusCode.TooManyRequests,
+                    success = false,
+                    message = "This contest has too many deployments queued. Please retry in a moment."
+                };
+            }
+
             await _deploymentProducerService.EnqueueDeploymentAsync(startReq, expirySeconds);
 
             deploymentCache = new ChallengeDeploymentCacheDTO
@@ -184,7 +265,7 @@ public class DeployService : IDeployService
         {
             await _redisHelper.RemoveCacheAsync(deploymentKey);
 
-            _logger.LogError(ex, null, startReq.teamId, new { startReq.challengeId });
+            _logger.LogError(ex, null, startReq.teamId, new { startReq.challengeId }, contestId: startReq.contestId);
             return new ChallengeDeployResponeDTO
             {
                 status = (int)HttpStatusCode.InternalServerError,
@@ -196,7 +277,7 @@ public class DeployService : IDeployService
         {
             await _redisHelper.RemoveCacheAsync(deploymentKey);
 
-            _logger.LogError(ex, null, startReq.teamId, new { startReq.challengeId });
+            _logger.LogError(ex, null, startReq.teamId, new { startReq.challengeId }, contestId: startReq.contestId);
             return new ChallengeDeployResponeDTO
             {
                 status = (int)HttpStatusCode.TooManyRequests,
@@ -208,7 +289,7 @@ public class DeployService : IDeployService
         {
             await _redisHelper.RemoveCacheAsync(deploymentKey);
 
-            _logger.LogError(ex, null, startReq.teamId, new { startReq.challengeId });
+            _logger.LogError(ex, null, startReq.teamId, new { startReq.challengeId }, contestId: startReq.contestId);
             return new ChallengeDeployResponeDTO
             {
                 status = (int)HttpStatusCode.InternalServerError,
@@ -220,7 +301,7 @@ public class DeployService : IDeployService
         {
             await _redisHelper.RemoveCacheAsync(deploymentKey);
 
-            _logger.LogError(ex, null, startReq.teamId, new { startReq.challengeId });
+            _logger.LogError(ex, null, startReq.teamId, new { startReq.challengeId }, contestId: startReq.contestId);
 
             return new ChallengeDeployResponeDTO
             {
@@ -258,7 +339,9 @@ public class DeployService : IDeployService
                 _logger.LogAudit(
                     "admin_force_delete_namespace",
                     before: new { @namespace = deployInfo._namespace, stopReq.challengeId, stopReq.teamId },
-                    userId: user.Id);
+                    userId: user.Id,
+                    contestId: stopReq.contestId,
+                    teamId: stopReq.teamId);
                 await _k8SHealthService.DeleteNamespace(deployInfo._namespace ?? string.Empty);
 
                 deployInfo.status = DeploymentStatus.STOPPED;
@@ -291,6 +374,23 @@ public class DeployService : IDeployService
             // Delete namespace - watcher sẽ bắn STOPPED event khi nhận Terminating
             var isDelete = await _k8SHealthService.DeleteNamespace(deployInfo._namespace);
 
+            // Đặt sau khi đã thực sự xoá namespace, và chỉ trên nhánh của user thường:
+            // nhánh admin ở trên là hành động của người khác, không phải của team, nên
+            // không có lý do gì phạt team bằng một khoảng chờ.
+            //
+            // Lỗi ở đây chỉ ghi lại rồi đi tiếp. Namespace đã mất, báo stop thất bại vì
+            // không ghi nổi một cái khoá chờ là báo sai thứ quan trọng hơn.
+            try
+            {
+                await _redisHelper.SetDeployCooldown(
+                    $"deploy_cooldown_{stopReq.challengeId}_{stopReq.teamId}",
+                    DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
+                    DeploymentCenterConfigHelper.DEPLOY_COOLDOWN_SECONDS);
+            }
+            catch (Exception ex)
+            {
+                await Console.Error.WriteLineAsync($"[Cooldown] Failed to set start cooldown for challenge {stopReq.challengeId}, team {stopReq.teamId}: {ex.Message}");
+            }
 
             return new ChallengeDeployResponeDTO
             {
@@ -303,7 +403,7 @@ public class DeployService : IDeployService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, null, stopReq.teamId, new { challengeId = stopReq.challengeId });
+            _logger.LogError(ex, null, stopReq.teamId, new { challengeId = stopReq.challengeId }, contestId: stopReq.contestId);
             await Console.Error.WriteLineAsync($"Error during stopping challenge: {ex.Message}");
             return new ChallengeDeployResponeDTO
             {
@@ -356,7 +456,8 @@ public class DeployService : IDeployService
                 userId,
                 null,
                 new { contestId, challengeCount = challengeIdFilter.Count },
-                level: LogLevel.Warning);
+                level: LogLevel.Warning,
+                contestId: contestId);
 
             var (successCount, failCount, errors) = await _k8SHealthService.DeleteAllChallengeNamespaces("ctf/kind=challenge", challengeIdFilter);
 
@@ -384,7 +485,7 @@ public class DeployService : IDeployService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex);
+            _logger.LogError(ex, contestId: contestId);
             await Console.Error.WriteLineAsync($"Error during stopping all challenges: {ex.Message}");
             return new BaseResponseDTO
             {
@@ -703,7 +804,7 @@ public class DeployService : IDeployService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, null, challengeReq.teamId, new { challengeId = challengeReq.challengeId });
+            _logger.LogError(ex, null, challengeReq.teamId, new { challengeId = challengeReq.challengeId }, contestId: challengeReq.contestId);
             await Console.Error.WriteLineAsync($"Error retrieving pod logs: {ex.Message}");
             return new BaseResponseDTO<PodLogsDTO>
             {
@@ -718,6 +819,24 @@ public class DeployService : IDeployService
     {
         try
         {
+            // teamId/challengeId are ints, but ns is a free string that gets
+            // interpolated straight into the LogQL below. A value carrying a
+            // quote can close the ns matcher and append filters of its own -
+            // dropping the team filter to read another team's logs, or adding
+            // a line filter that makes Loki scan the whole retention window.
+            // The only legitimate value is a Kubernetes namespace name, so
+            // reject anything else instead of trying to escape it.
+            var ns = challengeReq.ns?.Trim();
+            if (!string.IsNullOrEmpty(ns) && !Regex.IsMatch(ns, @"^[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?$"))
+            {
+                return new BaseResponseDTO<PodLogsDTO>
+                {
+                    Success = false,
+                    HttpStatusCode = HttpStatusCode.BadRequest,
+                    Message = "Invalid namespace"
+                };
+            }
+
             var lokiBaseUrl = (DeploymentCenterConfigHelper.LOKI_BASE_URL ?? "http://loki-stack:3100").Trim();
             var lokiSelector = (DeploymentCenterConfigHelper.LOKI_QUERY_SELECTOR ?? "{app=\"challenge-gateway\"}").Trim();
 
@@ -756,9 +875,9 @@ public class DeployService : IDeployService
             var startNs = DateTimeOffset.UtcNow.AddHours(-6).ToUnixTimeMilliseconds() * 1_000_000;
 
             // Base filter: team + challenge. Optionally narrow to a specific namespace.
-            var logql = string.IsNullOrWhiteSpace(challengeReq.ns)
+            var logql = string.IsNullOrEmpty(ns)
                 ? $"{lokiSelector} | logfmt | team=\"{challengeReq.teamId}\" | challenge=\"{challengeReq.challengeId}\""
-                : $"{lokiSelector} | logfmt | team=\"{challengeReq.teamId}\" | challenge=\"{challengeReq.challengeId}\" | ns=\"{challengeReq.ns}\"";
+                : $"{lokiSelector} | logfmt | team=\"{challengeReq.teamId}\" | challenge=\"{challengeReq.challengeId}\" | ns=\"{ns}\"";
 
             var query = Uri.EscapeDataString(logql);
             var url = $"/loki/api/v1/query_range?query={query}&start={startNs}&end={endNs}&limit=2000&direction=backward";
@@ -848,7 +967,7 @@ public class DeployService : IDeployService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, null, challengeReq.teamId, new { challengeId = challengeReq.challengeId });
+            _logger.LogError(ex, null, challengeReq.teamId, new { challengeId = challengeReq.challengeId }, contestId: challengeReq.contestId);
             await Console.Error.WriteLineAsync($"Error retrieving request logs from Loki. BaseUrl={DeploymentCenterConfigHelper.LOKI_BASE_URL}, Selector={DeploymentCenterConfigHelper.LOKI_QUERY_SELECTOR}, Error={ex.Message}");
             return new BaseResponseDTO<PodLogsDTO>
             {

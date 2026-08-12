@@ -166,103 +166,67 @@
                     <i class="bx bx-link-external" style="color: var(--primary-orange); margin-right: 6px;"></i>
                     KYPO Cyber Range Integration
                 </h5>
+                {# Read-only. These values come from the environment of the pods,
+                   written by kypo-config.sh (manage.sh option 11), because they say
+                   which range the platform talks to and as what - a property of the
+                   deployment, and the value that decides where a contestant's
+                   Keycloak tokens are sent. The fields carry no name attribute, so
+                   nothing is submitted even if the markup is edited in a browser;
+                   the POST handler ignores these keys regardless. #}
+                {% macro kypo_field(label, value, source, placeholder='') -%}
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label class="form-label" style="font-size: 0.85rem; font-weight: 600; color: var(--text-medium);">
+                            {{ label }}
+                            {% if source == 'db' %}
+                            <span class="badge badge-warning" title="Read from the database because the environment does not set it. Run manage.sh option 11.">legacy: database</span>
+                            {% elif source == 'unset' %}
+                            <span class="badge badge-secondary" title="Not configured.">not set</span>
+                            {% endif %}
+                        </label>
+                        <input type="text" class="form-control" value="{{ value or '' }}"
+                            placeholder="{{ placeholder }}" readonly disabled>
+                    </div>
+                </div>
+                {%- endmacro %}
+
                 <small class="form-text text-muted d-block mb-3">
-                    Configure the connection to KYPO Cyber Range. Leave a field blank to fall back to the default environment variable.
+                    Read from the server environment, set during installation with
+                    <code>manage.sh</code> &rarr; <em>Configure KYPO integration</em>. Not editable here:
+                    these credentials belong to whoever deploys the platform. A field marked
+                    <span class="badge badge-warning">legacy: database</span> is still coming from an
+                    older database row &mdash; rerun that step to move it into the environment.
                 </small>
 
                 <div class="row">
-                    <div class="col-md-6">
-                        <div class="form-group">
-                            <label class="form-label" style="font-size: 0.85rem; font-weight: 600; color: var(--text-medium);">KYPO Base URL</label>
-                            <input type="text" class="form-control" name="kypo_base_url"
-                                value="{{ kypo_base_url or '' }}" placeholder="https://kypo.example.com">
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="form-group">
-                            <label class="form-label" style="font-size: 0.85rem; font-weight: 600; color: var(--text-medium);">Keycloak URL</label>
-                            <input type="text" class="form-control" name="kypo_keycloak_url"
-                                value="{{ kypo_keycloak_url or '' }}" placeholder="https://kypo.example.com/keycloak">
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="form-group">
-                            <label class="form-label" style="font-size: 0.85rem; font-weight: 600; color: var(--text-medium);">Keycloak Realm</label>
-                            <input type="text" class="form-control" name="kypo_realm"
-                                value="{{ kypo_realm or '' }}" placeholder="CRCZP">
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="form-group">
-                            <label class="form-label" style="font-size: 0.85rem; font-weight: 600; color: var(--text-medium);">KYPO Client ID</label>
-                            <input type="text" class="form-control" name="kypo_client_id"
-                                value="{{ kypo_client_id or '' }}" placeholder="CRCZP-Client">
-                        </div>
-                    </div>
+                    {{ kypo_field('KYPO Base URL', kypo_base_url, kypo_sources.kypo_base_url, 'https://kypo.example.com') }}
+                    {{ kypo_field('Keycloak URL', kypo_keycloak_url, kypo_sources.kypo_keycloak_url, 'https://kypo.example.com/keycloak') }}
+                    {{ kypo_field('Keycloak Realm', kypo_realm, kypo_sources.kypo_realm, 'CRCZP') }}
+                    {{ kypo_field('KYPO Client ID', kypo_client_id, kypo_sources.kypo_client_id, 'CRCZP-Client') }}
                 </div>
 
                 <hr style="border-color: var(--border-color); margin: 0.75rem 0;">
                 <p class="mb-2" style="font-size: 0.8rem; font-weight: 600; color: var(--text-medium); text-transform: uppercase;">KYPO API Credentials</p>
 
+                {# Passwords arrive here already replaced with a placeholder by the
+                   view, so there is no reveal button: there is nothing to reveal. #}
                 <div class="row">
-                    <div class="col-md-6">
-                        <div class="form-group">
-                            <label class="form-label" style="font-size: 0.85rem; font-weight: 600; color: var(--text-medium);">KYPO Username</label>
-                            <input type="text" class="form-control" name="kypo_username"
-                                value="{{ kypo_username or '' }}" placeholder="crczp-admin" autocomplete="off">
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="form-group">
-                            <label class="form-label" style="font-size: 0.85rem; font-weight: 600; color: var(--text-medium);">KYPO Password</label>
-                            <div class="input-group">
-                                <input type="password" class="form-control" id="kypo_password_input" name="kypo_password"
-                                    value="{{ kypo_password or '' }}" autocomplete="new-password">
-                                <div class="input-group-append">
-                                    <button class="btn btn-outline-secondary" type="button"
-                                        onclick="togglePasswordVisibility('kypo_password_input', this)">
-                                        <i class="bx bx-show"></i>
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                    {{ kypo_field('KYPO Username', kypo_username, kypo_sources.kypo_username, 'crczp-admin') }}
+                    {{ kypo_field('KYPO Password', kypo_password, kypo_sources.kypo_password) }}
                 </div>
 
                 <hr style="border-color: var(--border-color); margin: 0.75rem 0;">
                 <p class="mb-2" style="font-size: 0.8rem; font-weight: 600; color: var(--text-medium); text-transform: uppercase;">Keycloak Admin Credentials</p>
 
                 <div class="row">
-                    <div class="col-md-6">
-                        <div class="form-group">
-                            <label class="form-label" style="font-size: 0.85rem; font-weight: 600; color: var(--text-medium);">Admin Username</label>
-                            <input type="text" class="form-control" name="kypo_admin_username"
-                                value="{{ kypo_admin_username or '' }}" placeholder="admin" autocomplete="off">
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="form-group">
-                            <label class="form-label" style="font-size: 0.85rem; font-weight: 600; color: var(--text-medium);">Admin Password</label>
-                            <div class="input-group">
-                                <input type="password" class="form-control" id="kypo_admin_password_input" name="kypo_admin_password"
-                                    value="{{ kypo_admin_password or '' }}" autocomplete="new-password">
-                                <div class="input-group-append">
-                                    <button class="btn btn-outline-secondary" type="button"
-                                        onclick="togglePasswordVisibility('kypo_admin_password_input', this)">
-                                        <i class="bx bx-show"></i>
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                    {{ kypo_field('Admin Username', kypo_admin_username, kypo_sources.kypo_admin_username, 'admin') }}
+                    {{ kypo_field('Admin Password', kypo_admin_password, kypo_sources.kypo_admin_password) }}
                     <div class="col-md-6">
                         <div class="form-group mb-0">
                             <label class="form-label" style="font-size: 0.85rem; font-weight: 600; color: var(--text-medium);">Verify SSL</label>
-                            <select class="form-control custom-select" name="kypo_verify_ssl" style="max-width: 160px;">
-                                <option value="false" {% if kypo_verify_ssl != 'true' %}selected{% endif %}>Disabled</option>
-                                <option value="true"  {% if kypo_verify_ssl == 'true'  %}selected{% endif %}>Enabled</option>
-                            </select>
-                            <small class="form-text text-muted mt-1">Disable when using a self-signed certificate.</small>
+                            <input type="text" class="form-control" style="max-width: 160px;"
+                                value="{{ 'Enabled' if kypo_verify_ssl == 'true' else 'Disabled' }}" readonly disabled>
+                            <small class="form-text text-muted mt-1">Set with KYPO_VERIFY_SSL; disable when using a self-signed certificate.</small>
                         </div>
                     </div>
                 </div>

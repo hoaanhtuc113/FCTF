@@ -129,6 +129,11 @@ export function ActionLogs() {
           ? 'bg-yellow-900/50 text-yellow-300 border-yellow-700'
           : 'bg-yellow-100 text-yellow-700 border-yellow-300';
         break;
+      case 7: // Stop
+        colorClass = theme === 'dark'
+          ? 'bg-orange-900/50 text-orange-300 border-orange-700'
+          : 'bg-orange-100 text-orange-700 border-orange-300';
+        break;
       default:
         colorClass = theme === 'dark'
           ? 'bg-gray-800 text-gray-300 border-gray-700'
@@ -221,6 +226,8 @@ export function ActionLogs() {
               <option value={3}>Correct Flag</option>
               <option value={4}>Incorrect Flag</option>
               <option value={5}>Unlock Hint</option>
+              <option value={6}>Submit Challenge</option>
+              <option value={7}>Stop Challenge</option>
             </select>
           </div>
 
