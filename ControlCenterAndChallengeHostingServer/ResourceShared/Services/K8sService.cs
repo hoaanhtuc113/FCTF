@@ -38,6 +38,10 @@ public interface IK8sService
         string wfName,
         string namespaceName = "argo");
 
+    Task<(bool found, int? challengeId)> GetWorkflowChallengeId(
+        string wfName,
+        string namespaceName = "argo");
+
     Task<string> GetWorkflowLogs(
         string workflowName,
         string namespaceName = "argo");
@@ -420,6 +424,99 @@ public class K8sService : IK8sService
             _logger.LogError(ex, data: new { wfName, namespaceName, errorType = "GetWorkflowStatusError" });
             return WorkflowPhase.Unknown;
         }
+    }
+
+    // Which challenge a workflow was created to build, read back from the
+    // workflow itself. The status callback carries a ChallengeId, but that
+    // number is only as trustworthy as whoever sent it - the workflow's own
+    // CHALLENGE_ID parameter was set by the submit path, which is authorized,
+    // so it is the one that decides which challenge row a callback may touch.
+    //
+    // found=false means the workflow is not there at all, which is a different
+    // answer from "it is there but carries no CHALLENGE_ID"; both are refused
+    // by the caller, but they are worth telling apart in the log.
+    public async Task<(bool found, int? challengeId)> GetWorkflowChallengeId(string wfName, string namespaceName = "argo")
+    {
+        try
+        {
+            var wfObj = await _kubernetes.CustomObjects.GetNamespacedCustomObjectAsync(
+                group: "argoproj.io",
+                version: "v1alpha1",
+                namespaceParameter: namespaceName,
+                plural: "workflows",
+                name: wfName
+            );
+
+            if (wfObj is not JsonElement wfElement)
+                return (false, null);
+
+            // spec.arguments holds what the submit call actually passed. On a
+            // workflowTemplateRef submission the template's own defaults live
+            // under status.storedWorkflowTemplateSpec instead, so try both -
+            // spec first, since an explicitly passed value overrides a default.
+            if (TryReadChallengeIdParameter(wfElement, "spec", out var fromSpec))
+                return (true, fromSpec);
+
+            if (wfElement.TryGetProperty("status", out var statusElem) &&
+                TryReadChallengeIdParameter(statusElem, "storedWorkflowTemplateSpec", out var fromStored))
+                return (true, fromStored);
+
+            return (true, null);
+        }
+        catch (k8s.Autorest.HttpOperationException ex) when (ex.Response.StatusCode == HttpStatusCode.NotFound)
+        {
+            _logger.LogDebug("Workflow not found", new { wfName, namespaceName });
+            return (false, null);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, data: new { wfName, namespaceName, errorType = "GetWorkflowChallengeIdError" });
+            return (false, null);
+        }
+    }
+
+    private static bool TryReadChallengeIdParameter(JsonElement parent, string specProperty, out int? challengeId)
+    {
+        challengeId = null;
+
+        if (!parent.TryGetProperty(specProperty, out var specElem) ||
+            !specElem.TryGetProperty("arguments", out var argsElem) ||
+            !argsElem.TryGetProperty("parameters", out var paramsElem) ||
+            paramsElem.ValueKind != JsonValueKind.Array)
+        {
+            return false;
+        }
+
+        foreach (var param in paramsElem.EnumerateArray())
+        {
+            if (!param.TryGetProperty("name", out var nameElem) ||
+                nameElem.GetString() != "CHALLENGE_ID")
+            {
+                continue;
+            }
+
+            if (!param.TryGetProperty("value", out var valueElem))
+                return false;
+
+            // Argo writes parameter values as strings, but a workflow edited by
+            // hand can leave a bare number here, and GetString() throws on it.
+            var raw = valueElem.ValueKind switch
+            {
+                JsonValueKind.String => valueElem.GetString(),
+                JsonValueKind.Number => valueElem.GetRawText(),
+                _ => null
+            };
+
+            if (int.TryParse(raw, out var parsed))
+            {
+                challengeId = parsed;
+                return true;
+            }
+
+            return false;
+        }
+
+        return false;
     }
 
     public async Task<string> GetWorkflowLogs(string workflowName, string namespaceName = "argo")

@@ -460,35 +460,11 @@ public class ChallengeService : IChallengeService
         var teamId = deploymentTeamId ?? userTeamId;
         try
         {
-            // Make sure the team's dynamic flag exists (idempotent: reuse if already
-            // created). The value stays in dynamic_flag_instances and is not passed
-            // along with the start request - DeploymentConsumer looks it up by
-            // (challenge, team) when it builds the Argo payload, so the only copy
-            // that decides what the pod gets is the one this row holds.
-            var dynFlag = await _dbContext.Flags
-                .Where(f => f.ChallengeId == challenge.Id && f.Type == "dynamic")
-                .OrderBy(f => f.Id)
-                .FirstOrDefaultAsync();
-
-            if (dynFlag != null)
-            {
-                var alreadyIssued = await _dbContext.DynamicFlagInstances
-                    .AnyAsync(d => d.FlagId == dynFlag.Id && d.TeamId == teamId);
-
-                if (!alreadyIssued)
-                {
-                    var prefix = string.IsNullOrEmpty(dynFlag.Content) ? "FCTF{" : dynFlag.Content;
-                    _dbContext.DynamicFlagInstances.Add(new ResourceShared.Models.DynamicFlagInstance
-                    {
-                        FlagId = dynFlag.Id,
-                        ChallengeId = challenge.Id,
-                        TeamId = teamId,
-                        Value = $"{prefix}{Guid.NewGuid():N}}}",
-                    });
-                    await _dbContext.SaveChangesAsync();
-                }
-            }
-
+            // No flag work here: the start request carries no flag and never has.
+            // DeploymentConsumer resolves it from the challenge's rows when it builds
+            // the Argo payload - static content or the team's dynamic flag, issued
+            // there on first deploy - so the only copy that decides what the pod gets
+            // is the one the database holds.
             var unixTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             var parammeters = new ChallengeStartStopReqDTO
             {

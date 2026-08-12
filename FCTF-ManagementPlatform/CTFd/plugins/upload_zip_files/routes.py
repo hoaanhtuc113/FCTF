@@ -49,6 +49,16 @@ from CTFd.constants.envvars import (
     
 redis_client = redis.StrictRedis(**get_redis_client_kwargs())
 
+# Bao nhiêu lệch đồng hồ thì còn chấp nhận cho một callback đã ký. Cùng tên biến
+# môi trường và cùng mặc định với phía C# (RequireSecretKeyAttribute) để hai đầu
+# không lệch nhau khi chỉnh.
+try:
+    MAX_SKEW_SECONDS = int(os.environ.get("SECRET_KEY_MAX_SKEW_SECONDS", "") or 60)
+    if MAX_SKEW_SECONDS <= 0:
+        MAX_SKEW_SECONDS = 60
+except ValueError:
+    MAX_SKEW_SECONDS = 60
+
 def upload_file(challenge_id, file_path, exposed_port=None):
     from flask import session as flask_session
     admin_user_id = flask_session.get("id")
@@ -89,6 +99,20 @@ def update_challenge_info():
 
     private_key = PRIVATE_KEY
 
+    # UnixTime nằm trong phần được ký, nhưng chữ ký chỉ chứng minh cặp
+    # (UnixTime, data) từng được ký bằng PRIVATE_KEY - nó không nói gì về thời
+    # điểm. Không có cửa sổ này thì một request hợp lệ bắt được ở đâu đó (log,
+    # bản ghi trên đường truyền) phát lại được mãi mãi, mà endpoint này không
+    # idempotent: mỗi lần phát lại ghi đè image_link/deploy_status về giá trị cũ
+    # và chèn thêm một dòng DeployedChallenge nữa.
+    try:
+        unix_time_value = int(unix_time)
+    except (TypeError, ValueError):
+        return jsonify({"error": "UnixTime is required"}), 400
+
+    if abs(int(time.time()) - unix_time_value) > MAX_SKEW_SECONDS:
+        return jsonify({"error": "Request expired"}), 400
+
     data.pop("UnixTime", None)
     secret_key = create_secret_key(private_key, unix_time, data)
 
@@ -96,8 +120,26 @@ def update_challenge_info():
     # để lộ đoán được bao nhiêu ký tự và biến việc giả chữ ký thành dò từng ký tự.
     if not hmac.compare_digest(secret_key_request, secret_key):
         return jsonify({"error": "SecretKey is not correct"}), 400
+
+    # Cửa sổ thời gian ở trên vẫn chừa lại đúng bấy nhiêu giây để phát lại. Đóng
+    # nốt bằng nonce dùng một lần: chữ ký đã là duy nhất theo (UnixTime, data)
+    # nên dùng luôn nó làm nonce. TTL chỉ cần dài hơn cửa sổ, vì quá đó thì
+    # UnixTime cũ đã bị chặn từ trước rồi. Kiểm tra sau khi đã xác thực chữ ký
+    # để người gửi chữ ký giả không đốt được nonce của người gửi thật.
+    nonce_key = f"fctf:admin:secretkey-nonce:{secret_key}"
+    try:
+        first_use = redis_client.set(nonce_key, "1", nx=True, ex=MAX_SKEW_SECONDS * 2)
+    except Exception as e:
+        # Fail closed. Cho request đi tiếp khi không tới được nonce store là âm
+        # thầm bỏ luôn chống phát lại, nên từ chối và nói rõ lý do.
+        return jsonify({"error": f"Nonce store unavailable: {e}"}), 503
+
+    if not first_use:
+        return jsonify({"error": "SecretKey already used"}), 400
+
     challenge = Challenges.query.filter_by(id=challenge_id).first()
-    print("challlegengeee" + str(challenge))
+    if challenge is None:
+        return jsonify({"error": "Challenge not found"}), 404
     if deploy_status in STATUS:
         deploy_challenge = DeployedChallenge(
             challenge_id=challenge_id,

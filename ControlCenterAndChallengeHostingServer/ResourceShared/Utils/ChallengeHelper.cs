@@ -234,8 +234,14 @@ namespace ResourceShared.Utils
                 $"TEAM_ID={labelTeamId}",
             };
 
+            // The manifest carries the flag as `value: "${CHALLENGE_FLAG}"`, and
+            // envsubst drops the value in as raw text before anything parses YAML.
+            // Dynamic flags are hex and land intact either way, but a static flag is
+            // whatever the author typed - one double quote in it and the rendered
+            // manifest stops being valid YAML, so the deploy fails with an error that
+            // points at the template rather than at the flag.
             if (!string.IsNullOrEmpty(flagValue))
-                parameters.Add($"CHALLENGE_FLAG={flagValue}");
+                parameters.Add($"CHALLENGE_FLAG={EscapeForYamlDoubleQuoted(flagValue)}");
 
             // Carried as a submit-time label rather than a workflow parameter: a
             // parameter would have to be declared and threaded through every
@@ -260,6 +266,110 @@ namespace ResourceShared.Utils
                 }
             },
             deploymentAppName);
+        }
+
+        private static string EscapeForYamlDoubleQuoted(string value)
+        {
+            return value
+                .Replace("\\", "\\\\")
+                .Replace("\"", "\\\"")
+                .Replace("\r", "\\r")
+                .Replace("\n", "\\n")
+                .Replace("\t", "\\t");
+        }
+
+        /// <summary>
+        /// Resolves the flag value a deployment should hand its pod, for whichever
+        /// flag type the challenge carries. The pod gets its flag from here rather
+        /// than from a value baked into the image, so the flag the platform accepts
+        /// and the flag the container serves always come from the same row.
+        /// Returns null when there is nothing to inject, and the caller then omits
+        /// CHALLENGE_FLAG so the workflow template's empty default applies.
+        /// </summary>
+        public static async Task<string?> ResolveDeploymentFlagAsync(
+            AppDbContext db,
+            int challengeId,
+            int teamId,
+            CancellationToken cancellationToken = default)
+        {
+            var flags = await db.Flags
+                .Where(f => f.ChallengeId == challengeId)
+                .OrderBy(f => f.Id)
+                .ToListAsync(cancellationToken);
+
+            if (flags.Count == 0)
+                return null;
+
+            var dynamicFlag = flags.FirstOrDefault(
+                f => string.Equals(f.Type, "dynamic", StringComparison.OrdinalIgnoreCase));
+
+            if (dynamicFlag != null)
+            {
+                // Shared instances run one pod for the whole contest (team id -2), so
+                // there is no team to mint a per-team flag for - and no row in teams
+                // for fk_dfi_team to point at either. Fall through to the static flag
+                // if the challenge also has one.
+                if (teamId > 0)
+                    return await GetOrCreateDynamicFlagValueAsync(db, dynamicFlag, challengeId, teamId, cancellationToken);
+            }
+
+            // Regex flags are deliberately not injected: the stored content is a
+            // pattern, not a flag, so there is no single value to give the pod.
+            var staticFlag = flags.FirstOrDefault(
+                f => string.Equals(f.Type, "static", StringComparison.OrdinalIgnoreCase));
+
+            return string.IsNullOrEmpty(staticFlag?.Content) ? null : staticFlag.Content;
+        }
+
+        private static async Task<string> GetOrCreateDynamicFlagValueAsync(
+            AppDbContext db,
+            Flag flag,
+            int challengeId,
+            int teamId,
+            CancellationToken cancellationToken)
+        {
+            var existing = await db.DynamicFlagInstances
+                .Where(d => d.FlagId == flag.Id && d.TeamId == teamId)
+                .Select(d => d.Value)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (existing != null)
+                return existing;
+
+            var prefix = string.IsNullOrEmpty(flag.Content) ? "FCTF{" : flag.Content;
+            var instance = new DynamicFlagInstance
+            {
+                FlagId = flag.Id,
+                ChallengeId = challengeId,
+                TeamId = teamId,
+                Value = $"{prefix}{Guid.NewGuid():N}}}",
+            };
+
+            db.DynamicFlagInstances.Add(instance);
+
+            try
+            {
+                await db.SaveChangesAsync(cancellationToken);
+                return instance.Value;
+            }
+            catch (DbUpdateException)
+            {
+                // uq_dfi_team rejected the insert, so a concurrent deploy for this
+                // team already issued the flag. The pod has to get the value that
+                // row holds - the one submissions are checked against - not the one
+                // this call just minted and failed to save.
+                db.Entry(instance).State = EntityState.Detached;
+
+                var issued = await db.DynamicFlagInstances
+                    .Where(d => d.FlagId == flag.Id && d.TeamId == teamId)
+                    .Select(d => d.Value)
+                    .FirstOrDefaultAsync(cancellationToken);
+
+                if (issued == null)
+                    throw;
+
+                return issued;
+            }
         }
 
 

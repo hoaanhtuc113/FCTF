@@ -67,6 +67,7 @@ from CTFd.utils.logging.audit_logger import log_audit
 from CTFd.utils.security.signing import serialize
 from CTFd.utils.user import (
     authed,
+    can_write_challenges_for_contest,
     get_current_team,
     get_current_team_attrs,
     get_current_user,
@@ -306,6 +307,17 @@ class ChallengeList(Resource):
             return {"success": False, "errors": {"contest_id": ["contest_token is required"]}}, 400
 
         Contests.query.filter_by(id=validated_contest_id).first_or_404()
+
+        # The token proves which contest the page was opened for, not that the
+        # person still belongs to it. It stays valid for two hours and the
+        # decorator above only asks for a role in some contest, so the role is
+        # re-read here against this contest - otherwise someone removed from it
+        # keeps creating challenges until their token runs out.
+        if not can_write_challenges_for_contest(validated_contest_id):
+            return {
+                "success": False,
+                "errors": {"contest_id": ["You do not have permission to create challenges in this contest"]},
+            }, 403
 
         # Trim name and category fields
         if "name" in data:
@@ -729,6 +741,14 @@ class Challenge(Resource):
                 return {
                     "success": False,
                     "error": "You do not have permission to edit this challenge.",
+                }, 403
+            # Having written the challenge is not a standing permission over it.
+            # Authorship never expires, so without this a writer removed from the
+            # contest could keep editing everything they ever created there.
+            if not can_write_challenges_for_contest(challenge.contest_id):
+                return {
+                    "success": False,
+                    "error": "You are no longer a member of this contest.",
                 }, 403
             data["user_id"] = user_id
         else:
