@@ -223,9 +223,14 @@ class ContestList(Resource):
         db.session.add(contest)
         db.session.commit()
 
-        log_audit(action="contest_create", data={"contest_id": contest.id, "name": contest.name})
+        created_state = _contest_to_dict(contest)
+        log_audit(
+            action="contest_create",
+            after=created_state,
+            data={"contest_id": contest.id, "name": contest.name},
+        )
 
-        return {"success": True, "data": _contest_to_dict(contest)}, 201
+        return {"success": True, "data": created_state}, 201
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -256,6 +261,11 @@ class ContestDetail(Resource):
         contest = Contests.query.filter_by(id=contest_id).first_or_404()
         _require_owner_or_admin(contest)
         data = request.get_json(force=True, silent=True) or {}
+
+        # Read the whole row before any field is touched. Taken later it would
+        # already carry the new values, and the audit entry would record a
+        # change from a state to itself.
+        before_state = _contest_to_dict(contest)
 
         str_fields = [
             "name", "description", "slug",
@@ -384,19 +394,34 @@ class ContestDetail(Resource):
         contest.updated_at = datetime.datetime.utcnow()
         db.session.commit()
 
-        log_audit(action="contest_update", data={"contest_id": contest.id})
+        after_state = _contest_to_dict(contest)
+        log_audit(
+            action="contest_update",
+            before=before_state,
+            after=after_state,
+            data={"contest_id": contest.id, "name": contest.name},
+        )
 
-        return {"success": True, "data": _contest_to_dict(contest)}
+        return {"success": True, "data": after_state}
 
     def delete(self, contest_id):
         """Delete a contest."""
         contest = Contests.query.filter_by(id=contest_id).first_or_404()
         _require_owner_or_admin(contest)
         name = contest.name
+
+        # Captured while the row still exists: after the delete there is nothing
+        # left to describe what was removed.
+        before_state = _contest_to_dict(contest)
+
         db.session.delete(contest)
         db.session.commit()
 
-        log_audit(action="contest_delete", data={"contest_id": contest_id, "name": name})
+        log_audit(
+            action="contest_delete",
+            before=before_state,
+            data={"contest_id": contest_id, "name": name},
+        )
 
         return {"success": True, "data": {}}
 
@@ -488,6 +513,7 @@ class ContestParticipantList(Resource):
 
         log_audit(
             action="contest_participant_add",
+            after=_participant_to_dict(participant),
             data={"contest_id": contest_id, "user_id": user_id, "role": role},
         )
 
@@ -526,11 +552,14 @@ class ContestParticipantDetail(Resource):
             }, 400
 
         old_role = p.role
+        before_state = _participant_to_dict(p)
         p.role = role
         db.session.commit()
 
         log_audit(
             action="contest_participant_update",
+            before=before_state,
+            after=_participant_to_dict(p),
             data={
                 "contest_id": contest_id,
                 "user_id": user_id,
@@ -547,11 +576,14 @@ class ContestParticipantDetail(Resource):
             contest_id=contest_id, user_id=user_id
         ).first_or_404()
 
+        before_state = _participant_to_dict(p)
+
         db.session.delete(p)
         db.session.commit()
 
         log_audit(
             action="contest_participant_remove",
+            before=before_state,
             data={"contest_id": contest_id, "user_id": user_id},
         )
 
