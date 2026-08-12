@@ -230,9 +230,14 @@ def can_write_challenges_for_contest(contest_id):
     participant removed from a contest keeps whatever their token or their
     authorship implies until this is asked again.
 
+    Only admin, conductor and challenge_writer may write challenges. Jury is a
+    reviewing role and is deliberately absent here, even though the decorator
+    on the create endpoint lets jury through - that decorator guards several
+    endpoints at once, so this is where the distinction gets made.
+
     Admins bypass. Conductors are platform-level and only own their own
     contests, so they are held to the contest they own. Everyone else needs a
-    live jury/challenge_writer row for THIS contest.
+    live challenge_writer row for THIS contest.
     """
     if not authed():
         return False
@@ -249,7 +254,7 @@ def can_write_challenges_for_contest(contest_id):
         contest = Contests.query.filter_by(id=contest_id).first()
         return contest is not None and contest.owner_id == user.id
 
-    return is_jury_for_contest(contest_id) or is_challenge_writer_for_contest(contest_id)
+    return is_challenge_writer_for_contest(contest_id)
 
 
 def is_conductor():
