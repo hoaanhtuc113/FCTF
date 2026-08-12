@@ -130,19 +130,20 @@ internal class Worker : BackgroundService
                 var useGvisor = challenge.UseGvisor ?? true;
                 var hardenContainer = challenge.HardenContainer ?? true;
 
-                // Read the team's dynamic flag from the table that issued it instead of
-                // from the message. This value is interpolated into the challenge
+                // Resolve the flag from the challenge's own rows instead of from the
+                // message: a static flag's content, or the team's dynamic flag, minted
+                // here on first deploy. This value is interpolated into the challenge
                 // manifest by the Argo template, and the queue is the one hop into this
                 // service that something other than deployment-center could reach - a
                 // flag arriving in the payload would be a caller-chosen string landing
-                // in a rendered manifest. Null here is normal: static and regex flags
-                // have no per-team instance, and BuildArgoPayload then omits
-                // CHALLENGE_FLAG entirely.
-                var flagValue = await messageDbContext.DynamicFlagInstances
-                    .Where(d => d.ChallengeId == startReq.challengeId && d.TeamId == startReq.teamId)
-                    .OrderBy(d => d.FlagId)
-                    .Select(d => d.Value)
-                    .FirstOrDefaultAsync(cancellationToken: stoppingToken);
+                // in a rendered manifest. Null is normal (no flag, regex flag, or a
+                // shared instance with only a dynamic flag) and BuildArgoPayload then
+                // omits CHALLENGE_FLAG entirely.
+                var flagValue = await ChallengeHelper.ResolveDeploymentFlagAsync(
+                    messageDbContext,
+                    startReq.challengeId,
+                    startReq.teamId,
+                    stoppingToken);
 
                 var cpuLimitValue = $"{cpuLimit}m";
                 var cpuRequestValue = $"{cpuRequest}m";
