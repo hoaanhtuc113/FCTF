@@ -270,9 +270,15 @@ public class ChallengeController : BaseController
         if (challenge == null)
             return NotFound(new { error = "Challenge not found" });
 
-        await Console.Out.WriteLineAsync($"[Requesst Attempt Challenge] User {userId} : Team {teamId} : Challenge {challenge.Name} with flag {request.Submission}");
+        // Deliberately without the submitted value. Both of these lines go to stdout,
+        // which Promtail ships to Loki, so the flag would sit there in plaintext for
+        // everyone holding Grafana read - an audience far wider than the one trusted
+        // with the answer key, and one query away from every challenge's flag plus
+        // every team's guesses. The submission is already kept in submissions.provided
+        // for the people who legitimately need it.
+        await Console.Out.WriteLineAsync($"[Request Attempt Challenge] User {userId} : Team {teamId} : Challenge {challenge.Name}");
 
-        _userBehaviorLogger.Log("ATTEMPT_CHALLENGE", user?.Id, teamId, new { challengeId = request.ChallengeId, flag = request.Submission });
+        _userBehaviorLogger.Log("ATTEMPT_CHALLENGE", user?.Id, teamId, new { challengeId = request.ChallengeId });
 
         // Load contest once — used for pause, captain-only, and rate-limit checks
         var contest = await _context.Contests.AsNoTracking().FirstOrDefaultAsync(c => c.Id == contestId);
