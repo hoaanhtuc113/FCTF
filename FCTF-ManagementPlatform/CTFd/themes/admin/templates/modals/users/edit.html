@@ -19,7 +19,15 @@
 	<div class="form-group">
 		{% if not is_jury()%}
 		<div class="form-check form-check-inline">
+			{% if contest is defined and contest %}
+			<select id="contest-role-select" name="contest_role" class="form-control form-inline custom-select">
+				<option value="contestant" {% if contest_role == 'contestant' %}selected{% endif %}>Contestant</option>
+				<option value="jury" {% if contest_role == 'jury' %}selected{% endif %}>Jury</option>
+				<option value="challenge_writer" {% if contest_role == 'challenge_writer' %}selected{% endif %}>Challenge Writer</option>
+			</select>
+			{% else %}
 			{{ form.type(class="form-control form-inline custom-select", id="type-select") }}
+			{% endif %}
 		</div>
 		<div class="form-check form-check-inline">
 			{{ form.verified(class="form-check-input", autocomplete="off") }}

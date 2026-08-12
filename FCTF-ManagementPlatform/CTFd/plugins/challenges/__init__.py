@@ -70,8 +70,12 @@ class BaseChallenge(object):
                     data["difficulty"] = int(diff_val)
                 except (TypeError, ValueError):
                     data["difficulty"] = None
-        # Remove any keys not present as model columns to avoid TypeError
-        valid_columns = {c.name for c in cls.challenge_model.__table__.columns}
+        # Remove any keys not present as model columns to avoid TypeError.
+        # Use mapper.column_attrs to include inherited columns (joined-table inheritance
+        # subclasses like MultipleChoiceChallenge only expose their own table via __table__,
+        # which would strip parent columns such as contest_id and name).
+        from sqlalchemy import inspect as _sa_inspect
+        valid_columns = {col.key for col in _sa_inspect(cls.challenge_model).mapper.column_attrs}
         data = {k: v for k, v in data.items() if k in valid_columns}
         if int(data.get("time_limit", 0)) >= -1:
             challenge = cls.challenge_model(**data)

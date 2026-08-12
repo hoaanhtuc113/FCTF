@@ -689,4 +689,60 @@
    awards-delete-button, missing-solve-button, user-info-edit-form submit,
    user-award-form submit, statistics graphs #}
 {{ Assets.js("assets/js/pages/user.js", theme="admin") }}
+<script>
+$(function () {
+    var $form = $('#user-info-edit-form');
+    if (!$form.length || !document.getElementById('contest-role-select')) return;
+
+    $form.off('submit');
+    $form.on('submit', function (e) {
+        e.preventDefault();
+
+        var params = $form.serializeJSON(true);
+        var contestRole = params.contest_role || null;
+        delete params.contest_role;
+
+        params.fields = [];
+        for (var prop in params) {
+            if (prop.match(/fields\[\d+\]/)) {
+                params.fields.push({ field_id: parseInt(prop.slice(7, -1)), value: params[prop] });
+                delete params[prop];
+            }
+        }
+
+        var csrfToken = (typeof init !== 'undefined' ? init.csrfNonce : '');
+
+        var userPatch = CTFd.fetch('/api/v1/users/' + USER_ID, {
+            method: 'PATCH',
+            credentials: 'same-origin',
+            headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+            body: JSON.stringify(params)
+        }).then(function (r) { return r.json(); });
+
+        var rolePatch = contestRole
+            ? fetch('/admin/contests/' + CONTEST_ID + '/users/' + USER_ID + '/role', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'CSRF-Token': csrfToken },
+                body: JSON.stringify({ role: contestRole })
+              }).then(function (r) { return r.json(); })
+            : Promise.resolve({ success: true });
+
+        Promise.all([userPatch, rolePatch]).then(function (results) {
+            var userRes = results[0], roleRes = results[1];
+            if (userRes.success && roleRes.success) {
+                window.location.reload();
+            } else {
+                var $results = $form.find('#results').empty();
+                [userRes, roleRes].forEach(function (res) {
+                    if (res && res.errors) {
+                        Object.values(res.errors).forEach(function (msg) {
+                            $results.append(ezBadge({ type: 'error', body: msg }));
+                        });
+                    }
+                });
+            }
+        });
+    });
+});
+</script>
 {% endblock %}
