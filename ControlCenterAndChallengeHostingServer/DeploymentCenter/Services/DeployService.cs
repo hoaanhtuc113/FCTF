@@ -640,6 +640,63 @@ public class DeployService : IDeployService
         try
         {
             await Console.Out.WriteLineAsync($"Recieve Message From Argo: ChallengeId={message.ChallengeId}, Status={message.Status}, WorkFlowName={message.WorkFlowName}");
+
+            // The signature on this callback proves it was made with the shared
+            // key; it does not prove which challenge the sender was building.
+            // Nothing else here is contest-scoped, so without the check below a
+            // single valid callback could publish or hide any challenge in the
+            // cluster just by naming its id. Which challenge may be written is
+            // therefore taken from the workflow named in the message, not from
+            // the message, and the two have to agree.
+            if (string.IsNullOrWhiteSpace(message.WorkFlowName) || !message.ChallengeId.HasValue)
+            {
+                return new BaseResponseDTO
+                {
+                    Success = false,
+                    Message = "WorkFlowName and ChallengeId are required",
+                    HttpStatusCode = HttpStatusCode.BadRequest
+                };
+            }
+
+            var (workflowFound, workflowChallengeId) = await _k8SHealthService.GetWorkflowChallengeId(message.WorkFlowName);
+
+            if (!workflowFound || workflowChallengeId == null)
+            {
+                _logger.Log(
+                    "ARGO_CALLBACK_UNKNOWN_WORKFLOW",
+                    null,
+                    null,
+                    new { message.WorkFlowName, message.ChallengeId, workflowFound },
+                    LogLevel.Warning);
+
+                return new BaseResponseDTO
+                {
+                    Success = false,
+                    Message = "Unknown workflow",
+                    HttpStatusCode = HttpStatusCode.NotFound
+                };
+            }
+
+            if (workflowChallengeId.Value != message.ChallengeId.Value)
+            {
+                // Someone signed a callback for a challenge the named workflow
+                // never built. That is not a mistake a caller makes by accident,
+                // so it is logged loudly rather than just refused.
+                _logger.Log(
+                    "ARGO_CALLBACK_CHALLENGE_MISMATCH",
+                    null,
+                    null,
+                    new { message.WorkFlowName, claimedChallengeId = message.ChallengeId, workflowChallengeId },
+                    LogLevel.Critical);
+
+                return new BaseResponseDTO
+                {
+                    Success = false,
+                    Message = "Challenge does not match the workflow",
+                    HttpStatusCode = HttpStatusCode.Forbidden
+                };
+            }
+
             var challenge = await _dbContext.Challenges.FirstOrDefaultAsync(c => c.Id == message.ChallengeId);
             if (challenge == null)
             {
