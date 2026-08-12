@@ -220,6 +220,38 @@ def is_challenge_writer_for_contest(contest_id):
         user_id=user.id, contest_id=contest_id, role="challenge_writer"
     ).first() is not None
 
+
+def can_write_challenges_for_contest(contest_id):
+    """True if the current user may create or edit challenges in this contest.
+
+    Checked at the moment of the write rather than inferred from something
+    handed out earlier. A signed contest token says which contest the page was
+    opened for; it cannot say whether the person still has a role there, so a
+    participant removed from a contest keeps whatever their token or their
+    authorship implies until this is asked again.
+
+    Admins bypass. Conductors are platform-level and only own their own
+    contests, so they are held to the contest they own. Everyone else needs a
+    live jury/challenge_writer row for THIS contest.
+    """
+    if not authed():
+        return False
+    if contest_id is None:
+        return False
+    if is_admin():
+        return True
+
+    if is_conductor():
+        from CTFd.models import Contests
+        user = get_current_user_attrs()
+        if not user:
+            return False
+        contest = Contests.query.filter_by(id=contest_id).first()
+        return contest is not None and contest.owner_id == user.id
+
+    return is_jury_for_contest(contest_id) or is_challenge_writer_for_contest(contest_id)
+
+
 def is_conductor():
     """True if the user is a conductor — a platform-level role (Users.type),
     not a per-contest ContestParticipant role like jury/challenge_writer.

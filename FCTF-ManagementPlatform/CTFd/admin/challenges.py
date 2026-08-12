@@ -29,7 +29,13 @@ from CTFd.utils.decorators import (
 )
 from CTFd.utils.dates import ctftime
 from CTFd.utils.security.signing import serialize
-from CTFd.utils.user import get_current_team, get_current_user, is_admin,is_jury
+from CTFd.utils.user import (
+    can_write_challenges_for_contest,
+    get_current_team,
+    get_current_user,
+    is_admin,
+    is_jury,
+)
 from CTFd.utils.uploads import upload_file
 from CTFd.constants.envvars import DEPLOYMENT_SERVICE_API, PRIVATE_KEY
 from CTFd.utils.connector.multiservice_connector import create_secret_key
@@ -307,6 +313,12 @@ def challenges_new():
 
     if contest_id:
         selected_contest = Contests.query.filter_by(id=contest_id).first_or_404()
+        # The decorator on this route only asks whether the user is a challenge
+        # writer somewhere. The contest comes from the query string, so without
+        # this check a writer for one contest could mint a create-challenge
+        # token for any other contest just by editing the URL.
+        if not can_write_challenges_for_contest(contest_id):
+            abort(403)
         s = URLSafeTimedSerializer(current_app.secret_key)
         contest_token = s.dumps({"contest_id": contest_id}, salt="create-challenge")
 
