@@ -25,7 +25,6 @@ public class ChallengeController : BaseController
     private readonly UserHelper _userHelper;
     private readonly IChallengeService _challengeServices;
     private readonly RedisHelper _redisHelper;
-    private readonly RedisLockHelper _redisLockHelper;
     private readonly AppLogger _userBehaviorLogger;
     private readonly IActionLogsServices _actionLogsServices;
     private readonly KypoService _kypoService;
@@ -38,7 +37,6 @@ public class ChallengeController : BaseController
         UserHelper userHelper,
         IChallengeService challengeService,
         RedisHelper redisHelper,
-        RedisLockHelper redisLockHelper,
         AppLogger userBehaviorLogger,
         IActionLogsServices actionLogsServices,
         KypoService kypoService,
@@ -49,7 +47,6 @@ public class ChallengeController : BaseController
         _userHelper = userHelper;
         _challengeServices = challengeService;
         _redisHelper = redisHelper;
-        _redisLockHelper = redisLockHelper;
         _userBehaviorLogger = userBehaviorLogger;
         _actionLogsServices = actionLogsServices;
         _kypoService = kypoService;
@@ -470,42 +467,36 @@ public class ChallengeController : BaseController
         if (attempt.status)
         {
             bool isDynamic = challenge.Type == "dynamic";
-            string recalcLockKey = DynamicChallengeHelper.GetRecalcLockKey(challenge.Id);
-            string recalcLockToken = Guid.NewGuid().ToString();
-            bool recalcLockAcquired = false;
 
-            if (isDynamic)
+            // Concurrent recalcs for one challenge are serialized by the database rather
+            // than by a distributed lock, so the mutual exclusion has the same lifetime
+            // as the transaction it protects. A Redis lock could not: it expires on a
+            // clock of its own, and a transaction that outlived that expiry would leave
+            // two solvers inside the critical section believing they were alone. Waiters
+            // also queue in InnoDB now instead of polling and giving up, so a burst of
+            // simultaneous correct submissions costs latency instead of turning into
+            // failed requests.
+            await using (var dbTransaction = isDynamic
+                ? await _context.Database.BeginTransactionAsync(System.Data.IsolationLevel.ReadCommitted)
+                : await _context.Database.BeginTransactionAsync())
             {
-                // Acquire Redis lock BEFORE BeginTransaction and release AFTER the tx is
-                // disposed, so concurrent recalcs for this challenge cannot race on the
-                // MVCC snapshot used to read solveCount / write Challenge.Value.
-                // Bounded retry — fail fast with 503 instead of spinning forever.
-                recalcLockAcquired = await _redisLockHelper.AcquireWithRetry(
-                    recalcLockKey,
-                    recalcLockToken,
-                    expiry: TimeSpan.FromSeconds(11),
-                    retry: 10,
-                    delayMs: 100);
-
-                if (!recalcLockAcquired)
-                {
-                    return StatusCode(StatusCodes.Status503ServiceUnavailable, new
-                    {
-                        success = false,
-                        data = new
-                        {
-                            status = "busy",
-                            message = "Scoring is busy, please retry in a moment."
-                        }
-                    });
-                }
-            }
-
-            try
-            {
-                await using var dbTransaction = await _context.Database.BeginTransactionAsync();
                 try
                 {
+                    if (isDynamic)
+                    {
+                        // Take the challenge row before anything else in the transaction
+                        // reads or writes. The recalc is a read-modify-write over
+                        // solveCount, so a second solver must not be allowed to read the
+                        // count until this one has committed its own solve. READ COMMITTED
+                        // is what makes that reliable: every statement after this lock
+                        // releases takes a fresh snapshot, so the count includes the solve
+                        // the previous holder just committed rather than the state as of
+                        // this transaction's first read.
+                        await _context.Database.ExecuteSqlRawAsync(
+                            "SELECT id FROM challenges WHERE id = {0} FOR UPDATE",
+                            challenge.Id);
+                    }
+
                     var existingSolve = await _context.Solves
                         .Where(x => x.ChallengeId == challenge.Id && x.TeamId == teamId)
                         .AsNoTracking()
@@ -557,7 +548,9 @@ public class ChallengeController : BaseController
                 }
                 catch (DbUpdateException ex) when (IsDuplicateKey(ex))
                 {
-                    // Defence-in-depth — the gap lock above should already prevent this.
+                    // uq_solves_challenge_team is what actually rejects a second solve
+                    // for the team; the read above only saves the round trip in the
+                    // common case.
                     return Ok(new
                     {
                         success = true,
@@ -576,21 +569,6 @@ public class ChallengeController : BaseController
                         success = false,
                         error = "Failed to record submission. Please try again."
                     });
-                }
-            }
-            finally
-            {
-                if (recalcLockAcquired)
-                {
-                    try
-                    {
-                        await _redisLockHelper.ReleaseLock(recalcLockKey, recalcLockToken);
-                    }
-                    catch (Exception ex)
-                    {
-                        await Console.Error.WriteLineAsync(
-                            $"[Recalc] Failed to release lock for challenge {challenge.Id}: {ex.Message}");
-                    }
                 }
             }
 

@@ -95,22 +95,15 @@ namespace ResourceShared.Utils
         }
 
         /// <summary>
-        /// Redis key used to serialize dynamic-score recalcs for a given challenge.
-        /// Callers must acquire this lock before <c>BeginTransaction</c> and release it only
-        /// after the transaction is disposed, so the snapshot used to read
-        /// <c>solveCount</c> and write <c>Challenge.Value</c> cannot overlap across sessions.
-        /// </summary>
-        public static string GetRecalcLockKey(int challengeId) =>
-            $"challenge:dynamic:recalc:{challengeId}";
-
-        /// <summary>
         /// Recalculate dynamic challenge value after a solve.
-        /// MUST be called inside an open DB transaction on <paramref name="context"/>, with
-        /// the Redis recalc lock (see <see cref="GetRecalcLockKey"/>) already held by the
-        /// caller. The <c>SaveChangesAsync</c> inside participates in the caller's transaction
-        /// so the <c>Challenge.Value</c> update commits atomically with the submission insert
-        /// that triggered the recalc. Retries for transient DB failures are the caller's
-        /// responsibility.
+        /// MUST be called inside an open DB transaction on <paramref name="context"/> that
+        /// already holds the challenge row (<c>SELECT ... FOR UPDATE</c>), taken before the
+        /// transaction's first read: this reads <c>solveCount</c> and writes
+        /// <c>Challenge.Value</c> from it, so two solvers reading the same count would each
+        /// write a value that ignores the other. The <c>SaveChangesAsync</c> inside
+        /// participates in the caller's transaction so the <c>Challenge.Value</c> update
+        /// commits atomically with the submission insert that triggered the recalc. Retries
+        /// for transient DB failures are the caller's responsibility.
         /// </summary>
         public static async Task<int> RecalculateDynamicChallengeValue(
             AppDbContext context,

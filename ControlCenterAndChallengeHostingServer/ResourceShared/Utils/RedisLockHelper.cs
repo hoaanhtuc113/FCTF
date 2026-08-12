@@ -50,7 +50,11 @@ namespace ResourceShared.Utils
         }
 
         /// <summary>
-        /// Blocking lock with retry (recommended for Worker only)
+        /// Blocking lock with retry (recommended for Worker only).
+        /// The lock is not a queue, so waiters that retry on the same fixed schedule stay
+        /// in step and Redis keeps picking among them arbitrarily - one of them can lose
+        /// every round and exhaust its budget while the others take turns. Jittering the
+        /// delay spreads their attempts out instead of letting them arrive together.
         /// </summary>
         public async Task<bool> AcquireWithRetry(string key, string token, TimeSpan expiry, int retry = 5, int delayMs = 20)
         {
@@ -59,7 +63,12 @@ namespace ResourceShared.Utils
                 bool acquired = await AcquireLock(key, token, expiry);
                 if (acquired) return true;
 
-                await Task.Delay(delayMs);
+                // Nothing left to wait for after the final attempt.
+                if (i == retry - 1) break;
+
+                // Jitter around delayMs rather than growing backoff: the expected wait
+                // per round, and so each caller's overall budget, stays what it was.
+                await Task.Delay(Random.Shared.Next(delayMs / 2, (delayMs * 3 / 2) + 1));
             }
             return false;
         }
