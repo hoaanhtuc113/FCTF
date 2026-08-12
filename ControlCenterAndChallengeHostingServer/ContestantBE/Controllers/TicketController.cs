@@ -49,12 +49,12 @@ public class TicketController : BaseController
 
     [HttpGet("tickets/{ticketId}")]
     [DuringCtfTimeOnly]
-    public async Task<IActionResult> GetTicketById(int ticketId)
+    public async Task<IActionResult> GetTicketById([FromRoute] int contestId, int ticketId)
     {
         var userId = UserContext.UserId;
 
         _userBehaviorLogger.Log("GET_TICKET_BY_ID", userId, null, new { ticket_id = ticketId });
-        var result = await _ticketService.GetTicketById(ticketId, userId);
+        var result = await _ticketService.GetTicketById(ticketId, userId, contestId);
 
         if (!result.Success)
         {
@@ -70,12 +70,12 @@ public class TicketController : BaseController
 
     [HttpDelete("tickets/{ticketId}")]
     [DuringCtfTimeOnly]
-    public async Task<IActionResult> DeleteTicket(int ticketId)
+    public async Task<IActionResult> DeleteTicket([FromRoute] int contestId, int ticketId)
     {
         var userId = UserContext.UserId;
         _userBehaviorLogger.Log("DELETE_TICKET", userId, null, new { ticket_id = ticketId });
         await Console.Out.WriteLineAsync($"[Requesst Remove Ticket] User {userId}: Ticket ID {ticketId}");
-        var result = await _ticketService.DeleteTicket(ticketId, userId);
+        var result = await _ticketService.DeleteTicket(ticketId, userId, contestId);
         if (!result.Success) return BadRequest(new { message = result.Message });
 
         return Ok(new { message = result.Message });

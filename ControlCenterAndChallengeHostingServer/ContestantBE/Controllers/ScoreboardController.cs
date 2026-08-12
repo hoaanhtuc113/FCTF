@@ -42,17 +42,20 @@ public class ScoreboardController : BaseController
                 // Require authenticated user
                 if (!(User.Identity?.IsAuthenticated ?? false))
                     return Unauthorized(new { success = false, message = "Scores are private. Please log in to view the scoreboard." });
+
+                // Verify user belongs to this contest
+                var privateUserId = UserContext.UserId;
+                var privateUser = await _context.Users
+                    .Include(u => u.TeamMemberships).ThenInclude(m => m.Team)
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(u => u.Id == privateUserId);
+                var userContestTeam = GetUserTeamForContest(privateUser, contestId);
+                if (userContestTeam == null)
+                    return StatusCode(403, new { success = false, message = "You are not registered in this contest." });
+
                 // If bracket_view_other is disabled, restrict to user's own bracket
                 if (!_configHelper.GetConfig<bool>("bracket_view_other"))
-                {
-                    var userId = UserContext.UserId;
-                    var user = await _context.Users
-                        .Include(u => u.TeamMemberships).ThenInclude(m => m.Team)
-                        .AsNoTracking()
-                        .FirstOrDefaultAsync(u => u.Id == userId);
-                    var team = GetUserTeamForContest(user, contestId);
-                    bracket_id = team?.BracketId;
-                }
+                    bracket_id = userContestTeam.BracketId;
                 break;
             case "admins":
                 // Only admin users can view the scoreboard

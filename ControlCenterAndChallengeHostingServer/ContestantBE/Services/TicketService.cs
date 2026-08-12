@@ -23,9 +23,15 @@ public class TicketService : ITicketService
         try
         {
             var user = await _context.Users
+                .Include(u => u.TeamMemberships).ThenInclude(m => m.Team)
                 .AsNoTracking()
                 .FirstOrDefaultAsync(u => u.Id == userId);
             if (user == null) return BaseResponseDTO<TicketResponseDTO>.Fail("User not found");
+
+            // Verify user belongs to this contest
+            var isInContest = user.TeamMemberships.Any(m => m.Team?.ContestId == contestId);
+            if (!isInContest)
+                return BaseResponseDTO<TicketResponseDTO>.Fail("You are not registered in this contest");
 
             if (string.IsNullOrWhiteSpace(request.title) ||
                 string.IsNullOrWhiteSpace(request.type) ||
@@ -100,7 +106,7 @@ public class TicketService : ITicketService
         }
     }
 
-    public async Task<BaseResponseDTO<TicketResponseDTO>> GetTicketById(int ticketId, int userId)
+    public async Task<BaseResponseDTO<TicketResponseDTO>> GetTicketById(int ticketId, int userId, int contestId)
     {
         try
         {
@@ -112,9 +118,12 @@ public class TicketService : ITicketService
             if (ticketEntity == null)
                 return BaseResponseDTO<TicketResponseDTO>.Fail("Ticket not found");
 
-            // Check if user is the owner
+            // Check if user is the owner and ticket belongs to the same contest
             if (ticketEntity.AuthorId != userId)
                 return BaseResponseDTO<TicketResponseDTO>.Fail("You don't have permission to view this ticket");
+
+            if (ticketEntity.ContestId != contestId)
+                return BaseResponseDTO<TicketResponseDTO>.Fail("Ticket not found");
 
             // Get full ticket data with joins
             var ticket = await (from t in _context.Tickets
@@ -212,7 +221,7 @@ public class TicketService : ITicketService
         }
     }
 
-    public async Task<BaseResponseDTO<bool>> DeleteTicket(int ticketId, int userId)
+    public async Task<BaseResponseDTO<bool>> DeleteTicket(int ticketId, int userId, int contestId)
     {
         try
         {
@@ -221,9 +230,12 @@ public class TicketService : ITicketService
             if (ticket == null)
                 return BaseResponseDTO<bool>.Fail("Ticket not found");
 
-            // Check if user owns this ticket
+            // Check if user owns this ticket and it belongs to the same contest
             if (ticket.AuthorId != userId)
                 return BaseResponseDTO<bool>.Fail("You don't have permission to delete this ticket");
+
+            if (ticket.ContestId != contestId)
+                return BaseResponseDTO<bool>.Fail("Ticket not found");
 
             // Check if ticket has been replied (ReplierMessage is not null/empty or Status is not "open")
             if (!string.IsNullOrEmpty(ticket.ReplierMessage) || ticket.Status?.ToLower() != "open")

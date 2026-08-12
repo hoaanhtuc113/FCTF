@@ -632,15 +632,26 @@ public class AuthService : IAuthService
 
             await _context.SaveChangesAsync();
 
-            // Invalidate cached auth info for this user so middleware reads fresh token UUID
+            // Invalidate cached auth info for this user so middleware reads fresh token UUID.
+            // Neu thao tac nay that bai (vd Redis timeout duoi tai cao), cache CU van con
+            // -> middleware co the tu choi nham token MOI vua cap. TokenAuthenticationMiddleware
+            // da co fallback verify lai DB khi cache mismatch nen loi nay khong con gay 401
+            // sai nua, nhung van log lai de theo doi tan suat su co Redis.
             try
             {
                 var cacheKey = $"auth:user:{user.Id}";
-                _ = await _redisHelper.RemoveCacheAsync(cacheKey);
+                var removed = await _redisHelper.RemoveCacheAsync(cacheKey);
+                if (!removed)
+                {
+                    _logger.LogError(
+                        new Exception("RemoveCacheAsync returned false when invalidating auth cache after login"),
+                        user.Id,
+                        data: new { cacheKey });
+                }
             }
-            catch
+            catch (Exception ex)
             {
-                // ignore cache errors
+                _logger.LogError(ex, user.Id, data: new { step = "invalidate auth cache after login" });
             }
 
             var authResponse = new AuthResponseDTO
@@ -711,6 +722,25 @@ public class AuthService : IAuthService
             user.Password = SHA256Helper.HashPasswordPythonStyle(changePasswordDto.newPassword);
 
             await _context.SaveChangesAsync();
+
+            // Invalidate all existing JWT tokens so old sessions cannot continue
+            var existingTokens = await _context.Tokens
+                .Where(t => t.UserId == userId && t.Type == ResourceShared.Enums.UserType.User)
+                .ToListAsync();
+            if (existingTokens.Count > 0)
+            {
+                _context.Tokens.RemoveRange(existingTokens);
+                await _context.SaveChangesAsync();
+            }
+            try
+            {
+                var cacheKey = $"auth:user:{userId}";
+                _ = await _redisHelper.RemoveCacheAsync(cacheKey);
+            }
+            catch
+            {
+                // ignore cache errors
+            }
 
             return BaseResponseDTO<string>.Ok("Password changed successfully", "Password changed successfully");
         }
