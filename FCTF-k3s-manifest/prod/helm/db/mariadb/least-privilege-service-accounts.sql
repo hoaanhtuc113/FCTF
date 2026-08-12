@@ -59,6 +59,13 @@ GRANT SELECT ON ctfd.tracking TO 'contestant_be'@'%';
 GRANT INSERT ON ctfd.tracking TO 'contestant_be'@'%';
 GRANT UPDATE ON ctfd.tracking TO 'contestant_be'@'%';
 GRANT SELECT ON ctfd.challenge_start_tracking TO 'contestant_be'@'%';
+-- KYPO sandbox challenges never touch the deploy pipeline, so contestant-be is the
+-- only service that opens and closes their sessions: start inserts the row, stop and
+-- submit set stopped_at on it. Both writes are wrapped in a catch that logs and moves
+-- on, so without these two the session simply never got recorded - and a challenge with
+-- no session row looks unplayed, which is why a stopped run could be started again.
+GRANT INSERT ON ctfd.challenge_start_tracking TO 'contestant_be'@'%';
+GRANT UPDATE ON ctfd.challenge_start_tracking TO 'contestant_be'@'%';
 GRANT SELECT ON ctfd.user_team_members TO 'contestant_be'@'%';
 GRANT SELECT ON ctfd.contest_participants TO 'contestant_be'@'%';
 GRANT SELECT ON ctfd.kypo_challenge_configs TO 'contestant_be'@'%';
