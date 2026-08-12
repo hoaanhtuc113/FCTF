@@ -33,9 +33,14 @@ namespace ResourceShared.Utils
             };
             var jwt = CreateToken(authInfo, tokenUuid, expireMinutes: 60 * 24 * 7); // 7 days
 
-            // Kiểm tra xem user đã có token chưa
+            // Kiểm tra xem user đã có token chưa. OrderByDescending(Id) đảm bảo nếu do
+            // mot nguyen nhan nao do da co nhieu dong (vd du lieu cu con sot lai), luon
+            // tim va update dong MOI NHAT thay vi dong ngau nhien - tranh tao them dong
+            // trung lap va giu hanh vi doc/ghi nhat quan voi TokenAuthenticationMiddleware.
             var existingToken = await _context.Tokens
-                .FirstOrDefaultAsync(t => t.UserId == user.Id && t.Type == Enums.UserType.User);
+                .Where(t => t.UserId == user.Id && t.Type == Enums.UserType.User)
+                .OrderByDescending(t => t.Id)
+                .FirstOrDefaultAsync();
 
             if (existingToken != null)
             {

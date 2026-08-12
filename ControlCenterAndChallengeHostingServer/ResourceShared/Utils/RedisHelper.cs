@@ -1,5 +1,6 @@
 ﻿using Newtonsoft.Json;
 using ResourceShared;
+using ResourceShared.Logger;
 using ResourceShared.Utils;
 using StackExchange.Redis;
 using static ResourceShared.Enums;
@@ -9,13 +10,15 @@ namespace ResourceShared.Utils;
 public class RedisHelper
 {
     private readonly IDatabase _cache;
+    private readonly AppLogger _logger;
     private const int RedisScanPageSize = 1000;
     private const int RedisValueBatchSize = 500;
 
     // Constructor nhận ConnectionMultiplexer thông qua Dependency Injection
-    public RedisHelper(IConnectionMultiplexer redisConnection)
+    public RedisHelper(IConnectionMultiplexer redisConnection, AppLogger logger)
     {
         _cache = redisConnection.GetDatabase();
+        _logger = logger;
     }
 
     // Phương thức để set object (phức tạp hơn string) vào cache
@@ -37,9 +40,12 @@ public class RedisHelper
             }
             return isSet;
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            // Nếu có lỗi, trả về false
+            // Loi Redis (vd timeout do ThreadPool starvation duoi tai cao) truoc day bi
+            // nuot am tham - log lai de con biet khi cache set that bai, vi cac noi goi
+            // ham nay (vd invalidate token khi login) phu thuoc vao thao tac nay thanh cong.
+            _logger.LogError(ex, data: new { operation = "SetCacheAsync", key });
             return false;
         }
     }
@@ -60,9 +66,9 @@ public class RedisHelper
             // Deserialize giá trị thành object
             return JsonConvert.DeserializeObject<T>(value);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            // Nếu có lỗi, trả về giá trị mặc định
+            _logger.LogError(ex, data: new { operation = "GetFromCacheAsync", key });
             return default;
         }
     }
@@ -107,9 +113,12 @@ public class RedisHelper
             bool isRemoved = await _cache.KeyDeleteAsync(key);
             return isRemoved;
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            // Nếu có lỗi, trả về false
+            // Quan trong: khi ham nay that bai (vd timeout), cache CU van con ton tai -
+            // day chinh la nguyen nhan bug "Invalid user token" duoi tai cao (stale cache
+            // sau khi login cap tokenUuid moi). Log lai de phat hien duoc su co nay.
+            _logger.LogError(ex, data: new { operation = "RemoveCacheAsync", key });
             return false;
         }
     }

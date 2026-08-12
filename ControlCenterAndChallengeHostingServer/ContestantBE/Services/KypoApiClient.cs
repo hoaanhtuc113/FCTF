@@ -191,8 +191,12 @@ public class KypoApiClient
                     if (def.TryGetProperty(lvlKey, out var lvls) && lvls.ValueKind == JsonValueKind.Array)
                     {
                         var count = lvls.GetArrayLength();
-                        _levelCountCache[instanceId] = count;
-                        return count;
+                        if (count > 0)
+                        {
+                            _levelCountCache[instanceId] = count;
+                            return count;
+                        }
+                        // Empty array = KYPO didn't embed levels (e.g. UNRELEASED state) → fall through to direct fetch
                     }
                 }
             }

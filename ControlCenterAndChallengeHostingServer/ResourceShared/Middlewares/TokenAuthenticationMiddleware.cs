@@ -39,8 +39,9 @@ public class TokenAuthenticationMiddleware
                     return;
                 }
 
-                // Try read from Redis cache first
+                var tokenUuidFromClaim = context.User.FindFirstValue("tokenUuid");
                 var cacheKey = $"auth:user:{id}";
+
                 AuthInfoCacheDTO? authInfoCache = null;
                 try
                 {
@@ -51,82 +52,79 @@ public class TokenAuthenticationMiddleware
                     // ignore cache errors and fallback to DB
                 }
 
-                if (authInfoCache != null)
+                // Cache chi duoc tin khi CO gia tri VA tokenUuid khop. Neu cache co gia
+                // tri nhung LECH voi JWT, KHONG duoc tu choi ngay - cache co the la ban
+                // ghi cu con sot lai do RemoveCacheAsync/SetCacheAsync bi loi am tham
+                // duoi tai cao (xem RedisHelper). Phai fallback xuong DB - nguon du lieu
+                // dung - truoc khi ket luan token co that su khong hop le hay khong.
+                var cacheIsAuthoritative = authInfoCache != null
+                    && !string.IsNullOrEmpty(authInfoCache.TokenValueFromDb)
+                    && authInfoCache.TokenValueFromDb.Equals(tokenUuidFromClaim);
+
+                AuthInfoCacheDTO authInfo;
+                if (cacheIsAuthoritative)
                 {
-                    var tokenUuidFromClaim = context.User.FindFirstValue("tokenUuid");
-                    if (string.IsNullOrEmpty(authInfoCache.TokenValueFromDb)
-                        || !authInfoCache.TokenValueFromDb.Equals(tokenUuidFromClaim))
+                    authInfo = authInfoCache!;
+                }
+                else
+                {
+                    var dbInfo = await db.Users
+                        .AsNoTracking()
+                        .Where(u => u.Id == id)
+                        .Select(u => new
+                        {
+                            u.Verified,
+                            u.Banned,
+                            u.Hidden,
+                            // TeamBanned: user is banned if ANY of their teams is banned
+                            TeamBanned = db.UserTeamMembers
+                                .Where(m => m.UserId == u.Id)
+                                .Any(m => m.Team.Banned == true),
+                            // OrderByDescending(Id): neu co nhieu dong token cho cung 1
+                            // user (du lieu cu con sot lai), luon lay dong MOI NHAT thay
+                            // vi mot dong bat ky - FirstOrDefault khong co order la nguon
+                            // goc that su cua bug "Invalid user token" khong nhat quan.
+                            TokenValueFromDb = db.Tokens
+                                .Where(t => t.UserId == id && t.Type == Enums.UserType.User)
+                                .OrderByDescending(t => t.Id)
+                                .Select(t => t.Value)
+                                .FirstOrDefault()
+                        })
+                        .FirstOrDefaultAsync();
+
+                    if (dbInfo == null)
+                    {
+                        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                        await context.Response.WriteAsync("User not found.");
+                        return;
+                    }
+
+                    if (string.IsNullOrEmpty(dbInfo.TokenValueFromDb) || !dbInfo.TokenValueFromDb.Equals(tokenUuidFromClaim))
                     {
                         context.Response.StatusCode = StatusCodes.Status401Unauthorized;
                         await context.Response.WriteAsync("Invalid user token");
                         return;
                     }
 
-                    if(authInfoCache.Verified != true)
+                    authInfo = new AuthInfoCacheDTO
                     {
-                        context.Response.StatusCode = StatusCodes.Status403Forbidden;
-                        await context.Response.WriteAsync("Account not verified.");
-                        return;
+                        TokenValueFromDb = dbInfo.TokenValueFromDb,
+                        Verified = dbInfo.Verified,
+                        Banned = dbInfo.Banned,
+                        Hidden = dbInfo.Hidden,
+                        TeamBanned = dbInfo.TeamBanned
+                    };
+
+                    // DB la nguon dung - ghi de lai cache ngay (tu chua lanh, khong can
+                    // cho ban ghi cu tu het han TTL).
+                    try
+                    {
+                        var ttlSeconds = 60;
+                        _ = await redis.SetCacheAsync(cacheKey, authInfo, TimeSpan.FromSeconds(ttlSeconds));
                     }
-
-                    if (authInfoCache.Banned == true)
+                    catch
                     {
-                        context.Response.StatusCode = StatusCodes.Status403Forbidden;
-                        await context.Response.WriteAsync("Account banned.");
-                        return;
                     }
-
-                    if (authInfoCache.Hidden == true)
-                    {
-                        context.Response.StatusCode = StatusCodes.Status403Forbidden;
-                        await context.Response.WriteAsync("Account hidden.");
-                        return;
-                    }
-
-                    if (authInfoCache.TeamBanned == true)
-                    {
-                        context.Response.StatusCode = StatusCodes.Status403Forbidden;
-                        await context.Response.WriteAsync("Your team has been banned.");
-                        return;
-                    }
-
-                    await _next(context);
-                    return;
-                }
-
-                // Cache miss: read from DB and populate cache
-                var authInfo = await db.Users
-                    .AsNoTracking()
-                    .Where(u => u.Id == id)
-                    .Select(u => new
-                    {
-                        u.Verified,
-                        u.Banned,
-                        u.Hidden,
-                        // TeamBanned: user is banned if ANY of their teams is banned
-                        TeamBanned = db.UserTeamMembers
-                            .Where(m => m.UserId == u.Id)
-                            .Any(m => m.Team.Banned == true),
-                        TokenValueFromDb = db.Tokens
-                            .Where(t => t.UserId == id && t.Type == Enums.UserType.User)
-                            .Select(t => t.Value)
-                            .FirstOrDefault()
-                    })
-                    .FirstOrDefaultAsync();
-
-                if (authInfo == null)
-                {
-                    context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-                    await context.Response.WriteAsync("User not found.");
-                    return;
-                }
-
-                var tokenUuidFromClaim2 = context.User.FindFirstValue("tokenUuid");
-                if (string.IsNullOrEmpty(authInfo.TokenValueFromDb) || !authInfo.TokenValueFromDb.Equals(tokenUuidFromClaim2))
-                {
-                    context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-                    await context.Response.WriteAsync("Invalid user token");
-                    return;
                 }
 
                 if (authInfo.Verified != true)
@@ -155,24 +153,6 @@ public class TokenAuthenticationMiddleware
                     context.Response.StatusCode = StatusCodes.Status403Forbidden;
                     await context.Response.WriteAsync("Your team has been banned.");
                     return;
-                }
-
-                // Populate cache (short TTL)
-                try
-                {
-                    var dto = new AuthInfoCacheDTO
-                    {
-                        TokenValueFromDb = authInfo.TokenValueFromDb,
-                        Verified = authInfo.Verified,
-                        Banned = authInfo.Banned,
-                        Hidden = authInfo.Hidden,
-                        TeamBanned = authInfo.TeamBanned
-                    };
-                    var ttlSeconds = 60;
-                    _ = await redis.SetCacheAsync(cacheKey, dto, TimeSpan.FromSeconds(ttlSeconds));
-                }
-                catch
-                {
                 }
             }
 

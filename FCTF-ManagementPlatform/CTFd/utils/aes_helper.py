@@ -31,9 +31,19 @@ def encrypt_kypo_password(plaintext: str) -> str:
 
 
 def decrypt_kypo_password(ciphertext: str) -> str:
+    # Nếu không phải base64 hợp lệ thì là plaintext cũ → trả về nguyên
+    try:
+        padded = ciphertext + "=" * (-len(ciphertext) % 4)
+        raw = base64.b64decode(padded, validate=True)
+    except Exception:
+        return ciphertext
+
+    # Cần ít nhất 16 byte IV + 16 byte ciphertext
+    if len(raw) < 32:
+        return ciphertext
+
     try:
         key = _get_key()
-        raw = base64.b64decode(ciphertext)
         iv, ct = raw[:16], raw[16:]
         dec = Cipher(algorithms.AES(key), modes.CBC(iv)).decryptor()
         data = dec.update(ct) + dec.finalize()

@@ -297,8 +297,15 @@ public class ChallengeController : BaseController
             });
         }
 
-        if (_configHelper.IsUserMode() && userTeam == null)
-            return Forbid();
+        // teamId is dereferenced unconditionally further down (solve/submission
+        // lookups, cache key, score lock) - a null team must never reach that code,
+        // regardless of IsUserMode(). Previously this guard only fired when
+        // IsUserMode() was true, so a user with no team in this contest (e.g.
+        // submitting into a contest they're not registered for) fell through to
+        // `teamId!.Value` and crashed with "Nullable object must have a value.",
+        // leaking the raw exception message back to the client as a 400.
+        if (userTeam == null)
+            return NotFound(new { success = false, error = "You are not registered in this contest." });
 
         request.Submission = request.Submission?.Trim();
 
@@ -850,6 +857,25 @@ public class ChallengeController : BaseController
             else
             {
                 bridgeUrl = $"{baseUrl}/run";
+            }
+
+            // Kiểm tra đã submit chưa (permanent lock)
+            var kypoAlreadySubmitted = await _context.ChallengeStartTrackings
+                .AsNoTracking()
+                .AnyAsync(t => t.ChallengeId == challenge.Id
+                            && t.TeamId == teamId
+                            && t.Label == "submitted");
+            if (kypoAlreadySubmitted)
+                return BadRequest(new { error = "You have already submitted this challenge. It is permanently locked." });
+
+            // Giới hạn số lần vào (MaxDeployCount)
+            if (challenge.MaxDeployCount.HasValue && challenge.MaxDeployCount.Value > 0)
+            {
+                var kypoDeployCount = await _context.ChallengeStartTrackings
+                    .AsNoTracking()
+                    .CountAsync(d => d.ChallengeId == challenge.Id && d.TeamId == teamId);
+                if (kypoDeployCount >= challenge.MaxDeployCount.Value)
+                    return BadRequest(new { error = $"You have reached the maximum number of sessions ({challenge.MaxDeployCount.Value}) for this challenge." });
             }
 
             // Kiểm tra session đã tồn tại trong Redis

@@ -11,7 +11,7 @@ services:
     image: bitnami/mariadb:latest
     container_name: fctf-mariadb
     ports:
-      - "3306:3306"
+      - "13306:3306"
     environment:
       MARIADB_ROOT_PASSWORD: root_password
       MARIADB_DATABASE: ctfd

@@ -15,13 +15,13 @@ namespace ResourceShared.Utils
         private static async Task<int> GetSolveCount(AppDbContext context, int challengeId)
         {
             var solveCount = await context.Solves
-                .Join(context.Users,
-                    solve => solve.UserId,
-                    user => user.Id,
-                    (solve, user) => new { solve, user })
-                .Where(x => x.solve.ChallengeId == challengeId 
-                    && x.user.Hidden == false 
-                    && x.user.Banned == false)
+                .Join(context.Teams,
+                    solve => solve.TeamId,
+                    team => team.Id,
+                    (solve, team) => new { solve, team })
+                .Where(x => x.solve.ChallengeId == challengeId
+                    && x.team.Hidden == false
+                    && x.team.Banned == false)
                 .CountAsync();
 
             return solveCount;

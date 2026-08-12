@@ -13,6 +13,11 @@ data:
   ACCESS_LOG: "-"
   ERROR_LOG: "-"
   REVERSE_PROXY: "true"
+  KYPO_BASE_URL: "https://vuontre.iahn.hanoi.vn"
+  KYPO_USERNAME: "crczp-admin"
+  KYPO_CLIENT_ID: "CRCZP-Client"
+  KYPO_REALM: "CRCZP"
+  KYPO_VERIFY_SSL: "false"
 ---
 apiVersion: v1
 kind: Secret
