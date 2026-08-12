@@ -10,14 +10,11 @@ from CTFd.utils.decorators import admin_or_jury
 from CTFd.utils import get_config
 
 
-ACTION_TYPE_LABELS = {
-	1: "ACCESS_CHALLENGE",
-	2: "START_CHALLENGE",
-	3: "CORRECT_FLAG",
-	4: "INCORRECT_FLAG",
-	5: "UNLOCK_HINT",
-	6: "SUBMIT_CHALLENGE",
-}
+# Single source of truth, shared with the writers. Kept here as an alias so the
+# rest of this module reads unchanged; STOP_CHALLENGE (7) was missing from the
+# copy that used to live here, which is why stops rendered as UNKNOWN on the
+# page and in both exports.
+from CTFd.utils.logging.action_logger import ACTION_TYPE_LABELS
 
 
 def _action_type_label(action_type):

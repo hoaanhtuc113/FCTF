@@ -63,7 +63,13 @@ from CTFd.utils.decorators.visibility import (
 )
 from CTFd.utils.humanize.words import pluralize
 from CTFd.utils.logging import log
-from CTFd.utils.logging.audit_logger import log_audit
+from CTFd.utils.logging.action_logger import (
+    CREATE_CHALLENGE,
+    DELETE_CHALLENGE,
+    ROLLBACK_CHALLENGE,
+    UPDATE_CHALLENGE,
+    log_action,
+)
 from CTFd.utils.security.signing import serialize
 from CTFd.utils.user import (
     authed,
@@ -383,10 +389,11 @@ class ChallengeList(Resource):
 
         response = challenge_class.read(challenge)
 
-        log_audit(
-            action="challenge_create",
-            data={
-                "challenge_id": challenge.id,
+        log_action(
+            CREATE_CHALLENGE,
+            f'Created challenge "{challenge.name}"',
+            challenge_id=challenge.id,
+            after={
                 "name": challenge.name,
                 "description": challenge.description,
                 "category": challenge.category,
@@ -858,8 +865,10 @@ class Challenge(Resource):
 
         response = challenge_class.read(challenge)
 
-        log_audit(
-            action="challenge_update",
+        log_action(
+            UPDATE_CHALLENGE,
+            f'Updated challenge "{challenge.name}"',
+            challenge_id=challenge.id,
             before=before_state,
             after={
                 "name": challenge.name,
@@ -889,9 +898,8 @@ class Challenge(Resource):
                 "max_deploy_count": challenge.max_deploy_count,
                 "shared_instant": challenge.shared_instant,
             },
-            data={"challenge_id": challenge_id, "name": challenge.name}
         )
-        
+
         print("challengeState:" + challenge.state)
         if challenge.state == "visible":
             # notification to contestants disabled
@@ -968,11 +976,13 @@ class Challenge(Resource):
         clear_standings()
         clear_challenges()
         
-        log_audit(
-            action="challenge_delete",
-            before=challenge_info,
-            data={"challenge_id": challenge_id, "name": challenge_info["name"]},
+        # The challenge row is gone, so contest_id has to come from what was
+        # captured above rather than from a lookup that would now find nothing.
+        log_action(
+            DELETE_CHALLENGE,
+            f'Deleted challenge "{challenge_info["name"]}"',
             contest_id=challenge_info["contest_id"],
+            before=challenge_info,
         )
         
         if(challenge.state == "visible"):
@@ -1596,6 +1606,18 @@ class ChallengeVersionRollback(Resource):
         if not version.image_link:
             return {"success": False, "message": "This version has no image to rollback to"}, 400
 
+        before_state = {
+            "image_link": challenge.image_link,
+            "deploy_file": challenge.deploy_file,
+            "cpu_limit": challenge.cpu_limit,
+            "cpu_request": challenge.cpu_request,
+            "memory_limit": challenge.memory_limit,
+            "memory_request": challenge.memory_request,
+            "use_gvisor": challenge.use_gvisor,
+            "harden_container": challenge.harden_container,
+            "max_deploy_count": challenge.max_deploy_count,
+        }
+
         try:
             # Deactivate all versions for this challenge
             ChallengeVersion.query.filter_by(
@@ -1628,6 +1650,27 @@ class ChallengeVersionRollback(Resource):
             challenge.last_update = datetime.utcnow()
 
             db.session.commit()
+
+            # Swapping the image a running challenge serves is a bigger change
+            # than most challenge edits, and it left no trace at all until now.
+            log_action(
+                ROLLBACK_CHALLENGE,
+                f'Rolled back challenge "{challenge.name}" to version {version.version_number}',
+                challenge_id=challenge.id,
+                before=before_state,
+                after={
+                    "version_number": version.version_number,
+                    "image_link": challenge.image_link,
+                    "deploy_file": challenge.deploy_file,
+                    "cpu_limit": challenge.cpu_limit,
+                    "cpu_request": challenge.cpu_request,
+                    "memory_limit": challenge.memory_limit,
+                    "memory_request": challenge.memory_request,
+                    "use_gvisor": challenge.use_gvisor,
+                    "harden_container": challenge.harden_container,
+                    "max_deploy_count": challenge.max_deploy_count,
+                },
+            )
 
             return {
                 "success": True,

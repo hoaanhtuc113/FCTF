@@ -12,19 +12,17 @@
 	.badge-hint     { background: #fff3cd; color: #856404; }
 	.badge-submit   { background: #d6d8f7; color: #2d2f8f; }
 	.badge-unknown  { background: #e2e3e5; color: #383d41; }
+	.badge-admin    { background: #ffe0cc; color: #8a3b0f; }
 	.cell-truncate  { max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 	.detail-cell    { max-width: 260px; word-break: break-word; font-size: .8rem; }
+	.changes-cell   { max-width: 260px; }
+	.changes-cell summary { cursor: pointer; font-size: .75rem; color: #6c757d; }
+	.changes-cell pre { font-size: .7rem; max-height: 220px; overflow: auto; background: #f8f9fa;
+	                    border-radius: 4px; padding: .4rem; margin: .25rem 0 0; white-space: pre-wrap;
+	                    word-break: break-word; }
+	.changes-cell .state-label { font-size: .68rem; font-weight: 600; color: #495057; }
 </style>
 {% endblock %}
-
-{% set ACTION_TYPE_LABELS = {
-	1: "ACCESS_CHALLENGE",
-	2: "START_CHALLENGE",
-	3: "CORRECT_FLAG",
-	4: "INCORRECT_FLAG",
-	5: "UNLOCK_HINT",
-	6: "SUBMIT_CHALLENGE"
-} %}
 
 {% block contest_content %}
 <div class="page-header">
@@ -128,6 +126,7 @@
 					<th class="text-center"><b>Action Type</b></th>
 					<th class="text-center"><b>Challenge</b></th>
 					<th class="text-center"><b>Detail</b></th>
+					<th class="text-center"><b>Changes</b></th>
 				</tr>
 			</thead>
 			<tbody>
@@ -163,6 +162,8 @@
 						<span class="badge badge-type badge-hint">{{ type_label }}</span>
 						{% elif log.type == 6 %}
 						<span class="badge badge-type badge-submit">{{ type_label }}</span>
+						{% elif log.type in ADMIN_ACTION_TYPES %}
+						<span class="badge badge-type badge-admin">{{ type_label }}</span>
 						{% else %}
 						<span class="badge badge-type badge-unknown">{{ log.type }} – {{ type_label }}</span>
 						{% endif %}
@@ -173,11 +174,28 @@
 					<td class="detail-cell" title="{{ log.detail or '' }}">
 						{{ (log.detail or '—') | truncate(120) }}
 					</td>
+					<td class="changes-cell text-center">
+						{% if log.before_state or log.after_state %}
+						<details>
+							<summary>View</summary>
+							{% if log.before_state %}
+							<div class="state-label text-left">Before</div>
+							<pre>{{ log.before_state | tojson(indent=2) }}</pre>
+							{% endif %}
+							{% if log.after_state %}
+							<div class="state-label text-left">After</div>
+							<pre>{{ log.after_state | tojson(indent=2) }}</pre>
+							{% endif %}
+						</details>
+						{% else %}
+						<span class="text-muted">—</span>
+						{% endif %}
+					</td>
 				</tr>
 				{% endfor %}
 				{% if logs.total == 0 %}
 				<tr>
-					<td colspan="6" class="text-center text-muted py-4">No action log records match the current filters.</td>
+					<td colspan="7" class="text-center text-muted py-4">No action log records match the current filters.</td>
 				</tr>
 				{% endif %}
 			</tbody>

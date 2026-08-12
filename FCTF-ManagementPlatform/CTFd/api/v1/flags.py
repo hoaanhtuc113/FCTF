@@ -13,7 +13,12 @@ from CTFd.plugins.flags import FLAG_CLASSES, get_flag_class
 from CTFd.schemas.flags import FlagSchema
 from CTFd.utils.decorators import admins_only,admin_or_challenge_writer_only_or_jury
 from CTFd.utils.helpers.models import build_model_filters
-from CTFd.utils.logging.audit_logger import log_audit
+from CTFd.utils.logging.action_logger import (
+    CREATE_FLAG,
+    DELETE_FLAG,
+    UPDATE_FLAG,
+    log_action,
+)
 
 flags_namespace = Namespace("flags", description="Endpoint to retrieve Flags")
 
@@ -133,12 +138,15 @@ class FlagList(Resource):
             if _ch:
                 _challenge_name = _ch.name
 
-        log_audit(
-            action="flag_create",
-            data={
+        # The flag value goes in after_state, which is a database column, and
+        # never into detail. log_action does not echo to stdout the way
+        # log_audit does, so nothing here reaches the log shipper.
+        log_action(
+            CREATE_FLAG,
+            f'Added {response.data.get("type")} flag to challenge "{_challenge_name}"',
+            challenge_id=_cid,
+            after={
                 "flag_id": response.data.get("id"),
-                "challenge_id": _cid,
-                "challenge_name": _challenge_name,
                 "type": response.data.get("type"),
                 "content": response.data.get("content"),
                 "data": response.data.get("data"),
@@ -223,10 +231,11 @@ class Flag(Resource):
         db.session.commit()
         db.session.close()
 
-        log_audit(
-            action="flag_delete",
+        log_action(
+            DELETE_FLAG,
+            f'Deleted {flag_info["type"]} flag from challenge "{_challenge_name}"',
+            challenge_id=flag_info["challenge_id"],
             before=flag_info,
-            data={"flag_id": int(flag_id)},
         )
 
         return {"success": True}
@@ -274,19 +283,17 @@ class Flag(Resource):
             if _ch:
                 _challenge_name = _ch.name
 
-        log_audit(
-            action="flag_update",
+        log_action(
+            UPDATE_FLAG,
+            f'Updated flag #{flag_id} on challenge "{_challenge_name}"',
+            challenge_id=_cid,
             before=before_state,
             after={
+                "flag_id": int(flag_id),
                 "challenge_id": response.data.get("challenge_id"),
                 "type": response.data.get("type"),
                 "content": response.data.get("content"),
                 "data": response.data.get("data"),
-            },
-            data={
-                "flag_id": int(flag_id),
-                "challenge_id": _cid,
-                "challenge_name": _challenge_name,
             },
         )
 

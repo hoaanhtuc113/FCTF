@@ -15,6 +15,7 @@ from CTFd.models import ChallengeStartTracking, ChallengeVersion, Challenges, Co
 from CTFd.plugins.challenges import CHALLENGE_CLASSES, get_chal_class
 from CTFd.utils.dates import ctftime
 from CTFd.utils.decorators import admin_or_challenge_writer_only_or_jury as admins_only
+from CTFd.utils.logging.action_logger import ACTION_TYPE_LABELS, ADMIN_ACTION_TYPES
 
 
 # ─── Jury / Challenge-Writer per-contest scope enforcement ───────────────────
@@ -2786,6 +2787,11 @@ def contest_action_logs(contest_id):
         date_to=date_to,
         users_in_contest=users_in_contest,
         action_types=action_types,
+        # From the module that defines the types, rather than a copy kept in the
+        # template: the copy there had gone stale and rendered anything it did
+        # not know as UNKNOWN.
+        ACTION_TYPE_LABELS=ACTION_TYPE_LABELS,
+        ADMIN_ACTION_TYPES=ADMIN_ACTION_TYPES,
         is_detail=is_detail,
     )
 

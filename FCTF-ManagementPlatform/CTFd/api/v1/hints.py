@@ -14,7 +14,12 @@ from CTFd.schemas.hints import HintSchema
 from CTFd.utils.decorators import admin_or_challenge_writer_only_or_jury, admins_only, during_ctf_time_only
 from CTFd.utils.decorators.visibility import check_challenge_visibility
 from CTFd.utils.helpers.models import build_model_filters
-from CTFd.utils.logging.audit_logger import log_audit
+from CTFd.utils.logging.action_logger import (
+    CREATE_HINT,
+    DELETE_HINT,
+    UPDATE_HINT,
+    log_action,
+)
 from CTFd.utils.user import get_current_user, is_admin
 
 hints_namespace = Namespace("hints", description="Endpoint to retrieve Hints")
@@ -115,12 +120,12 @@ class HintList(Resource):
             if _ch:
                 _challenge_name = _ch.name
 
-        log_audit(
-            action="hint_create",
-            data={
+        log_action(
+            CREATE_HINT,
+            f'Added hint (cost {response.data.get("cost")}) to challenge "{_challenge_name}"',
+            challenge_id=_cid,
+            after={
                 "hint_id": response.data.get("id"),
-                "challenge_id": _cid,
-                "challenge_name": _challenge_name,
                 "type": response.data.get("type"),
                 "content": response.data.get("content"),
                 "cost": response.data.get("cost"),
@@ -278,21 +283,18 @@ class Hint(Resource):
             if _ch:
                 _challenge_name = _ch.name
 
-        log_audit(
-            action="hint_update",
+        log_action(
+            UPDATE_HINT,
+            f'Updated hint #{hint_id} on challenge "{_challenge_name}"',
+            challenge_id=_cid,
             before=before_state,
             after={
+                "hint_id": int(hint_id),
                 "challenge_id": _cid,
-                "challenge_name": _challenge_name,
                 "type": response.data.get("type"),
                 "content": response.data.get("content"),
                 "cost": response.data.get("cost"),
                 "requirements": response.data.get("requirements"),
-            },
-            data={
-                "hint_id": int(hint_id),
-                "challenge_id": _cid,
-                "challenge_name": _challenge_name,
             },
         )
 
@@ -336,14 +338,11 @@ class Hint(Resource):
         db.session.commit()
         db.session.close()
 
-        log_audit(
-            action="hint_delete",
+        log_action(
+            DELETE_HINT,
+            f'Deleted hint #{hint_id} from challenge "{_challenge_name}"',
+            challenge_id=hint_info["challenge_id"],
             before=hint_info,
-            data={
-                "hint_id": int(hint_id),
-                "challenge_id": hint_info["challenge_id"],
-                "challenge_name": _challenge_name,
-            },
         )
 
         return {"success": True}

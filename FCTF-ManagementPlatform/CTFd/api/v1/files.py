@@ -14,6 +14,7 @@ from CTFd.schemas.files import FileSchema
 from CTFd.utils import uploads
 from CTFd.utils.decorators import admin_or_challenge_writer_only_or_jury, admins_only
 from CTFd.utils.helpers.models import build_model_filters
+from CTFd.utils.logging.action_logger import DELETE_FILE, UPLOAD_FILE, log_action
 from CTFd.utils.logging.audit_logger import log_audit
 import CTFd.plugins.upload_zip_files.routes as upload_helper
 from werkzeug.utils import secure_filename
@@ -213,17 +214,26 @@ class FilesList(Resource):
                 _ch = Challenges.query.filter_by(id=_cid).first()
                 if _ch:
                     _challenge_name = _ch.name
-            log_audit(
-                action="file_create",
-                data={
-                    "file_id": item.get("id"),
-                    "type": item.get("type"),
-                    "location": item.get("location"),
-                    "sha1sum": item.get("sha1sum"),
-                    "challenge_id": _cid,
-                    "challenge_name": _challenge_name,
-                },
-            )
+            _file_state = {
+                "file_id": item.get("id"),
+                "type": item.get("type"),
+                "location": item.get("location"),
+                "sha1sum": item.get("sha1sum"),
+                "challenge_id": _cid,
+                "challenge_name": _challenge_name,
+            }
+            # A file attached to a challenge belongs to that challenge's contest;
+            # a page file belongs to no contest at all, so it stays in the global
+            # audit trail where platform-wide actions live.
+            if _cid:
+                log_action(
+                    UPLOAD_FILE,
+                    f'Uploaded file to challenge "{_challenge_name}"',
+                    challenge_id=_cid,
+                    after=_file_state,
+                )
+            else:
+                log_audit(action="file_create", data=_file_state)
 
         return {"success": True, "data": response.data}
 
@@ -281,10 +291,18 @@ class FilesDetail(Resource):
         db.session.commit()
         db.session.close()
 
-        log_audit(
-            action="file_delete",
-            before=file_info,
-            data={"file_id": int(file_id)},
-        )
+        if _cid:
+            log_action(
+                DELETE_FILE,
+                f'Deleted file from challenge "{_challenge_name}"',
+                challenge_id=_cid,
+                before=file_info,
+            )
+        else:
+            log_audit(
+                action="file_delete",
+                before=file_info,
+                data={"file_id": int(file_id)},
+            )
 
         return {"success": True}

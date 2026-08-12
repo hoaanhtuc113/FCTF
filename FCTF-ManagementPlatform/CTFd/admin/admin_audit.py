@@ -29,10 +29,17 @@ from CTFd.utils.decorators import admin_or_jury
 
 # ── Constants ────────────────────────────────────────────────────────────────
 
+# Challenge work - the challenge itself and its flags, hints, tags, topics and
+# files - is not here any more. It goes to action_logs, scoped to the contest
+# whose challenge it touched. What is left is the platform-wide half: things
+# that belong to no single contest, plus contest CRUD itself.
 ALL_ACTIONS = [
-    "challenge_create",
-    "challenge_update",
-    "challenge_delete",
+    "contest_create",
+    "contest_update",
+    "contest_delete",
+    "contest_participant_add",
+    "contest_participant_update",
+    "contest_participant_remove",
     "user_create",
     "user_update",
     "user_delete",
@@ -46,15 +53,6 @@ ALL_ACTIONS = [
     "config_update",
     "config_delete",
     "config_bulk_update",
-    "hint_create",
-    "hint_update",
-    "hint_delete",
-    "flag_create",
-    "flag_update",
-    "flag_delete",
-    "tag_create",
-    "tag_update",
-    "tag_delete",
     "award_create",
     "award_delete",
     "file_create",
@@ -69,9 +67,8 @@ ALL_ACTIONS = [
 ]
 
 TARGET_TYPES = [
-    "challenge", "user", "team", "submission", "config",
-    "hint", "flag", "tag", "award",
-    "file", "comment", "bracket",
+    "contest", "user", "team", "submission", "config",
+    "award", "file", "comment", "bracket",
     "system",
 ]
 
@@ -79,9 +76,12 @@ ACTOR_ROLES = ["admin", "jury", "challenge_writer"]
 
 # Human-readable labels for display
 ACTION_LABELS: dict[str, str] = {
-    "challenge_create": "Create Challenge",
-    "challenge_update": "Update Challenge",
-    "challenge_delete": "Delete Challenge",
+    "contest_create": "Create Contest",
+    "contest_update": "Update Contest",
+    "contest_delete": "Delete Contest",
+    "contest_participant_add": "Add Participant",
+    "contest_participant_update": "Update Participant",
+    "contest_participant_remove": "Remove Participant",
     "user_create": "Create User",
     "user_update": "Update User",
     "user_delete": "Delete User",
@@ -95,15 +95,6 @@ ACTION_LABELS: dict[str, str] = {
     "config_update": "Update Config",
     "config_delete": "Delete Config",
     "config_bulk_update": "Bulk Update Config",
-    "hint_create": "Create Hint",
-    "hint_update": "Update Hint",
-    "hint_delete": "Delete Hint",
-    "flag_create": "Create Flag",
-    "flag_update": "Update Flag",
-    "flag_delete": "Delete Flag",
-    "tag_create": "Create Tag",
-    "tag_update": "Update Tag",
-    "tag_delete": "Delete Tag",
     "award_create": "Create Award",
     "award_delete": "Delete Award",
     "file_create": "Upload File",

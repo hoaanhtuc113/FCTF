@@ -110,12 +110,17 @@ class ActionLogList(Resource):
 
             validated_data = ActionLogCreateSchema.parse_obj(req_data)
 
+            # contest_id comes from the challenge the entry is about. Without it
+            # the row is invisible in the contest view, which filters on exactly
+            # that column - ContestantBE has always set it, and this writer
+            # putting rows in the same table without it was the difference.
             log = ActionLogs(
                 user_id=user.id,
                 date=datetime.now(timezone.utc),
                 type=validated_data.actionType,
                 detail=validated_data.actionDetail,
                 topic_name=topic_name,
+                contest_id=challenge.contest_id if challenge else None,
             )
             db.session.add(log)
             db.session.commit()

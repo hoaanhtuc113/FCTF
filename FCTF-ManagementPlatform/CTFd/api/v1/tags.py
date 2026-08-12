@@ -11,7 +11,12 @@ from CTFd.models import Challenges, Tags, db
 from CTFd.schemas.tags import TagSchema
 from CTFd.utils.decorators import admins_only
 from CTFd.utils.helpers.models import build_model_filters
-from CTFd.utils.logging.audit_logger import log_audit
+from CTFd.utils.logging.action_logger import (
+    CREATE_TAG,
+    DELETE_TAG,
+    UPDATE_TAG,
+    log_action,
+)
 
 tags_namespace = Namespace("tags", description="Endpoint to retrieve Tags")
 
@@ -107,12 +112,12 @@ class TagList(Resource):
             if _ch:
                 _challenge_name = _ch.name
 
-        log_audit(
-            action="tag_create",
-            data={
+        log_action(
+            CREATE_TAG,
+            f'Added tag "{response.data.get("value")}" to challenge "{_challenge_name}"',
+            challenge_id=_cid,
+            after={
                 "tag_id": response.data.get("id"),
-                "challenge_id": _cid,
-                "challenge_name": _challenge_name,
                 "value": response.data.get("value"),
             },
         )
@@ -179,19 +184,15 @@ class Tag(Resource):
             if _ch:
                 _challenge_name = _ch.name
 
-        log_audit(
-            action="tag_update",
+        log_action(
+            UPDATE_TAG,
+            f'Updated tag #{tag_id} on challenge "{_challenge_name}"',
+            challenge_id=_cid,
             before=before_state,
             after={
                 "tag_id": response.data.get("id"),
                 "challenge_id": _cid,
-                "challenge_name": _challenge_name,
                 "value": response.data.get("value"),
-            },
-            data={
-                "tag_id": int(tag_id),
-                "challenge_id": _cid,
-                "challenge_name": _challenge_name,
             },
         )
 
@@ -222,14 +223,11 @@ class Tag(Resource):
         db.session.commit()
         db.session.close()
 
-        log_audit(
-            action="tag_delete",
+        log_action(
+            DELETE_TAG,
+            f'Deleted tag "{tag_info["value"]}" from challenge "{_challenge_name}"',
+            challenge_id=tag_info["challenge_id"],
             before=tag_info,
-            data={
-                "tag_id": int(tag_id),
-                "challenge_id": tag_info["challenge_id"],
-                "challenge_name": _challenge_name,
-            },
         )
 
         return {"success": True}

@@ -6,17 +6,25 @@ from flask import session
 audit_logger = logging.getLogger("audit")
 audit_logger.setLevel(logging.INFO)
 
-# Maps action name → canonical target_type string
+# Maps action name → canonical target_type string.
+#
+# Challenge work and everything hanging off a challenge - flags, hints, tags,
+# topics, challenge files - is recorded in action_logs now, against the contest
+# it belongs to. This table keeps what has no single contest to belong to, plus
+# contest CRUD itself.
 _ACTION_TARGET_TYPES = {
+    "contest_create": "contest",
+    "contest_update": "contest",
+    "contest_delete": "contest",
+    "contest_participant_add": "contest",
+    "contest_participant_update": "contest",
+    "contest_participant_remove": "contest",
     "user_create": "user",
     "user_update": "user",
     "user_delete": "user",
     "team_create": "team",
     "team_update": "team",
     "team_delete": "team",
-    "challenge_create": "challenge",
-    "challenge_update": "challenge",
-    "challenge_delete": "challenge",
     "config_create": "config",
     "config_update": "config",
     "config_delete": "config",
@@ -24,15 +32,6 @@ _ACTION_TARGET_TYPES = {
     "submission_create": "submission",
     "submission_update": "submission",
     "submission_delete": "submission",
-    "hint_create": "hint",
-    "hint_update": "hint",
-    "hint_delete": "hint",
-    "flag_create": "flag",
-    "flag_update": "flag",
-    "flag_delete": "flag",
-    "tag_create": "tag",
-    "tag_update": "tag",
-    "tag_delete": "tag",
     "award_create": "award",
     "award_delete": "award",
     "file_create": "file",
@@ -56,16 +55,10 @@ def _extract_target_id(action: str, data: dict | None) -> int | None:
         return data.get("user_id")
     if action.startswith("team"):
         return data.get("team_id")
-    if action.startswith("challenge"):
-        return data.get("challenge_id")
+    if action.startswith("contest"):
+        return data.get("contest_id")
     if action.startswith("submission"):
         return data.get("id")
-    if action.startswith("hint"):
-        return data.get("hint_id")
-    if action.startswith("flag"):
-        return data.get("flag_id")
-    if action.startswith("tag"):
-        return data.get("tag_id")
     if action.startswith("award"):
         return data.get("award_id")
     if action.startswith("file"):

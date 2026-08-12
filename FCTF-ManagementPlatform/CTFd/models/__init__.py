@@ -534,6 +534,13 @@ class ActionLogs(db.Model):
         db.Integer, db.ForeignKey("contests.id", ondelete="SET NULL"), nullable=True
     )
 
+    # Only the admin half of this table fills these: an organiser editing a
+    # challenge is a change from one state to another, and "what did it look
+    # like before" is the question asked afterwards. Contestant rows (start,
+    # submit, stop) describe an event rather than a change and leave them null.
+    before_state = db.Column(db.JSON, nullable=True)
+    after_state = db.Column(db.JSON, nullable=True)
+
     user = db.relationship(
         "Users",
         foreign_keys=[user_id],
@@ -550,6 +557,8 @@ class ActionLogs(db.Model):
             "detail": self.detail,
             "topic_name": self.topic_name,
             "contest_id": self.contest_id,
+            "before_state": self.before_state,
+            "after_state": self.after_state,
         }
 
     def __repr__(self):

@@ -11,6 +11,7 @@ from CTFd.models import ChallengeTopics, Topics, db
 from CTFd.schemas.topics import ChallengeTopicSchema, TopicSchema
 from CTFd.utils.decorators import admin_or_challenge_writer_only_or_jury, admins_only
 from CTFd.utils.helpers.models import build_model_filters
+from CTFd.utils.logging.action_logger import CREATE_TOPIC, DELETE_TOPIC, log_action
 
 topics_namespace = Namespace("topics", description="Endpoint to retrieve Topics")
 
@@ -117,6 +118,17 @@ class TopicList(Resource):
         response = schema.dump(response.data)
         db.session.close()
 
+        log_action(
+            CREATE_TOPIC,
+            f'Added topic "{topic.value}" to challenge',
+            challenge_id=response.data.get("challenge_id"),
+            after={
+                "topic_id": topic.id,
+                "value": topic.value,
+                "challenge_id": response.data.get("challenge_id"),
+            },
+        )
+
         return {"success": True, "data": response.data}
 
     @admin_or_challenge_writer_only_or_jury
@@ -138,9 +150,25 @@ class TopicList(Resource):
             return {"success": False}, 400
 
         topic = Model.query.filter_by(id=target_id).first_or_404()
+
+        # Read off the row before the delete: afterwards there is nothing left
+        # to say which challenge the topic was detached from.
+        topic_info = {
+            "id": topic.id,
+            "topic_id": topic.topic_id,
+            "challenge_id": topic.challenge_id,
+        }
+
         db.session.delete(topic)
         db.session.commit()
         db.session.close()
+
+        log_action(
+            DELETE_TOPIC,
+            "Removed topic from challenge",
+            challenge_id=topic_info["challenge_id"],
+            before=topic_info,
+        )
 
         return {"success": True}
 
