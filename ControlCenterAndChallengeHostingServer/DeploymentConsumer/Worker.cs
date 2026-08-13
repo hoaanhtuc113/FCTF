@@ -18,6 +18,7 @@ internal class Worker : BackgroundService
 {
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<Worker> _logger;
+    private readonly AppLogger _appLogger;
     private readonly RedisHelper _redisHelper;
     private readonly MultiServiceConnector _multiServiceConnector;
     private readonly WorkerHeartbeat _heartbeat;
@@ -25,12 +26,14 @@ internal class Worker : BackgroundService
     public Worker(
         IServiceScopeFactory scopeFactory,
         ILogger<Worker> logger,
+        AppLogger appLogger,
         RedisHelper redisHelper,
         MultiServiceConnector multiServiceConnector,
         WorkerHeartbeat heartbeat)
     {
         _scopeFactory = scopeFactory;
         _logger = logger;
+        _appLogger = appLogger;
         _redisHelper = redisHelper;
         _multiServiceConnector = multiServiceConnector;
         _heartbeat = heartbeat;
@@ -52,7 +55,7 @@ internal class Worker : BackgroundService
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error in DeploymentConsumer Worker");
+                _appLogger.LogError(ex, data: new { context = "WorkerLoop" });
                 _heartbeat.Ping();
                 _consecutiveFailures++;
 
@@ -203,7 +206,13 @@ internal class Worker : BackgroundService
             catch (Exception ex)
             {
                 await queueService.NackAsync(mess.DeliveryTag);
-                _logger.LogError(ex, "Deploy failed. ChallengeId={ChallengeId}, TeamId={TeamId}, CorrelationId={CorrelationId}", startReq.challengeId, startReq.teamId, mess.CorrelationId);
+                _appLogger.LogError(
+                    ex,
+                    startReq.userId,
+                    startReq.teamId,
+                    new { challengeId = startReq.challengeId },
+                    correlationId: mess.CorrelationId,
+                    contestId: startReq.contestId);
             }
         }
     }
