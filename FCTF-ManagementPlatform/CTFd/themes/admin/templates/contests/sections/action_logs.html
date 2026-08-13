@@ -176,17 +176,15 @@
 					</td>
 					<td class="changes-cell text-center">
 						{% if log.before_state or log.after_state %}
-						<details>
-							<summary>View</summary>
-							{% if log.before_state %}
-							<div class="state-label text-left">Before</div>
-							<pre>{{ log.before_state | tojson(indent=2) }}</pre>
-							{% endif %}
-							{% if log.after_state %}
-							<div class="state-label text-left">After</div>
-							<pre>{{ log.after_state | tojson(indent=2) }}</pre>
-							{% endif %}
-						</details>
+						<button class="clean-btn view-diff-btn"
+							data-toggle="modal"
+							data-target="#diffModal"
+							data-log-id="{{ log.id }}"
+							data-action="{{ ACTION_TYPE_LABELS.get(log.type, log.type) }}"
+							data-before='{{ log.before_state | tojson if log.before_state else "{}" }}'
+							data-after='{{ log.after_state | tojson if log.after_state else "{}" }}'>
+							<i class="bx bx-search-alt-2"></i> View
+						</button>
 						{% else %}
 						<span class="text-muted">—</span>
 						{% endif %}
@@ -229,5 +227,10 @@
 		</nav>
 	</div>
 	{% endif %}
+
 </div>
+{% endblock %}
+
+{% block contest_scripts %}
+{% include "admin/components/change_diff_modal.html" %}
 {% endblock %}
