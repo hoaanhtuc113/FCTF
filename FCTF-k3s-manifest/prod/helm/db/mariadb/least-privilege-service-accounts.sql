@@ -91,8 +91,11 @@ GRANT UPDATE ON ctfd.contests TO 'deployment_listener'@'%';
 GRANT SELECT ON ctfd.challenges TO 'deployment_consumer'@'%';
 -- The dynamic flag reaches the challenge pod through this service, and it now
 -- reads the value here rather than accepting whatever the queue message carried.
--- Read-only and read-only on this table alone: the consumer never issues a flag,
--- that stays with ContestantBE, which is the only account holding INSERT.
+-- Read-only and read-only on these tables alone: the consumer never issues a flag,
+-- that stays with ContestantBE, which is the only account holding INSERT. It needs
+-- flags too, not just dynamic_flag_instances - that's the table it reads first to
+-- tell a dynamic flag from a static or regex one.
+GRANT SELECT ON ctfd.flags TO 'deployment_consumer'@'%';
 GRANT SELECT ON ctfd.dynamic_flag_instances TO 'deployment_consumer'@'%';
 
 FLUSH PRIVILEGES;
