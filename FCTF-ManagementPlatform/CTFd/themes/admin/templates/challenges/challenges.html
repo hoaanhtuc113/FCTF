@@ -267,7 +267,7 @@
                                     <span class="text-muted">—</span>
                                 {% endif %}
                             </td>
-                            <td class="text-center">
+                            <td class="text-center" data-deploy-status-cell data-challenge-id="{{ challenge.id }}">
                                 {% if challenge.deploy_status == 'DEPLOY_SUCCESS' %}
                                 <span class="clean-badge clean-badge-success">DEPLOY_SUCCESS</span>
                                 {% elif challenge.deploy_status == 'DEPLOY_FAILED' %}

@@ -416,6 +416,84 @@ $(() => {
   })();
 });
 
+// The deploy status on a challenge row is whatever was in the database when the
+// page rendered. A build that finishes after that leaves the row saying
+// PENDING_DEPLOY until something writes the new value, and until now the only
+// thing that did was the poll inside the deploy modal - so the list only caught
+// up once an admin opened a challenge and came back.
+//
+// Asking the same endpoint the modal uses settles it from the list itself. It
+// reports the workflow phase and records the result, so one call both refreshes
+// the badge and leaves the row correct for the next visitor.
+const DEPLOY_BADGES = {
+  DEPLOY_SUCCESS: "clean-badge-success",
+  DEPLOY_FAILED: "clean-badge-danger",
+  PENDING_DEPLOY: "clean-badge-primary",
+};
+
+// Bounded on purpose: a build that has not finished within this many rounds is
+// not going to be caught by a page nobody is watching, and an unbounded timer
+// on a list of every challenge is a request every few seconds forever.
+const DEPLOY_POLL_INTERVAL_MS = 5000;
+const DEPLOY_POLL_MAX_ROUNDS = 60;
+
+function paintDeployStatus(cell, status) {
+  const badgeClass = DEPLOY_BADGES[status];
+  if (!badgeClass) return;
+  cell.innerHTML = `<span class="clean-badge ${badgeClass}">${status}</span>`;
+}
+
+function pendingDeployCells() {
+  return Array.from(
+    document.querySelectorAll("[data-deploy-status-cell]"),
+  ).filter((cell) => cell.textContent.trim() === "PENDING_DEPLOY");
+}
+
+function refreshDeployStatus(cell) {
+  const challengeId = cell.dataset.challengeId;
+  if (!challengeId) return Promise.resolve();
+
+  return CTFd.fetch(`/api/v1/challenges/${challengeId}/deploy-duration`, {
+    method: "GET",
+  })
+    .then((response) => response.json())
+    .then((data) => {
+      const phase = data && data.data && data.data.phase;
+      if (phase === "Succeeded") {
+        paintDeployStatus(cell, "DEPLOY_SUCCESS");
+      } else if (phase === "Failed" || phase === "Error") {
+        paintDeployStatus(cell, "DEPLOY_FAILED");
+      }
+    })
+    // A challenge with no workflow recorded answers with an error, which is a
+    // normal answer here and not worth a console the admin has to scroll past.
+    .catch(() => {});
+}
+
+function watchPendingDeploys() {
+  let rounds = 0;
+
+  const tick = () => {
+    const cells = pendingDeployCells();
+    if (cells.length === 0 || rounds >= DEPLOY_POLL_MAX_ROUNDS) return;
+
+    rounds += 1;
+    Promise.all(cells.map(refreshDeployStatus)).then(() => {
+      if (pendingDeployCells().length > 0) {
+        setTimeout(tick, DEPLOY_POLL_INTERVAL_MS);
+      }
+    });
+  };
+
+  tick();
+}
+
+$(() => {
+  if (document.querySelector("[data-deploy-status-cell]")) {
+    watchPendingDeploys();
+  }
+});
+
 // Expose functions to global scope
 window.previewChallenge = previewChallenge;
 window.startSharedChallenge = startSharedChallenge;
