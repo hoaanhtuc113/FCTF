@@ -91,6 +91,41 @@ def get_workflow_key(challenge_id):
     key = f"fctf:admin:workflow:{challenge_id}"
     return key
 
+def deploy_still_in_flight(challenge):
+    """
+    True only when a build workflow for this challenge is demonstrably still
+    running, so a new upload would race it.
+
+    PENDING_DEPLOY on its own does not mean that. It is written when the upload
+    is handed to the deployment service and cleared only when something reports
+    the workflow finished, so any report that goes missing - a callback that
+    never lands, an admin who closes the page the status poll lives on - leaves
+    the challenge wearing it forever, and the upload path used to refuse every
+    later attempt on that basis alone. Asking what the workflow is actually
+    doing is the difference between "a build is in progress" and "a build was
+    started at some point".
+
+    Undeterminable counts as not in flight: with no workflow recorded (the key
+    carries a one day TTL) there is nothing to race, and if the deployment
+    service cannot be reached to answer, the upload that follows fails against
+    that same service anyway - refusing here would only turn an outage into a
+    challenge nobody can re-upload without touching the database.
+    """
+    if challenge.deploy_status != "PENDING_DEPLOY":
+        return False
+
+    workflow_name = get_workflow_name(challenge.id)
+    if not workflow_name:
+        return False
+
+    workflow_phase, _, _ = get_workflow_status(workflow_name)
+    if workflow_phase is None:
+        print(f"[deploy_still_in_flight] No status for workflow {workflow_name}, allowing re-upload")
+        return False
+
+    return workflow_phase in ("Pending", "Running")
+
+
 def get_workflow_name(challenge_id):
     key = get_workflow_key(challenge_id)
     workflow_name = redis_client.get(key)
@@ -366,21 +401,20 @@ def handle_zip_file_upload(challenge, file_path, challenge_id):
         files = {"file": (os.path.basename(file_path), zip_content, "application/zip")}
         payload = {"ChallengeId": challenge_id, "UnixTime": unix_time}
 
-        if challenge.deploy_status is None or challenge.deploy_status != "PENDING_DEPLOY":
-            try:
-                challenge.require_deploy = True
-                challenge.deploy_status = "PENDING_DEPLOY"
-                db.session.commit()
+        if deploy_still_in_flight(challenge):
+            return jsonify({"error": "A build for this challenge is still running"}), 400
 
-                response = requests.post(url, headers={"SecretKey": secret_key}, data=payload, files=files)
-            except Exception as e:
-                print(f"Error uploading file: {e}")
-                return jsonify({"error": "Error uploading file"}), 500
+        try:
+            challenge.require_deploy = True
+            challenge.deploy_status = "PENDING_DEPLOY"
+            db.session.commit()
 
-            return jsonify({"message": "File sent successfully", "challenge_id": challenge_id})
+            response = requests.post(url, headers={"SecretKey": secret_key}, data=payload, files=files)
+        except Exception as e:
+            print(f"Error uploading file: {e}")
+            return jsonify({"error": "Error uploading file"}), 500
 
-        else:
-            return jsonify({"error": "Challenge already pending deploy"}), 400
+        return jsonify({"message": "File sent successfully", "challenge_id": challenge_id})
 
 def discard_failed_upload(challenge, nfs_destination):
     """
@@ -557,7 +591,7 @@ def handle_challenge_upload(challenge, file_path, expose_port=None):
             return {"success": False, "error": "No exposed port found"}, 400
 
         # Update challenge status
-        if challenge.deploy_status is None or challenge.deploy_status != "PENDING_DEPLOY":
+        if not deploy_still_in_flight(challenge):
             try:
                 unix_time = str(int(time.time()))
                 image_tag = f"challenge-{challenge.id}-{safe_folder_name.lower()}-{unix_time}"
@@ -650,7 +684,7 @@ def handle_challenge_upload(challenge, file_path, expose_port=None):
                 db.session.rollback()
                 return {"success": False, "error": f"Error updating challenge status: {str(e)}"}, 500
         else:
-            return {"success": False, "error": "Challenge already pending deploy"}, 400
+            return {"success": False, "error": "A build for this challenge is still running"}, 400
             
     except Exception as e:
         challenge.deploy_status = "FILE_UPLOAD_FAILED"

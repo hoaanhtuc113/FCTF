@@ -53,9 +53,15 @@ namespace ResourceShared
             public const string FAILED = "Failed";
             public const string SUCCEEDED = "Succeeded";
 
+            // These three land in ctfd.challenges.deploy_status, a column the
+            // management platform writes and reads too, so the spelling has to be
+            // the one it knows (CTFd/constants/status_challenge.py). It used to
+            // say DEPLOY_SUCCEEDED here, which matched nothing on that side: the
+            // admin UI fell through both its branches and a built challenge never
+            // showed as deployed.
             public const string PENDING_DEPLOY = "PENDING_DEPLOY";
             public const string DEPLOY_FAILED = "DEPLOY_FAILED";
-            public const string DEPLOY_SUCCEEDED = "DEPLOY_SUCCEEDED";
+            public const string DEPLOY_SUCCESS = "DEPLOY_SUCCESS";
         }
 
         public static class DeploymentReason
@@ -93,16 +99,28 @@ namespace ResourceShared
             Unknown
         }
 
+        /// <summary>
+        /// Maps an Argo workflow phase onto the deploy_status a challenge row carries.
+        /// </summary>
+        /// <remarks>
+        /// Error is a terminal phase like Failed - the workflow is over and nothing
+        /// will report on it again. Letting it fall through to the default returned
+        /// PENDING_DEPLOY, which is the state the uploader refuses to overwrite, so
+        /// one errored build left the challenge unable to accept another upload.
+        /// Only phases that really are still in flight map to PENDING_DEPLOY.
+        /// </remarks>
         public static string GetDeploymentStatus(string status)
         {
             if (string.IsNullOrWhiteSpace(status))
                 return DeploymentStatus.PENDING_DEPLOY;
 
-            if (status.Equals(DeploymentStatus.FAILED, StringComparison.OrdinalIgnoreCase))
+            if (status.Equals(DeploymentStatus.FAILED, StringComparison.OrdinalIgnoreCase)
+                || status.Equals(nameof(WorkflowPhase.Error), StringComparison.OrdinalIgnoreCase)
+                || status.Equals(nameof(WorkflowPhase.Terminated), StringComparison.OrdinalIgnoreCase))
                 return DeploymentStatus.DEPLOY_FAILED;
 
             if (status.Equals(DeploymentStatus.SUCCEEDED, StringComparison.OrdinalIgnoreCase))
-                return DeploymentStatus.DEPLOY_SUCCEEDED;
+                return DeploymentStatus.DEPLOY_SUCCESS;
 
             return DeploymentStatus.PENDING_DEPLOY;
         }

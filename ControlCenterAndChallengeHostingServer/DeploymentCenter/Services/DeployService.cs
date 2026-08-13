@@ -708,18 +708,21 @@ public class DeployService : IDeployService
                 };
             }
 
+            // GetDeploymentStatus already translates the Argo phase, so the checks
+            // below compare against what it returns. They used to compare the
+            // translated value against the raw phase constants ("Succeeded" /
+            // "Failed"), which never matched - challenge.State was left untouched
+            // and a challenge that built fine never became visible on its own.
             var deploystatus = Enums.GetDeploymentStatus(message.Status ?? "");
 
             challenge.DeployStatus = deploystatus;
 
-            if (deploystatus == Enums.DeploymentStatus.SUCCEEDED)
+            if (deploystatus == Enums.DeploymentStatus.DEPLOY_SUCCESS)
             {
                 challenge.State = Enums.ChallengeState.VISIBLE;
-                deploystatus = Enums.DeploymentStatus.DEPLOY_SUCCEEDED;
             }
-            else if (deploystatus == Enums.DeploymentStatus.FAILED)
+            else if (deploystatus == Enums.DeploymentStatus.DEPLOY_FAILED)
             {
-                deploystatus = Enums.DeploymentStatus.DEPLOY_FAILED;
                 challenge.State = Enums.ChallengeState.HIDDEN;
             }
 
