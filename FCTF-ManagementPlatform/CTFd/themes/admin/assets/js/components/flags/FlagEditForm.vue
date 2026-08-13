@@ -20,6 +20,31 @@
           </button>
         </div>
         <div class="modal-body">
+          <div class="edit-keys-select-div">
+            <label for="edit-keys-select" class="control-label">
+              Flag Type
+            </label>
+            <select
+              id="edit-keys-select"
+              class="form-control custom-select"
+              :value="selectedType"
+              @change="selectType($event)"
+            >
+              <option
+                v-for="type in Object.keys(types)"
+                :value="type"
+                :key="type"
+              >
+                {{ type }}
+              </option>
+            </select>
+            <small class="form-text text-muted" v-if="typeChanged">
+              Changing the type replaces how this flag is checked. A dynamic
+              flag is generated per team; a static or regex flag uses the value
+              you enter below.
+            </small>
+          </div>
+          <br />
           <form
             method="POST"
             v-html="editForm"
@@ -46,7 +71,18 @@ export default {
     return {
       flag: {},
       editForm: "",
+      types: {},
+      selectedType: null,
     };
+  },
+  computed: {
+    typeChanged: function () {
+      return (
+        this.selectedType !== null &&
+        this.flag.type !== undefined &&
+        this.selectedType !== this.flag.type
+      );
+    },
   },
   watch: {
     flag_id: {
@@ -59,33 +95,73 @@ export default {
     },
   },
   methods: {
-    loadFlag: function () {
-      CTFd.fetch(`/api/v1/flags/${this.$props.flag_id}`, {
+    loadTypes: function () {
+      if (Object.keys(this.types).length) {
+        return Promise.resolve(this.types);
+      }
+      return CTFd.fetch("/api/v1/flags/types", {
         method: "GET",
       })
         .then((response) => {
           return response.json();
         })
         .then((response) => {
-          this.flag = response.data;
-          let editFormURL = this.flag["templates"]["update"];
-
-          $.get(CTFd.config.urlRoot + editFormURL, (template_data) => {
-            const template = nunjucks.compile(template_data);
-            this.editForm = template.render(this.flag);
-
-            // TODO: See https://github.com/CTFd/CTFd/issues/1779
-            if (this.editForm.includes("<script")) {
-              setTimeout(() => {
-                $(`<div>` + this.editForm + `</div>`)
-                  .find("script")
-                  .each(function () {
-                    eval($(this).html());
-                  });
-              }, 100);
-            }
-          });
+          this.types = response.data;
+          return this.types;
         });
+    },
+    loadFlag: function () {
+      this.loadTypes().then(() => {
+        CTFd.fetch(`/api/v1/flags/${this.$props.flag_id}`, {
+          method: "GET",
+        })
+          .then((response) => {
+            return response.json();
+          })
+          .then((response) => {
+            this.flag = response.data;
+            this.selectedType = this.flag.type;
+            this.renderForm(this.flag.type);
+          });
+      });
+    },
+    selectType: function (event) {
+      this.selectedType = event.target.value;
+      this.renderForm(this.selectedType);
+    },
+    // The form for the selected type, not necessarily the type the flag has
+    // now: an admin who created a challenge with the wrong kind of flag can
+    // switch it here instead of deleting the flag and adding another one.
+    renderForm: function (flagType) {
+      const type = this.types[flagType];
+      // Fall back to the template the flag itself reported, so the form still
+      // renders if the type list could not be fetched.
+      const editFormURL = type
+        ? type["templates"]["update"]
+        : this.flag["templates"]["update"];
+
+      // Content and case sensitivity belong to the type that stored them, so
+      // they are only prefilled while the type is unchanged. Carrying a static
+      // flag's value into the regex form would offer it as a pattern it was
+      // never written to be.
+      const context =
+        flagType === this.flag.type ? this.flag : { id: this.flag.id };
+
+      $.get(CTFd.config.urlRoot + editFormURL, (template_data) => {
+        const template = nunjucks.compile(template_data);
+        this.editForm = template.render(context);
+
+        // TODO: See https://github.com/CTFd/CTFd/issues/1779
+        if (this.editForm.includes("<script")) {
+          setTimeout(() => {
+            $(`<div>` + this.editForm + `</div>`)
+              .find("script")
+              .each(function () {
+                eval($(this).html());
+              });
+          }, 100);
+        }
+      });
     },
     updateFlag: function (event) {
       let form = $(event.target);
