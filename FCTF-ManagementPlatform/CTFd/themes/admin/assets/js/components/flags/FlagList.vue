@@ -51,13 +51,22 @@
 
     <div class="col-md-12">
       <div class="form-group">
+        <!-- A challenge carries one flag. Once it has one there is nothing left
+             to add: switching between a static value and a per-team dynamic one
+             is a change to the flag that is already there, made through the edit
+             form, not a second flag alongside the first. -->
         <button
+          v-if="flags.length === 0"
           id="flag-add-button"
           class="btn btn-primary d-inline-block float-right"
           @click="addFlag()"
         >
           Create Flag
         </button>
+        <small v-else class="text-muted d-inline-block float-right">
+          This challenge has its flag. Use the edit icon to change its value or
+          switch between static, regex and dynamic.
+        </small>
       </div>
     </div>
   </div>
