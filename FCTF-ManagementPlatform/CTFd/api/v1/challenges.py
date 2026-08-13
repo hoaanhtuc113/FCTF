@@ -68,6 +68,7 @@ from CTFd.utils.logging.action_logger import (
     DELETE_CHALLENGE,
     ROLLBACK_CHALLENGE,
     UPDATE_CHALLENGE,
+    UPDATE_CHALLENGE_DEPLOY_STATUS,
     log_action,
 )
 from CTFd.utils.security.signing import serialize
@@ -1501,14 +1502,30 @@ class ChallengeDeploy(Resource):
 
                 print(f"Started at: {started_at_dt}, Now: {now_utc}, Elapsed: {elapsed_time}, Remaining: {remaining_time}")
 
-            if workflow_phase == "Succeeded":
+            if workflow_phase == "Succeeded" and challenge.deploy_status != "DEPLOY_SUCCESS":
+                before_state = {"deploy_status": challenge.deploy_status, "state": challenge.state}
                 challenge.deploy_status = "DEPLOY_SUCCESS"
                 db.session.commit()
+                log_action(
+                    UPDATE_CHALLENGE_DEPLOY_STATUS,
+                    f'Challenge "{challenge.name}" deploy succeeded',
+                    challenge_id=challenge.id,
+                    before=before_state,
+                    after={"deploy_status": challenge.deploy_status, "state": challenge.state},
+                )
 
-            elif workflow_phase in ("Failed", "Error"):
+            elif workflow_phase in ("Failed", "Error") and challenge.deploy_status != "DEPLOY_FAILED":
+                before_state = {"deploy_status": challenge.deploy_status, "state": challenge.state}
                 challenge.deploy_status = "DEPLOY_FAILED"
                 challenge.state = "hidden"
                 db.session.commit()
+                log_action(
+                    UPDATE_CHALLENGE_DEPLOY_STATUS,
+                    f'Challenge "{challenge.name}" deploy failed, hidden automatically',
+                    challenge_id=challenge.id,
+                    before=before_state,
+                    after={"deploy_status": challenge.deploy_status, "state": challenge.state},
+                )
 
             return {
                 "success": True,

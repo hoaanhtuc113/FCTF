@@ -172,11 +172,25 @@ def resync_dynamic_challenges():
                 continue
         
         db.session.commit()
-        
+
         # Clear caches to reflect updated challenge values
         clear_challenges()
         clear_standings()
-        
+
+        if contest_id:
+            from CTFd.utils.logging.action_logger import RESYNC_DYNAMIC_VALUES, log_action
+            log_action(
+                RESYNC_DYNAMIC_VALUES,
+                f"Resynced {resync_count} dynamic challenge value(s)",
+                contest_id=int(contest_id),
+            )
+        else:
+            from CTFd.utils.logging.audit_logger import log_audit
+            log_audit(
+                action="resync_dynamic_values",
+                data={"scope": "all contests", "count": resync_count},
+            )
+
         return jsonify({
             "success": True,
             "message": f"Successfully resynced {resync_count} dynamic challenge(s) in {scope}",

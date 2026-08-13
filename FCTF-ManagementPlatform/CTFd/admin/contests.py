@@ -15,7 +15,21 @@ from CTFd.models import ChallengeStartTracking, ChallengeVersion, Challenges, Co
 from CTFd.plugins.challenges import CHALLENGE_CLASSES, get_chal_class
 from CTFd.utils.dates import ctftime
 from CTFd.utils.decorators import admin_or_challenge_writer_only_or_jury as admins_only
-from CTFd.utils.logging.action_logger import ACTION_TYPE_LABELS, ADMIN_ACTION_TYPES
+from CTFd.utils.logging.action_logger import (
+    ACTION_TYPE_LABELS,
+    ADD_TEAM_MEMBER,
+    ADMIN_ACTION_TYPES,
+    CONTEST_ADD_USER,
+    CONTEST_CREATE_USER,
+    CONTEST_IMPORT_USERS,
+    CONTEST_PAUSE_TOGGLE,
+    CONTEST_REMOVE_USER,
+    CONTEST_UPDATE_USER_ROLE,
+    CREATE_TEAM,
+    DELETE_TEAM,
+    DELETE_TICKETS,
+    log_action,
+)
 
 
 # ─── Jury / Challenge-Writer per-contest scope enforcement ───────────────────
@@ -305,11 +319,20 @@ def contest_dashboard(contest_id):
 @admins_only
 def contest_pause_toggle(contest_id):
     contest = Contests.query.filter_by(id=contest_id).first_or_404()
+    before_state = contest.state
     if contest.state == "paused":
         contest.state = "visible"
     elif contest.state == "visible":
         contest.state = "paused"
     db.session.commit()
+    if contest.state != before_state:
+        log_action(
+            CONTEST_PAUSE_TOGGLE,
+            f'Contest state changed from "{before_state}" to "{contest.state}"',
+            contest_id=contest_id,
+            before={"state": before_state},
+            after={"state": contest.state},
+        )
     return redirect(url_for("admin.contest_dashboard", contest_id=contest_id))
 
 
@@ -1257,7 +1280,7 @@ def contest_remove_user(contest_id, user_id):
     from CTFd.models import Teams, UserTeamMember
 
     Contests.query.filter_by(id=contest_id).first_or_404()
-    Users.query.filter_by(id=user_id).first_or_404()
+    user = Users.query.filter_by(id=user_id).first_or_404()
 
     memberships = (
         db.session.query(UserTeamMember)
@@ -1276,6 +1299,9 @@ def contest_remove_user(contest_id, user_id):
     if not memberships and not cp:
         return {"success": False, "errors": {"user": ["User is not in this contest."]}}, 404
 
+    prior_role = cp.role if cp else None
+
+    removed_team_ids = []
     for membership in memberships:
         team_id = membership.team_id
         db.session.delete(membership)
@@ -1285,12 +1311,24 @@ def contest_remove_user(contest_id, user_id):
         if remaining == 0:
             team = Teams.query.get(team_id)
             if team:
+                removed_team_ids.append(team_id)
                 db.session.delete(team)
 
     if cp:
         db.session.delete(cp)
 
     db.session.commit()
+
+    log_action(
+        CONTEST_REMOVE_USER,
+        f'Removed user "{user.name}" from contest',
+        contest_id=contest_id,
+        before={
+            "user_id": user_id,
+            "role": prior_role,
+            "removed_empty_teams": removed_team_ids,
+        },
+    )
     return {"success": True, "data": {"user_id": user_id}}, 200
 
 
@@ -1299,7 +1337,7 @@ def contest_remove_user(contest_id, user_id):
 def contest_update_user_role(contest_id, user_id):
     """Upsert a user's contest-level role in contest_participants."""
     Contests.query.filter_by(id=contest_id).first_or_404()
-    Users.query.filter_by(id=user_id).first_or_404()
+    user = Users.query.filter_by(id=user_id).first_or_404()
 
     data = request.get_json(force=True) or {}
     role = (data.get("role") or "").strip()
@@ -1313,6 +1351,7 @@ def contest_update_user_role(contest_id, user_id):
     cp = ContestParticipant.query.filter_by(
         contest_id=contest_id, user_id=user_id
     ).first()
+    prior_role = cp.role if cp else None
     if cp is None:
         cp = ContestParticipant(contest_id=contest_id, user_id=user_id, role=role)
         db.session.add(cp)
@@ -1320,6 +1359,14 @@ def contest_update_user_role(contest_id, user_id):
         cp.role = role
 
     db.session.commit()
+
+    log_action(
+        CONTEST_UPDATE_USER_ROLE,
+        f'Changed role of user "{user.name}" from "{prior_role}" to "{role}"',
+        contest_id=contest_id,
+        before={"user_id": user_id, "role": prior_role},
+        after={"user_id": user_id, "role": role},
+    )
     return {"success": True, "data": {"user_id": user_id, "role": role}}, 200
 
 
@@ -1552,6 +1599,15 @@ def contest_add_existing_user(contest_id):
 
     db.session.commit()
 
+    if added:
+        log_action(
+            CONTEST_ADD_USER,
+            f"Added {len(added)} existing user(s) to contest"
+            + (f", {len(failed)} failed" if failed else ""),
+            contest_id=contest_id,
+            after={"added": added, "failed": failed},
+        )
+
     # Preserve the original single-user response shape when the caller used
     # the legacy {"username": ...} form, for backward compatibility.
     if not is_bulk:
@@ -1706,6 +1762,19 @@ def contest_create_user(contest_id):
 
     db.session.commit()
 
+    log_action(
+        CONTEST_CREATE_USER,
+        f'Created new user "{user.name}" and added to contest',
+        contest_id=contest_id,
+        after={
+            "id": user.id,
+            "name": user.name,
+            "email": user.email,
+            "team": resolved_team_name,
+            "role": role,
+        },
+    )
+
     return {
         "success": True,
         "data": {
@@ -1857,6 +1926,13 @@ def contest_import_users(contest_id):
         return {"success": False, "errors": payload}, 400
 
     db.session.commit()
+
+    log_action(
+        CONTEST_IMPORT_USERS,
+        f'Imported user "{payload["name"]}" into contest',
+        contest_id=contest_id,
+        after=payload,
+    )
     return {"success": True, "data": payload}, 201
 
 
@@ -2372,6 +2448,13 @@ def contest_create_team(contest_id):
     db.session.add(team)
     db.session.commit()
 
+    log_action(
+        CREATE_TEAM,
+        f'Created team "{team.name}"',
+        contest_id=contest_id,
+        after={"id": team.id, "name": team.name, "hidden": hidden, "banned": banned},
+    )
+
     kypo_error = None
     try:
         kypo_creds = create_kypo_user(team.id, team.name, contest_id=contest_id)
@@ -2545,6 +2628,8 @@ def contest_delete_team(contest_id, team_id):
     contest = Contests.query.filter_by(id=contest_id).first_or_404()
     team = Teams.query.filter_by(id=team_id, contest_id=contest_id).first_or_404()
 
+    team_snapshot = {"id": team.id, "name": team.name}
+
     kypo_account = KypoTeamAccount.query.filter_by(team_id=team.id).first()
     if kypo_account:
         try:
@@ -2566,9 +2651,17 @@ def contest_delete_team(contest_id, team_id):
     else:
         # In team mode, just disband the team; the members keep their
         # ContestParticipant records and can be assigned to another team later.
+        member_ids = [m.id for m in team.members]
         db.session.delete(team)
 
     db.session.commit()
+
+    log_action(
+        DELETE_TEAM,
+        f'Deleted team "{team_snapshot["name"]}"',
+        contest_id=contest_id,
+        before={**team_snapshot, "member_ids": member_ids},
+    )
     return {"success": True}, 200
 
 
@@ -2643,6 +2736,13 @@ def contest_add_team_member(contest_id, team_id):
     team.members.append(user)
 
     db.session.commit()
+
+    log_action(
+        ADD_TEAM_MEMBER,
+        f'Added user "{user.name}" to team "{team.name}"',
+        contest_id=contest_id,
+        after={"team_id": team.id, "team_name": team.name, "user_id": user_id, "user_name": user.name},
+    )
     return {"success": True, "data": {"user_id": user_id}}, 200
 
 
@@ -2886,15 +2986,23 @@ def contest_delete_tickets(contest_id):
         return redirect(url_for("admin.contest_tickets", contest_id=contest_id))
 
     deleted_count = 0
+    deleted_ids = []
     for tid in ticket_ids:
         ticket = Tickets.query.filter_by(id=int(tid), contest_id=contest_id).first()
         if ticket:
+            deleted_ids.append(ticket.id)
             db.session.delete(ticket)
             deleted_count += 1
 
     db.session.commit()
 
     if deleted_count > 0:
+        log_action(
+            DELETE_TICKETS,
+            f"Deleted {deleted_count} ticket(s)",
+            contest_id=contest_id,
+            before={"ticket_ids": deleted_ids},
+        )
         flash(f"Successfully deleted {deleted_count} ticket(s)", "success")
     else:
         flash("No tickets were deleted", "warning")

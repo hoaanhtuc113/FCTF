@@ -33,6 +33,12 @@ from CTFd.utils.decorators.visibility import (
 from CTFd.utils.aes_helper import encrypt_kypo_password
 from CTFd.utils.helpers.models import build_model_filters
 from CTFd.utils.keycloak_service import create_kypo_user
+from CTFd.utils.logging.action_logger import (
+    ADD_TEAM_MEMBER,
+    CREATE_TEAM_KYPO,
+    REMOVE_TEAM_MEMBER,
+    log_action,
+)
 from CTFd.utils.logging.audit_logger import log_audit
 from CTFd.utils.user import get_current_team, get_current_user_type, is_admin
 
@@ -415,6 +421,13 @@ class TeamKypo(Resource):
             db.session.close()
             return {"success": False, "message": str(exc)}, 500
 
+        log_action(
+            CREATE_TEAM_KYPO,
+            f'Created KYPO account for team "{team.name}"',
+            contest_id=team.contest_id,
+            after={"team_id": team.id, "kypo_user_id": kypo_creds["kypo_user_id"], "kypo_username": kypo_creds["kypo_username"]},
+        )
+
         created_at_str = kypo_account.created_at.strftime("%Y-%m-%d %H:%M:%S") if kypo_account.created_at else ""
         db.session.close()
         return {
@@ -686,6 +699,13 @@ class TeamMembers(Resource):
 
             team.members.append(user)
             db.session.commit()
+
+            log_action(
+                ADD_TEAM_MEMBER,
+                f'Added user "{user.name}" to team "{team.name}"',
+                contest_id=team.contest_id,
+                after={"team_id": team.id, "team_name": team.name, "user_id": user.id, "user_name": user.name},
+            )
         else:
             invite_code = team.get_invite_code()
             response = {"code": invite_code}
@@ -715,11 +735,27 @@ class TeamMembers(Resource):
             team.members.remove(user)
 
             # Remove information that links the user to this specific team
-            Submissions.query.filter_by(user_id=user.id, team_id=team.id).delete()
-            Awards.query.filter_by(user_id=user.id, team_id=team.id).delete()
-            Unlocks.query.filter_by(user_id=user.id, team_id=team.id).delete()
+            submissions_removed = Submissions.query.filter_by(user_id=user.id, team_id=team.id).delete()
+            awards_removed = Awards.query.filter_by(user_id=user.id, team_id=team.id).delete()
+            unlocks_removed = Unlocks.query.filter_by(user_id=user.id, team_id=team.id).delete()
 
             db.session.commit()
+
+            log_action(
+                REMOVE_TEAM_MEMBER,
+                f'Removed user "{user.name}" from team "{team.name}" '
+                f'(submissions={submissions_removed}, awards={awards_removed}, unlocks={unlocks_removed})',
+                contest_id=team.contest_id,
+                before={
+                    "team_id": team.id,
+                    "team_name": team.name,
+                    "user_id": user.id,
+                    "user_name": user.name,
+                    "submissions_removed": submissions_removed,
+                    "awards_removed": awards_removed,
+                    "unlocks_removed": unlocks_removed,
+                },
+            )
         else:
             return (
                 {"success": False, "errors": {"id": ["User is not part of this team"]}},

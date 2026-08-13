@@ -3,6 +3,11 @@ from flask_restx import Namespace, Resource
 
 from CTFd.models import Challenges, Contests, db
 from CTFd.utils.decorators import admin_or_challenge_writer_only_or_jury, admins_only
+from CTFd.utils.logging.action_logger import (
+    DELETE_CHALLENGE,
+    UPDATE_CHALLENGE_VISIBILITY,
+    log_action,
+)
 
 contest_challenges_namespace = Namespace(
     "contest_challenges",
@@ -86,13 +91,26 @@ class ContestChallengeList(Resource):
         Contests.query.filter_by(id=contest_id).first_or_404()
 
         updated_count = 0
+        changed = []
         for cid in challenge_ids:
             chall = Challenges.query.filter_by(id=cid, contest_id=contest_id).first()
-            if chall:
+            if chall and chall.state != state:
+                changed.append({"id": chall.id, "name": chall.name, "from": chall.state, "to": state})
                 chall.state = state
+                updated_count += 1
+            elif chall:
                 updated_count += 1
 
         db.session.commit()
+
+        if changed:
+            log_action(
+                UPDATE_CHALLENGE_VISIBILITY,
+                f'Set {len(changed)} challenge(s) to state "{state}"',
+                contest_id=contest_id,
+                before={"challenges": [{"id": c["id"], "name": c["name"], "state": c["from"]} for c in changed]},
+                after={"state": state, "challenge_ids": [c["id"] for c in changed]},
+            )
 
         return {
             "success": True,
@@ -107,6 +125,19 @@ class ContestChallengeDetail(Resource):
     def delete(self, challenge_id):
         """Delete a challenge from a contest."""
         challenge = Challenges.query.filter_by(id=challenge_id).first_or_404()
+        challenge_info = {
+            "id": challenge.id,
+            "name": challenge.name,
+            "category": challenge.category,
+            "contest_id": challenge.contest_id,
+        }
         db.session.delete(challenge)
         db.session.commit()
+
+        log_action(
+            DELETE_CHALLENGE,
+            f'Deleted challenge "{challenge_info["name"]}"',
+            contest_id=challenge_info["contest_id"],
+            before=challenge_info,
+        )
         return {"success": True, "data": {}}

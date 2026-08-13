@@ -41,6 +41,7 @@ from CTFd.constants.envvars import DEPLOYMENT_SERVICE_API, PRIVATE_KEY
 from CTFd.utils.connector.multiservice_connector import create_secret_key
 from CTFd.plugins import bypass_csrf_protection
 from CTFd.constants import status_challenge
+from CTFd.utils.logging.action_logger import UPLOAD_FILE, log_action
 
 
 
@@ -383,6 +384,13 @@ def submit_upload_file(challenge_id):
                     url_for("admin.challenges_detail", challenge_id=challenge.id)
                 )
     db.session.commit()
+
+    log_action(
+        UPLOAD_FILE,
+        f'Uploaded file(s) to challenge "{challenge.name}" (require_deploy={require_deploy})',
+        challenge_id=challenge.id,
+    )
+
     flash("Challenge deployment updated successfully!", "success")
     return redirect(url_for("admin.challenges_detail", challenge_id=challenge.id))
 
