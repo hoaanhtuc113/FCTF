@@ -283,6 +283,11 @@ namespace ResourceShared.Utils
         /// flag type the challenge carries. The pod gets its flag from here rather
         /// than from a value baked into the image, so the flag the platform accepts
         /// and the flag the container serves always come from the same row.
+        ///
+        /// A dynamic flag is generated for the team on its first deploy and reused
+        /// after that. Static flags are taken as they are - the only one if the
+        /// challenge has one, otherwise one drawn at random from the set.
+        ///
         /// Returns null when there is nothing to inject, and the caller then omits
         /// CHALLENGE_FLAG so the workflow template's empty default applies.
         /// </summary>
@@ -315,10 +320,22 @@ namespace ResourceShared.Utils
 
             // Regex flags are deliberately not injected: the stored content is a
             // pattern, not a flag, so there is no single value to give the pod.
-            var staticFlag = flags.FirstOrDefault(
-                f => string.Equals(f.Type, "static", StringComparison.OrdinalIgnoreCase));
+            var staticFlags = flags
+                .Where(f => string.Equals(f.Type, "static", StringComparison.OrdinalIgnoreCase)
+                         && !string.IsNullOrEmpty(f.Content))
+                .ToList();
 
-            return string.IsNullOrEmpty(staticFlag?.Content) ? null : staticFlag.Content;
+            if (staticFlags.Count == 0)
+                return null;
+
+            // One flag is simply that flag. With several, the pod gets one of
+            // them drawn at random - grading matches a submission against every
+            // flag the challenge has, so each is a complete answer on its own and
+            // which one a given deployment serves does not change who solves it.
+            if (staticFlags.Count == 1)
+                return staticFlags[0].Content;
+
+            return staticFlags[Random.Shared.Next(staticFlags.Count)].Content;
         }
 
         private static async Task<string> GetOrCreateDynamicFlagValueAsync(
@@ -389,21 +406,33 @@ namespace ResourceShared.Utils
         public static async Task<AttemptDTO> Attempt(AppDbContext db, Challenge challenge, ChallengeAttemptRequest request, int? teamId = null)
         {
             var flags = await db.Flags.Where(f => f.ChallengeId == challenge.Id).ToListAsync();
+
+            // Which store holds the right answer is decided by the challenge's
+            // current flag mode, not flag by flag. A challenge that carries a
+            // dynamic flag is graded against dynamic_flag_instances alone: the
+            // team's own generated value is the answer, and any static row left
+            // over from before the switch is a stale value that must not still
+            // open the challenge. flags.content is only consulted in the other
+            // direction - after a switch back to static it holds the prefix the
+            // generator used, which is not an answer to anything.
+            var dynamicFlag = flags.FirstOrDefault(
+                f => f.Type?.Equals("dynamic", StringComparison.OrdinalIgnoreCase) == true);
+
+            if (dynamicFlag != null)
+            {
+                var matched = await CompareDynamic(db, dynamicFlag, request.Submission, teamId);
+                return new AttemptDTO
+                {
+                    status = matched,
+                    message = matched ? "Correct" : "Incorrect",
+                };
+            }
+
             foreach (var flag in flags)
             {
                 try
                 {
-                    bool correct;
-                    if (flag.Type?.Equals("dynamic", StringComparison.OrdinalIgnoreCase) == true)
-                    {
-                        correct = await CompareDynamic(db, flag, request.Submission, teamId);
-                    }
-                    else
-                    {
-                        correct = Compare(flag, request.Submission);
-                    }
-
-                    if (correct)
+                    if (Compare(flag, request.Submission))
                     {
                         return new AttemptDTO { status = true, message = "Correct" };
                     }

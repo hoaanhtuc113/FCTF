@@ -232,22 +232,30 @@ class BaseChallenge(object):
         """
         data = request.form or request.get_json()
         submission = data["submission"].strip()
-        flags = Flags.query.filter_by(challenge_id=challenge.id).all()
+        flags_list = list(Flags.query.filter_by(challenge_id=challenge.id).all())
 
-        team_id = None
-        flags_list = list(flags)
-        if any(f.type == "dynamic" for f in flags_list):
+        # Which store holds the right answer is decided by the challenge's
+        # current flag mode, not flag by flag. A challenge that carries a dynamic
+        # flag is graded against dynamic_flag_instances alone: the team's own
+        # generated value is the answer, and any static row left over from before
+        # the switch is a stale value that must not still open the challenge.
+        # flags.content is only consulted in the other direction - after a switch
+        # back to static it holds the prefix the generator used, which is not an
+        # answer to anything.
+        dynamic_flag = next((f for f in flags_list if f.type == "dynamic"), None)
+
+        if dynamic_flag is not None:
+            from CTFd.plugins.flags import CTFdDynamicFlag
+
             team_id = cls._get_team_id(challenge.contest_id)
+            if CTFdDynamicFlag.compare(dynamic_flag, submission, team_id=team_id):
+                return True, "Correct"
+            return False, "Incorrect"
 
         for flag in flags_list:
             try:
-                if flag.type == "dynamic":
-                    from CTFd.plugins.flags import CTFdDynamicFlag
-                    if CTFdDynamicFlag.compare(flag, submission, team_id=team_id):
-                        return True, "Correct"
-                else:
-                    if get_flag_class(flag.type).compare(flag, submission):
-                        return True, "Correct"
+                if get_flag_class(flag.type).compare(flag, submission):
+                    return True, "Correct"
             except FlagException as e:
                 return False, str(e)
         return False, "Incorrect"

@@ -31,7 +31,7 @@
             >
               <option>--</option>
               <option
-                v-for="type in Object.keys(types)"
+                v-for="type in availableTypes"
                 :value="type"
                 :key="type"
               >
@@ -68,6 +68,15 @@ export default {
   name: "FlagCreationForm",
   props: {
     challenge_id: Number,
+    // False once the challenge has a flag. A dynamic flag is generated per team
+    // and is the only value a pod can be handed, so it replaces what is there
+    // rather than joining it - that switch belongs to the edit form. Adding one
+    // next to static flags would leave those still accepted by grading but
+    // never served to anyone.
+    allow_dynamic: {
+      type: Boolean,
+      default: true,
+    },
   },
   data: function () {
     return {
@@ -75,6 +84,13 @@ export default {
       selectedType: null,
       createForm: "",
     };
+  },
+  computed: {
+    availableTypes: function () {
+      return Object.keys(this.types).filter(
+        (type) => this.$props.allow_dynamic || type !== "dynamic"
+      );
+    },
   },
   methods: {
     selectType: function (event) {

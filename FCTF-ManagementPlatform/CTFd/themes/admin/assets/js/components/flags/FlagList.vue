@@ -4,6 +4,7 @@
       <FlagCreationForm
         ref="FlagCreationForm"
         :challenge_id="challenge_id"
+        :allow_dynamic="flags.length === 0"
         @refreshFlags="refreshFlags"
       />
     </div>
@@ -51,12 +52,14 @@
 
     <div class="col-md-12">
       <div class="form-group">
-        <!-- A challenge carries one flag. Once it has one there is nothing left
-             to add: switching between a static value and a per-team dynamic one
-             is a change to the flag that is already there, made through the edit
-             form, not a second flag alongside the first. -->
+        <!-- Static and regex flags may be added freely: grading accepts any of
+             them, and a deployment picks one at random to hand its pod, so a
+             second value is a second way to solve rather than a contradiction.
+             A dynamic flag is the exception - it is generated per team at
+             deploy time and is the only thing the pod can receive, so nothing
+             sits alongside it. Switch it through the edit form instead. -->
         <button
-          v-if="flags.length === 0"
+          v-if="!hasDynamicFlag"
           id="flag-add-button"
           class="btn btn-primary d-inline-block float-right"
           @click="addFlag()"
@@ -64,8 +67,8 @@
           Create Flag
         </button>
         <small v-else class="text-muted d-inline-block float-right">
-          This challenge has its flag. Use the edit icon to change its value or
-          switch between static, regex and dynamic.
+          This challenge generates a flag per team. Use the edit icon to change
+          its value or switch between static, regex and dynamic.
         </small>
       </div>
     </div>
@@ -91,6 +94,11 @@ export default {
       flags: [],
       editing_flag_id: null,
     };
+  },
+  computed: {
+    hasDynamicFlag: function () {
+      return this.flags.some((flag) => flag.type === "dynamic");
+    },
   },
   methods: {
     loadFlags: function () {

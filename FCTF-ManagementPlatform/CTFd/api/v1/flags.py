@@ -167,9 +167,11 @@ class FlagTypes(Resource):
             return {"success": True, "data": response}
         else:
             response = {}
+            # Every registered type is offered, dynamic included. It used to be
+            # filtered out here, which left the type selectors in the create and
+            # edit modals showing static and regex only - a per-team flag could
+            # be asked for at challenge creation but never chosen afterwards.
             for class_id in FLAG_CLASSES:
-                if class_id == "dynamic":
-                    continue
                 flag_class = FLAG_CLASSES.get(class_id)
                 response[class_id] = {
                     "name": flag_class.name,
