@@ -1664,3 +1664,76 @@ class KypoChallengeConfig(db.Model):
     created_at         = db.Column(db.DateTime, default=datetime.datetime.utcnow)
 
     challenge = db.relationship("Challenges", foreign_keys=[challenge_id], lazy="select")
+
+
+class Notifications(db.Model):
+    __tablename__ = "notifications"
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    contest_id = db.Column(
+        db.Integer, db.ForeignKey("contests.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    author_id = db.Column(
+        db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    title = db.Column(db.String(255), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    # Who the admin targeted this notification at: "user" or "team"
+    target_type = db.Column(db.String(20), nullable=False, default="user")
+    created_at = db.Column(
+        db.DateTime, default=datetime.datetime.utcnow, nullable=False, index=True
+    )
+
+    contest = db.relationship("Contests", foreign_keys=[contest_id], lazy="select")
+    author = db.relationship("Users", foreign_keys=[author_id], lazy="select")
+    recipients = db.relationship(
+        "NotificationRecipients",
+        backref="notification",
+        lazy="select",
+        cascade="all, delete-orphan",
+    )
+    reads = db.relationship(
+        "NotificationReads",
+        backref="notification",
+        lazy="select",
+        cascade="all, delete-orphan",
+    )
+
+    def __repr__(self):
+        return "<Notification %r>" % self.title
+
+
+class NotificationRecipients(db.Model):
+    __tablename__ = "notification_recipients"
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    notification_id = db.Column(
+        db.Integer, db.ForeignKey("notifications.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    user_id = db.Column(
+        db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    team_id = db.Column(
+        db.Integer, db.ForeignKey("teams.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+
+    user = db.relationship("Users", foreign_keys=[user_id], lazy="select")
+    team = db.relationship("Teams", foreign_keys=[team_id], lazy="select")
+
+
+class NotificationReads(db.Model):
+    __tablename__ = "notification_reads"
+    __table_args__ = (
+        db.UniqueConstraint("notification_id", "user_id", name="uq_notification_reads_notification_user"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    notification_id = db.Column(
+        db.Integer, db.ForeignKey("notifications.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    user_id = db.Column(
+        db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    read_at = db.Column(db.DateTime, default=datetime.datetime.utcnow, nullable=False)
+
+    user = db.relationship("Users", foreign_keys=[user_id], lazy="select")
