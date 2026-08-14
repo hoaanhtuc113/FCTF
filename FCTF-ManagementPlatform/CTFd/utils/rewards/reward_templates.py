@@ -186,12 +186,18 @@ REWARD_TEMPLATES = {
 class RewardQueryBuilder:
     """Helper class to build reward queries from templates with custom parameters."""
     
-    def __init__(self, template: RewardTemplate):
+    def __init__(self, template: RewardTemplate, contest_id: Optional[int] = None):
         self.template = template
         self.config = template.query_config.copy()
         self.filters = []
         self.limit = 50
-        
+        self.contest_id = contest_id
+
+    def set_contest(self, contest_id: Optional[int]) -> 'RewardQueryBuilder':
+        """Scope the query to a single contest."""
+        self.contest_id = None if contest_id is None else int(contest_id)
+        return self
+
     def set_limit(self, limit: int) -> 'RewardQueryBuilder':
         """Set the maximum number of results."""
         self.limit = limit
@@ -307,6 +313,7 @@ class RewardQueryBuilder:
             "filters": self.filters,
             "limit": self.limit,
             "order": self.config.get("order", {}),
+            "contest_id": self.contest_id,
         }
 
 
@@ -328,12 +335,19 @@ def get_template_categories() -> List[str]:
     return sorted(set(t.category for t in REWARD_TEMPLATES.values() if t is not None))
 
 
-def build_query_from_template(template_id: str, params: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+def build_query_from_template(
+    template_id: str,
+    params: Dict[str, Any],
+    contest_id: Optional[int] = None,
+) -> Optional[Dict[str, Any]]:
     """
     Build a query from a template with custom parameters.
-    
+
     Args:
         template_id: The template ID
+        contest_id: Contest the query is scoped to. Passed separately from
+            params because it is decided by the server from the caller's
+            contest access, never by whatever the client put in params.
         params: Custom parameters for the template
             - limit: Maximum number of results (default: 50)
             - entity_type: team/user/solve (overrides template default if applicable)
@@ -355,8 +369,8 @@ def build_query_from_template(template_id: str, params: Dict[str, Any]) -> Optio
     if not template:
         return None
     
-    builder = RewardQueryBuilder(template)
-    
+    builder = RewardQueryBuilder(template, contest_id=contest_id)
+
     # Apply common parameters
     if "limit" in params:
         builder.set_limit(params["limit"])

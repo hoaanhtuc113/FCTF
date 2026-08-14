@@ -33,19 +33,22 @@ class MultiCriteriaQuery:
 
 class MultiCriteriaExecutor:
     """Execute multi-criteria reward queries."""
-    
-    def __init__(self, query: MultiCriteriaQuery):
+
+    def __init__(self, query: MultiCriteriaQuery, contest_id: Optional[int] = None):
         self.query = query
+        self.contest_id = contest_id
         self.rule_results = []
-    
+
     def execute(self) -> Dict[str, Any]:
         """Execute all criteria and combine results."""
         # Execute each rule
         for rule in self.query.rules:
-            query_config = build_query_from_template(rule.template_id, rule.params)
+            query_config = build_query_from_template(
+                rule.template_id, rule.params, contest_id=self.contest_id
+            )
             if not query_config:
                 raise ValueError(f"Template {rule.template_id} not found")
-            
+
             spec = validate_query_spec(query_config)
             result = execute_query(spec)
             self.rule_results.append({

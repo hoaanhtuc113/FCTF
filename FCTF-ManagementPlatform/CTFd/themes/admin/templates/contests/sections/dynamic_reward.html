@@ -149,10 +149,10 @@
   async function loadTemplates() {
     try { const r=await apiFetch('/admin/rewards/templates'); const d=await r.json(); if(d.success){allTemplates=d.templates;renderTemplateCards();} } catch(e){showError('Failed to load templates');}
   }
-  async function loadCategories() { try{const r=await apiFetch('/admin/rewards/categories');const d=await r.json();if(d.success)categoriesCache=d.categories;}catch(e){} }
-  async function loadChallenges() { try{const r=await apiFetch('/admin/rewards/challenges');const d=await r.json();if(d.success)challengesCache=d.challenges;}catch(e){} }
-  async function loadTeams() { try{const r=await apiFetch('/admin/rewards/teams');const d=await r.json();if(d.success)teamsCache=d.teams;}catch(e){} }
-  async function loadBrackets() { try{const r=await apiFetch('/admin/rewards/brackets');const d=await r.json();if(d.success)bracketsCache=d.brackets;}catch(e){} }
+  async function loadCategories() { try{const r=await apiFetch('/admin/rewards/categories?contest_id='+CONTEST_ID);const d=await r.json();if(d.success)categoriesCache=d.categories;}catch(e){} }
+  async function loadChallenges() { try{const r=await apiFetch('/admin/rewards/challenges?contest_id='+CONTEST_ID);const d=await r.json();if(d.success)challengesCache=d.challenges;}catch(e){} }
+  async function loadTeams() { try{const r=await apiFetch('/admin/rewards/teams?contest_id='+CONTEST_ID);const d=await r.json();if(d.success)teamsCache=d.teams;}catch(e){} }
+  async function loadBrackets() { try{const r=await apiFetch('/admin/rewards/brackets?contest_id='+CONTEST_ID);const d=await r.json();if(d.success)bracketsCache=d.brackets;}catch(e){} }
 
   function renderTemplateCards() {
     const container=document.getElementById('template-cards');

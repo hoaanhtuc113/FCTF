@@ -132,8 +132,23 @@
   </div>
 
   <div class="container">
-    <!-- Template Selector -->
+    <!-- Contest Selector — every query below is scoped to whichever contest
+         is picked here; nothing loads until one is. -->
     <div class="section-card">
+      <div class="section-title"><i class="fas fa-flag"></i> Contest</div>
+      <select id="contest-select" class="form-control" style="max-width: 420px;">
+        <option value="">— Select a contest —</option>
+        {% for c in contests %}
+        <option value="{{ c.id }}">{{ c.name }}</option>
+        {% endfor %}
+      </select>
+      {% if not contests %}
+      <small class="text-muted d-block mt-2">You don't have jury access to any contest.</small>
+      {% endif %}
+    </div>
+
+    <!-- Template Selector -->
+    <div class="section-card" id="template-card" style="display: none;">
       <div class="section-title"><i class="fas fa-th-large"></i> Choose Template</div>
       <div class="row" id="template-cards">
         <div class="col-12 text-center py-3">
@@ -233,6 +248,7 @@
 
 <script>
   // ===== State =====
+  let CONTEST_ID = null;
   let allTemplates = [];
   let selectedTemplate = null;
   let currentResults = null;
@@ -308,7 +324,13 @@
 
   // ===== Init =====
   async function initPage() {
-    await Promise.all([loadTemplates(), loadCategories(), loadChallenges(), loadTeams(), loadBrackets()]);
+    await loadTemplates();
+  }
+
+  // Runs once a contest is picked — everything before this point (templates)
+  // is contest-agnostic; everything from here on is scoped to CONTEST_ID.
+  async function initContestScopedData() {
+    await Promise.all([loadCategories(), loadChallenges(), loadTeams(), loadBrackets()]);
   }
 
   async function loadTemplates() {
@@ -326,7 +348,7 @@
 
   async function loadCategories() {
     try {
-      const res = await apiFetch("/admin/rewards/categories");
+      const res = await apiFetch("/admin/rewards/categories?contest_id=" + CONTEST_ID);
       const data = await res.json();
       if (data.success) categoriesCache = data.categories;
     } catch (err) { /* ignore */ }
@@ -334,7 +356,7 @@
 
   async function loadChallenges() {
     try {
-      const res = await apiFetch("/admin/rewards/challenges");
+      const res = await apiFetch("/admin/rewards/challenges?contest_id=" + CONTEST_ID);
       const data = await res.json();
       if (data.success) challengesCache = data.challenges;
     } catch (err) { /* ignore */ }
@@ -342,7 +364,7 @@
 
   async function loadTeams() {
     try {
-      const res = await apiFetch("/admin/rewards/teams");
+      const res = await apiFetch("/admin/rewards/teams?contest_id=" + CONTEST_ID);
       const data = await res.json();
       if (data.success) teamsCache = data.teams;
     } catch (err) { /* ignore */ }
@@ -350,7 +372,7 @@
 
   async function loadBrackets() {
     try {
-      const res = await apiFetch("/admin/rewards/brackets");
+      const res = await apiFetch("/admin/rewards/brackets?contest_id=" + CONTEST_ID);
       const data = await res.json();
       if (data.success) bracketsCache = data.brackets;
     } catch (err) { /* ignore */ }
@@ -578,7 +600,7 @@
 
       const res = await apiFetch("/admin/rewards/preview", {
         method: "POST",
-        body: JSON.stringify({ template_id: selectedTemplate.id, params })
+        body: JSON.stringify({ template_id: selectedTemplate.id, params, contest_id: CONTEST_ID })
       });
       const data = await res.json();
 
@@ -794,7 +816,8 @@
         body: JSON.stringify({
           template_id: tid,
           entity_type: 'team',
-          entity_id: entityId
+          entity_id: entityId,
+          contest_id: CONTEST_ID
         })
       });
       const data = await res.json();
@@ -886,6 +909,32 @@
   document.getElementById("preview-btn").addEventListener("click", previewResults);
   document.getElementById("reset-btn").addEventListener("click", resetForm);
   document.getElementById("export-csv-btn").addEventListener("click", exportToCSV);
+
+  document.getElementById("contest-select").addEventListener("change", async function () {
+    const val = this.value;
+    const templateCard = document.getElementById("template-card");
+    const paramsCard = document.getElementById("params-card");
+    const resultsCard = document.getElementById("results-card");
+
+    // Switching (or clearing) the contest invalidates whatever was picked
+    // under the old one — a stale team/challenge id from another contest
+    // must not ride along into the next query.
+    selectedTemplate = null;
+    currentResults = null;
+    categoriesCache = []; challengesCache = []; teamsCache = []; bracketsCache = [];
+    paramsCard.style.display = "none";
+    resultsCard.style.display = "none";
+
+    if (!val) {
+      CONTEST_ID = null;
+      templateCard.style.display = "none";
+      return;
+    }
+
+    CONTEST_ID = Number(val);
+    templateCard.style.display = "";
+    await initContestScopedData();
+  });
 
   document.addEventListener('DOMContentLoaded', function () {
     initPage();

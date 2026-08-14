@@ -3,7 +3,7 @@ import re
 from flask import jsonify, request, render_template
 
 from CTFd.admin import admin
-from CTFd.models import Brackets, Challenges, Teams, db
+from CTFd.models import Brackets, Challenges, ContestParticipant, Contests, Teams, db
 from CTFd.plugins import bypass_csrf_protection
 from CTFd.utils.decorators import admin_or_jury
 from CTFd.utils.rewards.query_engine import QuerySpecError, execute_query, validate_query_spec
@@ -21,15 +21,65 @@ from CTFd.utils.rewards.multi_criteria import (
 )
 
 
+class ContestScopeError(Exception):
+    """Raised when the request does not name a contest the caller may read."""
+
+    def __init__(self, message, status=400):
+        super().__init__(message)
+        self.message = message
+        self.status = status
+
+
+def _require_contest_scope():
+    """Resolve the contest a reward request runs against, and authorize it.
+
+    These endpoints take contest_id from the request rather than the URL, so
+    the /admin/contests/<id> path guards never see them. That left contest_id
+    as an unchecked client-supplied number: omit it and the query ran across
+    every contest on the platform, set someone else's and it ran against
+    theirs. Both are refused here.
+
+    Authorization reuses is_jury_for_contest — same rule the rest of the
+    admin already scopes jury access by (platform admin/legacy jury bypass,
+    everyone else needs a jury ContestParticipant row for this contest_id) —
+    rather than a second, easily-diverging copy of it.
+    """
+    from CTFd.utils.user import is_jury_for_contest
+
+    if request.method == "POST":
+        payload = request.get_json(silent=True) or {}
+        raw = payload.get("contest_id")
+    else:
+        raw = request.args.get("contest_id")
+
+    if raw is None or raw == "":
+        raise ContestScopeError("contest_id is required")
+
+    try:
+        contest_id = int(raw)
+    except (TypeError, ValueError):
+        raise ContestScopeError("contest_id must be an integer")
+
+    if not is_jury_for_contest(contest_id):
+        raise ContestScopeError("You do not have access to this contest", status=403)
+
+    return contest_id
+
+
 @admin.route("/admin/rewards/query", methods=["POST"])
 @admin_or_jury
 def rewards_query():
     """Legacy endpoint for raw query execution."""
     payload = request.get_json() or {}
     try:
-        spec = validate_query_spec(payload)
+        contest_id = _require_contest_scope()
+        # The scope is re-stamped from the authorized value so a client cannot
+        # smuggle a different contest through the rest of the payload.
+        spec = validate_query_spec({**payload, "contest_id": contest_id})
         response = execute_query(spec)
         return jsonify(response)
+    except ContestScopeError as exc:
+        return jsonify({"success": False, "error": exc.message}), exc.status
     except QuerySpecError as exc:
         return jsonify({"success": False, "error": str(exc)}), 400
 
@@ -92,12 +142,13 @@ def preview_reward():
     
     if not template_id:
         return jsonify({"success": False, "error": "template_id is required"}), 400
-    
+
     try:
-        query_config = build_query_from_template(template_id, params)
+        contest_id = _require_contest_scope()
+        query_config = build_query_from_template(template_id, params, contest_id=contest_id)
         if not query_config:
             return jsonify({"success": False, "error": "Template not found"}), 404
-        
+
         spec = validate_query_spec(query_config)
         response = execute_query(spec)
         
@@ -109,8 +160,10 @@ def preview_reward():
             "description": template.description,
         }
         response["success"] = True
-        
+
         return jsonify(response)
+    except ContestScopeError as exc:
+        return jsonify({"success": False, "error": exc.message}), exc.status
     except QuerySpecError as exc:
         return jsonify({"success": False, "error": str(exc)}), 400
     except Exception as exc:
@@ -133,7 +186,12 @@ def list_multi_criteria():
 def preview_multi_criteria():
     """Preview results for a multi-criteria query."""
     payload = request.get_json() or {}
-    
+
+    try:
+        contest_id = _require_contest_scope()
+    except ContestScopeError as exc:
+        return jsonify({"success": False, "error": exc.message}), exc.status
+
     # Check if using preset
     preset_id = payload.get("preset_id")
     if preset_id:
@@ -162,7 +220,7 @@ def preview_multi_criteria():
     
     # Execute the query
     try:
-        executor = MultiCriteriaExecutor(query)
+        executor = MultiCriteriaExecutor(query, contest_id=contest_id)
         result = executor.execute()
         result["success"] = True
         return jsonify(result)
@@ -173,7 +231,34 @@ def preview_multi_criteria():
 @admin.route("/admin/rewards", methods=["GET"])
 @admin_or_jury
 def rewards_page():
-    return render_template("admin/rewards.html")
+    """Standalone reward query page — not embedded in a single contest's
+    admin area, so (unlike dynamic_reward.html) it has no contest handed to
+    it by the URL. It has to ask the user which contest to query, from the
+    same set is_jury_for_contest would allow (this route's own decorator
+    already excludes anyone who isn't platform admin, legacy platform jury,
+    or jury on at least one contest), or the page has nothing to scope its
+    queries to.
+    """
+    from CTFd.utils.user import get_current_user_attrs
+
+    user = get_current_user_attrs()
+    if user is not None and user.type in ("admin", "jury"):
+        contests = Contests.query.order_by(Contests.name).all()
+    elif user is not None:
+        contest_ids = (
+            db.session.query(ContestParticipant.contest_id)
+            .filter_by(user_id=user.id, role="jury")
+            .subquery()
+        )
+        contests = (
+            Contests.query.filter(Contests.id.in_(contest_ids))
+            .order_by(Contests.name)
+            .all()
+        )
+    else:
+        contests = []
+
+    return render_template("admin/rewards.html", contests=contests)
 
 
 @admin.route("/admin/rewards/details", methods=["POST"])
@@ -203,21 +288,29 @@ def rewards_details():
     payload = request.get_json() or {}
     template_id = payload.get("template_id", "")
     entity_id = payload.get("entity_id")
-    contest_id = payload.get("contest_id")
+
+    try:
+        contest_id = _require_contest_scope()
+    except ContestScopeError as exc:
+        return jsonify({"success": False, "error": exc.message}), exc.status
 
     if not entity_id:
         return jsonify({"success": False, "error": "entity_id is required"}), 400
 
     entity_id = int(entity_id)
 
+    # The team has to belong to the contest being asked about, otherwise the
+    # detail rows for any team on the platform are one team id away.
+    team = Teams.query.filter_by(id=entity_id, contest_id=contest_id).first()
+    if team is None:
+        return jsonify({"success": False, "error": "Team not found in this contest"}), 404
+
     # Always filter by team
     filter_col = "s.team_id"
 
-    contest_ch_where = " AND ch.contest_id = :contest_id" if contest_id else ""
-    contest_cat_where = " WHERE ch.contest_id = :contest_id" if contest_id else ""
-    base_params: dict = {"entity_id": entity_id}
-    if contest_id:
-        base_params["contest_id"] = int(contest_id)
+    contest_ch_where = " AND ch.contest_id = :contest_id"
+    contest_cat_where = " WHERE ch.contest_id = :contest_id"
+    base_params: dict = {"entity_id": entity_id, "contest_id": contest_id}
 
     # Build extra conditions based on the template type
     extra_join = ""
@@ -260,12 +353,16 @@ def rewards_details():
         return jsonify({"success": True, "details": details, "detail_type": "category_clear"})
 
     if template_id == "first_blood_hunters":
+        # First blood is decided among this contest's solves only — the
+        # unscoped version let an earlier solve of a same-id challenge in
+        # another contest decide who drew first blood here.
         extra_join = """
             JOIN (
-                SELECT challenge_id, MIN(date) AS fb_date
-                FROM submissions
-                WHERE type = 'correct'
-                GROUP BY challenge_id
+                SELECT sub.challenge_id, MIN(sub.date) AS fb_date
+                FROM submissions sub
+                JOIN challenges fbch ON fbch.id = sub.challenge_id
+                WHERE sub.type = 'correct' AND fbch.contest_id = :contest_id
+                GROUP BY sub.challenge_id
             ) fb ON fb.challenge_id = s.challenge_id AND fb.fb_date = s.date
         """
     elif template_id == "perfect_solvers":
@@ -325,9 +422,15 @@ def rewards_details():
 @bypass_csrf_protection
 @admin_or_jury
 def rewards_categories():
-    """Get all challenge categories from the database."""
+    """Get this contest's challenge categories."""
+    try:
+        contest_id = _require_contest_scope()
+    except ContestScopeError as exc:
+        return jsonify({"success": False, "error": exc.message}), exc.status
+
     categories = (
         db.session.query(Challenges.category)
+        .filter(Challenges.contest_id == contest_id)
         .distinct()
         .order_by(Challenges.category)
         .all()
@@ -342,9 +445,14 @@ def rewards_categories():
 @bypass_csrf_protection
 @admin_or_jury
 def rewards_challenges():
-    """Get all challenges, optionally filtered by search term."""
+    """Get this contest's challenges, optionally filtered by search term."""
+    try:
+        contest_id = _require_contest_scope()
+    except ContestScopeError as exc:
+        return jsonify({"success": False, "error": exc.message}), exc.status
+
     search = request.args.get("search", "").strip()
-    q = Challenges.query
+    q = Challenges.query.filter(Challenges.contest_id == contest_id)
     if search:
         q = q.filter(Challenges.name.ilike(f"%{search}%"))
     challenges = q.order_by(Challenges.name).all()
@@ -361,9 +469,14 @@ def rewards_challenges():
 @bypass_csrf_protection
 @admin_or_jury
 def rewards_teams():
-    """Get all teams, optionally filtered by search term."""
+    """Get this contest's teams, optionally filtered by search term."""
+    try:
+        contest_id = _require_contest_scope()
+    except ContestScopeError as exc:
+        return jsonify({"success": False, "error": exc.message}), exc.status
+
     search = request.args.get("search", "").strip()
-    q = Teams.query
+    q = Teams.query.filter(Teams.contest_id == contest_id)
     if search:
         q = q.filter(Teams.name.ilike(f"%{search}%"))
     teams = q.order_by(Teams.name).all()
@@ -377,8 +490,18 @@ def rewards_teams():
 @bypass_csrf_protection
 @admin_or_jury
 def rewards_brackets():
-    """Get all brackets."""
-    brackets = Brackets.query.order_by(Brackets.name).all()
+    """Get this contest's brackets."""
+    try:
+        contest_id = _require_contest_scope()
+    except ContestScopeError as exc:
+        return jsonify({"success": False, "error": exc.message}), exc.status
+
+    brackets = (
+        Brackets.query
+        .filter(Brackets.contest_id == contest_id)
+        .order_by(Brackets.name)
+        .all()
+    )
     return jsonify({
         "success": True,
         "brackets": [

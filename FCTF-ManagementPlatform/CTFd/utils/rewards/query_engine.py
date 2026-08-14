@@ -145,7 +145,16 @@ def _parse_filters(filters: Iterable[Dict[str, Any]]) -> List[FilterSpec]:
     return parsed
 
 
-def validate_query_spec(payload: Dict[str, Any]) -> QuerySpec:
+def validate_query_spec(payload: Dict[str, Any], allow_global: bool = False) -> QuerySpec:
+    """Validate a raw query payload into a QuerySpec.
+
+    contest_id is required by default. It used to be optional, and every
+    caller that forgot to pass it got a query spanning every contest on the
+    platform rather than an error — which is how the reward preview ended up
+    reporting other contests' teams. Callers that genuinely want a
+    platform-wide query (offline examples, cross-contest reporting) have to
+    say so with allow_global.
+    """
     rule = payload.get("rule")
     entity = payload.get("entity")
     metric = payload.get("metric")
@@ -174,8 +183,14 @@ def validate_query_spec(payload: Dict[str, Any]) -> QuerySpec:
     parsed_filters = _parse_filters(filters)
 
     contest_id = payload.get("contest_id")
-    if contest_id is not None:
-        contest_id = int(contest_id)
+    if contest_id is None:
+        if not allow_global:
+            raise QuerySpecError("contest_id is required")
+    else:
+        try:
+            contest_id = int(contest_id)
+        except (TypeError, ValueError):
+            raise QuerySpecError("contest_id must be an integer")
 
     return QuerySpec(
         rule=rule,
@@ -309,16 +324,39 @@ def compile_query(spec: QuerySpec) -> Tuple[str, Dict[str, Any]]:
     params["limit"] = spec.limit
     params["full_clear_category"] = full_clear_category
 
+    # Every table these CTEs touch is platform-wide, so each one needs the
+    # contest predicate spelled out. Scoping only the solve feed was not
+    # enough: teams, awards, hints and wrong-submission counts all carry rows
+    # from other contests, and a team with an award in another contest lands
+    # in the results here with a non-zero score and no solves of ours.
     contest_id = spec.contest_id
     if contest_id is not None:
         params["contest_id"] = contest_id
         contest_ch_where = " AND ch.contest_id = :contest_id"
         contest_cat_where = "\n    WHERE ch.contest_id = :contest_id"
         contest_wrong_where = " AND ch.contest_id = :contest_id"
+        contest_award_where = " AND contest_id = :contest_id"
+        contest_hint_where = " AND ch.contest_id = :contest_id"
+        contest_wb_where = "\n    WHERE ch.contest_id = :contest_id"
+        contest_team_where = "t.contest_id = :contest_id"
     else:
         contest_ch_where = ""
         contest_cat_where = ""
         contest_wrong_where = ""
+        contest_award_where = ""
+        contest_hint_where = ""
+        contest_wb_where = ""
+        contest_team_where = ""
+
+    # The team-side WHERE has to merge with the optional bracket filter, so
+    # build it once here rather than at each of the three usage sites.
+    team_conditions = [c for c in (contest_team_where, f"t.bracket_id = {bracket_filter}" if bracket_filter else "") if c]
+    team_where = "WHERE " + " AND ".join(team_conditions) if team_conditions else ""
+
+    # Solve-entity queries apply the same team predicates alongside their own
+    # aggregate conditions in a single WHERE.
+    solve_conditions = team_conditions + final_conditions
+    solve_where = "WHERE " + " AND ".join(solve_conditions) if solve_conditions else ""
 
     dialect = db.engine.dialect.name if db.engine else "postgresql"
     if dialect in {"mysql", "mariadb"}:
@@ -352,7 +390,8 @@ hint_usage AS (
     SELECT u.team_id, h.challenge_id AS challenge_id
     FROM unlocks u
     JOIN hints h ON h.id = u.hint_id
-    WHERE u.type = 'hints'
+    JOIN challenges ch ON ch.id = h.challenge_id
+    WHERE u.type = 'hints'{contest_hint_where}
     GROUP BY u.team_id, h.challenge_id
 ),
 solves_enriched AS (
@@ -379,7 +418,7 @@ category_totals AS (
 team_awards AS (
     SELECT team_id, COALESCE(SUM(value), 0) AS award_value
     FROM awards
-    WHERE team_id IS NOT NULL AND value != 0
+    WHERE team_id IS NOT NULL AND value != 0{contest_award_where}
     GROUP BY team_id
 ),
 wrong_team AS (
@@ -395,11 +434,12 @@ wrong_before AS (
         COUNT(w.id) AS wrong_before
     FROM submissions s
     JOIN solves sol ON sol.id = s.id
+    JOIN challenges ch ON ch.id = s.challenge_id
     LEFT JOIN submissions w
         ON w.challenge_id = s.challenge_id
         AND w.type = 'incorrect'
         AND w.date < s.date
-        AND w.team_id = s.team_id
+        AND w.team_id = s.team_id{contest_wb_where}
     GROUP BY s.id
 )
 """
@@ -447,7 +487,7 @@ team_category_completion AS (
     FROM teams t
     JOIN solves_filtered sf ON sf.team_id = t.id
     JOIN category_totals ct ON ct.category = sf.category
-    {"WHERE t.bracket_id = " + bracket_filter if bracket_filter else ""}
+    {team_where}
     GROUP BY t.id, t.name, sf.category, ct.total_challenges
     HAVING COUNT(DISTINCT sf.challenge_id) >= ct.total_challenges
 ),
@@ -491,7 +531,7 @@ team_agg AS (
     LEFT JOIN wrong_team wt ON wt.team_id = t.id
     LEFT JOIN wrong_before wb ON wb.solve_id = sf.solve_id
     LEFT JOIN team_awards ta ON ta.team_id = t.id
-    {"WHERE t.bracket_id = " + bracket_filter if bracket_filter else ""}
+    {team_where}
     GROUP BY t.id, t.name, wt.wrong_count, ta.award_value
 ),
 ranked AS (
@@ -542,8 +582,7 @@ SELECT
     t.name AS team_name
 FROM solve_rows sr
 LEFT JOIN teams t ON t.id = sr.team_id
-{"WHERE t.bracket_id = " + bracket_filter if bracket_filter else ""}
-{final_where.replace("WHERE", "AND") if bracket_filter and final_where else final_where}
+{solve_where}
 {order_clause}
 LIMIT :limit
 """
