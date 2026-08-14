@@ -49,6 +49,8 @@ public partial class Team
 
     public virtual ICollection<FieldEntry> FieldEntries { get; set; } = new List<FieldEntry>();
 
+    public virtual ICollection<NotificationRecipient> NotificationRecipients { get; set; } = new List<NotificationRecipient>();
+
     public virtual ICollection<UserTeamMember> Members { get; set; } = new List<UserTeamMember>();
 
     public virtual ICollection<Solf> Solves { get; set; } = new List<Solf>();

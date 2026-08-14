@@ -57,6 +57,12 @@ public partial class User
 
     public virtual ICollection<Ticket> TicketRepliers { get; set; } = new List<Ticket>();
 
+    public virtual ICollection<Notification> NotificationAuthors { get; set; } = new List<Notification>();
+
+    public virtual ICollection<NotificationRecipient> NotificationRecipients { get; set; } = new List<NotificationRecipient>();
+
+    public virtual ICollection<NotificationRead> NotificationReads { get; set; } = new List<NotificationRead>();
+
     public virtual ICollection<Token> Tokens { get; set; } = new List<Token>();
 
     public virtual ICollection<Tracking> Trackings { get; set; } = new List<Tracking>();

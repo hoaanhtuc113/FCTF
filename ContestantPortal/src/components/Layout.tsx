@@ -5,6 +5,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useToast } from '../hooks/useToast';
 import { configService } from '../services/configService';
 import { contestService } from '../services/contestService';
+import { NotificationBell } from './NotificationBell';
 import {
   Box,
   Avatar,
@@ -303,6 +304,9 @@ export function Layout({ children }: LayoutProps) {
                   </div>
                 </div>
               )}
+
+              {/* Notification Bell */}
+              <NotificationBell />
 
               {/* Username */}
               <Box className="hidden md:block text-right">

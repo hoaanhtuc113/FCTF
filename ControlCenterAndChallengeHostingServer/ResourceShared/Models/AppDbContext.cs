@@ -37,6 +37,9 @@ public partial class AppDbContext : DbContext
     public virtual DbSet<DynamicFlagInstance> DynamicFlagInstances { get; set; }
     public virtual DbSet<Hint> Hints { get; set; }
     public virtual DbSet<MultipleChoiceChallenge> MultipleChoiceChallenges { get; set; }
+    public virtual DbSet<Notification> Notifications { get; set; }
+    public virtual DbSet<NotificationRecipient> NotificationRecipients { get; set; }
+    public virtual DbSet<NotificationRead> NotificationReads { get; set; }
     public virtual DbSet<SandboxChallenge> SandboxChallenges { get; set; }
     public virtual DbSet<Solf> Solves { get; set; }
     public virtual DbSet<Submission> Submissions { get; set; }
@@ -625,6 +628,89 @@ public partial class AppDbContext : DbContext
             entity.HasOne(d => d.IdNavigation).WithOne(p => p.MultipleChoiceChallenge)
                 .HasForeignKey<MultipleChoiceChallenge>(d => d.Id)
                 .HasConstraintName("multiple_choice_challenge_ibfk_1");
+        });
+
+        modelBuilder.Entity<Notification>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+            entity.ToTable("notifications");
+
+            entity.HasIndex(e => e.AuthorId, "author_id");
+            entity.HasIndex(e => e.ContestId, "ix_notifications_contest_id");
+            entity.HasIndex(e => e.CreatedAt, "ix_notifications_created_at");
+
+            entity.Property(e => e.Id).HasColumnType("int(11)").HasColumnName("id");
+            entity.Property(e => e.ContestId).HasColumnType("int(11)").HasColumnName("contest_id");
+            entity.Property(e => e.AuthorId).HasColumnType("int(11)").HasColumnName("author_id");
+            entity.Property(e => e.Title).HasMaxLength(255).HasColumnName("title");
+            entity.Property(e => e.Content).HasColumnType("text").HasColumnName("content");
+            entity.Property(e => e.TargetType).HasMaxLength(20).HasDefaultValueSql("'user'").HasColumnName("target_type");
+            entity.Property(e => e.CreatedAt).HasColumnType("datetime(6)").HasColumnName("created_at");
+
+            entity.HasOne(d => d.Author).WithMany(p => p.NotificationAuthors)
+                .HasForeignKey(d => d.AuthorId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("1");
+
+            entity.HasOne(d => d.Contest).WithMany()
+                .HasForeignKey(d => d.ContestId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("2");
+        });
+
+        modelBuilder.Entity<NotificationRecipient>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+            entity.ToTable("notification_recipients");
+
+            entity.HasIndex(e => e.NotificationId, "ix_notification_recipients_notification_id");
+            entity.HasIndex(e => e.TeamId, "ix_notification_recipients_team_id");
+            entity.HasIndex(e => e.UserId, "ix_notification_recipients_user_id");
+
+            entity.Property(e => e.Id).HasColumnType("int(11)").HasColumnName("id");
+            entity.Property(e => e.NotificationId).HasColumnType("int(11)").HasColumnName("notification_id");
+            entity.Property(e => e.UserId).HasColumnType("int(11)").HasColumnName("user_id");
+            entity.Property(e => e.TeamId).HasColumnType("int(11)").HasColumnName("team_id");
+
+            entity.HasOne(d => d.Notification).WithMany(p => p.Recipients)
+                .HasForeignKey(d => d.NotificationId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("1");
+
+            entity.HasOne(d => d.Team).WithMany(p => p.NotificationRecipients)
+                .HasForeignKey(d => d.TeamId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("2");
+
+            entity.HasOne(d => d.User).WithMany(p => p.NotificationRecipients)
+                .HasForeignKey(d => d.UserId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("3");
+        });
+
+        modelBuilder.Entity<NotificationRead>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+            entity.ToTable("notification_reads");
+
+            entity.HasIndex(e => new { e.NotificationId, e.UserId }, "uq_notification_reads_notification_user").IsUnique();
+            entity.HasIndex(e => e.NotificationId, "ix_notification_reads_notification_id");
+            entity.HasIndex(e => e.UserId, "ix_notification_reads_user_id");
+
+            entity.Property(e => e.Id).HasColumnType("int(11)").HasColumnName("id");
+            entity.Property(e => e.NotificationId).HasColumnType("int(11)").HasColumnName("notification_id");
+            entity.Property(e => e.UserId).HasColumnType("int(11)").HasColumnName("user_id");
+            entity.Property(e => e.ReadAt).HasColumnType("datetime(6)").HasColumnName("read_at");
+
+            entity.HasOne(d => d.Notification).WithMany(p => p.Reads)
+                .HasForeignKey(d => d.NotificationId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("1");
+
+            entity.HasOne(d => d.User).WithMany(p => p.NotificationReads)
+                .HasForeignKey(d => d.UserId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("2");
         });
 
         modelBuilder.Entity<Solf>(entity =>
