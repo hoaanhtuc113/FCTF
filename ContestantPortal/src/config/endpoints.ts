@@ -39,6 +39,12 @@ export const API_ENDPOINTS = {
     DETAIL: (id: string) => `/ticket/tickets/${id}`,
     DELETE: (id: string) => `/ticket/tickets/${id}`,
   },
+  NOTIFICATION: {
+    LIST: '/notification/notifications-user',
+    UNREAD_COUNT: '/notification/unread-count',
+    READ: (id: number | string) => `/notification/${id}/read`,
+    READ_ALL: '/notification/read-all',
+  },
   TEAM: {
     RENAME: '/team/name',
     DISBAND: '/team/disband',

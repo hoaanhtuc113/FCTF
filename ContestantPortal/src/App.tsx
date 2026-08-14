@@ -23,6 +23,7 @@ const TicketDetail = lazy(() => import('./pages/TicketDetail').then(module => ({
 const Profile = lazy(() => import('./pages/Profile').then(module => ({ default: module.Profile })));
 const Instances = lazy(() => import('./pages/Instances').then(module => ({ default: module.Instances })));
 const ActionLogsPage = lazy(() => import('./pages/ActionLogsPage').then(module => ({ default: module.ActionLogsPage })));
+const Notifications = lazy(() => import('./pages/Notifications').then(module => ({ default: module.Notifications })));
 
 // Inner component to use theme context
 function AppRoutes() {
@@ -85,6 +86,14 @@ function AppRoutes() {
                 element={
                   <PrivateRoute requireContest={true}>
                     <Layout><TicketDetail /></Layout>
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/contest/:contestId/notifications"
+                element={
+                  <PrivateRoute requireContest={true}>
+                    <Layout><Notifications /></Layout>
                   </PrivateRoute>
                 }
               />
