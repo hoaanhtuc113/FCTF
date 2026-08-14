@@ -179,7 +179,6 @@
 					<th class="text-center"><b>ID</b></th>
 					<th class="text-center"><b>Title</b></th>
 					<th class="text-center"><b>Target</b></th>
-					<th class="text-center"><b>Recipients</b></th>
 					<th class="text-center"><b>Read</b></th>
 					<th class="text-center"><b>Author</b></th>
 					<th class="text-center"><b>Created At</b></th>
@@ -196,7 +195,6 @@
 					<td>{{ n.id }}</td>
 					<td class="cell-truncate" title="{{ n.title or '' }}">{{ (n.title or '') | truncate(40, True, '...') }}</td>
 					<td><span class="target-badge {{ n.target_type }}">{{ n.target_type }}</span></td>
-					<td>{{ n.recipient_count }}</td>
 					<td>{{ n.read_count }} / {{ n.recipient_count }}</td>
 					<td class="cell-truncate-sm" title="{{ n.author_name or '' }}">{{ (n.author_name or '') | truncate(24, True, '...') }}</td>
 					<td>{% if n.created_at %}<span data-time="{{ n.created_at | isoformat }}" data-time-format="YYYY-MM-DD HH:mm:ss"></span>{% else %}N/A{% endif %}</td>
@@ -213,7 +211,7 @@
 				</tr>
 				{% else %}
 				<tr>
-					<td colspan="10" class="text-center text-muted">No notifications found</td>
+					<td colspan="9" class="text-center text-muted">No notifications found</td>
 				</tr>
 				{% endfor %}
 			</tbody>
