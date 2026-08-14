@@ -71,6 +71,7 @@ builder.Services.AddScoped<IHintService, HintService>();
 builder.Services.AddScoped<ITeamService, TeamService>();
 builder.Services.AddScoped<IScoreboardService, ScoreboardService>();
 builder.Services.AddScoped<ITicketService, TicketService>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IConfigService, ConfigService>();
 builder.Services.AddMemoryCache();
 builder.Services.AddOptions();
