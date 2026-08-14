@@ -1,0 +1,237 @@
+{% extends "admin/contests/contest_base.html" %}
+
+{% block contest_stylesheets %}
+<style>
+	.notification-container {
+		padding: 0.75rem 0;
+	}
+
+	.notification-info-card {
+		background: #ffffff;
+		border-radius: 8px;
+		box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+		border: 1px solid #e8e8e8;
+		overflow: hidden;
+		margin-bottom: 1.5rem;
+	}
+
+	.notification-info-card .card-header {
+		background: #f8f9fa;
+		border-bottom: 2px solid #e8e8e8;
+		padding: 1rem 1.5rem;
+	}
+
+	.notification-info-card .card-header h3 {
+		color: #2c3e50;
+		font-weight: 600;
+		font-size: 1.2rem;
+		margin: 0;
+	}
+
+	.notification-info-table {
+		margin: 0;
+		font-size: 0.9rem;
+	}
+
+	.notification-info-table tr {
+		border-bottom: 1px solid #f1f1f1;
+	}
+
+	.notification-info-table tr:last-child {
+		border-bottom: none;
+	}
+
+	.notification-info-table th {
+		background: #f8f9fa;
+		color: #495057;
+		font-weight: 600;
+		padding: 0.875rem 1.5rem;
+		width: 200px;
+		vertical-align: top;
+		text-transform: uppercase;
+		font-size: 0.75rem;
+		letter-spacing: 0.5px;
+	}
+
+	.notification-info-table td {
+		padding: 0.875rem 1.5rem;
+		color: #495057;
+		vertical-align: top;
+	}
+
+	.notification-info-table textarea {
+		width: 100%;
+		border: 1px solid #dee2e6;
+		border-radius: 6px;
+		padding: 0.75rem;
+		font-size: 0.9rem;
+		resize: vertical;
+		background: #f8f9fa;
+	}
+
+	.recipients-section {
+		background: #ffffff;
+		border-radius: 8px;
+		box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+		border: 1px solid #e8e8e8;
+		padding: 2rem;
+		margin-bottom: 1.5rem;
+	}
+
+	.recipients-section h3 {
+		color: #2c3e50;
+		font-weight: 600;
+		font-size: 1.2rem;
+		margin-bottom: 1.5rem;
+		padding-bottom: 0.75rem;
+		border-bottom: 2px solid #e8e8e8;
+	}
+
+	.target-badge {
+		display: inline-block;
+		padding: 0.25rem 0.6rem;
+		border-radius: 999px;
+		font-size: 0.75rem;
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.3px;
+	}
+	.target-badge.team { background: #e7f1ff; color: #1c5fc4; }
+	.target-badge.user { background: #fff3cd; color: #856404; }
+
+	.read-badge {
+		display: inline-block;
+		padding: 0.2rem 0.55rem;
+		border-radius: 999px;
+		font-size: 0.7rem;
+		font-weight: 600;
+		background: #d4edda;
+		color: #155724;
+	}
+
+	.btn-back {
+		color: #6c757d;
+		text-decoration: none;
+		font-size: 0.9rem;
+		display: inline-flex;
+		align-items: center;
+		gap: 0.4rem;
+		margin-bottom: 1rem;
+		transition: color 0.2s;
+	}
+	.btn-back:hover { color: #ff6b35; text-decoration: none; }
+</style>
+{% endblock %}
+
+{% block contest_content %}
+<div class="page-header">
+	<div class="container">
+		<h1><i class="bx bx-bell"></i> Notification Details
+			<small class="text-muted ml-2" style="font-size:0.75rem;font-weight:400;">{{ contest.name }}</small>
+		</h1>
+	</div>
+</div>
+
+<div class="container notification-container">
+	<a href="{{ url_for('admin.contest_notifications', contest_id=contest.id) }}" class="btn-back">
+		<i class="fas fa-arrow-left"></i> Back to Notifications
+	</a>
+
+	{% if notification_data %}
+		<!-- Notification Information Card -->
+		<div class="notification-info-card">
+			<div class="card-header">
+				<h3>Notification Information</h3>
+			</div>
+			<table class="table notification-info-table mb-0">
+				<tr>
+					<th>ID</th>
+					<td>{{ notification_data.id }}</td>
+				</tr>
+				<tr>
+					<th>Author</th>
+					<td>{{ notification_data.author_name or 'N/A' }}</td>
+				</tr>
+				<tr>
+					<th>Created At</th>
+					<td>
+						{% if notification_data.created_at %}
+							<span data-time="{{ notification_data.created_at | isoformat }}" data-time-format="YYYY-MM-DD HH:mm:ss"></span>
+						{% else %}
+							N/A
+						{% endif %}
+					</td>
+				</tr>
+				<tr>
+					<th>Target Type</th>
+					<td><span class="target-badge {{ notification_data.target_type }}">{{ notification_data.target_type }}</span></td>
+				</tr>
+				<tr>
+					<th>Title</th>
+					<td><strong>{{ notification_data.title }}</strong></td>
+				</tr>
+				<tr>
+					<th>Message</th>
+					<td>
+						<textarea class="form-control" rows="5" readonly>{{ notification_data.content }}</textarea>
+					</td>
+				</tr>
+			</table>
+		</div>
+
+		<!-- Recipients -->
+		<div class="recipients-section">
+			<h3>Recipients ({{ notification_data.recipient_count }})</h3>
+			{% if notification_data.recipients %}
+			<table class="table">
+				<thead>
+					<tr>
+						<th>Type</th>
+						<th>Name</th>
+					</tr>
+				</thead>
+				<tbody>
+					{% for r in notification_data.recipients %}
+					<tr>
+						<td><span class="target-badge {{ r.type }}">{{ r.type }}</span></td>
+						<td>{{ r.name }}</td>
+					</tr>
+					{% endfor %}
+				</tbody>
+			</table>
+			{% else %}
+			<p class="text-muted">No recipients.</p>
+			{% endif %}
+		</div>
+
+		<!-- Read Receipts -->
+		<div class="recipients-section">
+			<h3>Read By ({{ notification_data.read_count }} / {{ notification_data.recipient_count }})</h3>
+			{% if notification_data.reads %}
+			<table class="table">
+				<thead>
+					<tr>
+						<th>User</th>
+						<th>Read At</th>
+					</tr>
+				</thead>
+				<tbody>
+					{% for r in notification_data.reads %}
+					<tr>
+						<td>{{ r.user_name }} <span class="read-badge">read</span></td>
+						<td>{% if r.read_at %}<span data-time="{{ r.read_at | isoformat }}" data-time-format="YYYY-MM-DD HH:mm:ss"></span>{% else %}N/A{% endif %}</td>
+					</tr>
+					{% endfor %}
+				</tbody>
+			</table>
+			{% else %}
+			<p class="text-muted">No one has read this notification yet.</p>
+			{% endif %}
+		</div>
+	{% else %}
+		<div class="alert alert-danger" role="alert">
+			<i class="fas fa-exclamation-triangle"></i> No Notification Found
+		</div>
+	{% endif %}
+</div>
+{% endblock %}

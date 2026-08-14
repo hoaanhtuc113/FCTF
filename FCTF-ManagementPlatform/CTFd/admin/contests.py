@@ -2956,6 +2956,137 @@ def contest_send_ticket_response(contest_id):
     return redirect(url_for("admin.contest_tickets", contest_id=contest_id))
 
 
+@admin.route("/admin/contests/<int:contest_id>/notifications")
+@admins_only
+def contest_notifications(contest_id):
+    from CTFd.SendNotification import get_all_notifications
+
+    contest = Contests.query.filter_by(id=contest_id).first_or_404()
+
+    page = max(request.args.get("page", 1, type=int), 1)
+    per_page = min(max(request.args.get("per_page", 50, type=int), 1), 100)
+    target_type = request.args.get("target_type", type=str)
+    search = request.args.get("search", type=str)
+
+    try:
+        response, status_code = get_all_notifications(
+            contest_id=contest_id,
+            target_type=target_type,
+            search=search,
+            page=page,
+            per_page=per_page,
+        )
+        if not isinstance(response, dict):
+            response = {}
+        notifications = response.get("notifications", []) if status_code == 200 else []
+        total = response.get("total", 0) if status_code == 200 else 0
+    except Exception:
+        notifications, total = [], 0
+
+    return render_template(
+        "admin/contests/sections/notifications.html",
+        contest=contest,
+        notifications=notifications or [],
+        total=total or 0,
+        page=page,
+        per_page=per_page,
+        target_type_options=["team", "user"],
+        selected_target_type=target_type,
+        search=search,
+        is_detail=True,
+    )
+
+
+@admin.route("/admin/contests/<int:contest_id>/notifications", methods=["POST"])
+@admins_only
+def contest_create_notification(contest_id):
+    from CTFd.SendNotification import create_notification
+    from CTFd.utils.user import get_current_user
+
+    Contests.query.filter_by(id=contest_id).first_or_404()
+    current_user = get_current_user()
+
+    req = request.get_json(force=True, silent=True) or {}
+    response, status_code = create_notification(
+        contest_id=contest_id,
+        author_id=current_user.id if current_user else None,
+        title=req.get("title"),
+        content=req.get("content"),
+        target_type=req.get("target_type"),
+        team_ids=req.get("team_ids") or [],
+        user_ids=req.get("user_ids") or [],
+    )
+
+    if status_code == 200 and response.get("success"):
+        from CTFd.utils.logging.audit_logger import log_audit
+        log_audit(
+            action="notification_create",
+            data={
+                "contest_id": contest_id,
+                "notification_id": response["data"]["id"],
+                "target_type": req.get("target_type"),
+            },
+        )
+
+    return response, status_code
+
+
+@admin.route("/admin/contests/<int:contest_id>/notifications/<int:notification_id>", methods=["GET"])
+@admins_only
+def contest_notification_detail(contest_id, notification_id):
+    from CTFd.SendNotification import get_notification_by_id
+
+    contest = Contests.query.filter_by(id=contest_id).first_or_404()
+
+    response, status_code = get_notification_by_id(notification_id=notification_id, contest_id=contest_id)
+    notification_data = response.get("notification") if status_code == 200 else None
+
+    return render_template(
+        "admin/contests/sections/notification_detail.html",
+        contest=contest,
+        notification_data=notification_data,
+        is_detail=True,
+    )
+
+
+@admin.route("/admin/contests/<int:contest_id>/notifications/delete", methods=["POST"])
+@admins_only
+def contest_delete_notifications(contest_id):
+    from CTFd.SendNotification import delete_notifications
+
+    Contests.query.filter_by(id=contest_id).first_or_404()
+    notification_ids = request.form.getlist("notification_ids[]")
+
+    if not notification_ids:
+        flash("No notifications selected for deletion", "warning")
+        return redirect(url_for("admin.contest_notifications", contest_id=contest_id))
+
+    deleted_count = delete_notifications(notification_ids, contest_id)
+
+    if deleted_count > 0:
+        flash(f"Successfully deleted {deleted_count} notification(s)", "success")
+        from CTFd.utils.logging.audit_logger import log_audit
+        log_audit(
+            action="notification_delete",
+            data={"contest_id": contest_id, "notification_ids": notification_ids},
+        )
+    else:
+        flash("No notifications were deleted", "warning")
+
+    return redirect(url_for("admin.contest_notifications", contest_id=contest_id))
+
+
+@admin.route("/admin/contests/<int:contest_id>/notification_users_search", methods=["GET"])
+@admins_only
+def contest_notification_users_search(contest_id):
+    from CTFd.SendNotification import search_contest_users
+
+    Contests.query.filter_by(id=contest_id).first_or_404()
+    q = request.args.get("q", "").strip()
+
+    return {"success": True, "data": search_contest_users(contest_id, q)}
+
+
 @admin.route("/admin/contests/<int:contest_id>/instances")
 @admins_only
 def contest_instances(contest_id):

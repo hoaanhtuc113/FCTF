@@ -262,6 +262,11 @@ Override the entire sidebar block with contest-scoped navigation
         <i class="bx bx-envelope"></i> Tickets
     </a>
 
+    <a href="{{ url_for('admin.contest_notifications', contest_id=contest.id) }}"
+        class="nav-link {% if request.endpoint in ['admin.contest_notifications', 'admin.contest_notification_detail'] %}active{% endif %}">
+        <i class="bx bx-bell"></i> Notifications
+    </a>
+
     <a href="{{ url_for('admin.contest_instances', contest_id=contest.id) }}"
         class="nav-link {% if request.endpoint == 'admin.contest_instances' %}active{% endif %}">
         <i class="bx bx-time-five"></i> Instance History

@@ -62,6 +62,7 @@ from CTFd.models import (
     DeployedChallenge,
     FieldEntries,
     Fields,
+    Notifications,
     Solves,
     Submissions,
     Tickets,
@@ -700,6 +701,7 @@ def reset():
         if data.get("accounts"):
             ActionLogs.query.delete()
             Tickets.query.delete()
+            Notifications.query.delete()
             Tokens.query.delete()
             FieldEntries.query.delete()
             Fields.query.delete()
