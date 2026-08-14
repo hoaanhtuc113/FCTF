@@ -258,10 +258,13 @@ public class ChallengeService : IChallengeService
 
             if (cached_value.challenge_id == challenge.Id)
             {
-                var time_finished = cached_value.time_finished;
-                var time_remaining = time_finished - DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-                if (time_remaining < 0) time_remaining = 0;
-
+                // null = no time limit; 0 = timer expired; >0 = seconds remaining
+                long? time_remaining = null;
+                if (cached_value.time_finished > 0)
+                {
+                    var tr = cached_value.time_finished - DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+                    time_remaining = tr < 0 ? 0L : tr;
+                }
 
                 return new BaseResponseDTO<ChallengeByIdDTO>
                 {
