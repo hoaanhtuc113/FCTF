@@ -869,9 +869,14 @@ public class ChallengeController : BaseController
                 bridgeUrl = $"{baseUrl}/run";
             }
 
-            // Kiểm tra session đã tồn tại trong Redis
+            // Kiểm tra session đã tồn tại trong Redis — but never trust a cached entry from
+            // before this team had a KYPO account: that URL has no credentials, and when the
+            // challenge has no time limit the cache never expires, so it would keep handing
+            // back a broken /run link forever even after EnsureKypoTeamAccountAsync succeeds
+            // on a later request.
             var sandboxCacheKey = ChallengeHelper.GetCacheKey(challenge.Id, teamId);
-            if (await _redisHelper.KeyExistsAsync(sandboxCacheKey))
+            var hasKypoCredentials = kypoAccount?.kypo_username != null && kypoAccount?.kypo_password != null;
+            if (hasKypoCredentials && await _redisHelper.KeyExistsAsync(sandboxCacheKey))
             {
                 var existingCache = await _redisHelper.GetFromCacheAsync<ChallengeDeploymentCacheDTO>(sandboxCacheKey);
                 if (existingCache != null)
@@ -898,6 +903,12 @@ public class ChallengeController : BaseController
                 long timeLimitSeconds = challenge.TimeLimit.Value * 60L;
                 timeFinished = DateTimeOffset.UtcNow.ToUnixTimeSeconds() + timeLimitSeconds;
                 cacheTtl = TimeSpan.FromSeconds(timeLimitSeconds + 120);
+            }
+            else if (!hasKypoCredentials)
+            {
+                // No time limit and still no account — don't cache the broken /run link
+                // forever; give the next attempt a short window to retry instead.
+                cacheTtl = TimeSpan.FromSeconds(60);
             }
 
             var sandboxCacheDto = new ChallengeDeploymentCacheDTO
