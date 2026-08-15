@@ -89,14 +89,28 @@ GRANT UPDATE ON ctfd.contests TO 'deployment_listener'@'%';
 
 -- DeploymentConsumer
 GRANT SELECT ON ctfd.challenges TO 'deployment_consumer'@'%';
--- The dynamic flag reaches the challenge pod through this service, and it now
--- reads the value here rather than accepting whatever the queue message carried.
--- Read-only and read-only on these tables alone: the consumer never issues a flag,
--- that stays with ContestantBE, which is the only account holding INSERT. It needs
--- flags too, not just dynamic_flag_instances - that's the table it reads first to
--- tell a dynamic flag from a static or regex one.
+-- The dynamic flag reaches the challenge pod through this service:
+-- ChallengeHelper.ResolveDeploymentFlagAsync (called from Worker.cs) reads
+-- flags to tell a dynamic flag from a static/regex one, then, for a dynamic
+-- flag, mints and INSERTs the team's DynamicFlagInstance itself on first
+-- deploy - it is the account that issues the flag now, not just the one that
+-- reads it. SELECT-only here left every first deploy of a dynamic-flag
+-- challenge failing the INSERT, the exception got caught and NACKed with no
+-- requeue in Worker.ProcessAsync, and the workflow never reached Argo -
+-- while static-flag challenges, which never touch this table, deployed fine.
 GRANT SELECT ON ctfd.flags TO 'deployment_consumer'@'%';
 GRANT SELECT ON ctfd.dynamic_flag_instances TO 'deployment_consumer'@'%';
+GRANT INSERT ON ctfd.dynamic_flag_instances TO 'deployment_consumer'@'%';
+
+-- Notifications feature (37c36844047f_add_notifications_tables): contestant_be
+-- reads notifications and recipients to decide what a user can see, and reads/
+-- writes read-state when marking them read. Added after the tables themselves,
+-- same gap the header above warns about - this is what the "SELECT command
+-- denied ... for table `ctfd`.`notifications`" error was.
+GRANT SELECT ON ctfd.notifications TO 'contestant_be'@'%';
+GRANT SELECT ON ctfd.notification_recipients TO 'contestant_be'@'%';
+GRANT SELECT ON ctfd.notification_reads TO 'contestant_be'@'%';
+GRANT INSERT ON ctfd.notification_reads TO 'contestant_be'@'%';
 
 FLUSH PRIVILEGES;
 
