@@ -1,5 +1,7 @@
 using System.Collections.Concurrent;
 using System.Net.Http.Headers;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using ContestantBE.Utils;
 
@@ -304,6 +306,91 @@ public class KypoApiClient
         {
             _logger.LogWarning("[KYPO] Không lấy được user id từ sub={Sub}: {Msg}", sub, e.Message);
             return null;
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // Team account creation — Keycloak Admin API (master realm)
+    // ─────────────────────────────────────────────────────────
+    /// <summary>
+    /// Creates a KYPO/Keycloak user for a team the first time they enter a sandbox
+    /// challenge. Username scheme and retry-on-conflict logic mirror CTFd's
+    /// create_kypo_user (FCTF-ManagementPlatform/CTFd/utils/keycloak_service.py) so
+    /// a username collision on the shared Keycloak instance is handled the same way
+    /// on both sides. Callers must serialize concurrent creates for the same team —
+    /// kypo_team_accounts.team_id is unique and this call is not itself idempotent.
+    /// </summary>
+    public async Task<(string KypoUserId, string Username, string Password)> CreateTeamAccountAsync(
+        string baseUrl, int teamId, string teamName, int contestId)
+    {
+        var token = await GetKeycloakAdminTokenAsync(baseUrl);
+        var realm = ContestantBEConfigHelper.KypoRealm;
+        var url = $"{baseUrl.TrimEnd('/')}/keycloak/admin/realms/{realm}/users";
+
+        var safeName = new string((teamName ?? "").ToLowerInvariant()
+            .Select(c => char.IsLetterOrDigit(c) ? c : '_').ToArray());
+        if (safeName.Length > 12) safeName = safeName[..12];
+        var baseUsername = $"fctf_c{contestId}_{safeName}_{teamId}";
+        var password = GenerateStrongPassword();
+
+        var client = _httpClientFactory.CreateClient("kypo");
+        var username = baseUsername;
+
+        for (var attempt = 0; attempt < 5; attempt++)
+        {
+            if (attempt > 0)
+                username = $"{baseUsername}_{Convert.ToHexString(RandomNumberGenerator.GetBytes(4)).ToLowerInvariant()}";
+
+            var payload = new
+            {
+                username,
+                enabled = true,
+                firstName = teamName,
+                lastName = "FCTF Team",
+                email = $"{username}@fctf.local",
+                emailVerified = true,
+                credentials = new[] { new { type = "password", value = password, temporary = false } },
+            };
+
+            var request = new HttpRequestMessage(HttpMethod.Post, url)
+            {
+                Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json"),
+            };
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            var resp = await client.SendAsync(request);
+
+            if (resp.StatusCode == System.Net.HttpStatusCode.Conflict)
+            {
+                _logger.LogWarning("[KYPO] Username {Username} already exists (attempt {Attempt}/5), retrying", username, attempt + 1);
+                continue;
+            }
+            if (!resp.IsSuccessStatusCode)
+            {
+                var body = await resp.Content.ReadAsStringAsync();
+                throw new Exception($"Keycloak create user failed ({(int)resp.StatusCode}): {body}");
+            }
+
+            var kypoUserId = resp.Headers.Location?.ToString().TrimEnd('/').Split('/').LastOrDefault();
+            if (string.IsNullOrEmpty(kypoUserId))
+                throw new Exception("Keycloak returned success but no Location header for the new user");
+
+            _logger.LogInformation("[KYPO] Created Keycloak user {Username} (id={Id}) for team {TeamId}", username, kypoUserId, teamId);
+            return (kypoUserId, username, password);
+        }
+
+        throw new Exception($"Cannot create a unique Keycloak username for team '{teamName}' (id={teamId}) after 5 attempts");
+    }
+
+    private static string GenerateStrongPassword(int length = 16)
+    {
+        const string alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
+        while (true)
+        {
+            var bytes = RandomNumberGenerator.GetBytes(length);
+            var pwd = new string(bytes.Select(b => alphabet[b % alphabet.Length]).ToArray());
+            if (pwd.Any(char.IsUpper) && pwd.Any(char.IsDigit) && pwd.Any(c => "!@#$%^&*".Contains(c)))
+                return pwd;
         }
     }
 
