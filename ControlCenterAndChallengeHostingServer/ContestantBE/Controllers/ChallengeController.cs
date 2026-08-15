@@ -25,6 +25,7 @@ public class ChallengeController : BaseController
     private readonly UserHelper _userHelper;
     private readonly IChallengeService _challengeServices;
     private readonly RedisHelper _redisHelper;
+    private readonly RedisLockHelper _redisLockHelper;
     private readonly AppLogger _userBehaviorLogger;
     private readonly IActionLogsServices _actionLogsServices;
     private readonly KypoService _kypoService;
@@ -38,6 +39,7 @@ public class ChallengeController : BaseController
         UserHelper userHelper,
         IChallengeService challengeService,
         RedisHelper redisHelper,
+        RedisLockHelper redisLockHelper,
         AppLogger userBehaviorLogger,
         IActionLogsServices actionLogsServices,
         KypoService kypoService,
@@ -49,6 +51,7 @@ public class ChallengeController : BaseController
         _userHelper = userHelper;
         _challengeServices = challengeService;
         _redisHelper = redisHelper;
+        _redisLockHelper = redisLockHelper;
         _userBehaviorLogger = userBehaviorLogger;
         _actionLogsServices = actionLogsServices;
         _kypoService = kypoService;
