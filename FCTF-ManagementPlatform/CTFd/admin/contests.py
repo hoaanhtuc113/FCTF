@@ -1641,9 +1641,30 @@ def contest_create_user(contest_id):
            user_mode:  auto-creates a solo team named after the user
            team_mode:  assigns to an existing team OR creates a new one
     """
-    from CTFd.models import Teams, UserTeamMember, Users
+    import logging
+
+    from CTFd.models import KypoTeamAccount, Teams, UserTeamMember, Users
+    from CTFd.utils.aes_helper import encrypt_kypo_password
     from CTFd.utils.crypto import hash_password
+    from CTFd.utils.keycloak_service import create_kypo_user
     from sqlalchemy import or_
+
+    logger = logging.getLogger(__name__)
+
+    def _create_kypo_account_for_team(team):
+        """Mirrors contest_create_team: best-effort, never blocks team creation."""
+        try:
+            kypo_creds = create_kypo_user(team.id, team.name, contest_id=contest.id)
+            db.session.add(KypoTeamAccount(
+                team_id=team.id,
+                kypo_user_id=kypo_creds["kypo_user_id"],
+                kypo_username=kypo_creds["kypo_username"],
+                kypo_password=encrypt_kypo_password(kypo_creds["kypo_password"]),
+            ))
+            db.session.flush()
+            logger.info("Created KYPO account for team %s (id=%s)", team.name, team.id)
+        except Exception as exc:
+            logger.error("Failed to create KYPO account for team %s: %s", team.id, exc, exc_info=True)
 
     contest = Contests.query.filter_by(id=contest_id).first_or_404()
     req = request.get_json(force=True) or {}
@@ -1706,6 +1727,7 @@ def contest_create_user(contest_id):
                 )
                 db.session.add(team)
                 db.session.flush()
+                _create_kypo_account_for_team(team)
             team.members.append(user)
     else:
         # team mode — optional team assignment for contestants
@@ -1723,6 +1745,7 @@ def contest_create_user(contest_id):
                 )
                 db.session.add(team)
                 db.session.flush()
+                _create_kypo_account_for_team(team)
             else:
                 team = Teams.query.filter_by(contest_id=contest_id, name=team_name).first()
                 if not team:
@@ -1801,8 +1824,29 @@ def _import_single_user_row_to_contest(contest, row):
     callers loop over many rows and one bad/duplicate row must not abort
     the rest of the import.
     """
-    from CTFd.models import Teams, UserTeamMember, Users
+    import logging
+
+    from CTFd.models import KypoTeamAccount, Teams, UserTeamMember, Users
+    from CTFd.utils.aes_helper import encrypt_kypo_password
     from CTFd.utils.crypto import hash_password
+    from CTFd.utils.keycloak_service import create_kypo_user
+
+    logger = logging.getLogger(__name__)
+
+    def _create_kypo_account_for_team(team):
+        """Mirrors contest_create_team: best-effort, never blocks team creation."""
+        try:
+            kypo_creds = create_kypo_user(team.id, team.name, contest_id=contest.id)
+            db.session.add(KypoTeamAccount(
+                team_id=team.id,
+                kypo_user_id=kypo_creds["kypo_user_id"],
+                kypo_username=kypo_creds["kypo_username"],
+                kypo_password=encrypt_kypo_password(kypo_creds["kypo_password"]),
+            ))
+            db.session.flush()
+            logger.info("Created KYPO account for team %s (id=%s)", team.name, team.id)
+        except Exception as exc:
+            logger.error("Failed to create KYPO account for team %s: %s", team.id, exc, exc_info=True)
 
     name      = (row.get("username") or row.get("name") or "").strip()
     email     = (row.get("email") or "").strip()
@@ -1859,6 +1903,7 @@ def _import_single_user_row_to_contest(contest, row):
                 )
                 db.session.add(team)
                 db.session.flush()
+                _create_kypo_account_for_team(team)
             team.members.append(user)
     else:
         # team mode — empty team column = no team; otherwise join-or-create
@@ -1874,6 +1919,7 @@ def _import_single_user_row_to_contest(contest, row):
                 )
                 db.session.add(team)
                 db.session.flush()
+                _create_kypo_account_for_team(team)
             else:
                 # Enforce team_size limit when joining an existing team
                 if contest.team_size:
