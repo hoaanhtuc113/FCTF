@@ -1635,19 +1635,25 @@ public class ChallengeController : BaseController
     /// </summary>
     private async Task<KypoTeamAccount?> EnsureKypoTeamAccountAsync(int teamId, string teamName, int contestId, string baseUrl)
     {
-        var lockKey = $"kypo_account_create_{teamId}";
+        // Must live under fctf:contestant:* — that's the only generic namespace the
+        // svc_contestant_be Redis ACL user is granted (see redis-acl-file-secret.yaml);
+        // an unlisted prefix makes AcquireWithRetry throw NOPERM instead of just failing
+        // to acquire, which used to escape this method entirely and 500 the whole request.
+        var lockKey = $"fctf:contestant:kypo_account_create_{teamId}";
         var lockToken = Guid.NewGuid().ToString();
-        var acquired = await _redisLockHelper.AcquireWithRetry(
-            lockKey, lockToken, expiry: TimeSpan.FromSeconds(25), retry: 15, delayMs: 300);
-
-        if (!acquired)
-        {
-            // Someone else is already creating it — read whatever they left behind.
-            return await GetKypoTeamAccountRawAsync(teamId);
-        }
+        var lockAcquired = false;
 
         try
         {
+            lockAcquired = await _redisLockHelper.AcquireWithRetry(
+                lockKey, lockToken, expiry: TimeSpan.FromSeconds(25), retry: 15, delayMs: 300);
+
+            if (!lockAcquired)
+            {
+                // Someone else is already creating it — read whatever they left behind.
+                return await GetKypoTeamAccountRawAsync(teamId);
+            }
+
             // Re-check inside the lock: another request may have just finished.
             var existing = await GetKypoTeamAccountRawAsync(teamId);
             if (existing != null) return existing;
@@ -1673,12 +1679,18 @@ public class ChallengeController : BaseController
         }
         catch (Exception ex)
         {
+            // Never let account provisioning take the whole start-challenge request down —
+            // fall back to the pre-existing "no account yet" behaviour (bare /run URL).
             await Console.Error.WriteLineAsync($"[KYPO] Failed to create KYPO account for team {teamId}: {ex.Message}");
             return null;
         }
         finally
         {
-            await _redisLockHelper.ReleaseLock(lockKey, lockToken);
+            if (lockAcquired)
+            {
+                try { await _redisLockHelper.ReleaseLock(lockKey, lockToken); }
+                catch (Exception ex) { await Console.Error.WriteLineAsync($"[KYPO] Failed to release lock for team {teamId}: {ex.Message}"); }
+            }
         }
     }
 
