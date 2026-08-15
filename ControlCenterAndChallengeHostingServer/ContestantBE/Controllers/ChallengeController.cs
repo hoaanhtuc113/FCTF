@@ -29,6 +29,7 @@ public class ChallengeController : BaseController
     private readonly AppLogger _userBehaviorLogger;
     private readonly IActionLogsServices _actionLogsServices;
     private readonly KypoService _kypoService;
+    private readonly KypoApiClient _kypoApiClient;
     private readonly KypoScoreLockService _scoreLockService;
 
     public ChallengeController(
@@ -42,6 +43,7 @@ public class ChallengeController : BaseController
         AppLogger userBehaviorLogger,
         IActionLogsServices actionLogsServices,
         KypoService kypoService,
+        KypoApiClient kypoApiClient,
         KypoScoreLockService scoreLockService) : base(userContext)
     {
         _context = context;
@@ -53,6 +55,7 @@ public class ChallengeController : BaseController
         _userBehaviorLogger = userBehaviorLogger;
         _actionLogsServices = actionLogsServices;
         _kypoService = kypoService;
+        _kypoApiClient = kypoApiClient;
         _scoreLockService = scoreLockService;
     }
 
@@ -823,6 +826,13 @@ public class ChallengeController : BaseController
                 ? kypoConfig!.kypo_base_url!.TrimEnd('/')
                 : ContestantBEConfigHelper.KypoBaseUrl.TrimEnd('/');
 
+            // First time this team enters a sandbox: create their KYPO/Keycloak
+            // account now instead of handing back an unauthenticated /run link.
+            if (kypoAccount == null)
+            {
+                kypoAccount = await EnsureKypoTeamAccountAsync(teamId, userTeam.Name, contestId, baseUrl);
+            }
+
             string bridgeUrl;
 
             if (kypoAccount?.kypo_username != null && kypoAccount?.kypo_password != null)
@@ -1553,6 +1563,63 @@ public class ChallengeController : BaseController
                 teamId)
             .ToListAsync();
         return rows.FirstOrDefault();
+    }
+
+    /// <summary>
+    /// Creates a KYPO team account on first sandbox entry, if one doesn't already
+    /// exist. Guarded by a short Redis lock keyed on the team so two teammates
+    /// hitting "start" at the same moment can't both create one — kypo_team_accounts
+    /// .team_id is unique and CreateTeamAccountAsync is not itself idempotent.
+    /// Returns null (falling back to the pre-existing "no account" behaviour, a bare
+    /// /run URL) if the lock can't be acquired in time or Keycloak creation fails.
+    /// </summary>
+    private async Task<KypoTeamAccount?> EnsureKypoTeamAccountAsync(int teamId, string teamName, int contestId, string baseUrl)
+    {
+        var lockKey = $"kypo_account_create_{teamId}";
+        var lockToken = Guid.NewGuid().ToString();
+        var acquired = await _redisLockHelper.AcquireWithRetry(
+            lockKey, lockToken, expiry: TimeSpan.FromSeconds(25), retry: 15, delayMs: 300);
+
+        if (!acquired)
+        {
+            // Someone else is already creating it — read whatever they left behind.
+            return await GetKypoTeamAccountRawAsync(teamId);
+        }
+
+        try
+        {
+            // Re-check inside the lock: another request may have just finished.
+            var existing = await GetKypoTeamAccountRawAsync(teamId);
+            if (existing != null) return existing;
+
+            var (kypoUserId, username, password) = await _kypoApiClient.CreateTeamAccountAsync(
+                baseUrl, teamId, teamName, contestId);
+            var encryptedPassword = AesHelper.Encrypt(password);
+
+            await _context.Database.ExecuteSqlRawAsync(
+                "INSERT INTO kypo_team_accounts (team_id, kypo_user_id, kypo_username, kypo_password, created_at) " +
+                "VALUES ({0}, {1}, {2}, {3}, {4})",
+                teamId, kypoUserId, username, encryptedPassword, DateTime.UtcNow);
+
+            await Console.Out.WriteLineAsync($"[KYPO] Created KYPO account for team {teamId} ({username})");
+
+            return new KypoTeamAccount
+            {
+                team_id = teamId,
+                kypo_user_id = kypoUserId,
+                kypo_username = username,
+                kypo_password = encryptedPassword,
+            };
+        }
+        catch (Exception ex)
+        {
+            await Console.Error.WriteLineAsync($"[KYPO] Failed to create KYPO account for team {teamId}: {ex.Message}");
+            return null;
+        }
+        finally
+        {
+            await _redisLockHelper.ReleaseLock(lockKey, lockToken);
+        }
     }
 
     /// <summary>KYPO Keycloak ROPC — lấy token cho team account.</summary>
