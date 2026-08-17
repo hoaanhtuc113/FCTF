@@ -106,8 +106,8 @@ install_hash_generation_tools() {
   echo "==> htpasswd not found, attempting auto-install"
 
   if command -v apt-get >/dev/null 2>&1; then
-    run_privileged apt-get update -y >/dev/null
-    run_privileged apt-get install -y apache2-utils >/dev/null
+    run_privileged env DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get update -y >/dev/null
+    run_privileged env DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get install -y apache2-utils >/dev/null
   elif command -v dnf >/dev/null 2>&1; then
     run_privileged dnf install -y httpd-tools >/dev/null
   elif command -v yum >/dev/null 2>&1; then
