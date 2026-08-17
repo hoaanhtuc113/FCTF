@@ -4,6 +4,14 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROD_DIR="${SCRIPT_DIR}/prod"
 
+# Needed for RABBITMQ_ADMIN_PASSWORD: the admin (management console) user is
+# deliberately never rotated here, but restarting the RabbitMQ StatefulSet
+# below can still leave the broker's admin account out of step with this
+# value - see reassert_rabbitmq_admin_password.
+# shellcheck source=platform-credentials.sh
+source "${SCRIPT_DIR}/platform-credentials.sh"
+fctf_ensure_platform_credentials
+
 DB_NAMESPACE="db"
 APP_NAMESPACE="app"
 
@@ -1243,6 +1251,50 @@ restart_rabbitmq_workload() {
 
   kubectl -n "${ns}" rollout restart statefulset/rabbitmq
   kubectl -n "${ns}" rollout status statefulset/rabbitmq --timeout=600s
+
+  reassert_rabbitmq_admin_password
+}
+
+# The Bitnami RabbitMQ chart's own auth.updatePassword sync is not reliable
+# across a plain StatefulSet restart - apply-fctf.sh works around the same gap
+# at install time in bootstrap_rabbitmq_deploy_users by force-setting "admin"
+# on every run instead of trusting the chart. This rotation script restarts
+# the same StatefulSet (to pick up the producer/consumer password change) but
+# never touches "admin" on purpose, so without this the restart alone can
+# leave the broker's admin account out of step with platform-credentials.env
+# - the exact value "get credentials" reports for the management console.
+reassert_rabbitmq_admin_password() {
+  local ns="db"
+  local rabbit_pod
+
+  if [[ -z "${RABBITMQ_ADMIN_PASSWORD:-}" ]]; then
+    echo "Warning: RABBITMQ_ADMIN_PASSWORD not available; skipping admin password reassertion."
+    return 0
+  fi
+
+  rabbit_pod="$(get_pod_name "${ns}" "rabbitmq-0" "app.kubernetes.io/instance=rabbitmq,app.kubernetes.io/name=rabbitmq" || true)"
+  if [[ -z "${rabbit_pod}" ]]; then
+    echo "Warning: cannot find RabbitMQ pod in namespace ${ns}; skipping admin password reassertion."
+    return 0
+  fi
+
+  if ! kubectl -n "${ns}" exec "${rabbit_pod}" -- rabbitmqctl await_startup >/dev/null 2>&1; then
+    echo "Error: RabbitMQ did not report startup readiness for admin password reassertion."
+    return 1
+  fi
+
+  if ! kubectl -n "${ns}" exec "${rabbit_pod}" -- rabbitmqctl change_password "admin" "${RABBITMQ_ADMIN_PASSWORD}" >/dev/null 2>&1; then
+    kubectl -n "${ns}" exec "${rabbit_pod}" -- rabbitmqctl add_user "admin" "${RABBITMQ_ADMIN_PASSWORD}" >/dev/null 2>&1
+    kubectl -n "${ns}" exec "${rabbit_pod}" -- rabbitmqctl set_user_tags "admin" "administrator" >/dev/null 2>&1
+    kubectl -n "${ns}" exec "${rabbit_pod}" -- rabbitmqctl set_permissions -p "fctf_deploy" "admin" ".*" ".*" ".*" >/dev/null 2>&1
+  fi
+
+  if ! kubectl -n "${ns}" exec "${rabbit_pod}" -- rabbitmqctl authenticate_user "admin" "${RABBITMQ_ADMIN_PASSWORD}" >/dev/null 2>&1; then
+    echo "Error: RabbitMQ admin user does not accept the password in platform-credentials.env after rotation."
+    return 1
+  fi
+
+  echo "    reasserted RabbitMQ admin password (management console login stays in sync)"
 }
 
 restart_redis_workload() {
