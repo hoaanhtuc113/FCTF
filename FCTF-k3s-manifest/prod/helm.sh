@@ -76,6 +76,18 @@ helm upgrade --install rabbitmq bitnami/rabbitmq \
   --set auth.password="${RABBITMQ_ADMIN_PASSWORD}" \
   --debug
 
+# RabbitMQ ignores auth.password if the PVC is already initialized.
+# We must manually sync the admin password and ensure administrator permissions
+# are set so the user can actually log into the Management UI.
+(
+  echo "==> Waiting for RabbitMQ to be ready to sync admin password..."
+  kubectl wait --for=condition=Ready pod -l app.kubernetes.io/name=rabbitmq -n db --timeout=300s >/dev/null 2>&1 || true
+  kubectl exec -n db statefulset/rabbitmq -- rabbitmqctl change_password admin "${RABBITMQ_ADMIN_PASSWORD}" >/dev/null 2>&1 || true
+  kubectl exec -n db statefulset/rabbitmq -- rabbitmqctl set_user_tags admin administrator >/dev/null 2>&1 || true
+  kubectl exec -n db statefulset/rabbitmq -- rabbitmqctl set_permissions -p / admin ".*" ".*" ".*" >/dev/null 2>&1 || true
+  echo "==> RabbitMQ admin password synced successfully."
+) &
+
 # cài monitoring stack (prometheus, grafana, loki, promtail)
 helm repo add grafana https://grafana.github.io/helm-charts
 helm repo update
