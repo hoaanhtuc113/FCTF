@@ -286,6 +286,54 @@ rabbit_password_from_secret() {
   printf '%s' "${value}"
 }
 
+# Same drift as RABBIT_PASSWORD above, but for the MariaDB service accounts.
+# least-privilege-service-accounts.sql only CREATEs each user on the run
+# where the ctfd schema first exists (CREATE USER IF NOT EXISTS), using the
+# static password baked into that file. On a fresh install where admin-mvc
+# comes up late, rotate-service-passwords.sh can rotate and patch the Secret
+# before that first run ever happens - so the account gets created with the
+# file's stale password while the Secret (and thus the app) already holds
+# the rotated one, and every connection fails Access Denied from day one.
+# Reasserting from the Secret after the grants file runs keeps both sides on
+# whatever password is actually live, the same way rabbit_password_from_secret
+# does for RabbitMQ.
+mariadb_service_password_from_secret() {
+  local secret_name="$1"
+  local fallback="$2"
+  local db_connection value
+
+  db_connection="$(kubectl -n app get secret "${secret_name}" -o jsonpath='{.data.DB_CONNECTION}' 2>/dev/null | base64 -d 2>/dev/null || true)"
+  value="$(printf '%s' "${db_connection}" | grep -oP 'Password=\K[^;]+' || true)"
+
+  if [[ -z "${value}" ]]; then
+    value="${fallback}"
+  fi
+
+  printf '%s' "${value}"
+}
+
+reassert_mariadb_service_passwords() {
+  local user secret_name fallback password
+
+  while IFS='|' read -r user secret_name fallback; do
+    [[ -n "${user}" ]] || continue
+    password="$(mariadb_service_password_from_secret "${secret_name}" "${fallback}")"
+
+    kubectl -n db exec mariadb-0 -- bash -lc "/opt/bitnami/mariadb/bin/mariadb --ssl=0 -uroot -p\"\$(cat /opt/bitnami/mariadb/secrets/mariadb-root-password)\" -e \"ALTER USER '${user}'@'%' IDENTIFIED BY '${password}'; FLUSH PRIVILEGES;\"" >/dev/null 2>&1
+
+    if ! kubectl -n db exec mariadb-0 -- bash -lc "/opt/bitnami/mariadb/bin/mariadb --ssl=0 -u${user} -p'${password}' -e 'SELECT 1;' ctfd" >/dev/null 2>&1; then
+      echo "Error: MariaDB user '${user}' does not accept the password held in its Kubernetes Secret."
+      exit 1
+    fi
+    echo "    reasserted ${user} password from its Secret"
+  done <<'USERS'
+contestant_be|contestant-be-secret|NKtFmlmqOKWCqmAkE8ICZAykAsTwasu5fWxdpvCeEYBgWeNbKS
+deployment_center|deployment-center-secret|2ePNjWVf2bPhnXA5bKXNMQDkmziaJT9PqDPkaSbmcutzkzUL89
+deployment_listener|deployment-listener-secret|iHOu7LxTV0cggemLl2NfDOY6Qq0u6MgueurDCNfwFcU3Awx47H
+deployment_consumer|deployment-consumer-secret|UCEoSbGsU2haYN1jwFPP0JhOBqlGgC1IlociA8i5wIGageGOHF
+USERS
+}
+
 bootstrap_rabbitmq_deploy_users() {
   local ns="db"
   local rabbit_pod=""
@@ -716,6 +764,9 @@ if [[ -f "${MARIADB_POST_INIT_GRANTS_SQL}" ]]; then
   if [[ "${ctfd_table_count}" =~ ^[0-9]+$ && "${ctfd_table_count}" -gt 1 ]]; then
     echo "==> Applying least-privilege MariaDB grants (${ctfd_table_count} tables present)"
     kubectl -n db exec -i mariadb-0 -- bash -lc '/opt/bitnami/mariadb/bin/mariadb --ssl=0 -uroot -p"$(cat /opt/bitnami/mariadb/secrets/mariadb-root-password)" ctfd' < "${MARIADB_POST_INIT_GRANTS_SQL}"
+
+    echo "==> Reasserting MariaDB service-account passwords from their Secrets"
+    reassert_mariadb_service_passwords
   else
     echo "==> Skipping least-privilege MariaDB grants: the ctfd schema does not exist yet"
     echo "    CTFd creates it the first time admin-mvc starts, which needs its image in"
