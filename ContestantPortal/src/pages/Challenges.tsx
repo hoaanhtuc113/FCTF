@@ -4193,9 +4193,14 @@ function ChallengeDetailPanel({
                               HTTP
                             </div>
                             <div className="flex-1 min-w-0">
-                              <div className={`break-all font-mono text-xs ${theme === 'dark' ? 'text-blue-400' : 'text-blue-600'}`}>
+                              <a
+                                href={httpAddr}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className={`break-all font-mono text-xs hover:underline ${theme === 'dark' ? 'text-blue-400' : 'text-blue-600'}`}
+                              >
                                 {httpAddr}
-                              </div>
+                              </a>
                             </div>
                             <button
                               onClick={() => handleCopyHttp(httpAddr)}

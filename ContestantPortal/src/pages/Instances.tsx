@@ -325,10 +325,15 @@ export function Instances() {
                     <td className="py-3 px-3" style={{ width: '35%' }}>
                       {instance.status === 'Running' ? (
                         <div className="flex items-center gap-2">
-                          <code className={`text-xs break-all ${theme === 'dark' ? 'text-orange-400' : 'text-orange-700'
-                            }`}>
+                          <a
+                            href={formattedURL.startsWith('http') ? formattedURL : `http://${formattedURL}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={`text-xs break-all hover:underline ${theme === 'dark' ? 'text-orange-400' : 'text-orange-700'
+                            }`}
+                          >
                             {formattedURL}
-                          </code>
+                          </a>
                           <button
                             onClick={() => handleCopyURL(formattedURL, instance.challenge_id)}
                             className={`px-2 py-1.5 rounded transition-colors shrink-0 flex items-center gap-1 text-xs ${copiedId === instance.challenge_id
