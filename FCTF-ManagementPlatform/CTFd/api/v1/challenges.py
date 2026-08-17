@@ -1319,16 +1319,41 @@ class ChallengeAttempt(Resource):
 
                 if max_tries:
                     attempts_left = max_tries - fails - 1
+
+                    if attempts_left <= 0 and getattr(challenge, "require_deploy", False):
+                        cache_key = generate_cache_key(challenge_id, team_id)
+                        if redis_client.exists(cache_key):
+                            try:
+                                force_stop(
+                                    cache_key=cache_key,
+                                    challenge_id=challenge_id,
+                                    team_id=team_id,
+                                )
+                            except Exception as e:
+                                log(
+                                    "errors",
+                                    "[{date}] Error stopping challenge {challenge_id} for team {team_id} on max attempts: {error}",
+                                    challenge_id=challenge_id,
+                                    team_id=team_id,
+                                    error=str(e),
+                                )
+
                     tries_str = pluralize(attempts_left, singular="try", plural="tries")
                     if message[-1] not in "!().;?[]{}":
                         message = message + "."
+                    
+                    msg_text = "{} You have {} {} remaining.".format(
+                        message, attempts_left, tries_str
+                    )
+
+                    if attempts_left <= 0:
+                        msg_text = "{} You have 0 tries remaining. Your instance has been automatically stopped.".format(message)
+
                     return {
                         "success": True,
                         "data": {
                             "status": "incorrect",
-                            "message": "{} You have {} {} remaining.".format(
-                                message, attempts_left, tries_str
-                            ),
+                            "message": msg_text,
                             "cooldown": challenge.cooldown,
                         },
                     }

@@ -4111,8 +4111,9 @@ function ChallengeDetailPanel({
               </div>
             )}
 
-            {/* Connection Info with Token — hidden for sandbox/KYPO challenges */}
-            {challenge.type !== 'sandbox' && (url || isHealthChecking || isDeploymentInProgress) && (
+            {/* Connection Info with Token — hidden for sandbox/KYPO challenges and when max attempts reached */}
+            {challenge.type !== 'sandbox' && (url || isHealthChecking || isDeploymentInProgress) && 
+              !(challenge.max_attempts > 0 && (challenge.attemps || 0) >= challenge.max_attempts) && (
               <div className={`p-3 rounded border ${theme === 'dark' ? 'bg-gray-900 border-gray-700' : 'bg-gray-50 border-gray-300'}`}>
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
@@ -4511,10 +4512,17 @@ function ChallengeDetailPanel({
             )}
 
             {/* Start/Submit Buttons */}
-            {challenge.require_deploy && !challenge.solve_by_myteam && !challenge.shared_instance &&
-              !(challenge.max_attempts > 0 && (challenge.attemps || 0) >= challenge.max_attempts) && (
+            {challenge.require_deploy && !challenge.solve_by_myteam && !challenge.shared_instance && (
                 <div className="space-y-2">
-                  {(isLocallySubmitted || challenge.is_submitted) ? (
+                  {(challenge.max_attempts > 0 && (challenge.attemps || 0) >= challenge.max_attempts) ? (
+                    <div className={`w-full py-2 px-4 rounded font-mono font-bold text-sm flex items-center justify-center gap-2 ${theme === 'dark'
+                      ? 'bg-gray-800/60 border border-red-900/50 text-red-400/70'
+                      : 'bg-red-50 border border-red-200 text-red-500/80'
+                      }`}>
+                      <Lock sx={{ fontSize: 15 }} />
+                      Max Attempts Reached &amp; Instance Revoked
+                    </div>
+                  ) : (isLocallySubmitted || challenge.is_submitted) ? (
                     <div className={`w-full py-2 px-4 rounded font-mono font-bold text-sm flex items-center justify-center gap-2 ${theme === 'dark'
                       ? 'bg-gray-800/60 border border-red-900/50 text-red-400/70'
                       : 'bg-red-50 border border-red-200 text-red-500/80'
