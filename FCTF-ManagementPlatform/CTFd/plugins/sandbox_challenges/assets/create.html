@@ -77,12 +77,15 @@
         <span class="ml-2 text-muted small">Connecting to KYPO and loading instances&hellip;</span>
     </div>
 
-    <div id="kypo-refresh-container" style="display:none; align-items:center; gap:8px;">
-        <select class="form-control custom-select" name="kypo_instance_select" id="kypo-instance-select" required>
-            <option value="">— Select a KYPO instance —</option>
-        </select>
+    <div id="kypo-refresh-container" style="display:none; align-items:flex-start; gap:8px;">
+        <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 8px;">
+            <input type="text" id="kypo-instance-search" class="form-control form-control-sm" placeholder="Search KYPO instance by name..." autocomplete="off">
+            <select class="form-control custom-select" name="kypo_instance_select" id="kypo-instance-select" required size="6">
+                <option value="">— Select a KYPO instance —</option>
+            </select>
+        </div>
         <button type="button" id="kypo-refresh-btn" class="btn btn-outline-secondary btn-sm flex-shrink-0"
-            title="Refresh instances">
+            title="Refresh instances" style="margin-top: 35px;">
             <i class="fas fa-sync-alt"></i>
         </button>
     </div>

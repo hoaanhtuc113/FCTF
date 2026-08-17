@@ -76,8 +76,12 @@
         <span class="ml-2 text-muted small">Loading KYPO instances&hellip;</span>
     </div>
 
-    <select class="form-control custom-select" id="kypo-instance-select-update" style="display:none;">
-    </select>
+    <div id="kypo-instance-container-update" style="display:none; flex-direction: column; gap: 8px;">
+        <input type="text" id="kypo-instance-search-update" class="form-control form-control-sm" placeholder="Search KYPO instance by name..." autocomplete="off">
+        <select class="form-control custom-select" id="kypo-instance-select-update" size="6">
+            <option value="">— Select a KYPO instance —</option>
+        </select>
+    </div>
 
     <div id="kypo-instance-error-update" class="alert alert-warning mt-2 d-none" role="alert">
         <i class="fas fa-exclamation-triangle mr-1"></i>
@@ -206,7 +210,25 @@
                         select.appendChild(opt);
                     });
 
-                    select.style.display = "block";
+                    var container = elU("kypo-instance-container-update");
+                    if (container) container.style.display = "flex";
+                    
+                    var searchInput = elU("kypo-instance-search-update");
+                    if (searchInput) {
+                        searchInput.addEventListener("input", function() {
+                            var filter = this.value.toLowerCase();
+                            var options = select.options;
+                            for (var i = 1; i < options.length; i++) { // skip placeholder
+                                var txt = options[i].textContent || options[i].innerText;
+                                if (txt.toLowerCase().indexOf(filter) > -1) {
+                                    options[i].style.display = "";
+                                } else {
+                                    options[i].style.display = "none";
+                                }
+                            }
+                        });
+                    }
+
                     select.addEventListener("change", function () {
                         var opt = this.options[this.selectedIndex];
                         if (!opt || !opt.value) return;

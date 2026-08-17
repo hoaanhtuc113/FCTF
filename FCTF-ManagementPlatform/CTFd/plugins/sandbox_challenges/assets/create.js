@@ -113,6 +113,25 @@ function removeClass(id, cls) { var e = el(id); if (e) e.classList.remove(cls); 
 
     loadInstances();
 
+    // ── Search filter ─────────────────────────────────────────────────────
+    var searchInput = el("kypo-instance-search");
+    if (searchInput) {
+        searchInput.addEventListener("input", function () {
+            var filter = this.value.toLowerCase();
+            var select = el("kypo-instance-select");
+            if (!select) return;
+            var options = select.options;
+            for (var i = 1; i < options.length; i++) { // skip placeholder
+                var txt = options[i].textContent || options[i].innerText;
+                if (txt.toLowerCase().indexOf(filter) > -1) {
+                    options[i].style.display = "";
+                } else {
+                    options[i].style.display = "none";
+                }
+            }
+        });
+    }
+
     // ── Refresh button ────────────────────────────────────────────────────
     var refreshBtn = el("kypo-refresh-btn");
     if (refreshBtn) {
