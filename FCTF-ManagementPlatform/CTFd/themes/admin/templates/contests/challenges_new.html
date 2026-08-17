@@ -85,6 +85,28 @@
                             Setup Deploy
                         </label>
                     </div>
+                    <div class="form-group d-none" id="flag-env-help">
+                        <div class="alert" style="background:#fff8e6;border:1px solid #f0d789;color:#7a5c00;border-radius:6px;padding:.75rem 1rem;margin-bottom:0;">
+                            <strong>Reading the flag in your challenge code</strong><br>
+                            <small class="text-muted d-block mb-2">
+                                Don't hardcode the flag in your source or Docker image — when the pod deploys, the flag
+                                (static or the per-team dynamic one) is injected as the <code>FLAG</code> environment variable.
+                            </small>
+                            <div class="btn-group btn-group-sm mb-2" role="group" id="flag-help-lang-tabs">
+                                <button type="button" class="btn btn-outline-secondary active" data-lang="python">Python</button>
+                                <button type="button" class="btn btn-outline-secondary" data-lang="node">Node.js</button>
+                                <button type="button" class="btn btn-outline-secondary" data-lang="java">Java</button>
+                            </div>
+                            <pre class="flag-help-snippet" data-lang="python" style="background:#282c34;color:#abb2bf;padding:.6rem .8rem;border-radius:4px;margin-bottom:0;overflow-x:auto;"><code>flag = os.environ.get("FLAG", "CTF{placeholder}")</code></pre>
+                            <pre class="flag-help-snippet d-none" data-lang="node" style="background:#282c34;color:#abb2bf;padding:.6rem .8rem;border-radius:4px;margin-bottom:0;overflow-x:auto;"><code>const flag = process.env.FLAG || 'CTF{placeholder}';</code></pre>
+                            <pre class="flag-help-snippet d-none" data-lang="java" style="background:#282c34;color:#abb2bf;padding:.6rem .8rem;border-radius:4px;margin-bottom:0;overflow-x:auto;"><code>/* Dockerfile - Java reads it from a file, not the env var directly: */
+ENV FLAG="CTF{placeholder}"
+CMD ["sh", "-c", "echo \"$FLAG\" &gt; /tmp/flag.txt &amp;&amp; catalina.sh run"]
+
+/* Servlet - read that file at request time */
+String flag = new String(Files.readAllBytes(Paths.get("/tmp/flag.txt"))).trim();</code></pre>
+                        </div>
+                    </div>
                     <div class="form-group d-none" id="expose_port_container">
                         <label>Expose port<br>
                             <small class="form-text text-muted">Expose a port for the Docker container</small>
@@ -308,6 +330,7 @@
         const isChecked = $(this).is(':checked');
         if (isChecked) {
             $('#expose_port_container').removeClass('d-none');
+            $('#flag-env-help').removeClass('d-none');
             $('.upload-file').removeClass('d-none');
             $('.multi_files').addClass('d-none');
             $('#deploy_resource_container, #deploy_resource_container_cpu_request, #deploy_resource_container_memory_limit, #deploy_resource_container_memory_request, #deploy_resource_container_use_gvisor, #deploy_resource_container_harden_container, #deploy_resource_container_max_deploy_count, #deploy_resource_container_shared_instant, #deploy_resource_container_connection_protocol').removeClass('d-none');
@@ -317,6 +340,7 @@
             $('#deploy_resource_container_shared_instant input').prop('disabled', false).prop('required', false);
         } else {
             $('#expose_port_container').addClass('d-none');
+            $('#flag-env-help').addClass('d-none');
             $('.upload-file').addClass('d-none');
             $('.multi_files').removeClass('d-none');
             $('#deploy_resource_container, #deploy_resource_container_cpu_request, #deploy_resource_container_memory_limit, #deploy_resource_container_memory_request, #deploy_resource_container_use_gvisor, #deploy_resource_container_harden_container, #deploy_resource_container_max_deploy_count, #deploy_resource_container_shared_instant, #deploy_resource_container_connection_protocol').addClass('d-none');
@@ -325,6 +349,14 @@
             $('#deploy_resource_container_harden_container input').prop('disabled', true);
             $('#deploy_resource_container_shared_instant input').prop('disabled', true).prop('checked', false);
         }
+    });
+
+    $(document).on('click', '#flag-help-lang-tabs button', function() {
+        var lang = $(this).data('lang');
+        $('#flag-help-lang-tabs button').removeClass('active');
+        $(this).addClass('active');
+        $('.flag-help-snippet').addClass('d-none');
+        $('.flag-help-snippet[data-lang="' + lang + '"]').removeClass('d-none');
     });
 </script>
 {% endblock %}
