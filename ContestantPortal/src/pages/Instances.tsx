@@ -6,7 +6,6 @@ import { API_ENDPOINTS } from '../config/endpoints';
 import { Terminal, Refresh, ContentCopy } from '@mui/icons-material';
 import Swal from '../services/safeSwal';
 import { useNavigate, useParams } from 'react-router-dom';
-import { formatUTCToLocaleString } from '../utils/timezone';
 
 interface ChallengeInstance {
   challenge_id: number;
@@ -193,13 +192,6 @@ export function Instances() {
     }
   };
 
-  const parseUnixTimeToDate = (unixTime: string) => {
-    const unixTimeInt = parseInt(unixTime);
-    if (isNaN(unixTimeInt) || unixTimeInt <= 0) {
-      return 'N/A';
-    }
-    return formatUTCToLocaleString(unixTimeInt);
-  }
 
   const parseAndFormatURL = (rawUrl: string) => {
     // Remove "Connection string: " prefix
@@ -360,7 +352,7 @@ export function Instances() {
                         </span>
                       )}
                     </td>
-                    <td className="py-3 px-2 text-xs" style={{ width: '12%' }}>{cha(instance.age)}</td>
+                    <td className="py-3 px-2 text-xs" style={{ width: '12%' }}>{instance.age}</td>
                     <td className="py-3 px-2" style={{ width: '17%' }}>
                       <div className="flex justify-end gap-1">
                         <button
