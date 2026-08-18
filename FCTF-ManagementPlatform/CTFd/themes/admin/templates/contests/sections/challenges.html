@@ -210,6 +210,14 @@
             {% endif %}
         </div>
         <div class="btn-group" role="group">
+            <button type="button" class="clean-btn"
+                    id="challenges-show-button" data-toggle="tooltip" title="Show selected challenges">
+                <i class="btn-fa fas fa-eye"></i> Show
+            </button>
+            <button type="button" class="clean-btn ml-2"
+                    id="challenges-hide-button" data-toggle="tooltip" title="Hide selected challenges">
+                <i class="btn-fa fas fa-eye-slash"></i> Hide
+            </button>
             <button type="button" class="clean-btn clean-btn-danger ml-2"
                     id="challenges-delete-button" data-toggle="tooltip" title="Delete selected challenges">
                 <i class="btn-fa fas fa-trash-alt"></i> Delete
@@ -414,7 +422,8 @@ if (allCb) {
     });
 }
 
-/* Delete selected challenges — handled by deleteSelectedChallenges() in challenges.js
-   (uses ezQuery Bootstrap modal + CTFd.fetch with auto-CSRF, bound to #challenges-delete-button) */
+/* Show/Hide/Delete selected challenges — handled by challenges.js
+   (ezQuery Bootstrap modal + CTFd.fetch with auto-CSRF, bound to
+   #challenges-show-button / #challenges-hide-button / #challenges-delete-button) */
 </script>
 {% endblock %}

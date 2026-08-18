@@ -80,6 +80,64 @@ function bulkEditChallenges(_event) {
   });
 }
 
+function setSelectedChallengesState(_event, targetState) {
+  let challengeIDs = $("input[data-challenge-id]:checked").map(function () {
+    return $(this).data("challenge-id");
+  });
+  if (challengeIDs.length === 0) {
+    return;
+  }
+
+  const label = targetState === "visible" ? "Show" : "Hide";
+  const target = challengeIDs.length === 1 ? "challenge" : "challenges";
+
+  ezQuery({
+    title: `${label} Challenges`,
+    body: `Are you sure you want to ${label.toLowerCase()} ${challengeIDs.length} ${target}?`,
+    success: function () {
+      const reqs = [];
+      for (var chalID of challengeIDs) {
+        reqs.push(
+          CTFd.fetch(`/api/v1/challenges/${chalID}`, {
+            method: "PATCH",
+            body: JSON.stringify({ state: targetState }),
+          }).then((response) =>
+            response.json().then((data) => ({ chalID, data })),
+          ),
+        );
+      }
+      Promise.all(reqs).then((results) => {
+        // A challenge that already has solves can refuse to be hidden
+        // (see the visible->hidden guard in the PATCH endpoint) - surface
+        // those instead of silently reloading as if everything succeeded.
+        const failed = results.filter((r) => !r.data.success);
+        if (failed.length > 0) {
+          const body = failed
+            .map(
+              (r) =>
+                `#${r.chalID}: ${r.data.error || "Unknown error"}`,
+            )
+            .join("<br>");
+          ezAlert({
+            title: `${failed.length} of ${challengeIDs.length} failed to ${label.toLowerCase()}`,
+            body: body,
+            button: "OK",
+          });
+        }
+        window.location.reload();
+      });
+    },
+  });
+}
+
+function showSelectedChallenges(event) {
+  setSelectedChallengesState(event, "visible");
+}
+
+function hideSelectedChallenges(event) {
+  setSelectedChallengesState(event, "hidden");
+}
+
 function previewChallenge(challengeId, triggerEl = null) {
   const previewButton = triggerEl || document.getElementById(`preview-button-${challengeId}`);
 
@@ -362,6 +420,8 @@ function CheckingStatus(challengeId, intervalId) {
 $(() => {
   $("#challenges-delete-button").click(deleteSelectedChallenges);
   $("#challenges-edit-button").click(bulkEditChallenges);
+  $("#challenges-show-button").click(showSelectedChallenges);
+  $("#challenges-hide-button").click(hideSelectedChallenges);
 
   // Mount tag picker if present (use same Vue.extend pattern as challenge page for compatibility)
   const pickerEl = document.getElementById("tags-picker");
