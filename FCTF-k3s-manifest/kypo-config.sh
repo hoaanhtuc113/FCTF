@@ -82,9 +82,15 @@ _sudo_prefix() {
   printf 'sudo'
 }
 
+_env_file_exists() {
+  local sudo_cmd
+  sudo_cmd="$(_sudo_prefix "$(dirname "${KYPO_ENV_FILE}")")" || return 1
+  ${sudo_cmd} test -f "${KYPO_ENV_FILE}"
+}
+
 _read_saved() {
   local sudo_cmd
-  [[ -f "${KYPO_ENV_FILE}" ]] || return 0
+  _env_file_exists || return 0
 
   sudo_cmd="$(_sudo_prefix "$(dirname "${KYPO_ENV_FILE}")")" || return 1
   # shellcheck disable=SC1090
@@ -160,7 +166,7 @@ kypo_apply() {
   local question key kind names name value
   local -a cm_args=() secret_args=()
 
-  if [[ ! -f "${KYPO_ENV_FILE}" ]]; then
+  if ! _env_file_exists; then
     echo "No ${KYPO_ENV_FILE}; skipping KYPO configuration."
     echo "Run manage.sh option 11 to set it up."
     return 0
@@ -218,7 +224,7 @@ kypo_apply() {
 kypo_show() {
   local question key prompt kind value
 
-  if [[ ! -f "${KYPO_ENV_FILE}" ]]; then
+  if ! _env_file_exists; then
     echo "No ${KYPO_ENV_FILE}. KYPO integration is not configured on this host."
     return 0
   fi
