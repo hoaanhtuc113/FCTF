@@ -408,6 +408,7 @@ function handleChallengeOptions(event) {
     patchBody.memory_request = memoryRequest;
     patchBody.use_gvisor = useGvisor;
     patchBody.harden_container = hardenContainer;
+    patchBody.connection_protocol = params.connection_protocol || "http";
   } else {
     patchBody.cpu_limit = null;
     patchBody.cpu_request = null;
