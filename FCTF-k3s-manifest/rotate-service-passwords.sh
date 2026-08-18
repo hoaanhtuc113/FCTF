@@ -757,14 +757,25 @@ patch_redis_acl_file_secret() {
 
   # Rotation replaces passwords only. The command/key/channel rules below must
   # stay byte-for-byte in step with prod/env/secret/redis-acl-file-secret.yaml -
-  # this function rewrites the whole aclfile, so any rule that is broader here
-  # silently becomes the cluster's real ACL the moment a rotation runs.
+  # this function rewrites the whole aclfile, so any rule that is broader (or
+  # narrower) here silently becomes the cluster's real ACL the moment a
+  # rotation runs.
+  #
+  # default keeps ~* &* +@all, matching the live-only revert applied on
+  # 2026-08-18: appendonly is on with save "" (redis-values.yaml), so
+  # redis-master must replay the whole AOF on every restart, and that replay
+  # runs as a fake client authenticated as `default`. A default restricted to
+  # +ping cannot pass ACL re-validation on the MULTI/EXEC blocks that Lua
+  # scripts (every atomic op in RedisHelper.cs) leave in the AOF via effects
+  # replication, so redis-master can never finish loading and never starts.
+  # Restricting default again needs appendonly off + RDB snapshots first,
+  # verified outside production - not a rotation script edit.
   local new_usersacl
-  new_usersacl="user default on >${REDIS_ROOT_PASSWORD_NEW} resetkeys resetchannels -@all +ping
+  new_usersacl="user default on >${REDIS_ROOT_PASSWORD_NEW} ~* &* +@all
 user svc_admin_mvc on >${ADMIN_REDIS_PASSWORD} ~fctf:admin:* &ctf +ping +echo +select +get +set +setex +del +unlink +exists +expire +ttl +pttl +persist +incr +decr +scan +keys +hget +hset +hmget +mget +hmset +hdel +publish +subscribe +psubscribe +unsubscribe +punsubscribe (~deploy_challenge_* +get +exists +del +unlink) (~submission_cooldown_* +get +set) (~attempt_count_* +exists +decr +del)
 user svc_gateway on >${GATEWAY_REDIS_PASSWORD} ~fctf:gateway:* resetchannels +ping +echo +select +get +set +time +exists +expire +del +incr +decr +hget +hset +hmget +hmset +eval +evalsha
 user svc_contestant_be on >${CONTESTANT_BE_REDIS_PASSWORD} ~submission_cooldown_* ~attempt_count_* ~deploy_challenge_* ~active_deploys_team_* ~auth:user:* ~challenge:* ~hint:* ~kpm_check_* ~fctf:contestant:* resetchannels +ping +echo +select +get +set +setex +del +exists +expire +ttl +pttl +incr +decr +scan +hmget +mget +zadd +zrem +zremrangebyscore +zscore +zcard +eval +evalsha +incrbyfloat
-user svc_deployment_center on >${DEPLOYMENT_CENTER_REDIS_PASSWORD} ~deploy_challenge_* ~active_deploys_team_* resetchannels +ping +echo +select +get +set +setex +del +exists +expire +ttl +incr +decr +scan +zadd +zrem +zscore +eval +evalsha
+user svc_deployment_center on >${DEPLOYMENT_CENTER_REDIS_PASSWORD} ~deploy_challenge_* ~active_deploys_team_* ~secretkey-nonce:* ~deploy_cooldown_* resetchannels +ping +echo +select +get +set +setex +del +exists +expire +ttl +incr +decr +scan +zadd +zrem +zscore +eval +evalsha (~contest_queue_slots_* ~team_start_window_* +eval +evalsha +zremrangebyscore +zscore +zcard +zadd +expire)
 user svc_deployment_consumer on >${DEPLOYMENT_CONSUMER_REDIS_PASSWORD} ~deploy_challenge_* ~active_deploys_team_* resetchannels +ping +echo +select +get +set +setex +del +exists +expire +ttl +incr +decr +zadd +zscore +eval +evalsha
 user svc_deployment_listener on >${DEPLOYMENT_LISTENER_REDIS_PASSWORD} ~deploy_challenge_* ~active_deploys_team_* resetchannels +ping +echo +select +get +set +setex +del +exists +expire +ttl +incr +decr +scan +zadd +zrem +zscore +eval +evalsha"
 
