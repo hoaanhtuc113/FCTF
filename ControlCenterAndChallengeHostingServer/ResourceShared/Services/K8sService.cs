@@ -218,7 +218,7 @@ public class K8sService : IK8sService
                     else age = $"{(int)diff.TotalMinutes}m";
                 }
 
-                var (teamId, challengeId) = ChallengeHelper.ParseDeploymentAppName(ns);
+                var (teamId, challengeId) = ChallengeHelper.ParseChallengeLabels(pod.Metadata?.Labels);
 
                 var isStuck = IsPodStuck(pod);
                 var deploymentKey = ChallengeHelper.GetCacheKey(challengeId, teamId);

@@ -8,12 +8,15 @@
 # see exactly which ServiceAccount, at what time, acted on which namespace.
 # Even though every team's request shares the same SA (deployment-center-sa /
 # deployment-listener-sa / start-chal-v2-workflow-sa), the namespace name
-# itself already encodes team/challenge (see ChallengeHelper.GetDeploymentAppName:
-# "team-{teamId}-{challengeId}-{challengeName}-{timestamp}"), so this alone
-# tells you *which team's* namespace was affected. Matching that to *which
-# HTTP request/admin* triggered it still requires joining with the app-level
-# correlationId (see AppLogger) - K8s audit log cannot know that on its own,
-# since it only ever sees the shared SA identity.
+# itself already encodes contest/team/challenge (see
+# ChallengeHelper.GetDeploymentAppName:
+# "contest-{contestId}-team-{teamId}-{challengeName}-{timestamp}"),
+# so this alone tells you *which contest and team's* namespace was affected.
+# The numeric challenge id isn't in the name - it's read back from the
+# ctf/challenge-id label instead (see ChallengeHelper.ParseChallengeLabels).
+# Matching that to *which HTTP request/admin* triggered it still requires
+# joining with the app-level correlationId (see AppLogger) - K8s audit log
+# cannot know that on its own, since it only ever sees the shared SA identity.
 #
 # That join is: the workflow carries the same id as the label
 # fctf.correlation-id, applied at submit time by ChallengeHelper.BuildArgoPayload,

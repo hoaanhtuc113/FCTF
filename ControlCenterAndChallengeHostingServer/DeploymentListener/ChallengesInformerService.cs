@@ -222,11 +222,11 @@ public class ChallengesInformerService
         int teamId, challengeId;
         try
         {
-            (teamId, challengeId) = ChallengeHelper.ParseDeploymentAppName(ns);
+            (teamId, challengeId) = ChallengeHelper.ParseChallengeLabels(pod.Metadata.Labels);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, data: new { ns, podName, eventType = eventType.ToString(), errorType = "MalformedNamespaceName" });
+            _logger.LogError(ex, data: new { ns, podName, eventType = eventType.ToString(), errorType = "MissingChallengeLabels" });
             return;
         }
         var key = ChallengeHelper.GetCacheKey(challengeId, teamId);

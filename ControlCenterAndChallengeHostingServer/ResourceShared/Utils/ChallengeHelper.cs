@@ -125,42 +125,68 @@ namespace ResourceShared.Utils
         //     return BitConverter.ToString(hashBytes).Replace("-", "").ToLowerInvariant();
         // }
 
-        public static string GetDeploymentAppName(int teamId, int challengeId, string challengeName)
+        public static string GetDeploymentAppName(int teamId, int contestId, string challengeName)
         {
             var date = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             var challName = ParseAlphaNumeric(challengeName);
             teamId = teamId == -1 ? 0 : teamId;
             string srtTeamId = teamId == -2 ? "shared" : null;
+            var teamPart = !string.IsNullOrEmpty(srtTeamId) ? srtTeamId : teamId.ToString();
 
-            if(!string.IsNullOrEmpty(srtTeamId))
-            {
-                return $"team-{srtTeamId}-{challengeId}-{challName}-{date}".ToLower().Replace(" ", "-");
-            }
+            // This becomes the Kubernetes namespace name AND, via
+            // challenge-plain.yaml/challenge-hardened.yaml's "${CHALLENGE_NAME}-job"
+            // Job, the prefix of the actual Pod name Rancher shows - Kubernetes
+            // appends a random suffix to the Job name to get the pod name. contest/
+            // team lead the name, in that order, so a pod's contest is the first
+            // thing visible without opening it to check labels; the challenge name
+            // itself closes out the name, with no "challenge-" label in front of it.
+            //
+            // A namespace name is a DNS-1123 label (63 chars), but the Job's own name
+            // is the tighter constraint: Kubernetes stamps a "job-name" label (value
+            // = the Job's name) on every pod it creates, and label values are also
+            // capped at 63 - so "{this name}-job" must fit in 63, i.e. this name
+            // itself must stay under 63 - "-job".Length = 59. challName is the one
+            // segment with no natural bound, so it is what gets trimmed to fit.
+            const string jobSuffix = "-job";
+            var fixedPart = $"contest-{contestId}-team-{teamPart}--{date}";
+            var maxChallNameLen = Math.Max(0, 63 - jobSuffix.Length - fixedPart.Length);
+            if (challName.Length > maxChallNameLen)
+                challName = challName[..maxChallNameLen];
 
-            return $"team-{teamId}-{challengeId}-{challName}-{date}".ToLower().Replace(" ", "-");
+            return $"contest-{contestId}-team-{teamPart}-{challName}-{date}"
+                .ToLower().Replace(" ", "-");
         }
 
-        public static (int teamId, int challengeId) ParseDeploymentAppName(string appName)
+        // The pod/namespace name is built for humans reading Rancher (see
+        // GetDeploymentAppName) and no longer carries the numeric challenge id, so
+        // it cannot be parsed back into one. The namespace and every pod in it
+        // already carry ctf/team-id and ctf/challenge-id as labels (see
+        // challenge-plain.yaml/challenge-hardened.yaml), which is the authoritative,
+        // machine-readable source both K8sService and ChallengesInformerService
+        // resolve a pod back to its team/challenge from.
+        public static (int teamId, int challengeId) ParseChallengeLabels(IDictionary<string, string>? labels)
         {
-            var parts = appName.Split('-', StringSplitOptions.RemoveEmptyEntries);
-
-            if (parts.Length < 3 || !parts[0].StartsWith("team"))
-                throw new ArgumentException("Invalid app name format", nameof(appName));
+            if (labels == null || !labels.TryGetValue("ctf/team-id", out var teamIdRaw))
+                throw new ArgumentException("Missing ctf/team-id label", nameof(labels));
 
             int teamId;
-            if (string.Equals(parts[1], "shared", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(teamIdRaw, "shared", StringComparison.OrdinalIgnoreCase))
             {
                 teamId = -2;
             }
-            else if (!int.TryParse(parts[1], out teamId))
+            else if (!int.TryParse(teamIdRaw, out teamId))
             {
-                throw new FormatException("Invalid teamId in app name");
+                throw new FormatException("Invalid ctf/team-id label value");
+            }
+            else
+            {
+                teamId = teamId == 0 ? -1 : teamId;
             }
 
-            if (!int.TryParse(parts[2], out int challengeId))
-                throw new FormatException("Invalid challengeId in app name");
+            if (!labels.TryGetValue("ctf/challenge-id", out var challengeIdRaw) ||
+                !int.TryParse(challengeIdRaw, out var challengeId))
+                throw new FormatException("Missing or invalid ctf/challenge-id label");
 
-            teamId = teamId == 0 ? -1 : teamId;
             return (teamId, challengeId);
         }
 
@@ -209,7 +235,7 @@ namespace ResourceShared.Utils
                 challenge.TimeLimit = 1;
             }
 
-            var deploymentAppName = GetDeploymentAppName(teamId, challenge.Id, challenge.Name);
+            var deploymentAppName = GetDeploymentAppName(teamId, challenge.ContestId, challenge.Name);
             var startChallengeTemplate = Environment.GetEnvironmentVariable("START_CHALLENGE_TEMPLATE")
                 ?? throw new InvalidOperationException("Missing START_CHALLENGE_TEMPLATE");
 
