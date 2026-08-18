@@ -590,13 +590,20 @@
 
     function updateProgressBar(phase) {
       if (progressBar && progressPercentage && estimatedDuration && localRemainingTime !== null) {
+        // The bar tracks elapsed-time-vs-estimate, not real build/push/deploy
+        // steps, so a workflow that finishes faster than the estimate reaches
+        // a terminal phase while the ratio is still well under 100%. Snap it
+        // to a full bar on any terminal phase so "done" always looks done.
+        const isTerminal = phase === 'Succeeded' || phase === 'Failed' || phase === 'Error';
         const elapsed = estimatedDuration - localRemainingTime;
-        const progress = Math.max(0, Math.min(100, (elapsed / estimatedDuration) * 100));
-        
+        const progress = isTerminal
+          ? 100
+          : Math.max(0, Math.min(100, (elapsed / estimatedDuration) * 100));
+
         progressBar.style.width = `${progress}%`;
         progressBar.setAttribute('aria-valuenow', progress);
         progressPercentage.textContent = `${Math.round(progress)}%`;
-        
+
         if (phase === 'Succeeded') {
           progressBar.style.backgroundColor = '#28a745';
           progressBar.classList.remove('progress-bar-animated');
