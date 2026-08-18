@@ -68,7 +68,7 @@
     <label>
         KYPO Instance:<br>
         <small class="form-text text-muted">
-            Select the KYPO training instance to link to this challenge. Score will be auto-fetched.
+            Search and select the KYPO training instance to link to this challenge. Score will be auto-fetched.
         </small>
     </label>
 
@@ -77,17 +77,17 @@
         <span class="ml-2 text-muted small">Connecting to KYPO and loading instances&hellip;</span>
     </div>
 
-    <div id="kypo-refresh-container" style="display:none; align-items:flex-start; gap:8px;">
-        <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 8px;">
-            <input type="text" id="kypo-instance-search" class="form-control form-control-sm" placeholder="Search KYPO instance by name..." autocomplete="off">
-            <select class="form-control custom-select" name="kypo_instance_select" id="kypo-instance-select" required size="6">
-                <option value="">— Select a KYPO instance —</option>
-            </select>
+    <div id="kypo-refresh-container" class="kypo-combobox" style="display:none;">
+        <div class="input-group">
+            <input type="text" id="kypo-instance-search" class="form-control" required
+                placeholder="Search or select a KYPO instance..." autocomplete="off">
+            <div class="input-group-append">
+                <button type="button" id="kypo-refresh-btn" class="btn btn-outline-secondary" title="Refresh instances">
+                    <i class="fas fa-sync-alt"></i>
+                </button>
+            </div>
         </div>
-        <button type="button" id="kypo-refresh-btn" class="btn btn-outline-secondary btn-sm flex-shrink-0"
-            title="Refresh instances" style="margin-top: 35px;">
-            <i class="fas fa-sync-alt"></i>
-        </button>
+        <div id="kypo-instance-dropdown" class="kypo-combobox-menu list-group d-none"></div>
     </div>
 
     <div id="kypo-instance-error" class="alert alert-warning mt-2 d-none" role="alert">
@@ -95,6 +95,22 @@
         Could not load instances from KYPO. Check server connectivity and credentials.
     </div>
 </div>
+
+<style>
+    .kypo-combobox { position: relative; }
+    .kypo-combobox-menu {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        z-index: 1050;
+        max-height: 240px;
+        overflow-y: auto;
+        margin-top: 2px;
+        box-shadow: 0 .5rem 1rem rgba(0, 0, 0, .15);
+    }
+    .kypo-combobox-menu .list-group-item { cursor: pointer; }
+</style>
 
 {# Hidden KYPO metadata fields populated by create.js #}
 <input type="hidden" name="kypo_instance_id" id="kypo-instance-id">
