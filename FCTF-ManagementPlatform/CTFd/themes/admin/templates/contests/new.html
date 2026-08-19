@@ -559,6 +559,7 @@
             start_time:           startUTC  ? utcToISO(startUTC)  : null,
             end_time:             endUTC    ? utcToISO(endUTC)    : null,
             freeze_scoreboard_at: freezeUTC ? utcToISO(freezeUTC) : null,
+            timezone: tzSelect.value,
             view_after_ctf: form.view_after_ctf.checked,
             score_visibility: form.score_visibility.value,
             team_size: form.user_mode.value === 'users' ? 1 : (form.team_size.value ? parseInt(form.team_size.value) : null),

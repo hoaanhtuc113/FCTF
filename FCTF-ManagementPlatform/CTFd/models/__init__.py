@@ -1388,6 +1388,8 @@ class Contests(db.Model):
     end_time = db.Column(db.DateTime, nullable=True)
     freeze_scoreboard_at = db.Column(db.DateTime, nullable=True)
     view_after_ctf = db.Column(db.Boolean, nullable=False, default=False)
+    # IANA timezone name used to interpret/display this contest's schedule
+    timezone = db.Column(db.String(64), nullable=False, default="Asia/Ho_Chi_Minh")
 
     # Visibility settings
     score_visibility = db.Column(db.String(32), nullable=False, default="public")

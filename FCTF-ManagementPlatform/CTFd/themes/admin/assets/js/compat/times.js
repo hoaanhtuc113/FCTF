@@ -9,6 +9,8 @@ dayjs.extend(advancedFormat);
 dayjs.extend(utc);
 dayjs.extend(timezone);
 
+const renderTimezone = () => document.body.dataset.tz || DEFAULT_TIMEZONE;
+
 const parseAsLocal = rawValue => {
   if (rawValue === undefined || rawValue === null) {
     return null;
@@ -24,7 +26,7 @@ const parseAsLocal = rawValue => {
     const num = Number(raw);
     if (!Number.isNaN(num)) {
       const millis = raw.length <= 10 ? num * 1000 : num;
-      return dayjs(millis).tz(DEFAULT_TIMEZONE);
+      return dayjs(millis).tz(renderTimezone());
     }
   }
 
@@ -38,13 +40,13 @@ const parseAsLocal = rawValue => {
   for (const candidate of candidates) {
     const parsed = hasExplicitTimezone ? dayjs(candidate) : dayjs.utc(candidate);
     if (parsed.isValid()) {
-      return parsed.tz(DEFAULT_TIMEZONE);
+      return parsed.tz(renderTimezone());
     }
   }
 
   const fallback = new Date(raw);
   if (!Number.isNaN(fallback.getTime())) {
-    return dayjs(fallback).tz(DEFAULT_TIMEZONE);
+    return dayjs(fallback).tz(renderTimezone());
   }
 
   return null;

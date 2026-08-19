@@ -676,7 +676,7 @@
     </style>
 </head>
 
-<body>
+<body{% if contest is defined and contest and contest.timezone %} data-tz="{{ contest.timezone }}"{% endif %}>
     {% block sidebar %}
     <nav id="sidebar" class="d-flex flex-column fixed-top">
         <a href="{{ url_for('views.static_html', route='/') }}" class="navbar-brand logo-container">

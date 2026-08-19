@@ -551,6 +551,7 @@
     var contestId = {{ contest.id }};
     var nonce     = init.csrfNonce;
     var localTZ   = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    var storedTZ  = {{ (contest.timezone | tojson) if contest.timezone else 'null' }};
 
     // Stored UTC ISO strings from Python (naive = UTC)
     var STORED = {
@@ -640,6 +641,7 @@
                 start_time:           startUTC  ? utcToISO(startUTC)  : null,
                 end_time:             endUTC    ? utcToISO(endUTC)    : null,
                 freeze_scoreboard_at: freezeUTC ? utcToISO(freezeUTC) : null,
+                timezone: tzSelect.value,
                 view_after_ctf: document.getElementById('view-after-ctf').checked
             };
         } else if (section === 'visibility') {
@@ -671,7 +673,7 @@
         var opt = document.createElement('option');
         opt.value = tz;
         opt.textContent = tz.replace(/_/g, ' ');
-        if (tz === localTZ) opt.selected = true;
+        if (tz === (storedTZ || localTZ)) opt.selected = true;
         tzSelect.appendChild(opt);
     });
 

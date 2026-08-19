@@ -1,5 +1,6 @@
 import datetime
 import re
+from zoneinfo import ZoneInfo
 
 from flask import abort, request
 from flask_restx import Namespace, Resource
@@ -37,6 +38,7 @@ def _contest_to_dict(contest: Contests) -> dict:
             if contest.freeze_scoreboard_at
             else None
         ),
+        "timezone": contest.timezone,
         "view_after_ctf": contest.view_after_ctf,
         "score_visibility": contest.score_visibility,
         "team_size": contest.team_size,
@@ -50,6 +52,14 @@ def _contest_to_dict(contest: Contests) -> dict:
         "created_at": contest.created_at.isoformat() if contest.created_at else None,
         "updated_at": contest.updated_at.isoformat() if contest.updated_at else None,
     }
+
+
+def _is_valid_timezone(tz: str) -> bool:
+    try:
+        ZoneInfo(tz)
+        return True
+    except Exception:
+        return False
 
 
 def _parse_datetime(value):
@@ -182,6 +192,11 @@ class ContestList(Resource):
             parse_errors.setdefault("end_time", []).append("Invalid date format.")
         if raw_freeze and freeze_scoreboard_at is None:
             parse_errors.setdefault("freeze_scoreboard_at", []).append("Invalid date format.")
+
+        timezone = (data.get("timezone") or "Asia/Ho_Chi_Minh").strip()
+        if not _is_valid_timezone(timezone):
+            parse_errors.setdefault("timezone", []).append("Unknown timezone.")
+
         if parse_errors:
             return {"success": False, "errors": parse_errors}, 400
 
@@ -207,6 +222,7 @@ class ContestList(Resource):
             start_time=start_time,
             end_time=end_time,
             freeze_scoreboard_at=freeze_scoreboard_at,
+            timezone=timezone,
             view_after_ctf=bool(data.get("view_after_ctf", False)),
 
             score_visibility=data.get("score_visibility") or "private",
@@ -276,12 +292,20 @@ class ContestDetail(Resource):
             "view_after_ctf", "captain_only_start_challenge",
             "captain_only_submit_challenge", "team_disbanding", "allow_name_change",
         ]
-        str_fields += ["challenge_difficulty_visibility"]
+        str_fields += ["challenge_difficulty_visibility", "timezone"]
         int_fields = ["team_size", "incorrect_submissions_per_min", "limit_challenges"]
         if is_admin():
             # Only admins may reassign contest ownership.
             int_fields.append("owner_id")
         dt_fields = ["start_time", "end_time", "freeze_scoreboard_at"]
+
+        if "timezone" in data:
+            new_timezone = (data["timezone"] or "").strip()
+            if not _is_valid_timezone(new_timezone):
+                return {
+                    "success": False,
+                    "errors": {"timezone": ["Unknown timezone."]},
+                }, 400
 
         # Validate name uniqueness before applying changes
         if "name" in data:
