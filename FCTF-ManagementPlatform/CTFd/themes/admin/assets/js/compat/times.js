@@ -1,10 +1,13 @@
 import dayjs from "dayjs";
 import advancedFormat from "dayjs/plugin/advancedFormat";
 import utc from "dayjs/plugin/utc";
+import timezone from "dayjs/plugin/timezone";
 import $ from "jquery";
+import { DEFAULT_TIMEZONE } from "../default_timezone";
 
 dayjs.extend(advancedFormat);
 dayjs.extend(utc);
+dayjs.extend(timezone);
 
 const parseAsLocal = rawValue => {
   if (rawValue === undefined || rawValue === null) {
@@ -21,7 +24,7 @@ const parseAsLocal = rawValue => {
     const num = Number(raw);
     if (!Number.isNaN(num)) {
       const millis = raw.length <= 10 ? num * 1000 : num;
-      return dayjs(millis);
+      return dayjs(millis).tz(DEFAULT_TIMEZONE);
     }
   }
 
@@ -35,13 +38,13 @@ const parseAsLocal = rawValue => {
   for (const candidate of candidates) {
     const parsed = hasExplicitTimezone ? dayjs(candidate) : dayjs.utc(candidate);
     if (parsed.isValid()) {
-      return parsed.local();
+      return parsed.tz(DEFAULT_TIMEZONE);
     }
   }
 
   const fallback = new Date(raw);
   if (!Number.isNaN(fallback.getTime())) {
-    return dayjs(fallback);
+    return dayjs(fallback).tz(DEFAULT_TIMEZONE);
   }
 
   return null;

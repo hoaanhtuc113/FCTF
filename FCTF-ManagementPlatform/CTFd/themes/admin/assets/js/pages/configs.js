@@ -5,6 +5,7 @@ import advancedFormat from "dayjs/plugin/advancedFormat";
 import utc from "dayjs/plugin/utc";
 import timezone from "dayjs/plugin/timezone";
 import timezones from "../timezones";
+import { DEFAULT_TIMEZONE } from "../default_timezone";
 import CTFd from "../compat/CTFd";
 import { default as helpers } from "../compat/helpers";
 import $ from "jquery";
@@ -19,8 +20,6 @@ import BracketList from "../components/configs/brackets/BracketList.vue";
 dayjs.extend(advancedFormat);
 dayjs.extend(utc);
 dayjs.extend(timezone);
-
-const DEFAULT_TIMEZONE = "Asia/Ho_Chi_Minh";
 
 function loadTimestamp(place, timestamp) {
   const timezone_string = $("#" + place + "-timezone").val() || DEFAULT_TIMEZONE;
