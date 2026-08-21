@@ -34,6 +34,13 @@ public class KypoApiClient
     // ── RunTeam cache: training_run_id → team_id (singleton) ──
     public ConcurrentDictionary<int, int> RunTeamCache { get; } = new();
 
+    // ── Default group cache (user-and-group service) ──────────
+    // Group mà KYPO tự động add user vào khi login qua UI (JIT-provisioning); gắn sẵn
+    // role ROLE_USER_AND_GROUP_POWER_USER. Cố định trong 1 deployment nên cache permanent.
+    private const string DefaultGroupName = "USER-AND-GROUP_USER";
+    private int? _defaultGroupId;
+    private readonly SemaphoreSlim _defaultGroupLock = new(1, 1);
+
     public KypoApiClient(IHttpClientFactory httpClientFactory, ILogger<KypoApiClient> logger)
     {
         _httpClientFactory = httpClientFactory;
@@ -376,10 +383,139 @@ public class KypoApiClient
                 throw new Exception("Keycloak returned success but no Location header for the new user");
 
             _logger.LogInformation("[KYPO] Created Keycloak user {Username} (id={Id}) for team {TeamId}", username, kypoUserId, teamId);
+            await EnsureUserInDefaultGroupAsync(baseUrl, username, password);
             return (kypoUserId, username, password);
         }
 
         throw new Exception($"Cannot create a unique Keycloak username for team '{teamName}' (id={teamId}) after 5 attempts");
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // Default group membership — fixes "Cannot retrieve information about another
+    // user" on Finish training run. Team accounts are created via the Keycloak Admin
+    // API and never log in through the KYPO UI, so KYPO's normal JIT-provisioning
+    // (which auto-adds a user to DefaultGroupName on first UI login, granting
+    // ROLE_USER_AND_GROUP_POWER_USER) never runs. Without that role, training-service
+    // can start/submit levels fine but is refused by uag-service when it looks up the
+    // team's own info at Finish. This replicates that add-to-group step manually.
+    // ─────────────────────────────────────────────────────────
+
+    /// <summary>ROPC login bằng chính username/password của team — dùng để lấy uag user id.</summary>
+    private async Task<string> GetTeamTokenAsync(string baseUrl, string username, string password)
+    {
+        var realm = ContestantBEConfigHelper.KypoRealm;
+        var url = $"{baseUrl.TrimEnd('/')}/keycloak/realms/{realm}/protocol/openid-connect/token";
+        var form = new Dictionary<string, string>
+        {
+            ["grant_type"] = "password",
+            ["client_id"]  = ContestantBEConfigHelper.KypoClientId,
+            ["username"]   = username,
+            ["password"]   = password,
+        };
+
+        var client = _httpClientFactory.CreateClient("kypo");
+        var resp = await client.PostAsync(url, new FormUrlEncodedContent(form));
+        resp.EnsureSuccessStatusCode();
+
+        var json = await resp.Content.ReadAsStringAsync();
+        return JsonDocument.Parse(json).RootElement
+            .GetProperty("access_token").GetString()
+            ?? throw new Exception("Keycloak không trả về access_token cho team");
+    }
+
+    /// <summary>Lấy id nội bộ uag-service của chính team đang cầm token (gọi API này cũng trigger JIT-provisioning).</summary>
+    private async Task<int> GetOwnUagUserIdAsync(string baseUrl, string teamToken)
+    {
+        var url = $"{baseUrl.TrimEnd('/')}/user-and-group/api/v1/users/info";
+
+        var client = _httpClientFactory.CreateClient("kypo");
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", teamToken);
+
+        var resp = await client.GetAsync(url);
+        resp.EnsureSuccessStatusCode();
+
+        var json = await resp.Content.ReadAsStringAsync();
+        return JsonDocument.Parse(json).RootElement.GetProperty("id").GetInt32();
+    }
+
+    /// <summary>Tra id của group mặc định DefaultGroupName, cache permanent (cố định trong 1 deployment).</summary>
+    private async Task<int> GetDefaultGroupIdAsync(string baseUrl)
+    {
+        if (_defaultGroupId.HasValue) return _defaultGroupId.Value;
+
+        await _defaultGroupLock.WaitAsync();
+        try
+        {
+            if (_defaultGroupId.HasValue) return _defaultGroupId.Value;
+
+            // CRCZP-realm admin (crczp-admin), not the master-realm Keycloak admin
+            // used by GetKeycloakAdminTokenAsync — only this one has rights on KYPO's
+            // internal services (training, user-and-group, ...).
+            var token = await GetAdminTokenAsync(baseUrl);
+            var url = $"{baseUrl.TrimEnd('/')}/user-and-group/api/v1/groups?size=100";
+
+            var client = _httpClientFactory.CreateClient("kypo");
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            var resp = await client.GetAsync(url);
+            resp.EnsureSuccessStatusCode();
+
+            var root = JsonDocument.Parse(await resp.Content.ReadAsStringAsync()).RootElement;
+            var groups = root.ValueKind == JsonValueKind.Array
+                ? root
+                : root.GetProperty("content");
+
+            foreach (var g in groups.EnumerateArray())
+            {
+                if (g.TryGetProperty("name", out var name) && name.GetString() == DefaultGroupName)
+                {
+                    var id = g.GetProperty("id").GetInt32();
+                    _defaultGroupId = id;
+                    return id;
+                }
+            }
+
+            throw new Exception($"Group '{DefaultGroupName}' not found in KYPO user-and-group service");
+        }
+        finally { _defaultGroupLock.Release(); }
+    }
+
+    /// <summary>
+    /// Add team account vào group mặc định DefaultGroupName. Best-effort: lỗi ở đây chỉ
+    /// log warning, không được làm fail việc tạo tài khoản KYPO.
+    /// </summary>
+    private async Task EnsureUserInDefaultGroupAsync(string baseUrl, string username, string password)
+    {
+        try
+        {
+            var teamToken = await GetTeamTokenAsync(baseUrl, username, password);
+            var uagUserId = await GetOwnUagUserIdAsync(baseUrl, teamToken);
+            var groupId   = await GetDefaultGroupIdAsync(baseUrl);
+            var adminToken = await GetAdminTokenAsync(baseUrl);
+
+            var url = $"{baseUrl.TrimEnd('/')}/user-and-group/api/v1/groups/{groupId}/users";
+            var payload = new
+            {
+                ids_of_users_to_be_add = new[] { uagUserId },
+                ids_of_groups_of_imported_users = Array.Empty<int>(),
+            };
+
+            var request = new HttpRequestMessage(HttpMethod.Put, url)
+            {
+                Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json"),
+            };
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", adminToken);
+
+            var client = _httpClientFactory.CreateClient("kypo");
+            var resp = await client.SendAsync(request);
+            resp.EnsureSuccessStatusCode();
+
+            _logger.LogInformation("[KYPO] Added user {Username} (uag id={UagId}) to default group {Group}", username, uagUserId, DefaultGroupName);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning("[KYPO] Could not add user {Username} to default group {Group}: {Msg}", username, DefaultGroupName, ex.Message);
+        }
     }
 
     private static string GenerateStrongPassword(int length = 16)
