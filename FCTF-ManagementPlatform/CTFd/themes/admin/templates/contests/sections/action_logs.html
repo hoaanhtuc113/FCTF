@@ -136,7 +136,7 @@
 					<td class="text-muted mono small text-center">{{ log.id }}</td>
 					<td class="mono small text-center timestamp-cell">
 						{% if log.date %}
-						{{ log.date.strftime('%Y-%m-%d %H:%M:%S') }}
+						<span data-time="{{ log.date | isoformat }}" data-time-format="YYYY-MM-DD HH:mm:ss"></span>
 						{% else %}—{% endif %}
 					</td>
 					<td class="text-center cell-truncate">
