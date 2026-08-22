@@ -124,12 +124,23 @@ public class K8sService : IK8sService
                 return (0, 0, errors);
             }
 
-            _logger.LogDebug("Found namespaces to delete", new { count = namespaces.Items.Count, labelSelector = effectiveSelector });
+            _logger.LogDebug("Found namespaces to delete", new
+            {
+                count = namespaces.Items.Count,
+                labelSelector = effectiveSelector,
+                namespaces = namespaces.Items.Select(n => new
+                {
+                    name = n.Metadata.Name,
+                    phase = n.Status?.Phase,
+                    challengeId = n.Metadata.Labels != null && n.Metadata.Labels.TryGetValue("ctf/challenge-id", out var cid) ? cid : null,
+                })
+            });
 
             // Delete each namespace
             foreach (var ns in namespaces.Items)
             {
                 var namespaceName = ns.Metadata.Name;
+                var namespaceChallengeId = ns.Metadata.Labels != null && ns.Metadata.Labels.TryGetValue("ctf/challenge-id", out var challengeIdLabel) ? challengeIdLabel : null;
                 bool deleted = false;
                 string? lastError = null;
                 Exception? lastEx = null;
@@ -163,13 +174,14 @@ public class K8sService : IK8sService
                 if (deleted)
                 {
                     successCount++;
-                    _logger.LogDebug("Successfully deleted namespace", new { namespaceName });
+                    _logger.LogDebug("Namespace delete requested (pod(s) inside will terminate asynchronously)",
+                        new { namespaceName, challengeId = namespaceChallengeId });
                 }
                 else
                 {
                     failCount++;
                     errors.Add(lastError!);
-                    _logger.LogError(lastEx!, data: new { namespaceName, errorType = "DeleteNamespaceRetryExhausted", lastError });
+                    _logger.LogError(lastEx!, data: new { namespaceName, challengeId = namespaceChallengeId, errorType = "DeleteNamespaceRetryExhausted", lastError });
                 }
             }
 
