@@ -29,7 +29,7 @@ public class ContestsController : BaseController
 
         var contests = await _dbContext.Contests
             .Where(c =>
-                (c.State != "hidden" || c.Participants.Any(p => p.UserId == userId))
+                c.State != "hidden"
                 && c.Teams.Any(t => t.Members.Any(m => m.UserId == userId)))
             .Select(c => new
             {
@@ -97,7 +97,7 @@ public class ContestsController : BaseController
 
         var c = await _dbContext.Contests
             .Where(c => c.Id == contestId
-                && (c.State != "hidden" || c.Participants.Any(p => p.UserId == userId))
+                && c.State != "hidden"
                 && c.Teams.Any(t => t.Members.Any(m => m.UserId == userId)))
             .Select(c => new
             {
