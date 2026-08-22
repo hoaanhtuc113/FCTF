@@ -393,6 +393,8 @@ class ContestDetail(Resource):
                 val = data[f]
                 setattr(contest, f, int(val) if val not in (None, "", 0) else None)
 
+        old_end_time = contest.end_time
+
         parse_errors = {}
         for f in dt_fields:
             if f in data:
@@ -404,6 +406,16 @@ class ContestDetail(Resource):
                     setattr(contest, f, parsed)
         if parse_errors:
             return {"success": False, "errors": parse_errors}, 400
+
+        # ContestEndCleanupService (DeploymentListener) only sweeps contests where
+        # cleanup_triggered_at IS NULL. Once a contest has been through a cleanup
+        # cycle for its old end_time, that flag stays set forever unless cleared
+        # here - so moving end_time into the future (extending/rescheduling a
+        # contest that already ended once) would otherwise leave every pod
+        # deployed during this new run to expire only via each challenge's own
+        # Argo timeout instead of the contest-end sweep.
+        if "end_time" in data and contest.end_time != old_end_time:
+            contest.cleanup_triggered_at = None
 
         # Validate time constraints after applying all changes
         time_errors = _validate_times(
