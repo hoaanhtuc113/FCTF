@@ -67,8 +67,11 @@ def create_notification(contest_id, author_id, title, content, target_type, team
             return {"success": False, "errors": {"title": ["Title and message are required."]}}, 400
 
         target_type = (target_type or "").strip().lower()
-        if target_type not in ("team", "user"):
-            return {"success": False, "errors": {"target_type": ["target_type must be 'team' or 'user'."]}}, 400
+        if target_type not in ("team", "user", "contest"):
+            return {
+                "success": False,
+                "errors": {"target_type": ["target_type must be 'team', 'user', or 'contest'."]},
+            }, 400
 
         if target_type == "team":
             team_ids = sorted({int(t) for t in (team_ids or []) if str(t).strip()})
@@ -81,6 +84,17 @@ def create_notification(contest_id, author_id, title, content, target_type, team
                 return {
                     "success": False,
                     "errors": {"team_ids": ["One or more teams do not belong to this contest."]},
+                }, 400
+        elif target_type == "contest":
+            # Every contestant is a member of exactly one team in this contest
+            # (solo participants get a team of 1 - see user_mode), so targeting
+            # every team already reaches every contestant. Reuses the same
+            # NotificationRecipients storage/read path as an explicit team pick.
+            team_ids = [t.id for t in Teams.query.filter_by(contest_id=contest_id).all()]
+            if not team_ids:
+                return {
+                    "success": False,
+                    "errors": {"target_type": ["This contest has no teams/contestants yet."]},
                 }, 400
         else:
             user_ids = sorted({int(u) for u in (user_ids or []) if str(u).strip()})
@@ -103,7 +117,7 @@ def create_notification(contest_id, author_id, title, content, target_type, team
         db.session.add(notification)
         db.session.flush()
 
-        if target_type == "team":
+        if target_type in ("team", "contest"):
             for team_id in team_ids:
                 db.session.add(
                     NotificationRecipients(notification_id=notification.id, team_id=team_id)

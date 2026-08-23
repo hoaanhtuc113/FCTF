@@ -28,6 +28,7 @@ from CTFd.utils.logging.action_logger import (
     CREATE_TEAM,
     DELETE_TEAM,
     DELETE_TICKETS,
+    NOTIFICATION_CREATE,
     log_action,
 )
 
@@ -3150,7 +3151,7 @@ def contest_notifications(contest_id):
         total=total or 0,
         page=page,
         per_page=per_page,
-        target_type_options=["team", "user"],
+        target_type_options=["team", "user", "contest"],
         selected_target_type=target_type,
         search=search,
         is_detail=True,
@@ -3178,13 +3179,15 @@ def contest_create_notification(contest_id):
     )
 
     if status_code == 200 and response.get("success"):
-        from CTFd.utils.logging.audit_logger import log_audit
-        log_audit(
-            action="notification_create",
-            data={
-                "contest_id": contest_id,
+        log_action(
+            NOTIFICATION_CREATE,
+            f'Sent notification "{req.get("title")}" to {req.get("target_type")}',
+            contest_id=contest_id,
+            after={
                 "notification_id": response["data"]["id"],
                 "target_type": req.get("target_type"),
+                "team_ids": req.get("team_ids") or [],
+                "user_ids": req.get("user_ids") or [],
             },
         )
 

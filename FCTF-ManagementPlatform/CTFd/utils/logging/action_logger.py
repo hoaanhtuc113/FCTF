@@ -62,6 +62,7 @@ RESYNC_DYNAMIC_VALUES = 36
 UPDATE_CHALLENGE_VISIBILITY = 37
 UPDATE_CHALLENGE_DEPLOY_STATUS = 38
 CREATE_TEAM_KYPO = 39
+NOTIFICATION_CREATE = 40
 
 ACTION_TYPE_LABELS = {
     ACCESS_CHALLENGE: "ACCESS_CHALLENGE",
@@ -103,12 +104,13 @@ ACTION_TYPE_LABELS = {
     UPDATE_CHALLENGE_VISIBILITY: "UPDATE_CHALLENGE_VISIBILITY",
     UPDATE_CHALLENGE_DEPLOY_STATUS: "UPDATE_CHALLENGE_DEPLOY_STATUS",
     CREATE_TEAM_KYPO: "CREATE_TEAM_KYPO",
+    NOTIFICATION_CREATE: "NOTIFICATION_CREATE",
 }
 
 # Contestant activity is the half of this table a contestant generates about
 # themselves; the admin half is what an organiser did to the contest. The
 # contest view splits on this so one can be read without the other.
-ADMIN_ACTION_TYPES = frozenset(range(CREATE_CHALLENGE, CREATE_TEAM_KYPO + 1))
+ADMIN_ACTION_TYPES = frozenset(range(CREATE_CHALLENGE, NOTIFICATION_CREATE + 1))
 
 # action_logs.detail is VARCHAR(255); a longer line would be rejected outright
 # by MySQL in strict mode and cost the whole entry.

@@ -48,6 +48,7 @@
 	}
 	.target-badge.team { background: #e7f1ff; color: #1c5fc4; }
 	.target-badge.user { background: #fff3cd; color: #856404; }
+	.target-badge.contest { background: #d4edda; color: #155724; }
 
 	.import-modal-overlay {
 		display: none;
@@ -261,13 +262,19 @@
 					<label style="cursor:pointer; margin:0; font-weight:normal;">
 						<input type="radio" name="nn-target-type" value="user" id="nn-target-user"> Users
 					</label>
+					<label style="cursor:pointer; margin:0; font-weight:normal;">
+						<input type="radio" name="nn-target-type" value="contest" id="nn-target-contest"> All Contestants
+					</label>
 				</div>
-				<div style="position:relative;">
-					<input type="text" class="clean-form-control w-100" id="nn-recipient-input" placeholder="Search team by name…" autocomplete="off">
-					<div id="nn-recipient-suggestions" class="dropdown-menu w-100" style="display:none; position:absolute; top:100%; left:0; z-index:1000; max-height:200px; overflow-y:auto; margin-top:2px;"></div>
+				<div id="nn-recipient-picker">
+					<div style="position:relative;">
+						<input type="text" class="clean-form-control w-100" id="nn-recipient-input" placeholder="Search team by name…" autocomplete="off">
+						<div id="nn-recipient-suggestions" class="dropdown-menu w-100" style="display:none; position:absolute; top:100%; left:0; z-index:1000; max-height:200px; overflow-y:auto; margin-top:2px;"></div>
+					</div>
+					<div id="nn-recipient-chips" class="d-flex flex-wrap" style="gap:0.4rem; margin-top:0.5rem;"></div>
+					<small class="form-text text-muted">Search and click a result to add it. You can add multiple.</small>
 				</div>
-				<div id="nn-recipient-chips" class="d-flex flex-wrap" style="gap:0.4rem; margin-top:0.5rem;"></div>
-				<small class="form-text text-muted">Search and click a result to add it. You can add multiple.</small>
+				<small id="nn-contest-note" class="form-text text-muted" style="display:none;">Sends to every team currently in this contest.</small>
 			</div>
 			<div id="nn-error" class="alert alert-danger mt-2" style="display:none;"></div>
 			<div class="d-flex justify-content-end mt-3" style="gap:0.5rem;">
@@ -339,6 +346,8 @@ const nnContent       = document.getElementById('nn-content');
 const nnRecipientInput = document.getElementById('nn-recipient-input');
 const nnSuggestions   = document.getElementById('nn-recipient-suggestions');
 const nnChipsContainer = document.getElementById('nn-recipient-chips');
+const nnRecipientPicker = document.getElementById('nn-recipient-picker');
+const nnContestNote  = document.getElementById('nn-contest-note');
 const nnTargetRadios  = document.querySelectorAll('input[name="nn-target-type"]');
 const nnSubmitBtn     = document.getElementById('nn-submit');
 
@@ -385,7 +394,13 @@ function resetNnModal() {
 }
 
 function updateRecipientPlaceholder() {
-	nnRecipientInput.placeholder = currentTargetType() === 'team'
+	const targetType = currentTargetType();
+	const isContest = targetType === 'contest';
+	nnRecipientPicker.style.display = isContest ? 'none' : '';
+	nnContestNote.style.display = isContest ? 'block' : 'none';
+	if (isContest) return;
+
+	nnRecipientInput.placeholder = targetType === 'team'
 		? 'Search team by name…'
 		: 'Search user by name or email…';
 	nnRecipientInput.value = '';
@@ -480,7 +495,7 @@ nnForm.addEventListener('submit', function(e) {
 		nnError.style.display = 'block';
 		return;
 	}
-	if (nnSelected.length === 0) {
+	if (targetType !== 'contest' && nnSelected.length === 0) {
 		nnError.textContent = 'Please select at least one ' + (targetType === 'team' ? 'team' : 'user') + '.';
 		nnError.style.display = 'block';
 		return;
@@ -493,7 +508,7 @@ nnForm.addEventListener('submit', function(e) {
 	};
 	if (targetType === 'team') {
 		payload.team_ids = nnSelected.map(x => x.id);
-	} else {
+	} else if (targetType === 'user') {
 		payload.user_ids = nnSelected.map(x => x.id);
 	}
 
