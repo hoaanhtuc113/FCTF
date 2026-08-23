@@ -342,7 +342,26 @@ public class DeployService : IDeployService
                     userId: user.Id,
                     contestId: stopReq.contestId,
                     teamId: stopReq.teamId);
-                await _k8SHealthService.DeleteNamespace(deployInfo._namespace ?? string.Empty);
+
+                var namespaceDeleted = await _k8SHealthService.DeleteNamespace(deployInfo._namespace ?? string.Empty);
+
+                // DeleteNamespace swallows its own exceptions and returns false on
+                // failure instead of throwing - so this branch used to fall straight
+                // through to clearing Redis/the ZSET slot and reporting success even
+                // when the K8s call never went through. That leaves the pod orphaned
+                // (still running, no tracking record, no automatic retry anywhere)
+                // while the admin is told the force-delete worked. Bail out here
+                // instead, leaving the deployment cache untouched so the admin can see
+                // it is still live and retry.
+                if (!namespaceDeleted)
+                {
+                    return new ChallengeDeployResponeDTO
+                    {
+                        status = (int)HttpStatusCode.InternalServerError,
+                        success = false,
+                        message = "Failed to delete the challenge namespace. The deployment is still tracked as running; please retry."
+                    };
+                }
 
                 deployInfo.status = DeploymentStatus.STOPPED;
                 await _redisHelper.AtomicRemoveDeploymentZSet(stopReq.teamId.ToString(), deploymentKey, stopReq.challengeId.ToString());

@@ -83,6 +83,16 @@ public class K8sService : IK8sService
 
             return true;
         }
+        // A namespace already gone is not a failure - callers (e.g. the informer's
+        // ghost-pod path, which can race an admin force-stop that already deleted
+        // the same namespace) call this expecting idempotency, same as
+        // DeleteAllChallengeNamespaces already treats 404 as success. Without this,
+        // every such race logs a real "DeleteNamespaceException" for a delete that
+        // in fact succeeded, drowning out genuine failures in the same log stream.
+        catch (k8s.Autorest.HttpOperationException ex) when ((int)ex.Response.StatusCode == 404)
+        {
+            return true;
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, data: new { namespaceName, errorType = "DeleteNamespaceException" });
