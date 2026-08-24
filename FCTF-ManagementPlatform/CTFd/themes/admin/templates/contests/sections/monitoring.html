@@ -215,6 +215,20 @@
 const CONTEST_ID = {{ contest.id }};
 const CONTEST_TZ = {{ (contest.timezone | tojson) if contest.timezone else 'null' }};
 
+function showToast(msg, isError) {
+    const toast = document.createElement('div');
+    const color = isError ? '#dc3545' : '#28a745';
+    const icon = isError ? 'bx-error-circle' : 'bx-check-circle';
+    toast.style.cssText = `position:fixed;top:1.2rem;right:1.2rem;z-index:9999;background:${color};color:#fff;padding:0.75rem 1.25rem;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,0.15);font-size:0.9rem;font-weight:500;display:flex;align-items:center;gap:0.5rem;max-width:420px;`;
+    toast.innerHTML = `<i class="bx ${icon}" style="font-size:1.1rem;"></i> ${msg}`;
+    document.body.appendChild(toast);
+    setTimeout(() => {
+        toast.style.transition = 'opacity 0.4s';
+        toast.style.opacity = '0';
+        setTimeout(() => toast.remove(), 400);
+    }, 4000);
+}
+
 function formatContestTime(isoString) {
     if (!isoString) return "N/A";
     const d = new Date(isoString);
@@ -551,12 +565,12 @@ async function stopAllContest() {
         const resp = await CTFd.fetch(`/api/challenge/stop-all?contest_id=${CONTEST_ID}`, { method: "DELETE" });
         const r = await resp.json().catch(() => null);
         if (resp.ok && r && r.success !== false) {
-            alert((r && (r.message || r.Message)) || "All instances stopped.");
+            showToast((r && (r.message || r.Message)) || "All instances stopped successfully.", false);
         } else {
-            alert("Failed: " + ((r && (r.error || r.message || r.Message)) || "Unknown error"));
+            showToast("Stop all failed: " + ((r && (r.error || r.message || r.Message)) || "Unknown error"), true);
         }
         await loadData(currentPage);
-    } catch (e) { alert("Error: " + e.message); }
+    } catch (e) { showToast("Error: " + e.message, true); }
     finally { btn.disabled = false; btn.innerHTML = orig; }
 }
 
