@@ -398,13 +398,29 @@ bootstrap_rabbitmq_deploy_users() {
       # an authentication failure in BrokerUnreachableException, deployment-center
       # turns that into "Deployment service is temporarily unavailable", and the
       # contestant sees a bare 500 with nothing naming RabbitMQ anywhere.
-      for user_check in "deployment-producer:${producer_password}" "deployment-consumer:${consumer_password}"; do
+      for user_check in "deployment-producer:${producer_password}" "deployment-consumer:${consumer_password}" "admin:${RABBIT_ADMIN_BOOTSTRAP_PASSWORD}"; do
         if ! kubectl -n "${ns}" exec "${rabbit_pod}" -- rabbitmqctl authenticate_user "${user_check%%:*}" "${user_check#*:}" >/dev/null 2>&1; then
           echo "Error: RabbitMQ user '${user_check%%:*}' does not accept the password held in its Kubernetes Secret."
-          echo "Starting a challenge would fail with a 500 that never mentions RabbitMQ."
+          if [[ "${user_check%%:*}" == "admin" ]]; then
+            echo "manage.sh option 10 would show a password the Management UI login rejects."
+          else
+            echo "Starting a challenge would fail with a 500 that never mentions RabbitMQ."
+          fi
           exit 1
         fi
       done
+
+      # authenticate_user just proved the broker's admin account matches
+      # RABBIT_ADMIN_BOOTSTRAP_PASSWORD, but that says nothing about the
+      # `rabbitmq` Secret's rabbitmq-password key - Helm only writes that at
+      # `helm upgrade --install`, so a run of this script that skips Helm (or
+      # ran it before this credentials file held its current value) leaves the
+      # broker in sync while the Secret - and so manage.sh option 10, and
+      # anyone who logs into the Management UI with what it shows - is stuck
+      # on a stale password. Patch it here too, now that the value is known-good.
+      kubectl -n "${ns}" patch secret rabbitmq --type merge \
+        -p "{\"data\":{\"rabbitmq-password\":\"$(printf '%s' "${RABBIT_ADMIN_BOOTSTRAP_PASSWORD}" | base64 -w0)\"}}" \
+        >/dev/null 2>&1 || true
 
       return 0
     fi
