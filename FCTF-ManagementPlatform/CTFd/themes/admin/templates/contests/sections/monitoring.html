@@ -530,9 +530,14 @@ async function stopInstance(cid, tid) {
             method: "POST",
             body: JSON.stringify({ challenge_id: cid, team_id: tid })
         });
-        if (resp.ok) { alert("Instance stopped."); loadData(currentPage); }
-        else { const r = await resp.json(); alert("Failed: " + (r.error || "Unknown error")); }
-    } catch (e) { alert("Error: " + e.message); }
+        const r = await resp.json().catch(() => null);
+        if (resp.ok && r && r.success !== false) {
+            showToast((r && (r.message || r.Message)) || "Instance stopped successfully.", false);
+        } else {
+            showToast("Stop failed: " + ((r && (r.error || r.message || r.Message)) || "Unknown error"), true);
+        }
+        await loadData(currentPage);
+    } catch (e) { showToast("Error: " + e.message, true); }
 }
 
 async function bulkStopSelected() {
@@ -545,14 +550,15 @@ async function bulkStopSelected() {
     try {
         const resp = await CTFd.fetch("/api/challenge/stop-bulk", { method: "POST", body: JSON.stringify({ items }) });
         const result = await resp.json().catch(() => null);
-        if (!resp.ok) { alert("Failed: " + ((result && (result.error || result.message)) || "Unknown")); return; }
-        alert(`Stopped: ${result.stopped || 0}, Failed: ${result.failed || 0}`);
+        if (!resp.ok) { showToast("Failed: " + ((result && (result.error || result.message)) || "Unknown"), true); return; }
+        const failed = result.failed || 0;
+        showToast(`Stopped: ${result.stopped || 0}, Failed: ${failed}`, failed > 0);
         if (result && Array.isArray(result.results)) {
             result.results.forEach(r => { if (r?.success) selectedInstances.delete(makeKey(r.challenge_id, r.team_id)); });
         } else { selectedInstances.clear(); }
         updateSelectedUI();
         await loadData(currentPage);
-    } catch (e) { alert("Error: " + e.message); }
+    } catch (e) { showToast("Error: " + e.message, true); }
     finally { if (btn) { btn.textContent = orig; btn.disabled = selectedInstances.size === 0; } updateSelectedUI(); }
 }
 
