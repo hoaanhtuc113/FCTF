@@ -441,7 +441,40 @@ class ContestDetail(Resource):
         return {"success": True, "data": after_state}
 
     def delete(self, contest_id):
-        """Delete a contest."""
+        """Delete a contest and all associated data."""
+        from CTFd.models import (
+            Achievements,
+            ActionLogs,
+            AwardBadges,
+            Awards,
+            Brackets,
+            ChallengeComments,
+            ChallengeFiles,
+            ChallengeStartTracking,
+            ChallengeTopics,
+            ChallengeVersion,
+            Challenges,
+            DeployedChallenge,
+            DynamicChallenge,
+            DynamicFlagInstance,
+            Flags,
+            Hints,
+            KypoChallengeConfig,
+            KypoTeamAccount,
+            NotificationReads,
+            NotificationRecipients,
+            Notifications,
+            Solves,
+            Submissions,
+            Tags,
+            TeamComments,
+            TeamFieldEntries,
+            Tickets,
+            Tracking,
+            Unlocks,
+            UserComments,
+        )
+
         contest = Contests.query.filter_by(id=contest_id).first_or_404()
         _require_owner_or_admin(contest)
         name = contest.name
@@ -450,6 +483,176 @@ class ContestDetail(Resource):
         # left to describe what was removed.
         before_state = _contest_to_dict(contest)
 
+        # ── Explicitly delete all dependent records ────────────────────────
+        # The Contests model does not define ORM-level cascade on its
+        # relationships, so db.session.delete(contest) alone will fail when
+        # child rows have non-nullable contest_id / challenge_id FKs.
+        # We delete in dependency order (leaves first) to avoid FK violations.
+
+        # 1. Collect challenge IDs and team IDs belonging to this contest
+        challenge_ids = [
+            r[0]
+            for r in db.session.query(Challenges.id)
+            .filter(Challenges.contest_id == contest_id)
+            .all()
+        ]
+        team_ids = [
+            r[0]
+            for r in db.session.query(Teams.id)
+            .filter(Teams.contest_id == contest_id)
+            .all()
+        ]
+
+        # 2. Delete challenge-child tables (deepest leaves first)
+        if challenge_ids:
+            # Solves reference Submissions, so delete Solves first
+            Solves.query.filter(Solves.challenge_id.in_(challenge_ids)).delete(
+                synchronize_session=False
+            )
+            Submissions.query.filter(
+                Submissions.challenge_id.in_(challenge_ids)
+            ).delete(synchronize_session=False)
+
+            # DynamicFlagInstance → flags → challenges
+            DynamicFlagInstance.query.filter(
+                DynamicFlagInstance.challenge_id.in_(challenge_ids)
+            ).delete(synchronize_session=False)
+
+            # Unlocks reference both hints and challenges
+            Unlocks.query.filter(
+                Unlocks.challenge_id.in_(challenge_ids)
+            ).delete(synchronize_session=False)
+
+            Flags.query.filter(Flags.challenge_id.in_(challenge_ids)).delete(
+                synchronize_session=False
+            )
+            Hints.query.filter(Hints.challenge_id.in_(challenge_ids)).delete(
+                synchronize_session=False
+            )
+            Tags.query.filter(Tags.challenge_id.in_(challenge_ids)).delete(
+                synchronize_session=False
+            )
+            ChallengeFiles.query.filter(
+                ChallengeFiles.challenge_id.in_(challenge_ids)
+            ).delete(synchronize_session=False)
+            ChallengeTopics.query.filter(
+                ChallengeTopics.challenge_id.in_(challenge_ids)
+            ).delete(synchronize_session=False)
+            ChallengeStartTracking.query.filter(
+                ChallengeStartTracking.challenge_id.in_(challenge_ids)
+            ).delete(synchronize_session=False)
+            DeployedChallenge.query.filter(
+                DeployedChallenge.challenge_id.in_(challenge_ids)
+            ).delete(synchronize_session=False)
+            ChallengeVersion.query.filter(
+                ChallengeVersion.challenge_id.in_(challenge_ids)
+            ).delete(synchronize_session=False)
+            DynamicChallenge.query.filter(
+                DynamicChallenge.id.in_(challenge_ids)
+            ).delete(synchronize_session=False)
+            ChallengeComments.query.filter(
+                ChallengeComments.challenge_id.in_(challenge_ids)
+            ).delete(synchronize_session=False)
+            KypoChallengeConfig.query.filter(
+                KypoChallengeConfig.challenge_id.in_(challenge_ids)
+            ).delete(synchronize_session=False)
+
+            # Achievements → AwardBadges (via challenge_id)
+            badge_ids = [
+                r[0]
+                for r in db.session.query(AwardBadges.id)
+                .filter(AwardBadges.challenge_id.in_(challenge_ids))
+                .all()
+            ]
+            if badge_ids:
+                Achievements.query.filter(
+                    Achievements.award_badge_id.in_(badge_ids)
+                ).delete(synchronize_session=False)
+                AwardBadges.query.filter(
+                    AwardBadges.id.in_(badge_ids)
+                ).delete(synchronize_session=False)
+
+            # Clear self-referencing next_id before deleting challenges
+            Challenges.query.filter(
+                Challenges.contest_id == contest_id,
+                Challenges.next_id.isnot(None),
+            ).update({"next_id": None}, synchronize_session=False)
+
+            # Delete challenges themselves
+            Challenges.query.filter(
+                Challenges.contest_id == contest_id
+            ).delete(synchronize_session=False)
+
+        # 3. Delete team-dependent records, then teams
+        if team_ids:
+            # Achievements referencing teams (those not already deleted above)
+            Achievements.query.filter(
+                Achievements.team_id.in_(team_ids)
+            ).delete(synchronize_session=False)
+            KypoTeamAccount.query.filter(
+                KypoTeamAccount.team_id.in_(team_ids)
+            ).delete(synchronize_session=False)
+            TeamFieldEntries.query.filter(
+                TeamFieldEntries.team_id.in_(team_ids)
+            ).delete(synchronize_session=False)
+            TeamComments.query.filter(
+                TeamComments.team_id.in_(team_ids)
+            ).delete(synchronize_session=False)
+            UserTeamMember.query.filter(
+                UserTeamMember.team_id.in_(team_ids)
+            ).delete(synchronize_session=False)
+            Teams.query.filter(Teams.contest_id == contest_id).delete(
+                synchronize_session=False
+            )
+
+        # 4. Awards scoped to this contest
+        Awards.query.filter(Awards.contest_id == contest_id).delete(
+            synchronize_session=False
+        )
+
+        # 5. Delete participants, brackets
+        ContestParticipant.query.filter(
+            ContestParticipant.contest_id == contest_id
+        ).delete(synchronize_session=False)
+        Brackets.query.filter(Brackets.contest_id == contest_id).delete(
+            synchronize_session=False
+        )
+
+        # 6. Delete notifications and their children
+        notification_ids = [
+            r[0]
+            for r in db.session.query(Notifications.id)
+            .filter(Notifications.contest_id == contest_id)
+            .all()
+        ]
+        if notification_ids:
+            NotificationReads.query.filter(
+                NotificationReads.notification_id.in_(notification_ids)
+            ).delete(synchronize_session=False)
+            NotificationRecipients.query.filter(
+                NotificationRecipients.notification_id.in_(notification_ids)
+            ).delete(synchronize_session=False)
+            Notifications.query.filter(
+                Notifications.contest_id == contest_id
+            ).delete(synchronize_session=False)
+
+        # 7. UserComments scoped to this contest
+        UserComments.query.filter(
+            UserComments.contest_id == contest_id
+        ).delete(synchronize_session=False)
+
+        # 8. Nullify contest_id on tables that use SET NULL
+        Tickets.query.filter(Tickets.contest_id == contest_id).update(
+            {"contest_id": None}, synchronize_session=False
+        )
+        ActionLogs.query.filter(ActionLogs.contest_id == contest_id).update(
+            {"contest_id": None}, synchronize_session=False
+        )
+        Tracking.query.filter(Tracking.contest_id == contest_id).update(
+            {"contest_id": None}, synchronize_session=False
+        )
+
+        # 9. Finally delete the contest itself
         db.session.delete(contest)
         db.session.commit()
 
