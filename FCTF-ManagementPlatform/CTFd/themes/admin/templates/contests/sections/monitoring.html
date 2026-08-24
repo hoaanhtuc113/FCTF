@@ -213,6 +213,20 @@
 {% block contest_scripts %}
 <script>
 const CONTEST_ID = {{ contest.id }};
+const CONTEST_TZ = {{ (contest.timezone | tojson) if contest.timezone else 'null' }};
+
+function formatContestTime(isoString) {
+    if (!isoString) return "N/A";
+    const d = new Date(isoString);
+    if (isNaN(d.getTime())) return "N/A";
+    try {
+        return new Intl.DateTimeFormat('en-US', {
+            timeZone: CONTEST_TZ || undefined,
+            year: 'numeric', month: '2-digit', day: '2-digit',
+            hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
+        }).format(d);
+    } catch (e) { return d.toLocaleString(); }
+}
 
 let currentPage = 1;
 const perPage = 50;
@@ -391,7 +405,7 @@ function buildRow(row) {
     tr.appendChild(stTd);
 
     tr.appendChild(createTokenCell(String(row.challenge_url || "")));
-    tr.appendChild(cell(row.time_finished ? new Date(row.time_finished).toLocaleString() : "N/A"));
+    tr.appendChild(cell(formatContestTime(row.time_finished)));
     tr.appendChild(createActionCell(cid, tid, String(row.ns || "")));
     return tr;
 }

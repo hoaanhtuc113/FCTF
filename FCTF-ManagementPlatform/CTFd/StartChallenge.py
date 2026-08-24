@@ -2,7 +2,7 @@ import hashlib
 import threading
 import time
 from flask import Blueprint, jsonify, request, session, url_for
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import requests
 import json
 from CTFd.models import (
@@ -327,11 +327,12 @@ def get_all_instance():
                 if not challenge or challenge.contest_id != contest_id_filter:
                     continue
 
-            # Chuyển time_finished sang chuỗi thời gian ISO
+            # Chuyển time_finished sang chuỗi thời gian ISO (UTC, kèm offset để
+            # frontend parse đúng thời điểm tuyệt đối rồi tự format theo
+            # timezone của contest, thay vì phụ thuộc giờ local của server).
             raw_timestamp = value.get("time_finished")
-            # Backend now returns seconds directly
             finished_time = (
-                datetime.fromtimestamp(raw_timestamp).isoformat()
+                datetime.fromtimestamp(raw_timestamp, tz=timezone.utc).isoformat()
                 if raw_timestamp is not None and raw_timestamp > 0
                 else None
             )
