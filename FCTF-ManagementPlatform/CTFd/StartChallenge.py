@@ -224,7 +224,8 @@ def stop_all_challenges():
     try:
         result = force_stop_all(user_id=user_id, contest_id=contest_id)
         if isinstance(result, dict):
-            return jsonify(result), 200
+            status = 200 if result.get("success", False) else 503
+            return jsonify(result), status
         return jsonify({"success": True}), 200
     except Exception as e:
         print(f"Error during stop-all: {e}")

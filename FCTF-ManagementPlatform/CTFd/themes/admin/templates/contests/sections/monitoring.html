@@ -535,8 +535,13 @@ async function stopAllContest() {
     btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Stopping...';
     try {
         const resp = await CTFd.fetch(`/api/challenge/stop-all?contest_id=${CONTEST_ID}`, { method: "DELETE" });
-        if (resp.ok) { alert("All instances stopped."); loadData(); }
-        else { const r = await resp.json(); alert("Failed: " + (r.error || "Unknown")); }
+        const r = await resp.json().catch(() => null);
+        if (resp.ok && r && r.success !== false) {
+            alert((r && (r.message || r.Message)) || "All instances stopped.");
+        } else {
+            alert("Failed: " + ((r && (r.error || r.message || r.Message)) || "Unknown error"));
+        }
+        await loadData(currentPage);
     } catch (e) { alert("Error: " + e.message); }
     finally { btn.disabled = false; btn.innerHTML = orig; }
 }

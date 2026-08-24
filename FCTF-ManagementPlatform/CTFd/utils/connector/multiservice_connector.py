@@ -254,21 +254,16 @@ def force_stop(user_id, challenge_id, team_id):
 
 def force_stop_all(user_id, contest_id=None):
     unix_time = str(int(time.time()))
-    secret_key = create_secret_key(
-        PRIVATE_KEY, unix_time, {
-            "challengeId": 0,
-            "teamId": -1,
-            "userId": user_id
-        }
-    )
-    payload = {
+    signed_fields = {
         "challengeId": 0,
         "teamId": -1,
         "userId": user_id,
-        "unixTime": unix_time,
     }
     if contest_id:
-        payload["contestId"] = contest_id
+        signed_fields["contestId"] = contest_id
+    secret_key = create_secret_key(PRIVATE_KEY, unix_time, signed_fields)
+    payload = dict(signed_fields)
+    payload["unixTime"] = unix_time
     headers = {"Secretkey": secret_key}
     stop_url = f"{DEPLOYMENT_SERVICE_API}/api/challenge/stop-all"
     try:
