@@ -264,6 +264,10 @@
     var state = { page: 1, pages: 1, total: 0, challenges: [], selected: new Set(), imported: new Set() };
 
     /* ── which bank challenges are already cloned into this contest ─── */
+    // Never rejects: this only decides which rows are greyed out, and the
+    // caller chains the bank listing off it. A rejection here used to take
+    // the whole table down with it, leaving it stuck on "Loading…" with
+    // nothing on screen to say why.
     function loadImported() {
         return fetch('/api/v1/contest_challenges?contest_id=' + CONTEST_ID + '&per_page=200', { credentials: 'same-origin', headers: { 'CSRF-Token': CSRF } })
             .then(function(r) { return r.json(); })
@@ -274,6 +278,10 @@
                         if (c.source_bank_id) state.imported.add(c.source_bank_id);
                     });
                 }
+            })
+            .catch(function(err) {
+                state.imported = new Set();
+                console.error('Could not load already-imported challenges:', err);
             });
     }
 
@@ -296,8 +304,12 @@
         return '<span class="clean-badge ' + cls + '">' + t.replace(/_/g,' ').toUpperCase() + '</span>';
     }
 
+    // Coerces first: the table and the preview pass numbers through here
+    // (value, cost, counts), and calling .replace on a number throws, which
+    // aborts render() and leaves the table stuck on its loading row.
     function escHtml(s) {
-        return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        if (s === null || s === undefined) return '';
+        return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     }
 
     function getFilters() {
@@ -318,18 +330,38 @@
         if (f.category)   params.set('category', f.category);
         if (f.difficulty) params.set('difficulty', f.difficulty);
 
-        document.getElementById('ic-tbody').innerHTML =
-            '<tr><td colspan="8" class="text-center text-muted py-4"><i class="bx bx-loader-alt bx-spin mr-1"></i> Loading…</td></tr>';
+        var tbody = document.getElementById('ic-tbody');
+        tbody.innerHTML =
+            '<tr><td colspan="9" class="text-center text-muted py-4"><i class="bx bx-loader-alt bx-spin mr-1"></i> Loading…</td></tr>';
+
+        function showError(detail) {
+            // Say what went wrong instead of spinning forever: an unhandled
+            // rejection here leaves the loading row on screen with no clue
+            // that anything failed.
+            tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-4">' +
+                '<i class="bx bx-error-circle mr-1"></i> Could not load the challenge bank.' +
+                '<div class="small mt-1">' + escHtml(detail) + '</div></td></tr>';
+        }
 
         fetch(API_BASE + '?' + params, { credentials: 'same-origin', headers: { 'CSRF-Token': CSRF } })
-            .then(function(r) { return r.json(); })
+            .then(function(r) {
+                if (!r.ok) throw new Error('Server answered ' + r.status);
+                return r.json();
+            })
             .then(function(res) {
-                if (!res.success) return;
+                if (!res.success) {
+                    showError(JSON.stringify(res.errors || res));
+                    return;
+                }
                 state.challenges = res.data;
                 state.page  = res.meta.page;
                 state.pages = res.meta.pages;
                 state.total = res.meta.total;
                 render();
+            })
+            .catch(function(err) {
+                console.error('Failed to load the challenge bank:', err);
+                showError(err.message || 'Network error');
             });
     }
 
