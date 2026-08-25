@@ -44,7 +44,7 @@ def _require_contest_scope():
     everyone else needs a jury ContestParticipant row for this contest_id) —
     rather than a second, easily-diverging copy of it.
     """
-    from CTFd.utils.user import is_jury_for_contest
+    from CTFd.utils.user import is_conductor, is_jury_for_contest, get_current_user_attrs
 
     if request.method == "POST":
         payload = request.get_json(silent=True) or {}
@@ -60,10 +60,16 @@ def _require_contest_scope():
     except (TypeError, ValueError):
         raise ContestScopeError("contest_id must be an integer")
 
-    if not is_jury_for_contest(contest_id):
-        raise ContestScopeError("You do not have access to this contest", status=403)
+    if is_jury_for_contest(contest_id):
+        return contest_id
 
-    return contest_id
+    if is_conductor():
+        user = get_current_user_attrs()
+        contest = Contests.query.filter_by(id=contest_id).first()
+        if user is not None and contest is not None and contest.owner_id == user.id:
+            return contest_id
+
+    raise ContestScopeError("You do not have access to this contest", status=403)
 
 
 @admin.route("/admin/rewards/query", methods=["POST"])

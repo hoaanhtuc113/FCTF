@@ -21,7 +21,7 @@ from CTFd.constants.envvars import (
     get_redis_client_kwargs,
 )
 #
-from CTFd.utils.user import get_current_user, is_admin, is_jury, is_challenge_writer
+from CTFd.utils.user import get_current_user, is_admin, is_jury, is_challenge_writer, is_conductor
 
 import redis
 import re
@@ -246,18 +246,26 @@ def get_all_instance():
         contest_id_filter = request.args.get("contest_id", type=int)
 
         if not is_admin():
-            if not (is_jury() or is_challenge_writer()):
-                return jsonify({"error": "Permission denied"}), 403
-            # Jury/challenge_writer can only view instances for a contest
-            # they are actually assigned to.
             if not contest_id_filter:
                 return jsonify({"error": "Permission denied"}), 403
-            participant = ContestParticipant.query.filter(
-                ContestParticipant.user_id == user.id,
-                ContestParticipant.contest_id == contest_id_filter,
-                ContestParticipant.role.in_(["jury", "challenge_writer"]),
-            ).first()
-            if not participant:
+
+            if is_conductor():
+                # Conductors are platform-level but only own their own contests.
+                from CTFd.models import Contests
+                contest = Contests.query.filter_by(id=contest_id_filter).first()
+                if not contest or contest.owner_id != user.id:
+                    return jsonify({"error": "Permission denied"}), 403
+            elif is_jury() or is_challenge_writer():
+                # Jury/challenge_writer can only view instances for a contest
+                # they are actually assigned to.
+                participant = ContestParticipant.query.filter(
+                    ContestParticipant.user_id == user.id,
+                    ContestParticipant.contest_id == contest_id_filter,
+                    ContestParticipant.role.in_(["jury", "challenge_writer"]),
+                ).first()
+                if not participant:
+                    return jsonify({"error": "Permission denied"}), 403
+            else:
                 return jsonify({"error": "Permission denied"}), 403
 
         # Get pagination and sorting parameters
