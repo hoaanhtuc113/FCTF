@@ -1,16 +1,22 @@
 import datetime
+import os
+import re
+import tempfile
 
 from flask import request, session
 from flask_restx import Namespace, Resource
 from sqlalchemy.exc import IntegrityError, OperationalError
+from werkzeug.utils import secure_filename
 
 from CTFd.models import (
     ChallengeBank,
+    ChallengeBankDeployHistory,
     ChallengeBankFiles,
     ChallengeBankFlags,
     ChallengeBankHints,
     ChallengeBankTags,
     ChallengeBankTopics,
+    ChallengeBankVersion,
     Challenges,
     ChallengeFiles,
     ChallengeTopics,
@@ -21,10 +27,20 @@ from CTFd.models import (
     Topics,
     db,
 )
+from CTFd.utils.connector.multiservice_connector import (
+    CHALLENGE_BANK_ID_OFFSET,
+    get_workflow_name,
+    get_workflow_status,
+    handle_challenge_bank_upload,
+)
 from CTFd.utils.decorators import admin_or_challenge_writer_only_or_jury, admins_only
-from CTFd.utils.logging.action_logger import CREATE_CHALLENGE, log_action
+from CTFd.utils.logging.action_logger import (
+    CREATE_CHALLENGE,
+    UPDATE_CHALLENGE_DEPLOY_STATUS,
+    log_action,
+)
 from CTFd.utils.logging.audit_logger import log_audit
-from CTFd.utils.uploads import get_uploader, hash_file, upload_file
+from CTFd.utils.uploads import delete_folder, get_uploader, hash_file, upload_file
 from CTFd.utils.user import can_write_challenges_for_contest
 
 challenge_bank_namespace = Namespace(
@@ -399,6 +415,114 @@ class ChallengeBankFileDetail(Resource):
         db.session.delete(f)
         db.session.commit()
         return {"success": True}
+
+
+@challenge_bank_namespace.route("/<int:bank_id>/deploy")
+class ChallengeBankDeploy(Resource):
+    @admins_only
+    def post(self, bank_id):
+        """Upload a Docker build context (zip) for a bank challenge and kick
+        off the same Argo build pipeline a contest challenge's deploy tab
+        uses — see handle_challenge_bank_upload() for why the id sent to
+        that pipeline is offset. Mirrors the require_deploy on/off branches
+        of the generic POST /api/v1/files endpoint, scoped to the bank."""
+        bank = ChallengeBank.query.filter_by(id=bank_id).first_or_404()
+
+        require_deploy = request.form.get("require_deploy") in ["on", "true", "True", "1"]
+        expose_port = request.form.get("expose_port")
+        deploy_file = request.files.get("deploy_file")
+
+        if not require_deploy:
+            if bank.deploy_file:
+                delete_folder(bank.deploy_file)
+            bank.image_link = None
+            bank.deploy_status = "CREATED"
+            bank.require_deploy = False
+            bank.deploy_file = None
+            db.session.commit()
+            return {"success": True, "data": _bank_to_dict(bank)}
+
+        if not deploy_file:
+            return {"success": False, "errors": {"deploy_file": ["Required when require_deploy is set"]}}, 400
+
+        if not expose_port or not re.fullmatch(r"^[1-9]\d*$", expose_port):
+            return {"success": False, "errors": {"expose_port": ["Must be a positive integer"]}}, 400
+
+        filename = secure_filename(deploy_file.filename)
+        temp_file_path = os.path.join(tempfile.gettempdir(), filename)
+        deploy_file.save(temp_file_path)
+        try:
+            result, status_code = handle_challenge_bank_upload(bank, temp_file_path, expose_port)
+        finally:
+            try:
+                os.remove(temp_file_path)
+            except OSError:
+                pass
+
+        if result.get("success"):
+            log_audit(
+                "challenge_bank_update",
+                after={"challenge_bank_id": bank.id, "deploy_status": bank.deploy_status},
+                data={"challenge_bank_id": bank.id},
+            )
+        return result, status_code
+
+
+@challenge_bank_namespace.route("/<int:bank_id>/deploy-duration")
+class ChallengeBankDeployDuration(Resource):
+    @admin_or_challenge_writer_only_or_jury
+    def get(self, bank_id):
+        try:
+            bank = ChallengeBank.query.filter_by(id=bank_id).first_or_404()
+            if not bank.require_deploy:
+                return {"success": False, "error": "Challenge does not require deployment"}, 400
+
+            external_id = CHALLENGE_BANK_ID_OFFSET + bank.id
+            workflow_name = get_workflow_name(external_id)
+            if not workflow_name:
+                return {"success": False, "error": "Workflow name not found for challenge"}, 404
+
+            workflow_phase, started_at_iso, estimated_duration = get_workflow_status(workflow_name)
+            if workflow_phase is None or started_at_iso is None or estimated_duration is None:
+                return {"success": False, "error": "Could not retrieve workflow status"}, 500
+
+            remaining_time = None
+            if estimated_duration and started_at_iso:
+                started_at_dt = datetime.datetime.fromisoformat(started_at_iso.replace("Z", "+00:00"))
+                now_utc = datetime.datetime.now(datetime.timezone.utc)
+                elapsed_time = max(0.0, (now_utc - started_at_dt).total_seconds())
+                remaining_time = max(0.0, float(estimated_duration) - elapsed_time)
+
+            if workflow_phase == "Succeeded" and bank.deploy_status != "DEPLOY_SUCCESS":
+                before_state = {"deploy_status": bank.deploy_status}
+                bank.deploy_status = "DEPLOY_SUCCESS"
+                db.session.commit()
+                log_action(
+                    UPDATE_CHALLENGE_DEPLOY_STATUS,
+                    f'Bank challenge "{bank.name}" deploy succeeded',
+                    after={"challenge_bank_id": bank.id, "before": before_state, "deploy_status": bank.deploy_status},
+                )
+            elif workflow_phase in ("Failed", "Error") and bank.deploy_status != "DEPLOY_FAILED":
+                before_state = {"deploy_status": bank.deploy_status}
+                bank.deploy_status = "DEPLOY_FAILED"
+                db.session.commit()
+                log_action(
+                    UPDATE_CHALLENGE_DEPLOY_STATUS,
+                    f'Bank challenge "{bank.name}" deploy failed',
+                    after={"challenge_bank_id": bank.id, "before": before_state, "deploy_status": bank.deploy_status},
+                )
+
+            return {
+                "success": True,
+                "data": {
+                    "phase": workflow_phase,
+                    "estimated_duration": float(estimated_duration),
+                    "started_at": started_at_iso,
+                    "remaining_time": remaining_time,
+                },
+            }
+        except Exception as e:
+            return {"success": False, "error": str(e)}, 500
 
 
 @challenge_bank_namespace.route("/<int:bank_id>/clone")

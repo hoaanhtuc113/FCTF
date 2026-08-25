@@ -31,6 +31,8 @@ redis_client = redis.StrictRedis(
     **get_redis_client_kwargs()
 )
 from CTFd.models import (
+    ChallengeBank,
+    ChallengeBankVersion,
     ChallengeFiles,
     Challenges,
     ChallengeVersion,
@@ -39,6 +41,18 @@ from CTFd.models import (
     Users,
     db,
 )
+
+# Bank builds go through the exact same Argo/deployment-service pipeline as a
+# contest challenge's, identified only by a bare integer id end to end (Argo
+# workflow name, image tag, the signed build-trigger payload, the callback).
+# challenge_bank.id and challenges.id are independent sequences that collide
+# constantly (both start at 1), so a bank build is tagged with this offset
+# added to its id before it ever leaves Python. The deployment service does
+# not care what the number means - it null-checks a lookup miss against its
+# own `challenges` table copy rather than erroring - so nothing on that side
+# needs to change; the offset is decoded back on the way in, in this module's
+# own callback route, never in the shared one contest challenges use.
+CHALLENGE_BANK_ID_OFFSET = 900_000_000
 def generate_cache_attempt_key(challenge_id, team_id):
     raw_key = f"challenge_status_{challenge_id}_{team_id}"
     return hashlib.md5(raw_key.encode()).hexdigest()
@@ -693,7 +707,157 @@ def handle_challenge_upload(challenge, file_path, expose_port=None):
                 print(f"Cleaned up temporary directory: {temp_dir}")
         except Exception as e:
             print(f"Error cleaning up temporary directory: {e}")
-    
+
+
+def handle_challenge_bank_upload(bank, file_path, expose_port=None):
+    """
+    Same pipeline as handle_challenge_upload(), for a ChallengeBank item
+    instead of a contest's Challenges row. Differences:
+    - the id sent to Argo/the deployment service is offset (see
+      CHALLENGE_BANK_ID_OFFSET) so it can never collide with a real
+      challenges.id;
+    - the version history it writes is ChallengeBankVersion, not
+      ChallengeVersion, so it never touches a live contest's rows;
+    - there is no running instance to stop before overwriting the image - a
+      bank item itself is never deployed, only its clones are - so this
+      skips the stop_active_instances()/delete_cached_files() step that
+      upload_file() does for contest challenges.
+    """
+    external_id = CHALLENGE_BANK_ID_OFFSET + bank.id
+
+    zip_filename = os.path.basename(file_path)
+    folder_name = os.path.splitext(zip_filename)[0] + f"-bank-{bank.id}"
+    safe_folder_name = "".join(c if c.isalnum() or c in ('-', '_') else '_' for c in folder_name)
+
+    temp_dir = tempfile.mkdtemp()
+
+    try:
+        extract_path = os.path.join(temp_dir, f"challenge_bank_{bank.id}")
+        os.makedirs(extract_path, exist_ok=True)
+
+        try:
+            safe_extract_zip(file_path, extract_path)
+        except zipfile.BadZipFile:
+            return {"success": False, "error": "Invalid zip file format"}, 400
+        except ValueError as exc:
+            print(f"Rejected bank challenge archive for challenge_bank {bank.id}: {exc}")
+            return {"success": False, "error": str(exc)}, 400
+
+        challenges_dir = os.path.join(NFS_MOUNT_PATH, "challenges")
+        os.makedirs(challenges_dir, exist_ok=True)
+
+        nfs_destination = os.path.join(challenges_dir, safe_folder_name)
+        if os.path.exists(nfs_destination):
+            shutil.rmtree(nfs_destination)
+        shutil.copytree(extract_path, nfs_destination)
+        bank.deploy_file = nfs_destination
+
+        dockerfile_path = None
+        for root, dirs, files in os.walk(nfs_destination):
+            if "Dockerfile" in files:
+                dockerfile_path = os.path.relpath(root, NFS_MOUNT_PATH)
+                break
+
+        if dockerfile_path is None:
+            return {"success": False, "error": "Dockerfile not found in challenge folder"}, 400
+
+        if expose_port is None:
+            return {"success": False, "error": "No exposed port found"}, 400
+
+        if deploy_still_in_flight(bank):
+            return {"success": False, "error": "A build for this bank challenge is still running"}, 400
+
+        try:
+            unix_time = str(int(time.time()))
+            image_tag = f"challenge-bank-{bank.id}-{safe_folder_name.lower()}-{unix_time}"
+            image_link = f"{DOCKER_USERNAME}/{IMAGE_REPO}/{image_tag}:latest"
+
+            object_image = {
+                "imageLink": image_link,
+                "exposedPort": expose_port,
+            }
+
+            payload, headers, api_url = prepare_up_challenge_payload(external_id, dockerfile_path, image_tag)
+            response = requests.post(api_url, headers=headers, json=payload)
+
+            if response.status_code != 200:
+                discard_failed_upload(bank, nfs_destination)
+                return {"success": False, "error": f"Deployment service error: {response.text}"}, 500
+
+            result = response.json()
+            workflow_name = result.get("metadata", {}).get("name")
+
+            redis_client.set(f"{get_workflow_key(external_id)}", workflow_name, ex=86400)
+            workflow_phase, started_at, estimated_duration = get_workflow_status(workflow_name)
+            if workflow_phase is None:
+                return {"success": False, "error": "Error getting workflow status"}, 500
+
+            bank.require_deploy = True
+            bank.deploy_status = "PENDING_DEPLOY"
+            bank.image_link = json.dumps(object_image)
+
+            try:
+                latest_version = (
+                    ChallengeBankVersion.query
+                    .filter_by(challenge_bank_id=bank.id)
+                    .order_by(ChallengeBankVersion.version_number.desc())
+                    .first()
+                )
+                next_version = (latest_version.version_number + 1) if latest_version else 1
+
+                ChallengeBankVersion.query.filter_by(challenge_bank_id=bank.id).update({"is_active": False})
+
+                from flask import session as flask_session
+                current_user_id = flask_session.get("id", None)
+
+                new_version = ChallengeBankVersion(
+                    challenge_bank_id=bank.id,
+                    version_number=next_version,
+                    image_link=json.dumps(object_image),
+                    deploy_file=bank.deploy_file,
+                    cpu_limit=str(bank.cpu_limit) if bank.cpu_limit is not None else None,
+                    cpu_request=str(bank.cpu_request) if bank.cpu_request is not None else None,
+                    memory_limit=str(bank.memory_limit) if bank.memory_limit is not None else None,
+                    memory_request=str(bank.memory_request) if bank.memory_request is not None else None,
+                    use_gvisor=bank.use_gvisor,
+                    harden_container=bank.harden_container,
+                    is_active=True,
+                    created_by=current_user_id,
+                    notes=f"Auto-created on deploy: {image_tag}",
+                )
+                db.session.add(new_version)
+            except Exception as ver_err:
+                print(f"Warning: Failed to save bank challenge version: {ver_err}")
+
+            db.session.commit()
+            return {
+                "success": True,
+                "message": "Challenge folder uploaded successfully",
+                "challenge_bank_id": bank.id,
+                "workflow_name": workflow_name,
+                "workflow_phase": workflow_phase,
+                "estimated_duration": estimated_duration,
+                "started_at": started_at,
+            }, 200
+
+        except Exception as e:
+            print(f"Error updating challenge bank status: {e}")
+            db.session.rollback()
+            return {"success": False, "error": f"Error updating challenge bank status: {str(e)}"}, 500
+
+    except Exception as e:
+        bank.deploy_status = "FILE_UPLOAD_FAILED"
+        db.session.commit()
+        print(f"Error handling challenge bank upload: {e}")
+        return {"success": False, "error": f"Error processing challenge upload: {str(e)}"}, 500
+    finally:
+        try:
+            if os.path.exists(temp_dir):
+                shutil.rmtree(temp_dir)
+        except Exception as e:
+            print(f"Error cleaning up temporary directory: {e}")
+
+
 def get_workflow_status(workflow_name):
     """
     Get workflow status from DeploymentCenter

@@ -1891,3 +1891,70 @@ class ChallengeBankTopics(db.Model):
 
     def __init__(self, *args, **kwargs):
         super(ChallengeBankTopics, self).__init__(**kwargs)
+
+
+class ChallengeBankVersion(db.Model):
+    """Deploy-image version history for a bank challenge — mirrors
+    ChallengeVersion, but keyed to challenge_bank.id so a build triggered from
+    the Management Hub never touches a live contest's ChallengeVersion rows."""
+
+    __tablename__ = "challenge_bank_versions"
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    challenge_bank_id = db.Column(
+        db.Integer, db.ForeignKey("challenge_bank.id", ondelete="CASCADE"), nullable=False
+    )
+    version_number = db.Column(db.Integer, nullable=False, default=1)
+    image_link = db.Column(db.Text, nullable=True)
+    deploy_file = db.Column(db.Text, nullable=True)
+    cpu_limit = db.Column(db.String(50), nullable=True)
+    cpu_request = db.Column(db.String(50), nullable=True)
+    memory_limit = db.Column(db.String(50), nullable=True)
+    memory_request = db.Column(db.String(50), nullable=True)
+    use_gvisor = db.Column(db.Boolean, nullable=True, default=False)
+    harden_container = db.Column(db.Boolean, nullable=True, default=False)
+    is_active = db.Column(db.Boolean, nullable=False, default=False)
+    created_by = db.Column(
+        db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow, nullable=False)
+    notes = db.Column(db.Text, nullable=True)
+
+    challenge_bank = db.relationship(
+        "ChallengeBank",
+        foreign_keys=[challenge_bank_id],
+        backref=db.backref(
+            "versions", lazy="dynamic", order_by="ChallengeBankVersion.version_number.desc()"
+        ),
+    )
+    creator = db.relationship("Users", foreign_keys=[created_by], lazy="select")
+
+    def __init__(self, *args, **kwargs):
+        super(ChallengeBankVersion, self).__init__(**kwargs)
+
+    def __repr__(self):
+        return "<ChallengeBankVersion challenge_bank_id={} version={}>".format(
+            self.challenge_bank_id, self.version_number
+        )
+
+
+class ChallengeBankDeployHistory(db.Model):
+    """Build/deploy log history for a bank challenge — mirrors
+    DeployedChallenge (deploy_histories), keyed to challenge_bank.id."""
+
+    __tablename__ = "challenge_bank_deploy_histories"
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    challenge_bank_id = db.Column(
+        db.Integer, db.ForeignKey("challenge_bank.id", ondelete="CASCADE"), nullable=True
+    )
+    log_content = db.Column(db.Text, nullable=True)
+    deploy_status = db.Column(db.String(50), nullable=False, default="null")
+    deploy_at = db.Column(db.DateTime, nullable=True)
+
+    challenge_bank = db.relationship(
+        "ChallengeBank",
+        foreign_keys=[challenge_bank_id],
+        backref=db.backref("deploy_histories", lazy=True),
+    )
+
+    def __init__(self, *args, **kwargs):
+        super(ChallengeBankDeployHistory, self).__init__(**kwargs)

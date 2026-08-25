@@ -63,6 +63,7 @@ class ContestChallengeList(Resource):
                 "difficulty": c.difficulty,
                 "require_deploy": bool(c.require_deploy),
                 "state": c.state,
+                "source_bank_id": c.source_bank_id,
             }
             for c in paginated.items
         ]

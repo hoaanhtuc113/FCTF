@@ -91,6 +91,33 @@
 
 			<div class="card mb-3">
 				<div class="card-body">
+					<h5 class="card-title">
+						Deploy (Build from Zip)
+						<span id="bank-deploy-status-badge" class="clean-badge clean-badge-secondary ml-2">{{ bank.deploy_status or 'CREATED' }}</span>
+					</h5>
+					<p class="text-muted" style="font-size:0.82rem;">
+						Upload a Docker build context (must contain a <code>Dockerfile</code>) to build an image for this
+						bank challenge once, here — every contest that clones this challenge reuses the same image.
+					</p>
+					<form id="bank-deploy-form">
+						<div class="form-group">
+							<label>Exposed Port</label>
+							<input type="number" name="expose_port" class="form-control" placeholder="e.g. 8080" required style="max-width:200px;">
+						</div>
+						<div class="form-group">
+							<label>Build Context (.zip)</label>
+							<input type="file" name="deploy_file" accept=".zip" required>
+						</div>
+						<div id="bank-deploy-error" class="alert alert-danger" style="display:none;"></div>
+						<button type="submit" class="btn btn-primary btn-sm" id="bank-deploy-submit">
+							<i class="fas fa-docker"></i> Upload &amp; Build
+						</button>
+					</form>
+				</div>
+			</div>
+
+			<div class="card mb-3">
+				<div class="card-body">
 					<h5 class="card-title">Files</h5>
 					<ul class="list-group mb-2" id="bank-files-list"></ul>
 					<form id="bank-file-upload-form">
@@ -258,6 +285,90 @@ document.getElementById('bank-edit-form').addEventListener('submit', function (e
 			successBox.style.display = 'block';
 		});
 });
+
+/* ── Deploy: upload zip, kick off build, poll status ────────────── */
+const DEPLOY_POLL_INTERVAL_MS = 5000;
+const DEPLOY_POLL_MAX_ROUNDS = 60;
+const DEPLOY_BADGES = {
+	CREATED: 'clean-badge-secondary',
+	PENDING_DEPLOY: 'clean-badge-primary',
+	DEPLOY_SUCCESS: 'clean-badge-success',
+	DEPLOY_FAILED: 'clean-badge-danger',
+	FILE_UPLOAD_FAILED: 'clean-badge-danger',
+};
+
+function paintBankDeployStatus(status) {
+	const badge = document.getElementById('bank-deploy-status-badge');
+	const cls = DEPLOY_BADGES[status] || 'clean-badge-secondary';
+	badge.className = 'clean-badge ' + cls + ' ml-2';
+	badge.textContent = status;
+}
+
+function pollBankDeployStatus() {
+	let rounds = 0;
+	const tick = function () {
+		rounds += 1;
+		CTFd.fetch(API_BASE + '/deploy-duration', { method: 'GET' })
+			.then(function (r) { return r.json(); })
+			.then(function (result) {
+				const phase = result && result.data && result.data.phase;
+				if (phase === 'Succeeded') {
+					paintBankDeployStatus('DEPLOY_SUCCESS');
+					return;
+				}
+				if (phase === 'Failed' || phase === 'Error') {
+					paintBankDeployStatus('DEPLOY_FAILED');
+					return;
+				}
+				if (rounds < DEPLOY_POLL_MAX_ROUNDS) setTimeout(tick, DEPLOY_POLL_INTERVAL_MS);
+			})
+			.catch(function () {
+				if (rounds < DEPLOY_POLL_MAX_ROUNDS) setTimeout(tick, DEPLOY_POLL_INTERVAL_MS);
+			});
+	};
+	tick();
+}
+
+document.getElementById('bank-deploy-form').addEventListener('submit', function (e) {
+	e.preventDefault();
+	const form = e.target;
+	const submitBtn = document.getElementById('bank-deploy-submit');
+	const errorBox = document.getElementById('bank-deploy-error');
+	errorBox.style.display = 'none';
+	submitBtn.disabled = true;
+	submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading…';
+
+	const fd = new FormData(form);
+	fd.append('require_deploy', 'true');
+
+	fetch(API_BASE + '/deploy', {
+		method: 'POST',
+		body: fd,
+		headers: { 'CSRF-Token': CTFd.config.csrfNonce },
+	})
+		.then(function (r) { return r.json(); })
+		.then(function (result) {
+			if (!result.success) {
+				errorBox.textContent = result.error || JSON.stringify(result.errors || result);
+				errorBox.style.display = 'block';
+				return;
+			}
+			paintBankDeployStatus('PENDING_DEPLOY');
+			pollBankDeployStatus();
+		})
+		.catch(function () {
+			errorBox.textContent = 'Network error. Please try again.';
+			errorBox.style.display = 'block';
+		})
+		.finally(function () {
+			submitBtn.disabled = false;
+			submitBtn.innerHTML = '<i class="fas fa-docker"></i> Upload &amp; Build';
+		});
+});
+
+if ('{{ bank.deploy_status }}' === 'PENDING_DEPLOY') {
+	pollBankDeployStatus();
+}
 
 document.getElementById('bank-delete-btn').addEventListener('click', function () {
 	ezQuery({
