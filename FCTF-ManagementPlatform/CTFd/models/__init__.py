@@ -1807,17 +1807,27 @@ class ChallengeBank(db.Model):
     )
 
     creator = db.relationship("Users", foreign_keys=[created_by], lazy="select")
+    # Every child table below is created with ON DELETE CASCADE, so the
+    # database already removes these rows with the bank item. Without
+    # passive_deletes the ORM insists on emitting its own UPDATE ... SET
+    # challenge_bank_id = NULL first, which fails outright against the NOT
+    # NULL column on challenge_bank_versions - deleting any bank item that
+    # had ever been deployed raised IntegrityError.
     tags = db.relationship(
-        "ChallengeBankTags", foreign_keys="ChallengeBankTags.challenge_bank_id", backref="challenge_bank"
+        "ChallengeBankTags", foreign_keys="ChallengeBankTags.challenge_bank_id",
+        backref="challenge_bank", cascade="all, delete-orphan", passive_deletes=True
     )
     hints = db.relationship(
-        "ChallengeBankHints", foreign_keys="ChallengeBankHints.challenge_bank_id", backref="challenge_bank"
+        "ChallengeBankHints", foreign_keys="ChallengeBankHints.challenge_bank_id",
+        backref="challenge_bank", cascade="all, delete-orphan", passive_deletes=True
     )
     flags = db.relationship(
-        "ChallengeBankFlags", foreign_keys="ChallengeBankFlags.challenge_bank_id", backref="challenge_bank"
+        "ChallengeBankFlags", foreign_keys="ChallengeBankFlags.challenge_bank_id",
+        backref="challenge_bank", cascade="all, delete-orphan", passive_deletes=True
     )
     topics = db.relationship(
-        "ChallengeBankTopics", foreign_keys="ChallengeBankTopics.challenge_bank_id", backref="challenge_bank"
+        "ChallengeBankTopics", foreign_keys="ChallengeBankTopics.challenge_bank_id",
+        backref="challenge_bank", cascade="all, delete-orphan", passive_deletes=True
     )
 
     def __init__(self, *args, **kwargs):
@@ -1932,7 +1942,11 @@ class ChallengeBankVersion(db.Model):
         "ChallengeBank",
         foreign_keys=[challenge_bank_id],
         backref=db.backref(
-            "versions", lazy="dynamic", order_by="ChallengeBankVersion.version_number.desc()"
+            "versions",
+            lazy="dynamic",
+            order_by="ChallengeBankVersion.version_number.desc()",
+            cascade="all, delete-orphan",
+            passive_deletes=True,
         ),
     )
     creator = db.relationship("Users", foreign_keys=[created_by], lazy="select")
@@ -1985,7 +1999,9 @@ class ChallengeBankDeployHistory(db.Model):
     challenge_bank = db.relationship(
         "ChallengeBank",
         foreign_keys=[challenge_bank_id],
-        backref=db.backref("deploy_histories", lazy=True),
+        backref=db.backref(
+            "deploy_histories", lazy=True, cascade="all, delete-orphan", passive_deletes=True
+        ),
     )
 
     def __init__(self, *args, **kwargs):

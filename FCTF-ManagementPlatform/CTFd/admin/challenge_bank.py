@@ -1,7 +1,9 @@
+import json
+
 from flask import render_template, request, url_for
 
 from CTFd.admin import admin
-from CTFd.models import ChallengeBank, Users, db
+from CTFd.models import ChallengeBank, Challenges, Users, db
 from CTFd.utils.decorators import admins_only
 
 
@@ -40,6 +42,20 @@ def challenge_bank_listing():
         page=page, per_page=50, error_out=False
     )
 
+    # How many contest challenges were cloned from each item on this page.
+    # Grouped in one query rather than a count per row, so a full page costs
+    # the same as a single item.
+    page_ids = [b.id for b in items.items]
+    clone_counts = {}
+    if page_ids:
+        rows = (
+            db.session.query(Challenges.source_bank_id, db.func.count(Challenges.id))
+            .filter(Challenges.source_bank_id.in_(page_ids))
+            .group_by(Challenges.source_bank_id)
+            .all()
+        )
+        clone_counts = {bank_id: count for bank_id, count in rows}
+
     for bank in items.items:
         # ChallengeBank already has a `creator` relationship (the Users row
         # itself) — a display attribute needs a different name or this
@@ -47,6 +63,7 @@ def challenge_bank_listing():
         # mapped Users instance.
         user = Users.query.filter_by(id=bank.created_by).first() if bank.created_by else None
         bank.creator_name = user.name if user else "Unknown"
+        bank.clone_count = clone_counts.get(bank.id, 0)
 
     raw_categories = (
         ChallengeBank.query.with_entities(ChallengeBank.category)
@@ -90,4 +107,25 @@ def challenge_bank_new():
 def challenge_bank_detail(bank_id):
     bank = ChallengeBank.query.filter_by(id=bank_id).first_or_404()
     versions = bank.versions.all()
-    return render_template("admin/challenge_bank/detail.html", bank=bank, versions=versions)
+
+    # image_link is stored as the JSON blob the deploy pipeline writes
+    # ({"imageLink": ..., "exposedPort": ...}); split it the same way the
+    # contest challenge detail route does so the page can show the image
+    # name on its own rather than the raw JSON.
+    expose_port = ""
+    image_link_display = ""
+    if bank.image_link:
+        try:
+            obj = json.loads(bank.image_link)
+            expose_port = obj.get("exposedPort", "")
+            image_link_display = obj.get("imageLink", "")
+        except (ValueError, AttributeError):
+            image_link_display = bank.image_link
+
+    return render_template(
+        "admin/challenge_bank/detail.html",
+        bank=bank,
+        versions=versions,
+        expose_port=expose_port,
+        image_link_display=image_link_display,
+    )

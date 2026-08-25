@@ -222,6 +222,30 @@ class ChallengeBankDetail(Resource):
         bank = ChallengeBank.query.filter_by(id=bank_id).first_or_404()
         bank_info = {"challenge_bank_id": bank.id, "name": bank.name, "category": bank.category}
 
+        # Storage cleanup only runs when nothing was ever cloned from this
+        # item. Cloning duplicates attachment bytes into a fresh storage path,
+        # but it copies deploy_file as-is: the contest challenge points at the
+        # very same build context folder on the share. Removing that while a
+        # clone still exists would strip the build context out from under a
+        # live contest challenge, so the rule is simply "no clones, no files
+        # to protect" — the rows always go, only the bytes are kept.
+        clone_count = Challenges.query.filter_by(source_bank_id=bank.id).count()
+
+        if clone_count == 0:
+            uploader = get_uploader()
+            for bf in ChallengeBankFiles.query.filter_by(challenge_bank_id=bank.id).all():
+                try:
+                    uploader.delete(filename=bf.location)
+                except Exception:
+                    # A file already gone from storage must not block the delete.
+                    continue
+
+            if bank.deploy_file:
+                try:
+                    delete_folder(bank.deploy_file)
+                except Exception:
+                    pass
+
         # Detach (not delete) any already-cloned contest challenges — they are
         # independent rows and must keep working; only the traceability link
         # is cleared. ON DELETE SET NULL on challenges.source_bank_id already
@@ -230,12 +254,18 @@ class ChallengeBankDetail(Resource):
         # relying on the in-memory objects within this request.
         Challenges.query.filter_by(source_bank_id=bank.id).update({"source_bank_id": None})
 
+        bank_info["clones_kept"] = clone_count
+        bank_info["files_removed"] = clone_count == 0
+
         db.session.delete(bank)
         db.session.commit()
 
         log_audit("challenge_bank_delete", before=bank_info, data={"challenge_bank_id": bank_info["challenge_bank_id"]})
 
-        return {"success": True}
+        return {
+            "success": True,
+            "data": {"clones_kept": clone_count, "files_removed": clone_count == 0},
+        }
 
 
 @challenge_bank_namespace.route("/<int:bank_id>/flags")

@@ -578,18 +578,102 @@
 							</div>
 							<form id="bank-deploy-form">
 								<div class="form-group">
-									<label>Expose port<br>
-										<small class="text-muted">Port your Dockerfile exposes</small>
+									<label>
+										<input type="checkbox" name="require_deploy" id="setup_docker" {% if bank.require_deploy %}checked{% endif %}>
+										<span class="ml-2">Setup Deploy</span>
 									</label>
-									<input type="number" name="expose_port" class="form-control" placeholder="e.g. 8080" required>
+								</div>
+								<div class="form-group" id="expose_port_container">
+									<label>Expose port<br>
+										<small class="text-muted">Expose a port for the Docker container</small>
+									</label>
+									<input type="text" class="form-control" name="expose_port" id="expose_port"
+										   value="{{ expose_port }}" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
+								</div>
+								<div class="form-group deploy-resource-field">
+									<label>Connection Protocol<br>
+										<small class="text-muted">Protocol used by contestants to connect to this challenge instance.</small>
+									</label>
+									<select class="form-control" name="connection_protocol" id="connection_protocol">
+										<option value="http" {% if bank.connection_protocol != 'tcp' %}selected{% endif %}>HTTP</option>
+										<option value="tcp" {% if bank.connection_protocol == 'tcp' %}selected{% endif %}>TCP</option>
+									</select>
+								</div>
+								<div class="form-group deploy-resource-field">
+									<label>CPU Limit (mCPU)<br>
+										<small class="text-muted">Maximum CPU the challenge pod is allowed to use.</small>
+									</label>
+									<input type="number" class="form-control" name="cpu_limit" id="cpu_limit"
+										   min="1" value="{{ bank.cpu_limit if bank.cpu_limit is not none else 100 }}">
+								</div>
+								<div class="form-group deploy-resource-field">
+									<label>CPU Request (mCPU)<br>
+										<small class="text-muted">Minimum CPU requested for scheduling.</small>
+									</label>
+									<input type="number" class="form-control" name="cpu_request" id="cpu_request"
+										   min="1" value="{{ bank.cpu_request if bank.cpu_request is not none else 10 }}">
+								</div>
+								<div class="form-group deploy-resource-field">
+									<label>Memory Limit (Mi)<br>
+										<small class="text-muted">Maximum memory the challenge pod is allowed to use.</small>
+									</label>
+									<input type="number" class="form-control" name="memory_limit" id="memory_limit"
+										   min="1" value="{{ bank.memory_limit if bank.memory_limit is not none else 128 }}">
+								</div>
+								<div class="form-group deploy-resource-field">
+									<label>Memory Request (Mi)<br>
+										<small class="text-muted">Minimum memory requested for scheduling.</small>
+									</label>
+									<input type="number" class="form-control" name="memory_request" id="memory_request"
+										   min="1" value="{{ bank.memory_request if bank.memory_request is not none else 32 }}">
+								</div>
+								<div class="form-group deploy-resource-field">
+									<label>Use gVisor<br>
+										<small class="text-muted">Run the pod with gVisor sandbox for extra isolation.</small>
+									</label>
+									<select class="form-control" name="use_gvisor" id="use_gvisor">
+										<option value="true" {% if bank.use_gvisor %}selected{% endif %}>True</option>
+										<option value="false" {% if not bank.use_gvisor %}selected{% endif %}>False</option>
+									</select>
+								</div>
+								<div class="form-group deploy-resource-field">
+									<label>Max Deploy Count<br>
+										<small class="text-muted">Maximum number of times a contestant can start/deploy this challenge. Set 0 for unlimited.</small>
+									</label>
+									<input type="number" class="form-control" name="max_deploy_count" id="max_deploy_count"
+										   min="0" value="{{ bank.max_deploy_count if bank.max_deploy_count is not none else 0 }}">
+								</div>
+								<div class="form-group deploy-resource-field">
+									<label>
+										<input type="checkbox" name="harden_container" id="harden_container"
+											   {% if bank.harden_container is none or bank.harden_container %}checked{% endif %}>
+										<span class="ml-2">Harden Container</span>
+									</label>
+									<small class="text-muted d-block" style="margin-top:0.25rem;">Apply security hardening to the container: restricted Pod Security Standards, read-only root filesystem, drop all capabilities, run as non-root user (UID 1000), and mount /tmp as an in-memory volume.</small>
+								</div>
+								<div class="form-group deploy-resource-field">
+									<label>
+										<input type="checkbox" name="shared_instant" id="shared_instant" {% if bank.shared_instant %}checked{% endif %}>
+										<span class="ml-2">Shared Instance</span>
+									</label>
+									<small class="text-muted d-block" style="margin-top:0.25rem;">Use one shared deployed instance for all contestants instead of per-user instances.</small>
 								</div>
 								<div class="form-group">
-									<label>Deploy Files:
+									<label>Image name<br>
+										<small class="text-muted">Current deployed image</small>
+									</label>
+									<input type="text" class="form-control"
+										   value="{{ image_link_display or 'No image deployed' }}" disabled readonly>
+								</div>
+								<div class="form-group">
+									<label>
+										{% if bank.deploy_status == 'DEPLOY_SUCCESS' %}Change deploy file:{% else %}Deploy Files:{% endif %}
 										<small class="text-muted d-block">Build context archive (.zip)</small>
 									</label>
-									<input class="form-control-file" type="file" accept=".zip" name="deploy_file" required>
+									<input class="form-control-file" type="file" accept=".zip" name="deploy_file" id="file-upload">
 								</div>
 								<div id="bank-deploy-error" class="alert alert-danger" style="display:none;"></div>
+								<div id="bank-deploy-success" class="alert alert-success" style="display:none;"></div>
 								<div class="form-group">
 									<button type="submit" class="btn btn-primary float-right" id="bank-deploy-submit">
 										<i class="fas fa-save"></i> Save Changes
@@ -705,53 +789,6 @@
 					<input type="number" name="value" class="form-control" min="0" value="{{ bank.value if bank.value is not none else '' }}">
 				</div>
 
-				<div class="form-group">
-					<label>
-						<input type="checkbox" name="require_deploy" id="bank-require-deploy" {% if bank.require_deploy %}checked{% endif %}>
-						Requires Docker deployment
-					</label>
-				</div>
-				<div id="bank-deploy-fields" style="{% if not bank.require_deploy %}display:none;{% endif %}">
-					<div class="form-group">
-						<label>Image Link<br>
-							<small class="form-text text-muted">Current deployed image</small>
-						</label>
-						<input type="text" name="image_link" class="form-control" value="{{ bank.image_link or '' }}">
-					</div>
-					<div class="form-group">
-						<label>Connection Protocol<br>
-							<small class="form-text text-muted">Protocol contestants use to connect</small>
-						</label>
-						<select name="connection_protocol" class="form-control">
-							<option value="http" {% if bank.connection_protocol != 'tcp' %}selected{% endif %}>HTTP</option>
-							<option value="tcp" {% if bank.connection_protocol == 'tcp' %}selected{% endif %}>TCP</option>
-						</select>
-					</div>
-					<div class="form-group">
-						<label>CPU Limit (mCPU)<br>
-							<small class="form-text text-muted">Maximum CPU the pod may use</small>
-						</label>
-						<input type="number" name="cpu_limit" class="form-control" min="1" value="{{ bank.cpu_limit if bank.cpu_limit is not none else '' }}">
-					</div>
-					<div class="form-group">
-						<label>CPU Request (mCPU)<br>
-							<small class="form-text text-muted">Minimum CPU requested for scheduling</small>
-						</label>
-						<input type="number" name="cpu_request" class="form-control" min="1" value="{{ bank.cpu_request if bank.cpu_request is not none else '' }}">
-					</div>
-					<div class="form-group">
-						<label>Memory Limit (Mi)<br>
-							<small class="form-text text-muted">Maximum memory the pod may use</small>
-						</label>
-						<input type="number" name="memory_limit" class="form-control" min="1" value="{{ bank.memory_limit if bank.memory_limit is not none else '' }}">
-					</div>
-					<div class="form-group">
-						<label>Memory Request (Mi)<br>
-							<small class="form-text text-muted">Minimum memory requested for scheduling</small>
-						</label>
-						<input type="number" name="memory_request" class="form-control" min="1" value="{{ bank.memory_request if bank.memory_request is not none else '' }}">
-					</div>
-				</div>
 
 				<div id="bank-edit-error" class="alert alert-danger" style="display:none;"></div>
 				<div id="bank-edit-success" class="alert alert-success" style="display:none;">Saved.</div>
@@ -893,9 +930,19 @@ function reloadSubResources() {
 }
 reloadSubResources();
 
-document.getElementById('bank-require-deploy').addEventListener('change', function () {
-	document.getElementById('bank-deploy-fields').style.display = this.checked ? 'block' : 'none';
-});
+/* Deploy tab: only show the resource fields when deployment is enabled,
+   mirroring updateButtonState() in modals/challenges/deploy.html. */
+const setupDockerCheckbox = document.getElementById('setup_docker');
+
+function updateDeployFieldVisibility() {
+	const on = setupDockerCheckbox.checked;
+	document.getElementById('expose_port_container').style.display = on ? 'block' : 'none';
+	document.querySelectorAll('.deploy-resource-field').forEach(function (el) {
+		el.style.display = on ? 'block' : 'none';
+	});
+}
+setupDockerCheckbox.addEventListener('change', updateDeployFieldVisibility);
+updateDeployFieldVisibility();
 
 document.getElementById('bank-edit-form').addEventListener('submit', function (e) {
 	e.preventDefault();
@@ -908,11 +955,9 @@ document.getElementById('bank-edit-form').addEventListener('submit', function (e
 	const fd = new FormData(form);
 	const body = {};
 	for (const [key, value] of fd.entries()) {
-		if (key === 'require_deploy') continue;
 		body[key] = value === '' ? null : value;
 	}
-	body.require_deploy = form.querySelector('[name=require_deploy]').checked;
-	['difficulty', 'value', 'max_attempts', 'cooldown', 'time_limit', 'cpu_limit', 'cpu_request', 'memory_limit', 'memory_request'].forEach(function (k) {
+	['difficulty', 'value', 'max_attempts', 'cooldown', 'time_limit'].forEach(function (k) {
 		if (body[k] !== null && body[k] !== undefined) body[k] = parseInt(body[k], 10);
 	});
 
@@ -1061,28 +1106,71 @@ document.getElementById('bank-deploy-form').addEventListener('submit', function 
 	const form = e.target;
 	const submitBtn = document.getElementById('bank-deploy-submit');
 	const errorBox = document.getElementById('bank-deploy-error');
+	const successBox = document.getElementById('bank-deploy-success');
 	errorBox.style.display = 'none';
+	successBox.style.display = 'none';
 	submitBtn.disabled = true;
-	submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading…';
+	submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving…';
 
-	const fd = new FormData(form);
-	fd.append('require_deploy', 'true');
-	// CTFd's CSRF check reads the nonce from the request body for any
-	// non-JSON content type (multipart included) - the CSRF-Token header
-	// only satisfies it for application/json.
-	fd.append('nonce', CTFd.config.csrfNonce);
+	const on = setupDockerCheckbox.checked;
+	const fileInput = document.getElementById('file-upload');
+	const hasFile = Boolean(fileInput.files && fileInput.files.length);
 
-	fetch(API_BASE + '/deploy', {
-		method: 'POST',
-		body: fd,
-		credentials: 'same-origin',
-		headers: { 'CSRF-Token': CTFd.config.csrfNonce },
-	})
+	// Two phases, same as handleDeploy() on the contest side: persist the
+	// resource settings first, then hand the build context over only when a
+	// new archive was actually picked. Saving settings alone must not force
+	// a rebuild.
+	const settings = {
+		require_deploy: on,
+		connection_protocol: on ? form.connection_protocol.value : 'http',
+		cpu_limit: on ? parseInt(form.cpu_limit.value || '0', 10) : null,
+		cpu_request: on ? parseInt(form.cpu_request.value || '0', 10) : null,
+		memory_limit: on ? parseInt(form.memory_limit.value || '0', 10) : null,
+		memory_request: on ? parseInt(form.memory_request.value || '0', 10) : null,
+		use_gvisor: on ? form.use_gvisor.value === 'true' : null,
+		harden_container: on ? form.harden_container.checked : null,
+		shared_instant: on ? form.shared_instant.checked : false,
+		max_deploy_count: on ? parseInt(form.max_deploy_count.value || '0', 10) : null,
+	};
+
+	function fail(msg) {
+		errorBox.textContent = msg;
+		errorBox.style.display = 'block';
+	}
+
+	CTFd.fetch(API_BASE, { method: 'PATCH', body: JSON.stringify(settings) })
 		.then(function (r) { return r.json(); })
 		.then(function (result) {
 			if (!result.success) {
-				errorBox.textContent = result.error || JSON.stringify(result.errors || result);
-				errorBox.style.display = 'block';
+				fail(JSON.stringify(result.errors || result));
+				return null;
+			}
+			if (!on || !hasFile) {
+				successBox.textContent = 'Deploy settings saved.';
+				successBox.style.display = 'block';
+				return null;
+			}
+
+			const fd = new FormData();
+			fd.append('deploy_file', fileInput.files[0]);
+			fd.append('require_deploy', 'true');
+			fd.append('expose_port', form.expose_port.value);
+			// CTFd's CSRF check reads the nonce from the request body for any
+			// non-JSON content type (multipart included) - the CSRF-Token
+			// header only satisfies it for application/json.
+			fd.append('nonce', CTFd.config.csrfNonce);
+
+			return fetch(API_BASE + '/deploy', {
+				method: 'POST',
+				body: fd,
+				credentials: 'same-origin',
+				headers: { 'CSRF-Token': CTFd.config.csrfNonce },
+			}).then(function (r) { return r.json(); });
+		})
+		.then(function (result) {
+			if (!result) return;
+			if (!result.success) {
+				fail(result.error || JSON.stringify(result.errors || result));
 				return;
 			}
 			pollBankDeployStatus();
