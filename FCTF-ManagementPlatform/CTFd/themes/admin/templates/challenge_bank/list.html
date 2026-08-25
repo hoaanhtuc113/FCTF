@@ -252,6 +252,17 @@
 
 {% block scripts %}
 <script>
+// ezQuery lives in the compiled bundle as a module import; main.js only puts
+// CTFd/Alpine/helpers/$/dayjs/nunjucks/Howl on window, so calling it from an
+// inline script throws ReferenceError. Same reason deploy.html wraps ezAlert.
+function _safeConfirm(opts) {
+	if (typeof ezQuery === 'function') {
+		ezQuery(opts);
+	} else if (window.confirm(opts.body || 'Are you sure?')) {
+		opts.success();
+	}
+}
+
 document.querySelectorAll('#bank-challenges-table tbody tr[data-href]').forEach(function (row) {
 	row.addEventListener('click', function (e) {
 		if (e.target.closest('[data-checkbox]') || e.target.closest('a')) return;
@@ -273,7 +284,7 @@ document.getElementById('bank-bulk-delete-button').addEventListener('click', fun
 		return cb.dataset.bankId;
 	});
 	if (!ids.length) return;
-	ezQuery({
+	_safeConfirm({
 		title: 'Delete Bank Challenge' + (ids.length > 1 ? 's' : ''),
 		body: 'Delete ' + ids.length + ' challenge(s) from the bank? Contest challenges already cloned from them stay untouched.',
 		success: function () {
