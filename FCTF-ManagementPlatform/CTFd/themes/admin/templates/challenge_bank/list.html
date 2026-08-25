@@ -51,9 +51,9 @@
 	</div>
 
 	<div class="d-flex justify-content-between align-items-center action-buttons mt-3">
-		<button type="button" class="clean-btn clean-btn-primary" data-toggle="modal" data-target="#bank-create-modal">
+		<a href="{{ url_for('admin.challenge_bank_new') }}" class="clean-btn clean-btn-primary">
 			<i class="fas fa-plus"></i> Create Bank Challenge
-		</button>
+		</a>
 	</div>
 
 	<div class="clean-table-wrapper mt-2">
@@ -107,132 +107,4 @@
 	</nav>
 	{% endif %}
 </div>
-
-<div id="bank-create-modal" class="modal fade">
-	<div class="modal-dialog modal-lg">
-		<div class="modal-content">
-			<div class="modal-header">
-				<h4 class="text-center w-100">Create Bank Challenge</h4>
-				<button type="button" class="close" data-dismiss="modal" aria-label="Close">
-					<span aria-hidden="true">&times;</span>
-				</button>
-			</div>
-			<div class="modal-body">
-				<form id="bank-create-form">
-					<div class="row">
-						<div class="col-md-6 form-group">
-							<label>Name</label>
-							<input type="text" name="name" class="form-control" required>
-						</div>
-						<div class="col-md-3 form-group">
-							<label>Category</label>
-							<input type="text" name="category" class="form-control">
-						</div>
-						<div class="col-md-3 form-group">
-							<label>Difficulty</label>
-							<select name="difficulty" class="form-control">
-								<option value="">-</option>
-								<option value="1">1</option>
-								<option value="2">2</option>
-								<option value="3">3</option>
-								<option value="4">4</option>
-								<option value="5">5</option>
-							</select>
-						</div>
-					</div>
-					<div class="form-group">
-						<label>Type</label>
-						<select name="type" class="form-control">
-							<option value="standard">Standard</option>
-						</select>
-					</div>
-					<div class="form-group">
-						<label>Description</label>
-						<textarea name="description" class="form-control" rows="4"></textarea>
-					</div>
-					<div class="form-group form-check">
-						<input type="checkbox" class="form-check-input" id="bank-require-deploy" name="require_deploy">
-						<label class="form-check-label" for="bank-require-deploy">Requires Docker deployment</label>
-					</div>
-					<div id="bank-deploy-fields" style="display:none;">
-						<div class="row">
-							<div class="col-md-6 form-group">
-								<label>Image Link</label>
-								<input type="text" name="image_link" class="form-control">
-							</div>
-							<div class="col-md-6 form-group">
-								<label>Connection Protocol</label>
-								<select name="connection_protocol" class="form-control">
-									<option value="http">http</option>
-									<option value="tcp">tcp</option>
-								</select>
-							</div>
-						</div>
-						<div class="row">
-							<div class="col-md-3 form-group">
-								<label>CPU Limit</label>
-								<input type="number" name="cpu_limit" class="form-control">
-							</div>
-							<div class="col-md-3 form-group">
-								<label>CPU Request</label>
-								<input type="number" name="cpu_request" class="form-control">
-							</div>
-							<div class="col-md-3 form-group">
-								<label>Memory Limit</label>
-								<input type="number" name="memory_limit" class="form-control">
-							</div>
-							<div class="col-md-3 form-group">
-								<label>Memory Request</label>
-								<input type="number" name="memory_request" class="form-control">
-							</div>
-						</div>
-					</div>
-					<div id="bank-create-error" class="alert alert-danger" style="display:none;"></div>
-					<button type="submit" class="btn btn-primary btn-block">Create</button>
-				</form>
-			</div>
-		</div>
-	</div>
-</div>
-{% endblock %}
-
-{% block scripts %}
-<script>
-document.getElementById('bank-require-deploy').addEventListener('change', function () {
-	document.getElementById('bank-deploy-fields').style.display = this.checked ? 'block' : 'none';
-});
-
-document.getElementById('bank-create-form').addEventListener('submit', function (e) {
-	e.preventDefault();
-	const form = e.target;
-	const errorBox = document.getElementById('bank-create-error');
-	errorBox.style.display = 'none';
-
-	const fd = new FormData(form);
-	const body = {};
-	for (const [key, value] of fd.entries()) {
-		if (key === 'require_deploy') continue;
-		if (value === '') continue;
-		body[key] = value;
-	}
-	body.require_deploy = form.querySelector('[name=require_deploy]').checked;
-	['difficulty', 'cpu_limit', 'cpu_request', 'memory_limit', 'memory_request'].forEach(function (k) {
-		if (body[k] !== undefined) body[k] = parseInt(body[k], 10);
-	});
-
-	CTFd.fetch('/api/v1/challenge_bank', {
-		method: 'POST',
-		body: JSON.stringify(body),
-	})
-		.then(function (r) { return r.json(); })
-		.then(function (result) {
-			if (!result.success) {
-				errorBox.textContent = JSON.stringify(result.errors || result);
-				errorBox.style.display = 'block';
-				return;
-			}
-			window.location = '/admin/challenge_bank/' + result.data.id;
-		});
-});
-</script>
 {% endblock %}

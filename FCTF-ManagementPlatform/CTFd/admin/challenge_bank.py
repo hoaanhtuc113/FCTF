@@ -49,6 +49,12 @@ def challenge_bank_listing():
     )
 
 
+@admin.route("/admin/challenge_bank/new")
+@admins_only
+def challenge_bank_new():
+    return render_template("admin/challenge_bank/new.html")
+
+
 @admin.route("/admin/challenge_bank/<int:bank_id>")
 @admins_only
 def challenge_bank_detail(bank_id):

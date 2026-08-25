@@ -1,0 +1,339 @@
+{% extends "admin/management_hub_base.html" %}
+
+{% block content %}
+<div class="page-header">
+	<div class="container">
+		<h1><i class="bx bx-plus-circle"></i> Create Bank Challenge</h1>
+	</div>
+</div>
+
+<div class="container">
+	<div class="row">
+		<div class="col-md-8 offset-md-2">
+			<div class="alert alert-info" style="font-size:0.85rem;">
+				This challenge is created in the shared bank, independent of any contest. Set flag/deploy here once —
+				every contest that later clones it gets its own independent copy.
+			</div>
+
+			<form id="bank-new-form" enctype="multipart/form-data">
+				<div class="form-group">
+					<label>
+						Name:<br>
+						<small class="form-text text-muted">The name of your challenge (Maximum 40 characters)</small>
+					</label>
+					<input type="text" class="form-control" name="name" placeholder="Enter challenge name" maxlength="40" required>
+				</div>
+
+				<div class="form-group">
+					<label>
+						Category:<br>
+						<small class="form-text text-muted">The category of your challenge (Maximum 20 characters)</small>
+					</label>
+					<input type="text" class="form-control" name="category" placeholder="Enter challenge category" maxlength="20" required>
+				</div>
+
+				<div class="form-group">
+					<label>
+						Difficulty:<br>
+						<small class="form-text text-muted">Rate the difficulty of this challenge (1-5 stars)</small>
+					</label>
+					<div class="star-rating-picker" data-target="difficulty-input-create">
+						{% for i in range(1, 6) %}
+						<i class="far fa-star star-pick" data-value="{{ i }}" style="cursor:pointer;font-size:1.5rem;color:#dee2e6;margin-right:4px;transition:color .15s"></i>
+						{% endfor %}
+						<span class="ml-2 text-muted difficulty-label" style="font-size:.9rem">Not set</span>
+					</div>
+					<input type="hidden" name="difficulty" id="difficulty-input-create" value="">
+				</div>
+
+				<div class="form-group">
+					<label>
+						Description:<br>
+						<small class="form-text text-muted">Description for your challenge.</small>
+					</label>
+					<textarea class="form-control" name="description" rows="8"></textarea>
+				</div>
+
+				<hr>
+
+				<div class="form-group">
+					<label>Flag Type</label>
+					<div>
+						<div class="form-check form-check-inline">
+							<input class="form-check-input" type="radio" name="flag_type_ui" id="flag-type-static" value="static" checked>
+							<label class="form-check-label" for="flag-type-static">Static</label>
+						</div>
+						<div class="form-check form-check-inline">
+							<input class="form-check-input" type="radio" name="flag_type_ui" id="flag-type-dynamic" value="dynamic">
+							<label class="form-check-label" for="flag-type-dynamic">
+								Dynamic <small class="text-muted">(per-team, requires deploy)</small>
+							</label>
+						</div>
+					</div>
+				</div>
+
+				<div class="form-group" id="static-flag-section">
+					<div class="row">
+						<div class="col-md-8">
+							<label>Flag:<br>
+								<small class="form-text text-muted">Static flag for your challenge</small>
+							</label>
+							<input type="text" class="form-control" name="flag" id="flag-input">
+						</div>
+						<div class="col-md-4">
+							<label>&nbsp;<br><small class="form-text text-muted">&nbsp;</small></label>
+							<select class="form-control" name="flag_data" id="flag-data">
+								<option value="">Case Sensitive</option>
+								<option value="case_insensitive">Case Insensitive</option>
+							</select>
+						</div>
+					</div>
+				</div>
+
+				<div class="form-group d-none" id="dynamic-flag-section">
+					<div class="alert" style="background:#f0f7ff;border:1px solid #b8d9f8;color:#1a5c8a;border-radius:6px;padding:.75rem 1rem;margin-bottom:0;">
+						A unique flag <code>FCTF{&lt;random&gt;}</code> is generated per team when they start the challenge.
+						The pod receives it as the <code>FLAG</code> environment variable — set at deploy time in each contest, not here.
+					</div>
+				</div>
+
+				<div class="form-group multi_files">
+					<label>Files:<br>
+						<small class="form-text text-muted">Attachments distributed with your challenge (not the Docker build context)</small>
+					</label>
+					<input class="form-control-file" type="file" name="file" id="attachment-files" multiple>
+					<sub class="text-muted">Attach multiple files using Control+Click or Cmd+Click</sub>
+				</div>
+
+				<hr>
+
+				<div class="form-group">
+					<label>
+						<input type="checkbox" name="require_deploy" id="setup_docker">
+						Setup Deploy
+					</label>
+				</div>
+
+				<div class="form-group d-none" id="expose_port_container">
+					<label>Exposed Port<br>
+						<small class="form-text text-muted">Port your Dockerfile exposes</small>
+					</label>
+					<input type="text" class="form-control" name="expose_port" id="expose_port"
+						   oninput="this.value = this.value.replace(/[^0-9]/g, '')">
+				</div>
+				<div class="form-group d-none" id="connection_protocol_container">
+					<label>Connection Protocol<br>
+						<small class="form-text text-muted">Protocol contestants use to connect to this challenge instance</small>
+					</label>
+					<select class="form-control" name="connection_protocol">
+						<option value="http" selected>HTTP</option>
+						<option value="tcp">TCP</option>
+					</select>
+				</div>
+				<div class="form-group d-none" id="cpu_limit_container">
+					<label>CPU Limit (mCPU)<br><small class="form-text text-muted">Maximum CPU the pod may use.</small></label>
+					<input type="number" class="form-control" name="cpu_limit" min="1" value="100">
+				</div>
+				<div class="form-group d-none" id="cpu_request_container">
+					<label>CPU Request (mCPU)<br><small class="form-text text-muted">Minimum CPU requested for scheduling.</small></label>
+					<input type="number" class="form-control" name="cpu_request" min="1" value="10">
+				</div>
+				<div class="form-group d-none" id="memory_limit_container">
+					<label>Memory Limit (Mi)<br><small class="form-text text-muted">Maximum memory the pod may use.</small></label>
+					<input type="number" class="form-control" name="memory_limit" min="1" value="128">
+				</div>
+				<div class="form-group d-none" id="memory_request_container">
+					<label>Memory Request (Mi)<br><small class="form-text text-muted">Minimum memory requested for scheduling.</small></label>
+					<input type="number" class="form-control" name="memory_request" min="1" value="32">
+				</div>
+				<div class="form-group d-none" id="use_gvisor_container">
+					<label>Use gVisor<br><small class="form-text text-muted">Run the pod with the gVisor sandbox for extra isolation.</small></label>
+					<select class="form-control" name="use_gvisor">
+						<option value="true" selected>True</option>
+						<option value="false">False</option>
+					</select>
+				</div>
+				<div class="form-group d-none" id="harden_container_container">
+					<label>
+						<input type="checkbox" name="harden_container" checked>
+						Harden Container<br>
+						<small class="form-text text-muted">Apply security hardening to the container.</small>
+					</label>
+				</div>
+				<div class="form-group d-none" id="max_deploy_count_container">
+					<label>Max Deploy Count<br><small class="form-text text-muted">Maximum deploy times per contestant. 0 = unlimited.</small></label>
+					<input type="number" class="form-control" name="max_deploy_count" min="0" value="0">
+				</div>
+				<div class="form-group d-none" id="shared_instant_container">
+					<label>
+						<input type="checkbox" name="shared_instant">
+						Shared Instance<br>
+						<small class="form-text text-muted">Use one shared deployed instance for all contestants.</small>
+					</label>
+				</div>
+				<div class="form-group d-none" id="deploy_file_container">
+					<label>Build Context (.zip):<br>
+						<small class="form-text text-muted">Must contain a Dockerfile. Builds an image once — every contest that clones this challenge reuses it.</small>
+					</label>
+					<input class="form-control-file" type="file" accept=".zip" name="deploy_file">
+				</div>
+
+				<div id="bank-new-error" class="alert alert-danger" style="display:none;"></div>
+				<div id="bank-new-progress" class="alert alert-info" style="display:none;"></div>
+
+				<div class="form-group">
+					<button class="btn btn-primary float-right" type="submit" id="bank-new-submit">Create</button>
+				</div>
+			</form>
+		</div>
+	</div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+	document.querySelectorAll('.star-rating-picker').forEach(function (picker) {
+		var input = document.getElementById(picker.getAttribute('data-target'));
+		var stars = picker.querySelectorAll('.star-pick');
+		var label = picker.querySelector('.difficulty-label');
+		var labels = ['Very Easy', 'Easy', 'Medium', 'Hard', 'Very Hard'];
+
+		function render(val) {
+			stars.forEach(function (s, idx) {
+				if (idx < val) { s.classList.remove('far'); s.classList.add('fas'); s.style.color = '#ff6b35'; }
+				else { s.classList.remove('fas'); s.classList.add('far'); s.style.color = '#dee2e6'; }
+			});
+			label.textContent = val > 0 ? labels[val - 1] : 'Not set';
+		}
+		stars.forEach(function (star) {
+			star.addEventListener('mouseenter', function () { render(parseInt(this.getAttribute('data-value'))); });
+			star.addEventListener('click', function () {
+				var v = parseInt(this.getAttribute('data-value'));
+				if (parseInt(input.value) === v) { input.value = ''; render(0); }
+				else { input.value = v; render(v); }
+			});
+		});
+		picker.addEventListener('mouseleave', function () { render(parseInt(input.value) || 0); });
+	});
+
+	document.querySelectorAll('input[name="flag_type_ui"]').forEach(function (radio) {
+		radio.addEventListener('change', function () {
+			var dynamic = this.value === 'dynamic';
+			document.getElementById('static-flag-section').classList.toggle('d-none', dynamic);
+			document.getElementById('dynamic-flag-section').classList.toggle('d-none', !dynamic);
+			if (dynamic) document.getElementById('setup_docker').checked = true, document.getElementById('setup_docker').dispatchEvent(new Event('change'));
+		});
+	});
+
+	var deployFields = ['expose_port_container', 'connection_protocol_container', 'cpu_limit_container',
+		'cpu_request_container', 'memory_limit_container', 'memory_request_container', 'use_gvisor_container',
+		'harden_container_container', 'max_deploy_count_container', 'shared_instant_container', 'deploy_file_container'];
+
+	document.getElementById('setup_docker').addEventListener('change', function () {
+		var on = this.checked;
+		deployFields.forEach(function (id) { document.getElementById(id).classList.toggle('d-none', !on); });
+		document.getElementById('expose_port').required = on;
+		document.querySelector('[name="deploy_file"]').required = on;
+	});
+
+	var API_BASE = '/api/v1/challenge_bank';
+
+	function jsonFetch(url, opts) {
+		opts = opts || {};
+		opts.headers = Object.assign({}, opts.headers, { 'CSRF-Token': CTFd.config.csrfNonce });
+		return fetch(url, opts).then(function (r) { return r.json().then(function (body) { return { ok: r.ok, body: body }; }); });
+	}
+
+	document.getElementById('bank-new-form').addEventListener('submit', function (e) {
+		e.preventDefault();
+		var form = e.target;
+		var errorBox = document.getElementById('bank-new-error');
+		var progressBox = document.getElementById('bank-new-progress');
+		var submitBtn = document.getElementById('bank-new-submit');
+		errorBox.style.display = 'none';
+		progressBox.style.display = 'block';
+		submitBtn.disabled = true;
+
+		function fail(msg) {
+			progressBox.style.display = 'none';
+			errorBox.textContent = msg;
+			errorBox.style.display = 'block';
+			submitBtn.disabled = false;
+		}
+
+		progressBox.textContent = 'Creating challenge…';
+
+		var flagTypeDynamic = form.querySelector('[name="flag_type_ui"]:checked').value === 'dynamic';
+		var requireDeploy = document.getElementById('setup_docker').checked;
+
+		var body = {
+			name: form.name.value,
+			category: form.category.value,
+			difficulty: form.difficulty.value ? parseInt(form.difficulty.value, 10) : null,
+			description: form.description.value,
+			type: 'standard',
+			require_deploy: requireDeploy,
+		};
+		if (requireDeploy) {
+			body.connection_protocol = form.connection_protocol.value;
+			body.cpu_limit = parseInt(form.cpu_limit.value, 10);
+			body.cpu_request = parseInt(form.cpu_request.value, 10);
+			body.memory_limit = parseInt(form.memory_limit.value, 10);
+			body.memory_request = parseInt(form.memory_request.value, 10);
+			body.use_gvisor = form.use_gvisor.value === 'true';
+			body.harden_container = form.harden_container.checked;
+			body.max_deploy_count = parseInt(form.max_deploy_count.value, 10);
+			body.shared_instant = form.shared_instant.checked;
+		}
+
+		CTFd.fetch(API_BASE, { method: 'POST', body: JSON.stringify(body) })
+			.then(function (r) { return r.json(); })
+			.then(function (result) {
+				if (!result.success) { fail(JSON.stringify(result.errors || result)); return; }
+				var bankId = result.data.id;
+				var chain = Promise.resolve();
+
+				if (!flagTypeDynamic && form.flag.value) {
+					chain = chain.then(function () {
+						return CTFd.fetch(API_BASE + '/' + bankId + '/flags', {
+							method: 'POST',
+							body: JSON.stringify({ type: 'static', content: form.flag.value, data: form['flag_data'].value }),
+						});
+					});
+				}
+
+				var attachFiles = document.getElementById('attachment-files').files;
+				Array.from(attachFiles).forEach(function (f) {
+					chain = chain.then(function () {
+						var fd = new FormData();
+						fd.append('file', f);
+						return fetch(API_BASE + '/' + bankId + '/files', { method: 'POST', body: fd, headers: { 'CSRF-Token': CTFd.config.csrfNonce } });
+					});
+				});
+
+				if (requireDeploy) {
+					var deployFile = form.deploy_file.files[0];
+					if (deployFile) {
+						chain = chain.then(function () {
+							progressBox.textContent = 'Uploading build context and starting the build — this can take a while…';
+							var fd = new FormData();
+							fd.append('deploy_file', deployFile);
+							fd.append('require_deploy', 'true');
+							fd.append('expose_port', form.expose_port.value);
+							return jsonFetch(API_BASE + '/' + bankId + '/deploy', { method: 'POST', body: fd }).then(function (res) {
+								if (!res.body.success) throw new Error(res.body.error || 'Deploy failed');
+							});
+						});
+					}
+				}
+
+				chain
+					.then(function () { window.location = '/admin/challenge_bank/' + bankId; })
+					.catch(function (err) { fail('Challenge created, but a follow-up step failed: ' + err.message + '. Finish it from the challenge page.'); });
+			})
+			.catch(function () { fail('Network error. Please try again.'); });
+	});
+})();
+</script>
+{% endblock %}
