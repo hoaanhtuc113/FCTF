@@ -1,5 +1,35 @@
 {% extends "admin/management_hub_base.html" %}
 
+{% block stylesheets %}
+<style>
+/* Mirrors contests/sections/challenges.html's page-specific styles */
+.ch-type-tabs { display:flex; gap:6px; margin-bottom:12px; }
+.ch-type-tab {
+	padding: 5px 16px;
+	border-radius: 20px;
+	font-size: 0.78rem;
+	font-weight: 600;
+	border: 1px solid #dee2e6;
+	background: #fff;
+	color: #6c757d;
+	cursor: pointer;
+	text-decoration: none !important;
+	transition: all 0.15s ease;
+}
+.ch-type-tab:hover { border-color: var(--primary-orange); color: var(--primary-orange); }
+.ch-type-tab.active { background: var(--primary-orange); border-color: var(--primary-orange); color: #fff !important; }
+.ch-type-tab .tab-count {
+	display: inline-block;
+	background: rgba(255,255,255,0.25);
+	border-radius: 10px;
+	padding: 0 6px;
+	font-size: 0.7rem;
+	margin-left: 4px;
+}
+.ch-type-tab:not(.active) .tab-count { background: #e9ecef; color: #495057; }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="page-header">
 	<div class="container">
@@ -14,35 +44,77 @@
 		change challenges already cloned from it.
 	</div>
 
+	{% if q or category or type or difficulty %}
+	<div class="alert alert-info">
+		<div class="clean-info-text">
+			{% if q %}
+			Searching for challenges with <span class="clean-highlight">{{ field }}</span> matching <span class="clean-highlight">{{ q }}</span>
+			{% endif %}
+			{% if difficulty %}
+			{% set diff_labels = {'1': 'Very Easy', '2': 'Easy', '3': 'Medium', '4': 'Hard', '5': 'Very Hard'} %}
+			<span class="ml-2">| Difficulty: <span class="clean-highlight">{{ diff_labels[difficulty] }}</span></span>
+			{% endif %}
+		</div>
+		<div class="clean-info-text">{{ items.total }} results</div>
+	</div>
+	{% endif %}
+
+	<div class="ch-type-tabs">
+		<a href="{{ url_for('admin.challenge_bank_listing') }}" class="ch-type-tab active">
+			<i class="bx bx-list-ul mr-1"></i>All
+			<span class="tab-count">{{ items.total }}</span>
+		</a>
+	</div>
+
 	<div class="clean-search-container">
-		<form method="GET" id="filterForm">
-			<div class="row no-gutters align-items-end">
-				<div class="col-md-4 px-1">
-					<label for="q">Search</label>
-					<input id="q" type="text" name="q" class="clean-form-control w-100" placeholder="Name or category..." value="{{ q or '' }}">
-				</div>
-				<div class="col-md-3 px-1">
-					<label for="category">Category</label>
-					<select name="category" id="category" class="clean-form-control ss-select w-100">
+		<form method="GET" class="m-0">
+			<div class="row no-gutters align-items-center">
+				<div class="col-md-2 px-1">
+					<select name="category" class="clean-form-control ss-select w-100">
 						<option value="">All Categories</option>
 						{% for c in categories %}
 						<option value="{{ c }}" {% if category == c %}selected{% endif %}>{{ c }}</option>
 						{% endfor %}
 					</select>
 				</div>
-				<div class="col-md-3 px-1">
-					<label for="type">Type</label>
-					<select name="type" id="type" class="clean-form-control ss-select w-100">
+				<div class="col-md-2 px-1">
+					<select name="type" class="clean-form-control ss-select w-100">
 						<option value="">All Types</option>
-						<option value="standard" {% if type_ == 'standard' %}selected{% endif %}>Standard</option>
-						<option value="dynamic" {% if type_ == 'dynamic' %}selected{% endif %}>Dynamic</option>
+						{% for t in types %}
+						<option value="{{ t }}" {% if type == t %}selected{% endif %}>{{ t }}</option>
+						{% endfor %}
 					</select>
 				</div>
-				<div class="col-md-2 px-1 d-flex">
+				<div class="col-md-2 px-1">
+					<select name="field" class="clean-form-control ss-select w-100">
+						<option value="name" {% if field == 'name' %}selected{% endif %}>Name</option>
+						<option value="category" {% if field == 'category' %}selected{% endif %}>Category</option>
+						<option value="id" {% if field == 'id' %}selected{% endif %}>ID</option>
+					</select>
+				</div>
+				<div class="col-md-6 px-1">
+					<input type="text" name="q" value="{{ q or '' }}" class="clean-form-control w-100" placeholder="Search keywords...">
+				</div>
+			</div>
+			<div class="row no-gutters align-items-center mt-1">
+				<div class="col-md-2 px-1">
+					<select name="difficulty" class="clean-form-control ss-select w-100">
+						<option value="">All Difficulties</option>
+						<option value="1" {% if difficulty == '1' %}selected{% endif %}>&#9733; Very Easy</option>
+						<option value="2" {% if difficulty == '2' %}selected{% endif %}>&#9733;&#9733; Easy</option>
+						<option value="3" {% if difficulty == '3' %}selected{% endif %}>&#9733;&#9733;&#9733; Medium</option>
+						<option value="4" {% if difficulty == '4' %}selected{% endif %}>&#9733;&#9733;&#9733;&#9733; Hard</option>
+						<option value="5" {% if difficulty == '5' %}selected{% endif %}>&#9733;&#9733;&#9733;&#9733;&#9733; Very Hard</option>
+					</select>
+				</div>
+				<div class="col-md-7 px-1"></div>
+				<div class="col-md-3 px-1 d-flex">
 					<button type="submit" class="clean-btn clean-btn-primary flex-grow-1 mr-1">
 						<i class="fas fa-search"></i> Search
 					</button>
-					<a href="{{ url_for('admin.challenge_bank_listing') }}" class="clean-btn btn-outline-secondary" title="Reset">
+					<a href="{{ url_for('admin.challenge_bank_listing') }}"
+					   class="clean-btn btn-outline-secondary d-flex align-items-center justify-content-center"
+					   style="width:40px;" title="Reset">
 						<i class="fas fa-sync-alt"></i>
 					</a>
 				</div>
@@ -50,61 +122,166 @@
 		</form>
 	</div>
 
-	<div class="d-flex justify-content-between align-items-center action-buttons mt-3">
+	<div class="d-flex justify-content-between align-items-center action-buttons mt-2">
 		<a href="{{ url_for('admin.challenge_bank_new') }}" class="clean-btn clean-btn-primary">
 			<i class="fas fa-plus"></i> Create Bank Challenge
 		</a>
+		<button type="button" class="clean-btn clean-btn-danger" id="bank-bulk-delete-button" data-toggle="tooltip" title="Delete selected">
+			<i class="btn-fa fas fa-trash-alt"></i> Delete
+		</button>
 	</div>
 
 	<div class="clean-table-wrapper mt-2">
-		<table class="clean-table table" style="cursor:default;">
+		<table id="bank-challenges-table" class="clean-table table">
 			<thead>
 				<tr>
+					<th data-checkbox>
+						<input type="checkbox" class="table-check" autocomplete="off" data-checkbox-all>
+					</th>
 					<th class="text-center"><b>ID</b></th>
-					<th><b>Name</b></th>
+					<th class="text-center"><b>Name</b></th>
 					<th class="text-center"><b>Category</b></th>
-					<th class="text-center"><b>Type</b></th>
 					<th class="text-center"><b>Difficulty</b></th>
-					<th class="text-center"><b>Deploy</b></th>
+					<th class="text-center"><b>Creator</b></th>
+					<th class="text-center"><b>Value</b></th>
+					<th class="text-center"><b>Type</b></th>
+					<th class="text-center"><b>Deploy Status</b></th>
 					<th class="text-center"><b>Last Update</b></th>
 				</tr>
 			</thead>
 			<tbody>
 				{% for bank in items.items %}
-				<tr data-href="{{ url_for('admin.challenge_bank_detail', bank_id=bank.id) }}" onclick="window.location = this.dataset.href">
+				<tr data-href="{{ url_for('admin.challenge_bank_detail', bank_id=bank.id) }}">
+					<td data-checkbox>
+						<input type="checkbox" class="table-check" autocomplete="off" value="{{ bank.id }}" data-bank-id="{{ bank.id }}">
+					</td>
 					<td class="text-center">{{ bank.id }}</td>
-					<td><a href="{{ url_for('admin.challenge_bank_detail', bank_id=bank.id) }}">{{ bank.name }}</a></td>
-					<td class="text-center">{{ bank.category or '-' }}</td>
-					<td class="text-center">{{ bank.type or 'standard' }}</td>
-					<td class="text-center">{{ bank.difficulty if bank.difficulty is not none else '-' }}</td>
-					<td class="text-center">
-						{% if bank.require_deploy %}
-						<span class="clean-badge clean-badge-primary">Docker</span>
+					<td class="text-center cell-truncate" title="{{ bank.name }}">
+						<a href="{{ url_for('admin.challenge_bank_detail', bank_id=bank.id) }}">{{ bank.name | truncate(40) }}</a>
+					</td>
+					<td class="text-center cell-truncate-sm" title="{{ bank.category }}">{{ bank.category or '-' }}</td>
+					<td class="text-center" style="white-space:nowrap">
+						{% if bank.difficulty %}
+						{% for i in range(1, 6) %}
+						{% if i <= bank.difficulty %}
+						<i class="fas fa-star" style="color:#ff6b35;font-size:.75rem"></i>
 						{% else %}
-						<span class="clean-badge clean-badge-secondary">Static</span>
+						<i class="far fa-star" style="color:#dee2e6;font-size:.75rem"></i>
+						{% endif %}
+						{% endfor %}
+						{% else %}
+						<span class="text-muted">&mdash;</span>
+						{% endif %}
+					</td>
+					<td class="text-center cell-truncate-sm" title="{{ bank.creator }}">{{ bank.creator | truncate(20) }}</td>
+					<td class="text-center">{{ bank.value if bank.value is not none else '—' }}</td>
+					<td class="text-center">{{ bank.type or 'standard' }}</td>
+					<td class="text-center">
+						{% if bank.deploy_status == 'DEPLOY_SUCCESS' %}
+						<span class="clean-badge clean-badge-success">DEPLOY_SUCCESS</span>
+						{% elif bank.deploy_status == 'DEPLOY_FAILED' %}
+						<span class="clean-badge clean-badge-danger">DEPLOY_FAILED</span>
+						{% elif bank.deploy_status == 'PENDING_DEPLOY' %}
+						<span class="clean-badge clean-badge-primary">PENDING_DEPLOY</span>
+						{% elif bank.require_deploy %}
+						<span class="clean-badge clean-badge-secondary">{{ bank.deploy_status or 'CREATED' }}</span>
+						{% else %}
+						<span class="text-muted">&mdash;</span>
 						{% endif %}
 					</td>
 					<td class="text-center"><small>{{ bank.last_update.strftime('%Y-%m-%d %H:%M') if bank.last_update else '-' }}</small></td>
 				</tr>
 				{% else %}
 				<tr>
-					<td colspan="7" class="text-center text-muted py-4">No challenges in the bank yet.</td>
+					<td colspan="10" class="text-center text-muted py-4">
+						<i class="bx bx-info-circle"></i> No challenges in the bank yet.
+						<a href="{{ url_for('admin.challenge_bank_new') }}" class="ml-2">Create one</a>
+					</td>
 				</tr>
 				{% endfor %}
 			</tbody>
 		</table>
 	</div>
 
-	{% if items.pages > 1 %}
-	<nav class="d-flex justify-content-center">
-		<ul class="pagination">
-			{% for p in range(1, items.pages + 1) %}
-			<li class="page-item {% if p == items.page %}active{% endif %}">
-				<a class="page-link" href="{{ url_for('admin.challenge_bank_listing', page=p, **prev_page_args) }}">{{ p }}</a>
-			</li>
-			{% endfor %}
-		</ul>
-	</nav>
+	{% if items.pages > 0 %}
+	<div class="d-flex justify-content-between align-items-center mt-2">
+		<div class="clean-info-text" role="status" aria-live="polite">
+			Page <span class="clean-highlight">{{ items.page }}</span>
+			of <span class="clean-highlight">{{ items.pages }}</span>
+			&bull; {{ items.total }} total
+		</div>
+		{% if items.pages > 1 %}
+		<nav aria-label="Challenge bank pagination">
+			<ul class="clean-pagination pagination mb-0">
+				<li class="page-item {% if items.page == 1 %}disabled{% endif %}">
+					<a class="page-link" href="{{ prev_page if items.page > 1 else '#' }}">&laquo;</a>
+				</li>
+				{% set start_page = [1, items.page - 2]|max %}
+				{% set end_page = [items.pages, items.page + 2]|min %}
+				{% if start_page > 1 %}
+				<li class="page-item">
+					<a class="page-link" href="{{ url_for('admin.challenge_bank_listing', page=1, field=field, q=q, category=category, type=type, difficulty=difficulty) }}">1</a>
+				</li>
+				{% if start_page > 2 %}
+				<li class="page-item disabled"><span class="page-link">...</span></li>
+				{% endif %}
+				{% endif %}
+				{% for page_num in range(start_page, end_page + 1) %}
+				<li class="page-item {% if page_num == items.page %}active{% endif %}">
+					<a class="page-link" href="{{ url_for('admin.challenge_bank_listing', page=page_num, field=field, q=q, category=category, type=type, difficulty=difficulty) }}">{{ page_num }}</a>
+				</li>
+				{% endfor %}
+				{% if end_page < items.pages %}
+				{% if end_page < items.pages - 1 %}
+				<li class="page-item disabled"><span class="page-link">...</span></li>
+				{% endif %}
+				<li class="page-item">
+					<a class="page-link" href="{{ url_for('admin.challenge_bank_listing', page=items.pages, field=field, q=q, category=category, type=type, difficulty=difficulty) }}">{{ items.pages }}</a>
+				</li>
+				{% endif %}
+				<li class="page-item {% if items.page == items.pages %}disabled{% endif %}">
+					<a class="page-link" href="{{ next_page if items.page < items.pages else '#' }}">&raquo;</a>
+				</li>
+			</ul>
+		</nav>
+		{% endif %}
+	</div>
 	{% endif %}
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.querySelectorAll('#bank-challenges-table tbody tr[data-href]').forEach(function (row) {
+	row.addEventListener('click', function (e) {
+		if (e.target.closest('[data-checkbox]') || e.target.closest('a')) return;
+		window.location.href = row.dataset.href;
+	});
+});
+
+var allCb = document.querySelector('[data-checkbox-all]');
+if (allCb) {
+	allCb.addEventListener('change', function () {
+		document.querySelectorAll('.table-check:not([data-checkbox-all])').forEach(function (cb) {
+			cb.checked = allCb.checked;
+		});
+	});
+}
+
+document.getElementById('bank-bulk-delete-button').addEventListener('click', function () {
+	var ids = Array.from(document.querySelectorAll('.table-check[data-bank-id]:checked')).map(function (cb) {
+		return cb.dataset.bankId;
+	});
+	if (!ids.length) return;
+	ezQuery({
+		title: 'Delete Bank Challenge' + (ids.length > 1 ? 's' : ''),
+		body: 'Delete ' + ids.length + ' challenge(s) from the bank? Contest challenges already cloned from them stay untouched.',
+		success: function () {
+			Promise.all(ids.map(function (id) {
+				return CTFd.fetch('/api/v1/challenge_bank/' + id, { method: 'DELETE' });
+			})).then(function () { window.location.reload(); });
+		},
+	});
+});
+</script>
 {% endblock %}
