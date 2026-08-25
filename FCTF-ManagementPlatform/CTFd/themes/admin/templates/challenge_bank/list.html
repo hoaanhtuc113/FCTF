@@ -173,7 +173,7 @@
 						<span class="text-muted">&mdash;</span>
 						{% endif %}
 					</td>
-					<td class="text-center cell-truncate-sm" title="{{ bank.creator }}">{{ bank.creator | truncate(20) }}</td>
+					<td class="text-center cell-truncate-sm" title="{{ bank.creator_name }}">{{ bank.creator_name | truncate(20) }}</td>
 					<td class="text-center">{{ bank.value if bank.value is not none else '—' }}</td>
 					<td class="text-center">{{ bank.type or 'standard' }}</td>
 					<td class="text-center">

@@ -41,8 +41,12 @@ def challenge_bank_listing():
     )
 
     for bank in items.items:
+        # ChallengeBank already has a `creator` relationship (the Users row
+        # itself) — a display attribute needs a different name or this
+        # assignment trips SQLAlchemy trying to treat a plain string as a
+        # mapped Users instance.
         user = Users.query.filter_by(id=bank.created_by).first() if bank.created_by else None
-        bank.creator = user.name if user else "Unknown"
+        bank.creator_name = user.name if user else "Unknown"
 
     raw_categories = (
         ChallengeBank.query.with_entities(ChallengeBank.category)
