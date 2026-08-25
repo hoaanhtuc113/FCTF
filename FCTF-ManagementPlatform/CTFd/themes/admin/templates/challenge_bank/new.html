@@ -385,6 +385,7 @@ String flag = new String(Files.readAllBytes(Paths.get("/tmp/flag.txt"))).trim();
 					chain = chain.then(function () {
 						var fd = new FormData();
 						fd.append('file', f);
+						fd.append('nonce', CTFd.config.csrfNonce);
 						return fetch(API_BASE + '/' + bankId + '/files', { method: 'POST', body: fd, credentials: 'same-origin', headers: { 'CSRF-Token': CTFd.config.csrfNonce } });
 					});
 				});
@@ -398,6 +399,10 @@ String flag = new String(Files.readAllBytes(Paths.get("/tmp/flag.txt"))).trim();
 							fd.append('deploy_file', deployFile);
 							fd.append('require_deploy', 'true');
 							fd.append('expose_port', form.expose_port.value);
+							// CTFd's CSRF check reads the nonce from the request body for
+							// any non-JSON content type (multipart included) - the
+							// CSRF-Token header only satisfies it for application/json.
+							fd.append('nonce', CTFd.config.csrfNonce);
 							return jsonFetch(API_BASE + '/' + bankId + '/deploy', { method: 'POST', body: fd }).then(function (res) {
 								if (!res.body.success) throw new Error(res.body.error || 'Deploy failed');
 							});

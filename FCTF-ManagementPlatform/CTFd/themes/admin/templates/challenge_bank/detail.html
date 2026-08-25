@@ -362,6 +362,10 @@ document.getElementById('bank-deploy-form').addEventListener('submit', function 
 
 	const fd = new FormData(form);
 	fd.append('require_deploy', 'true');
+	// CTFd's CSRF check reads the nonce from the request body for any
+	// non-JSON content type (multipart included) - the CSRF-Token header
+	// only satisfies it for application/json.
+	fd.append('nonce', CTFd.config.csrfNonce);
 
 	fetch(API_BASE + '/deploy', {
 		method: 'POST',
@@ -435,6 +439,7 @@ document.getElementById('bank-tag-form').addEventListener('submit', function (e)
 document.getElementById('bank-file-upload-form').addEventListener('submit', function (e) {
 	e.preventDefault();
 	const fd = new FormData(e.target);
+	fd.append('nonce', CTFd.config.csrfNonce);
 	fetch(API_BASE + '/files', {
 		method: 'POST',
 		body: fd,
