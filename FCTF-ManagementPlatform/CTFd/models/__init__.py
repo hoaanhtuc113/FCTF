@@ -1775,6 +1775,15 @@ class ChallengeBank(db.Model):
     type = db.Column(db.String(80))
     difficulty = db.Column(db.Integer, nullable=True, default=None)
 
+    # Suggested scoring/attempt defaults — copied onto the new challenge when
+    # a contest clones this bank item, then fully independent: editing them
+    # here never touches a challenge already cloned, and a contest can
+    # override its own copy right after cloning like any other challenge.
+    value = db.Column(db.Integer, nullable=True)
+    max_attempts = db.Column(db.Integer, nullable=True)
+    cooldown = db.Column(db.Integer, nullable=True)
+    time_limit = db.Column(db.Integer, nullable=True)
+
     # Deploy config
     require_deploy = db.Column(db.Boolean, nullable=False, default=False)
     deploy_status = db.Column(db.Text, nullable=True, default="CREATED")

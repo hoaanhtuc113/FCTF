@@ -55,6 +55,10 @@ _BANK_FIELDS = (
     "category",
     "type",
     "difficulty",
+    "value",
+    "max_attempts",
+    "cooldown",
+    "time_limit",
     "require_deploy",
     "deploy_status",
     "deploy_file",
@@ -584,11 +588,15 @@ class ChallengeBankClone(Resource):
             shared_instant=bank.shared_instant,
             max_deploy_count=bank.max_deploy_count,
             contest_id=contest_id,
-            value=req.get("value"),
+            # Copied from the bank's own suggested defaults unless the caller
+            # explicitly overrides them in this same call; either way the
+            # result is a fully independent value on the new row, ordinary
+            # post-clone edits change only this contest's copy.
+            value=req.get("value", bank.value),
             state=req.get("state", "hidden"),
-            max_attempts=req.get("max_attempts"),
-            cooldown=req.get("cooldown"),
-            time_limit=req.get("time_limit"),
+            max_attempts=req.get("max_attempts", bank.max_attempts),
+            cooldown=req.get("cooldown", bank.cooldown),
+            time_limit=req.get("time_limit", bank.time_limit),
             source_bank_id=bank.id,
             created_by=session.get("id"),
             last_update=datetime.datetime.utcnow(),

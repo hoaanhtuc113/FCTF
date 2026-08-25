@@ -366,21 +366,22 @@
     /* ── import (clone each selected bank challenge into this contest) ─ */
     document.getElementById('ic-btn-import').addEventListener('click', function() {
         if (!state.selected.size) return;
-        var valueStr = window.prompt('Point value to give ' + state.selected.size + ' challenge(s) in this contest (applied to all selected; you can edit each afterwards):', '100');
-        if (valueStr === null) return;
-        var value = parseInt(valueStr, 10);
-        if (isNaN(value)) { alert('Value must be a number.'); return; }
 
         var ids = Array.from(state.selected);
         var btn = this;
         btn.disabled = true;
         btn.innerHTML = '<i class="fas fa-spinner fa-spin btn-fa"></i> Cloning…';
 
+        // Value/max attempts/cooldown/time limit come from the bank item's
+        // own suggested defaults (set when it was created) — the clone
+        // endpoint fills them in automatically when not overridden here.
+        // Edit any of them per-contest afterwards on the challenge's normal
+        // edit page, same as a hand-created challenge.
         Promise.all(ids.map(function(id) {
             return fetch(API_BASE + '/' + id + '/clone', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'CSRF-Token': CSRF },
-                body: JSON.stringify({ contest_id: CONTEST_ID, value: value, state: 'hidden' })
+                body: JSON.stringify({ contest_id: CONTEST_ID, state: 'hidden' })
             }).then(function(r) { return r.json(); });
         }))
         .then(function(results) {

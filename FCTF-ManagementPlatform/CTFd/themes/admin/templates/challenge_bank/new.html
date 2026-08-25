@@ -54,6 +54,38 @@
 					<textarea class="form-control" name="description" rows="8"></textarea>
 				</div>
 
+				<div class="form-group">
+					<label>
+						Time Limit:<br>
+						<small class="form-text text-muted">Suggested time limit for solving this challenge (minutes). Each contest can change its own copy after cloning.</small>
+					</label>
+					<input type="number" class="form-control" name="time_limit" min="1" placeholder="Leave blank for no limit">
+				</div>
+
+				<div class="form-group">
+					<label>
+						Max Attempts<br>
+						<small class="form-text text-muted">Suggested maximum attempts. Leave at 0 for unlimited.</small>
+					</label>
+					<input type="number" class="form-control" name="max_attempts" value="0" min="0" step="1">
+				</div>
+
+				<div class="form-group">
+					<label for="bank-cooldown">
+						Submission cooldown (seconds):<br>
+						<small class="form-text text-muted">Suggested minimum seconds required between two submissions (0 = disabled).</small>
+					</label>
+					<input type="number" class="form-control" id="bank-cooldown" name="cooldown" min="0" step="1" value="0">
+				</div>
+
+				<div class="form-group">
+					<label>
+						Value:<br>
+						<small class="form-text text-muted">Suggested points for solving this challenge. Each contest can change its own copy after cloning.</small>
+					</label>
+					<input type="number" class="form-control" name="value" placeholder="Enter value" min="0">
+				</div>
+
 				<hr>
 
 				<div class="form-group">
@@ -274,6 +306,10 @@
 			description: form.description.value,
 			type: 'standard',
 			require_deploy: requireDeploy,
+			time_limit: form.time_limit.value ? parseInt(form.time_limit.value, 10) : null,
+			max_attempts: form.max_attempts.value !== '' ? parseInt(form.max_attempts.value, 10) : null,
+			cooldown: form.cooldown.value !== '' ? parseInt(form.cooldown.value, 10) : null,
+			value: form.value.value !== '' ? parseInt(form.value.value, 10) : null,
 		};
 		if (requireDeploy) {
 			body.connection_protocol = form.connection_protocol.value;

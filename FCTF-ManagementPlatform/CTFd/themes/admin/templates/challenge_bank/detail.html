@@ -45,6 +45,28 @@
 							<label>Description</label>
 							<textarea name="description" class="form-control" rows="5">{{ bank.description or '' }}</textarea>
 						</div>
+						<div class="row">
+							<div class="col-md-3 form-group">
+								<label>Value</label>
+								<input type="number" name="value" class="form-control" min="0" value="{{ bank.value if bank.value is not none else '' }}">
+							</div>
+							<div class="col-md-3 form-group">
+								<label>Max Attempts</label>
+								<input type="number" name="max_attempts" class="form-control" min="0" value="{{ bank.max_attempts if bank.max_attempts is not none else '' }}">
+							</div>
+							<div class="col-md-3 form-group">
+								<label>Cooldown (s)</label>
+								<input type="number" name="cooldown" class="form-control" min="0" value="{{ bank.cooldown if bank.cooldown is not none else '' }}">
+							</div>
+							<div class="col-md-3 form-group">
+								<label>Time Limit</label>
+								<input type="number" name="time_limit" class="form-control" min="1" value="{{ bank.time_limit if bank.time_limit is not none else '' }}">
+							</div>
+						</div>
+						<small class="form-text text-muted mb-3 d-block">
+							Suggested defaults copied onto a new challenge when a contest clones this item — editing them here never
+							changes a challenge already cloned.
+						</small>
 						<div class="form-group form-check">
 							<input type="checkbox" class="form-check-input" id="bank-require-deploy" name="require_deploy" {% if bank.require_deploy %}checked{% endif %}>
 							<label class="form-check-label" for="bank-require-deploy">Requires Docker deployment</label>
@@ -270,7 +292,7 @@ document.getElementById('bank-edit-form').addEventListener('submit', function (e
 		body[key] = value === '' ? null : value;
 	}
 	body.require_deploy = form.querySelector('[name=require_deploy]').checked;
-	['difficulty', 'cpu_limit', 'cpu_request', 'memory_limit', 'memory_request'].forEach(function (k) {
+	['difficulty', 'value', 'max_attempts', 'cooldown', 'time_limit', 'cpu_limit', 'cpu_request', 'memory_limit', 'memory_request'].forEach(function (k) {
 		if (body[k] !== null && body[k] !== undefined) body[k] = parseInt(body[k], 10);
 	});
 
