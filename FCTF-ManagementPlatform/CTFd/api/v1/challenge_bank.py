@@ -25,6 +25,7 @@ from CTFd.models import (
     Hints,
     Tags,
     Topics,
+    Users,
     db,
 )
 from CTFd.utils.connector.multiservice_connector import (
