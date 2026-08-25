@@ -44,8 +44,8 @@
     border-radius: 8px;
     box-shadow: 0 10px 40px rgba(0,0,0,0.25);
     width: 100%;
-    max-width: 760px;
-    max-height: 85vh;
+    max-width: 1200px;
+    height: 88vh;
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -62,7 +62,53 @@
 .ic-preview-sub { font-size: 0.82rem; color: var(--text-light); margin-top: 0.2rem; }
 .ic-preview-close { color: var(--text-light); cursor: pointer; font-size: 1.15rem; }
 .ic-preview-close:hover { color: var(--primary-orange); }
-.ic-preview-body { padding: 1.25rem; overflow-y: auto; flex: 1; }
+.ic-preview-body { flex: 1; display: flex; min-height: 0; }
+.ic-pv-left {
+    flex: 1 1 55%;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid var(--border-light);
+    background: #f1f1f1;
+}
+.ic-pv-right { flex: 1 1 45%; min-width: 0; padding: 1.25rem; overflow-y: auto; }
+.ic-pv-filebar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 0.5rem 0.75rem;
+    background: var(--bg-light);
+    border-bottom: 1px solid var(--border-light);
+    min-height: 42px;
+    align-items: center;
+}
+.ic-pv-filetab {
+    padding: 3px 10px;
+    border-radius: 14px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    border: 1px solid var(--border-medium);
+    background: #fff;
+    color: var(--text-light);
+    cursor: pointer;
+    max-width: 220px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.ic-pv-filetab:hover { border-color: var(--primary-orange); color: var(--primary-orange); }
+.ic-pv-filetab.active { background: var(--primary-orange); border-color: var(--primary-orange); color: #fff; }
+.ic-pv-viewer {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: auto;
+}
+.ic-pv-viewer iframe { width: 100%; height: 100%; border: none; background: #fff; }
+.ic-pv-viewer img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.ic-pv-viewer-note { color: var(--text-light); font-size: 0.9rem; text-align: center; padding: 1.5rem; }
 .ic-preview-foot {
     display: flex;
     justify-content: flex-end;
@@ -203,14 +249,13 @@
                     <th class="text-center">Category</th>
                     <th class="text-center">Difficulty</th>
                     <th class="text-center">Value</th>
-                    <th class="text-center">Creator</th>
-                    <th class="text-center">Status</th>
+                    <th class="text-center">Clones</th>
                     <th class="text-center">Action</th>
                 </tr>
             </thead>
             <tbody id="ic-tbody">
                 <tr>
-                    <td colspan="9" class="text-center text-muted py-4">
+                    <td colspan="8" class="text-center text-muted py-4">
                         <i class="bx bx-loader-alt bx-spin mr-1"></i> Loading…
                     </td>
                 </tr>
@@ -243,7 +288,16 @@
                 <i class="fas fa-times"></i>
             </a>
         </div>
-        <div class="ic-preview-body" id="ic-preview-body"></div>
+        <div class="ic-preview-body">
+            <!-- Left: the brief itself, rendered in place. Right: everything
+                 else about the challenge. Same split as the challenge detail
+                 page, so the two screens read the same way. -->
+            <div class="ic-pv-left">
+                <div class="ic-pv-filebar" id="ic-preview-filebar"></div>
+                <div class="ic-pv-viewer" id="ic-preview-viewer"></div>
+            </div>
+            <div class="ic-pv-right" id="ic-preview-info"></div>
+        </div>
         <div class="ic-preview-foot">
             <button type="button" class="clean-btn" id="ic-preview-dismiss">Close</button>
             <button type="button" class="clean-btn clean-btn-primary ml-2" id="ic-preview-select">
@@ -332,13 +386,13 @@
 
         var tbody = document.getElementById('ic-tbody');
         tbody.innerHTML =
-            '<tr><td colspan="9" class="text-center text-muted py-4"><i class="bx bx-loader-alt bx-spin mr-1"></i> Loading…</td></tr>';
+            '<tr><td colspan="8" class="text-center text-muted py-4"><i class="bx bx-loader-alt bx-spin mr-1"></i> Loading…</td></tr>';
 
         function showError(detail) {
             // Say what went wrong instead of spinning forever: an unhandled
             // rejection here leaves the loading row on screen with no clue
             // that anything failed.
-            tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-4">' +
+            tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4">' +
                 '<i class="bx bx-error-circle mr-1"></i> Could not load the challenge bank.' +
                 '<div class="small mt-1">' + escHtml(detail) + '</div></td></tr>';
         }
@@ -371,7 +425,7 @@
         var offset = (state.page - 1) * 50;
 
         if (!state.challenges.length) {
-            tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-4"><i class="bx bx-info-circle mr-1"></i> No challenges found</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4"><i class="bx bx-info-circle mr-1"></i> No challenges found</td></tr>';
         } else {
             tbody.innerHTML = state.challenges.map(function(c, i) {
                 var imp = state.imported.has(c.id);
@@ -383,15 +437,17 @@
                     ? '<input type="checkbox" class="table-check" checked disabled>'
                     : '<input type="checkbox" class="table-check" ' + (sel ? 'checked' : '') + ' onclick="event.stopPropagation();window._icToggle(' + c.id + ')">';
 
-                var statusCell = imp
-                    ? '<span class="clean-badge clean-badge-success"><i class="fas fa-check mr-1" style="font-size:0.65rem;"></i>Already in contest</span>'
-                    : (c.require_deploy
-                        ? '<span class="clean-badge" style="background:#fff3cd;color:#856404;border:1px solid #ffe08a;">Docker</span>'
-                        : '<span class="text-muted">&mdash;</span>');
-
                 var valueCell = (c.value === null || c.value === undefined)
                     ? '<span class="text-muted">&mdash;</span>'
                     : escHtml(c.value);
+
+                // How many contests already run a copy of this bank item. The
+                // greyed-out row and its disabled checkbox already say whether
+                // *this* contest is one of them, so the count stands alone.
+                var clonesCell = c.clone_count
+                    ? '<span class="clean-badge clean-badge-primary" title="Cloned into ' +
+                      escHtml(c.clone_count) + ' contest challenge(s)">' + escHtml(c.clone_count) + '</span>'
+                    : '<span class="text-muted">&mdash;</span>';
 
                 return '<tr class="' + rowCls + '"' + onRow + '>' +
                     '<td data-checkbox style="text-align:center;">' + chkHtml + '</td>' +
@@ -400,8 +456,7 @@
                     '<td class="text-center"><span class="clean-badge clean-badge-secondary">' + escHtml(c.category) + '</span></td>' +
                     '<td class="text-center">' + stars(c.difficulty) + '</td>' +
                     '<td class="text-center">' + valueCell + '</td>' +
-                    '<td class="text-center">' + escHtml(c.creator_name || 'Unknown') + '</td>' +
-                    '<td class="text-center">' + statusCell + '</td>' +
+                    '<td class="text-center">' + clonesCell + '</td>' +
                     '<td class="text-center">' +
                         '<button type="button" class="clean-btn clean-action-btn-sm"' +
                         ' onclick="event.stopPropagation();window._icPreview(' + c.id + ')">' +
@@ -472,9 +527,102 @@
     };
 
     /* ── challenge overview popup ────────────────────────────────── */
-    var previewOverlay = document.getElementById('ic-preview-overlay');
-    var previewBody    = document.getElementById('ic-preview-body');
-    var previewingId   = null;
+    var previewOverlay  = document.getElementById('ic-preview-overlay');
+    var previewInfo     = document.getElementById('ic-preview-info');
+    var previewFilebar  = document.getElementById('ic-preview-filebar');
+    var previewViewer   = document.getElementById('ic-preview-viewer');
+    var previewingId    = null;
+    var previewFiles    = [];
+    var previewBlobUrl  = null;
+    var previewFileToken = 0;
+
+    /* Brief viewer. The files route answers with
+       Content-Disposition: attachment, so an iframe pointed straight at it
+       downloads instead of rendering - the bytes are fetched and handed over
+       as a blob: URL, the same thing the detail page does. */
+    var PV_IMAGE_EXT = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp'];
+    var PV_DOC_EXT   = ['pdf', 'txt', 'md', 'json', 'csv', 'log', 'xml'];
+    var PV_MIME = {
+        pdf: 'application/pdf', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg',
+        gif: 'image/gif', webp: 'image/webp', svg: 'image/svg+xml', bmp: 'image/bmp',
+        json: 'application/json', csv: 'text/csv', xml: 'application/xml'
+    };
+
+    function pvExt(loc) { return (loc.split('.').pop() || '').toLowerCase(); }
+
+    function pvKind(loc) {
+        var e = pvExt(loc);
+        if (PV_IMAGE_EXT.indexOf(e) !== -1) return 'image';
+        if (PV_DOC_EXT.indexOf(e) !== -1) return 'document';
+        return null;
+    }
+
+    function releasePreviewBlob() {
+        if (previewBlobUrl) { URL.revokeObjectURL(previewBlobUrl); previewBlobUrl = null; }
+    }
+
+    function showFile(index) {
+        var f = previewFiles[index];
+        if (!f) return;
+        var token = ++previewFileToken;
+
+        Array.prototype.forEach.call(previewFilebar.children, function(tab, i) {
+            tab.classList.toggle('active', i === index);
+        });
+        previewViewer.innerHTML = '<div class="ic-pv-viewer-note"><i class="bx bx-loader-alt bx-spin mr-1"></i> Loading…</div>';
+
+        fetch('/files/' + f.location, { credentials: 'same-origin' })
+            .then(function(r) {
+                if (!r.ok) throw new Error('Server answered ' + r.status);
+                return r.arrayBuffer();
+            })
+            .then(function(buf) {
+                if (token !== previewFileToken) return;
+                // Re-type from the extension: the store can answer with
+                // application/octet-stream, which no viewer will render.
+                var blob = new Blob([buf], { type: PV_MIME[pvExt(f.location)] || 'text/plain' });
+                releasePreviewBlob();
+                previewBlobUrl = URL.createObjectURL(blob);
+                var name = f.location.split('/').pop();
+                previewViewer.innerHTML = pvKind(f.location) === 'image'
+                    ? '<img src="' + previewBlobUrl + '" alt="' + escHtml(name) + '">'
+                    : '<iframe src="' + previewBlobUrl + '" title="' + escHtml(name) + '"></iframe>';
+            })
+            .catch(function(err) {
+                if (token !== previewFileToken) return;
+                previewViewer.innerHTML = '<div class="ic-pv-viewer-note">Could not load this file.<div class="small mt-1">' +
+                    escHtml(err.message || '') + '</div></div>';
+            });
+    }
+    window._icShowFile = showFile;
+
+    function renderFilePane(files) {
+        // Only the attachments a browser can display; an archive is still
+        // listed on the right, it just has nothing to show here.
+        previewFiles = (files || []).filter(function(f) { return pvKind(f.location); });
+        releasePreviewBlob();
+
+        if (!previewFiles.length) {
+            previewFilebar.innerHTML = '<span class="text-muted" style="font-size:0.8rem;">No viewable attachment</span>';
+            previewViewer.innerHTML = '<div class="ic-pv-viewer-note">' +
+                '<i class="bx bx-file" style="font-size:2rem;display:block;margin-bottom:0.5rem;opacity:0.4;"></i>' +
+                'This challenge ships no brief that can be shown here.</div>';
+            return;
+        }
+
+        // PDFs first: that is what a brief almost always is.
+        previewFiles.sort(function(a, b) {
+            return (pvExt(b.location) === 'pdf') - (pvExt(a.location) === 'pdf');
+        });
+
+        previewFilebar.innerHTML = previewFiles.map(function(f, i) {
+            var name = f.location.split('/').pop();
+            return '<span class="ic-pv-filetab" title="' + escHtml(name) + '"' +
+                   ' onclick="window._icShowFile(' + i + ')">' + escHtml(name) + '</span>';
+        }).join('');
+
+        showFile(0);
+    }
 
     function stat(label, value) {
         return '<div class="ic-pv-stat">' +
@@ -543,7 +691,8 @@
               }).join('')
             : '<div class="ic-pv-empty">None</div>');
 
-        previewBody.innerHTML = html;
+        previewInfo.innerHTML = html;
+        renderFilePane(d.files);
     }
 
     window._icPreview = function(id) {
@@ -557,29 +706,42 @@
             ' · by ' + escHtml(c.creator_name || 'Unknown');
         document.getElementById('ic-preview-select').style.display =
             state.imported.has(id) ? 'none' : 'inline-block';
-        previewBody.innerHTML = '<div class="text-center text-muted py-4"><i class="bx bx-loader-alt bx-spin mr-1"></i> Loading…</div>';
+        previewInfo.innerHTML = '<div class="text-center text-muted py-4"><i class="bx bx-loader-alt bx-spin mr-1"></i> Loading…</div>';
+        previewFilebar.innerHTML = '';
+        previewViewer.innerHTML = '';
         previewOverlay.style.display = 'flex';
 
         fetch('/api/v1/challenge_bank/' + id, { credentials: 'same-origin', headers: { 'CSRF-Token': CSRF } })
-            .then(function(r) { return r.json(); })
+            .then(function(r) {
+                if (!r.ok) throw new Error('Server answered ' + r.status);
+                return r.json();
+            })
             .then(function(res) {
                 if (previewingId !== id) return;
                 if (!res.success) {
-                    previewBody.innerHTML = '<div class="ic-pv-empty">Could not load this challenge.</div>';
+                    previewInfo.innerHTML = '<div class="ic-pv-empty">Could not load this challenge.</div>';
                     return;
                 }
                 renderPreview(res.data);
             })
-            .catch(function() {
+            .catch(function(err) {
                 if (previewingId !== id) return;
-                previewBody.innerHTML = '<div class="ic-pv-empty">Could not load this challenge.</div>';
+                console.error('Failed to load challenge preview:', err);
+                previewInfo.innerHTML = '<div class="ic-pv-empty">Could not load this challenge.<div class="small mt-1">' +
+                    escHtml(err.message || '') + '</div></div>';
             });
     };
 
     function closePreview() {
         previewingId = null;
+        previewFileToken++;
         previewOverlay.style.display = 'none';
-        previewBody.innerHTML = '';
+        previewInfo.innerHTML = '';
+        previewFilebar.innerHTML = '';
+        // Drop the iframe so an embedded PDF viewer stops holding the file,
+        // and release the blob behind it.
+        previewViewer.innerHTML = '';
+        releasePreviewBlob();
     }
 
     document.getElementById('ic-preview-close').addEventListener('click', closePreview);

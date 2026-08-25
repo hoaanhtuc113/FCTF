@@ -145,10 +145,11 @@ class ChallengeBankList(Resource):
             page=page, per_page=per_page, error_out=False
         )
 
-        # Resolve author names for the whole page in one query — the import
-        # picker shows a Creator column, and a lookup per row would turn one
-        # page into fifty queries.
+        # Author names and clone counts for the whole page in one query each.
+        # A lookup per row would turn a single page into a hundred queries.
+        page_ids = [b.id for b in paginated.items]
         creator_ids = {b.created_by for b in paginated.items if b.created_by}
+
         creator_names = {}
         if creator_ids:
             creator_names = {
@@ -158,10 +159,23 @@ class ChallengeBankList(Resource):
                 .all()
             }
 
+        clone_counts = {}
+        if page_ids:
+            clone_counts = {
+                bank_id: count
+                for bank_id, count in db.session.query(
+                    Challenges.source_bank_id, db.func.count(Challenges.id)
+                )
+                .filter(Challenges.source_bank_id.in_(page_ids))
+                .group_by(Challenges.source_bank_id)
+                .all()
+            }
+
         data = []
         for b in paginated.items:
             item = _bank_to_dict(b)
             item["creator_name"] = creator_names.get(b.created_by, "Unknown")
+            item["clone_count"] = clone_counts.get(b.id, 0)
             data.append(item)
 
         return {
