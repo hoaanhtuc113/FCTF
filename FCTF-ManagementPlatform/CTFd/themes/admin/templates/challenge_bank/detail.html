@@ -1,23 +1,208 @@
 {% extends "admin/management_hub_base.html" %}
 
+{% block stylesheets %}
+<style>
+.clean-page-header {
+	background: #ffffff;
+	border-bottom: 1px solid #e8e8e8;
+	padding: 2rem 0;
+	margin-bottom: 1.5rem;
+}
+.clean-page-header h1 { font-size: 1.75rem; font-weight: 300; color: #2c3e50; margin: 0.5rem 0; letter-spacing: -0.5px; }
+.clean-page-header h2 { font-size: 1.1rem; font-weight: 400; color: #6c757d; margin: 0.25rem 0; }
+.clean-page-header h3 { font-size: 1.5rem; font-weight: 300; color: #495057; margin: 0.5rem 0; }
+.clean-page-header h5 { margin: 0.75rem 0; }
+.clean-icon-btn { color: #6c757d; transition: all 0.2s ease; font-size: 1.5rem; margin: 0 0.5rem; cursor: pointer; }
+.clean-icon-btn:hover { color: #ff6b35; transform: translateY(-2px); }
+.clean-actions { margin-top: 1.5rem; }
+
+.clean-progress-container { background: #f8f9fa; border: 1px solid #e8e8e8; border-radius: 6px; padding: 1.25rem; margin-bottom: 1.5rem; }
+.clean-progress-title { color: #495057; font-weight: 600; font-size: 0.95rem; margin-bottom: 0.5rem; }
+.clean-progress-message { color: #6c757d; font-size: 0.9rem; margin-bottom: 0.75rem; }
+.clean-progress { height: 24px; background: #e9ecef; border-radius: 4px; overflow: hidden; }
+.clean-progress-bar {
+	background: linear-gradient(90deg, #ff6b35 0%, #ff8c5a 100%);
+	color: #ffffff; font-size: 0.8rem; font-weight: 600;
+	display: flex; align-items: center; justify-content: center;
+	transition: width 0.3s ease;
+}
+.clean-progress-bar.success { background: linear-gradient(90deg, #28a745 0%, #4cd869 100%); }
+.clean-progress-bar.failed { background: linear-gradient(90deg, #dc3545 0%, #e4606d 100%); }
+
+.clean-nav-tabs { border-bottom: 2px solid #e8e8e8; margin-bottom: 1rem; background: #ffffff; }
+.clean-nav-tabs .nav-link {
+	border: none; color: #495057 !important; background: transparent !important;
+	font-weight: 500; font-size: 0.9rem; padding: 0.75rem 1.1rem;
+	transition: all 0.2s ease; border-bottom: 2px solid transparent; margin-bottom: -2px;
+}
+.clean-nav-tabs .nav-link:hover { color: #ff6b35 !important; background: #fff5f2 !important; border-bottom-color: #ff6b35; }
+.clean-nav-tabs .nav-link.active { color: #ff6b35 !important; background: #ffffff !important; border-bottom-color: #ff6b35; font-weight: 600; }
+.clean-tab-content { padding: 1rem 0; background: #ffffff; }
+.clean-tab-content h3 { color: #2c3e50 !important; }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="page-header">
-	<div class="container d-flex justify-content-between align-items-center">
-		<h1><i class="bx bx-collection"></i> {{ bank.name }}</h1>
-		<div>
-			<a href="{{ url_for('admin.challenge_bank_listing') }}" class="clean-btn mr-2">
-				<i class="fas fa-arrow-left"></i> Back
+<div class="clean-page-header">
+	<div class="container" style="text-transform:none;">
+		<div class="d-flex justify-content-between align-items-start">
+			<a href="{{ url_for('admin.challenge_bank_listing') }}" class="clean-icon-btn" title="Back to Challenge Bank">
+				<i class="fas fa-arrow-left"></i>
 			</a>
-			<button type="button" class="clean-btn clean-btn-danger" id="bank-delete-btn">
-				<i class="fas fa-trash-alt"></i> Delete
-			</button>
+			<div class="text-center flex-grow-1">
+				<h1>{{ bank.name }}</h1>
+				<h2>{{ bank.category or '-' }}</h2>
+				<h2 class="text-muted">{{ bank.type or 'standard' }}</h2>
+				{% if bank.difficulty %}
+				<div class="text-center my-2">
+					{% for i in range(1, 6) %}
+					{% if i <= bank.difficulty %}
+					<i class="fas fa-star" style="color:#ff6b35;font-size:1.2rem"></i>
+					{% else %}
+					<i class="far fa-star" style="color:#dee2e6;font-size:1.2rem"></i>
+					{% endif %}
+					{% endfor %}
+				</div>
+				{% endif %}
+				{% if bank.value is not none %}
+				<h3><span style="color:#ff6b35;">{{ bank.value }}</span> points <small class="text-muted" style="font-size:0.9rem;">(default)</small></h3>
+				{% endif %}
+			</div>
+			<a href="#" class="clean-icon-btn text-danger" id="bank-delete-btn" title="Delete">
+				<i class="fas fa-trash-alt"></i>
+			</a>
 		</div>
 	</div>
 </div>
 
 <div class="container">
+	<div id="deploy-progress-container" class="clean-progress-container" style="{% if bank.deploy_status not in ('PENDING_DEPLOY',) %}display:none;{% endif %}">
+		<h6 class="clean-progress-title">Deployment Status</h6>
+		<p id="deploy-status-message" class="clean-progress-message">Building image…</p>
+		<div class="clean-progress">
+			<div id="deploy-progress-bar" class="clean-progress-bar" role="progressbar" style="width:0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+				<span id="deploy-progress-percentage">0%</span>
+			</div>
+		</div>
+		<small class="text-muted mt-2 d-block" id="deploy-status-detail"></small>
+	</div>
+
 	<div class="row">
-		<div class="col-md-7">
+		<div class="col-md-6">
+			<nav class="clean-nav-tabs nav nav-tabs nav-fill" role="tablist">
+				<a class="nav-item nav-link small active" data-toggle="tab" href="#tab-files" role="tab">Files</a>
+				<a class="nav-item nav-link small" data-toggle="tab" href="#tab-flags" role="tab">Flags</a>
+				<a class="nav-item nav-link small" data-toggle="tab" href="#tab-tags" role="tab">Tags</a>
+				<a class="nav-item nav-link small" data-toggle="tab" href="#tab-hints" role="tab">Hints</a>
+				<a class="nav-item nav-link small" data-toggle="tab" href="#tab-deploy" role="tab">Deploy</a>
+				<a class="nav-item nav-link small" data-toggle="tab" href="#tab-versions" role="tab">Versions</a>
+			</nav>
+
+			<div class="clean-tab-content tab-content">
+				<div class="tab-pane fade show active" id="tab-files" role="tabpanel">
+					<h3 class="text-center py-2 d-block">Challenge Files</h3>
+					<ul class="list-group mb-2" id="bank-files-list"></ul>
+					<form id="bank-file-upload-form">
+						<input type="file" name="file" required>
+						<button type="submit" class="btn btn-sm btn-secondary mt-2">Upload</button>
+					</form>
+				</div>
+
+				<div class="tab-pane fade" id="tab-flags" role="tabpanel">
+					<h3 class="text-center py-2 d-block">Flags</h3>
+					<ul class="list-group mb-2" id="bank-flags-list"></ul>
+					<form id="bank-flag-form" class="form-inline">
+						<select name="type" class="form-control mr-1 mb-1">
+							<option value="static">Static</option>
+							<option value="regex">Regex</option>
+						</select>
+						<input type="text" name="content" class="form-control mr-1 mb-1" placeholder="Flag value" required>
+						<button type="submit" class="btn btn-sm btn-secondary mb-1">Add</button>
+					</form>
+				</div>
+
+				<div class="tab-pane fade" id="tab-tags" role="tabpanel">
+					<h3 class="text-center py-2 d-block">Tags</h3>
+					<ul class="list-group mb-2" id="bank-tags-list"></ul>
+					<form id="bank-tag-form" class="form-inline">
+						<input type="text" name="value" class="form-control mr-1 mb-1" placeholder="Tag" required>
+						<button type="submit" class="btn btn-sm btn-secondary mb-1">Add</button>
+					</form>
+				</div>
+
+				<div class="tab-pane fade" id="tab-hints" role="tabpanel">
+					<h3 class="text-center py-2 d-block">Hints</h3>
+					<ul class="list-group mb-2" id="bank-hints-list"></ul>
+					<form id="bank-hint-form">
+						<textarea name="content" class="form-control mb-1" rows="2" placeholder="Hint text" required></textarea>
+						<div class="form-inline">
+							<input type="number" name="cost" class="form-control mr-1" placeholder="Cost" value="0" style="width:100px;">
+							<button type="submit" class="btn btn-sm btn-secondary">Add</button>
+						</div>
+					</form>
+				</div>
+
+				<div class="tab-pane fade" id="tab-deploy" role="tabpanel">
+					<h3 class="text-center py-2 d-block">Deploy</h3>
+					<p class="text-muted" style="font-size:0.82rem;">
+						Upload a Docker build context (must contain a <code>Dockerfile</code>) to build an image for this
+						bank challenge once, here — every contest that clones this challenge reuses the same image.
+					</p>
+					<form id="bank-deploy-form">
+						<div class="form-group">
+							<label>Exposed Port</label>
+							<input type="number" name="expose_port" class="form-control" placeholder="e.g. 8080" required style="max-width:200px;">
+						</div>
+						<div class="form-group">
+							<label>Build Context (.zip)</label>
+							<input type="file" name="deploy_file" accept=".zip" required>
+						</div>
+						<div id="bank-deploy-error" class="alert alert-danger" style="display:none;"></div>
+						<button type="submit" class="btn btn-primary btn-sm" id="bank-deploy-submit">
+							<i class="fas fa-docker"></i> Upload &amp; Build
+						</button>
+					</form>
+				</div>
+
+				<div class="tab-pane fade" id="tab-versions" role="tabpanel">
+					<h3 class="text-center py-2 d-block">Image Versions</h3>
+					<div style="overflow-x:auto;">
+						<table class="table table-sm" style="font-size:0.85rem;margin-bottom:0;">
+							<thead style="background:#f8f9fa;">
+								<tr>
+									<th class="text-center" style="width:60px;">Ver.</th>
+									<th>Image Tag</th>
+									<th class="text-center" style="width:70px;">Status</th>
+								</tr>
+							</thead>
+							<tbody>
+								{% if not versions %}
+								<tr><td colspan="3" class="text-center text-muted py-4">No versions recorded yet.</td></tr>
+								{% else %}
+								{% for version in versions %}
+								<tr>
+									<td class="text-center"><strong>v{{ version.version_number }}</strong></td>
+									<td style="word-break:break-all;">
+										<code style="background:#f8f9fa;padding:0.1rem 0.35rem;border-radius:3px;font-size:0.78rem;">{{ version.image_tag or 'N/A' }}</code>
+									</td>
+									<td class="text-center">
+										{% if version.is_active %}
+										<span style="background:#d4edda;color:#155724;padding:0.2rem 0.4rem;border-radius:4px;font-size:0.7rem;font-weight:600;">ACTIVE</span>
+										{% else %}
+										<span style="background:#e2e3e5;color:#6c757d;padding:0.2rem 0.4rem;border-radius:4px;font-size:0.7rem;font-weight:500;">OLD</span>
+										{% endif %}
+									</td>
+								</tr>
+								{% endfor %}
+								{% endif %}
+							</tbody>
+						</table>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div class="col-md-6">
 			<div class="card mb-3">
 				<div class="card-body">
 					<h5 class="card-title">Challenge Info</h5>
@@ -107,86 +292,6 @@
 						<div id="bank-edit-error" class="alert alert-danger" style="display:none;"></div>
 						<div id="bank-edit-success" class="alert alert-success" style="display:none;">Saved.</div>
 						<button type="submit" class="btn btn-primary">Save</button>
-					</form>
-				</div>
-			</div>
-
-			<div class="card mb-3">
-				<div class="card-body">
-					<h5 class="card-title">
-						Deploy (Build from Zip)
-						<span id="bank-deploy-status-badge" class="clean-badge clean-badge-secondary ml-2">{{ bank.deploy_status or 'CREATED' }}</span>
-					</h5>
-					<p class="text-muted" style="font-size:0.82rem;">
-						Upload a Docker build context (must contain a <code>Dockerfile</code>) to build an image for this
-						bank challenge once, here — every contest that clones this challenge reuses the same image.
-					</p>
-					<form id="bank-deploy-form">
-						<div class="form-group">
-							<label>Exposed Port</label>
-							<input type="number" name="expose_port" class="form-control" placeholder="e.g. 8080" required style="max-width:200px;">
-						</div>
-						<div class="form-group">
-							<label>Build Context (.zip)</label>
-							<input type="file" name="deploy_file" accept=".zip" required>
-						</div>
-						<div id="bank-deploy-error" class="alert alert-danger" style="display:none;"></div>
-						<button type="submit" class="btn btn-primary btn-sm" id="bank-deploy-submit">
-							<i class="fas fa-docker"></i> Upload &amp; Build
-						</button>
-					</form>
-				</div>
-			</div>
-
-			<div class="card mb-3">
-				<div class="card-body">
-					<h5 class="card-title">Files</h5>
-					<ul class="list-group mb-2" id="bank-files-list"></ul>
-					<form id="bank-file-upload-form">
-						<input type="file" name="file" required>
-						<button type="submit" class="btn btn-sm btn-secondary mt-2">Upload</button>
-					</form>
-				</div>
-			</div>
-		</div>
-
-		<div class="col-md-5">
-			<div class="card mb-3">
-				<div class="card-body">
-					<h5 class="card-title">Flags</h5>
-					<ul class="list-group mb-2" id="bank-flags-list"></ul>
-					<form id="bank-flag-form" class="form-inline">
-						<select name="type" class="form-control mr-1 mb-1">
-							<option value="static">Static</option>
-							<option value="regex">Regex</option>
-						</select>
-						<input type="text" name="content" class="form-control mr-1 mb-1" placeholder="Flag value" required>
-						<button type="submit" class="btn btn-sm btn-secondary mb-1">Add</button>
-					</form>
-				</div>
-			</div>
-
-			<div class="card mb-3">
-				<div class="card-body">
-					<h5 class="card-title">Hints</h5>
-					<ul class="list-group mb-2" id="bank-hints-list"></ul>
-					<form id="bank-hint-form">
-						<textarea name="content" class="form-control mb-1" rows="2" placeholder="Hint text" required></textarea>
-						<div class="form-inline">
-							<input type="number" name="cost" class="form-control mr-1" placeholder="Cost" value="0" style="width:100px;">
-							<button type="submit" class="btn btn-sm btn-secondary">Add</button>
-						</div>
-					</form>
-				</div>
-			</div>
-
-			<div class="card mb-3">
-				<div class="card-body">
-					<h5 class="card-title">Tags</h5>
-					<ul class="list-group mb-2" id="bank-tags-list"></ul>
-					<form id="bank-tag-form" class="form-inline">
-						<input type="text" name="value" class="form-control mr-1 mb-1" placeholder="Tag" required>
-						<button type="submit" class="btn btn-sm btn-secondary mb-1">Add</button>
 					</form>
 				</div>
 			</div>
@@ -308,40 +413,60 @@ document.getElementById('bank-edit-form').addEventListener('submit', function (e
 		});
 });
 
-/* ── Deploy: upload zip, kick off build, poll status ────────────── */
+/* ── Deploy: upload zip, kick off build, poll status with a progress bar ─ */
 const DEPLOY_POLL_INTERVAL_MS = 5000;
 const DEPLOY_POLL_MAX_ROUNDS = 60;
-const DEPLOY_BADGES = {
-	CREATED: 'clean-badge-secondary',
-	PENDING_DEPLOY: 'clean-badge-primary',
-	DEPLOY_SUCCESS: 'clean-badge-success',
-	DEPLOY_FAILED: 'clean-badge-danger',
-	FILE_UPLOAD_FAILED: 'clean-badge-danger',
-};
 
-function paintBankDeployStatus(status) {
-	const badge = document.getElementById('bank-deploy-status-badge');
-	const cls = DEPLOY_BADGES[status] || 'clean-badge-secondary';
-	badge.className = 'clean-badge ' + cls + ' ml-2';
-	badge.textContent = status;
+const progressContainer = document.getElementById('deploy-progress-container');
+const progressBar = document.getElementById('deploy-progress-bar');
+const progressPct = document.getElementById('deploy-progress-percentage');
+const progressMsg = document.getElementById('deploy-status-message');
+const progressDetail = document.getElementById('deploy-status-detail');
+
+function setProgress(pct, cls) {
+	pct = Math.max(0, Math.min(100, pct));
+	progressBar.style.width = pct + '%';
+	progressBar.setAttribute('aria-valuenow', pct);
+	progressPct.textContent = Math.round(pct) + '%';
+	progressBar.className = 'clean-progress-bar' + (cls ? ' ' + cls : '');
 }
 
 function pollBankDeployStatus() {
+	progressContainer.style.display = 'block';
+	setProgress(0, '');
+	progressMsg.textContent = 'Building image…';
+	progressDetail.textContent = '';
+
 	let rounds = 0;
 	const tick = function () {
 		rounds += 1;
 		CTFd.fetch(API_BASE + '/deploy-duration', { method: 'GET' })
 			.then(function (r) { return r.json(); })
 			.then(function (result) {
-				const phase = result && result.data && result.data.phase;
+				const data = result && result.data;
+				const phase = data && data.phase;
+
 				if (phase === 'Succeeded') {
-					paintBankDeployStatus('DEPLOY_SUCCESS');
+					setProgress(100, 'success');
+					progressMsg.textContent = 'Build succeeded';
+					progressDetail.textContent = 'The image is ready — contests cloning this challenge will use it.';
 					return;
 				}
 				if (phase === 'Failed' || phase === 'Error') {
-					paintBankDeployStatus('DEPLOY_FAILED');
+					setProgress(100, 'failed');
+					progressMsg.textContent = 'Build failed';
+					progressDetail.textContent = 'Check the Dockerfile in your build context and try uploading again.';
 					return;
 				}
+
+				if (data && data.estimated_duration && data.remaining_time !== null && data.remaining_time !== undefined) {
+					const elapsed = data.estimated_duration - data.remaining_time;
+					setProgress((elapsed / data.estimated_duration) * 100, '');
+					progressDetail.textContent = 'Phase: ' + phase + ' — ~' + Math.max(0, Math.round(data.remaining_time)) + 's remaining';
+				} else {
+					progressDetail.textContent = 'Phase: ' + (phase || 'starting…');
+				}
+
 				if (rounds < DEPLOY_POLL_MAX_ROUNDS) setTimeout(tick, DEPLOY_POLL_INTERVAL_MS);
 			})
 			.catch(function () {
@@ -380,7 +505,6 @@ document.getElementById('bank-deploy-form').addEventListener('submit', function 
 				errorBox.style.display = 'block';
 				return;
 			}
-			paintBankDeployStatus('PENDING_DEPLOY');
 			pollBankDeployStatus();
 		})
 		.catch(function () {
@@ -397,7 +521,8 @@ if ('{{ bank.deploy_status }}' === 'PENDING_DEPLOY') {
 	pollBankDeployStatus();
 }
 
-document.getElementById('bank-delete-btn').addEventListener('click', function () {
+document.getElementById('bank-delete-btn').addEventListener('click', function (e) {
+	e.preventDefault();
 	ezQuery({
 		title: 'Delete Bank Challenge',
 		body: 'Contest challenges already cloned from this stay untouched. Continue?',

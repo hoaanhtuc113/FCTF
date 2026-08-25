@@ -59,4 +59,5 @@ def challenge_bank_new():
 @admins_only
 def challenge_bank_detail(bank_id):
     bank = ChallengeBank.query.filter_by(id=bank_id).first_or_404()
-    return render_template("admin/challenge_bank/detail.html", bank=bank)
+    versions = bank.versions.all()
+    return render_template("admin/challenge_bank/detail.html", bank=bank, versions=versions)

@@ -1940,6 +1940,29 @@ class ChallengeBankVersion(db.Model):
     def __init__(self, *args, **kwargs):
         super(ChallengeBankVersion, self).__init__(**kwargs)
 
+    @property
+    def image_tag(self):
+        import json
+        if self.image_link:
+            try:
+                obj = json.loads(self.image_link)
+                link = obj.get("imageLink", "")
+                return link.split(":")[-1] if link else ""
+            except (json.JSONDecodeError, AttributeError):
+                return ""
+        return ""
+
+    @property
+    def expose_port(self):
+        import json
+        if self.image_link:
+            try:
+                obj = json.loads(self.image_link)
+                return obj.get("exposedPort", "")
+            except (json.JSONDecodeError, AttributeError):
+                return ""
+        return ""
+
     def __repr__(self):
         return "<ChallengeBankVersion challenge_bank_id={} version={}>".format(
             self.challenge_bank_id, self.version_number
