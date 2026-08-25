@@ -45,8 +45,9 @@
     <div class="alert alert-warning d-flex align-items-start" style="font-size:0.82rem;padding:0.6rem 0.85rem;border-radius:6px;">
         <i class="bx bx-info-circle mr-2 mt-1" style="font-size:1rem;flex-shrink:0;"></i>
         <span>
-            Challenges already added to this contest are shown in grey and cannot be re-selected.
-            Imported challenges default to state <strong>hidden</strong>.
+            Cloning copies the challenge (flags, hints, tags, files) into this contest as an independent
+            challenge — editing the bank original afterwards will not change it. Imported challenges
+            default to state <strong>hidden</strong>.
         </span>
     </div>
 
@@ -155,7 +156,7 @@
 <script>
 (function () {
     const CONTEST_ID = {{ contest.id }};
-    const API_BASE   = '/api/v1/contest_challenges';
+    const API_BASE   = '/api/v1/challenge_bank';
     const CSRF       = (window.init && init.csrfNonce) || '';
 
     var state = { page: 1, pages: 1, total: 0, challenges: [], selected: new Set() };
@@ -195,7 +196,7 @@
     /* ── fetch ───────────────────────────────────────────────────── */
     function load(page) {
         var f = getFilters();
-        var params = new URLSearchParams({ contest_id: CONTEST_ID, page: page || state.page, per_page: 50 });
+        var params = new URLSearchParams({ page: page || state.page, per_page: 50 });
         if (f.q)          params.set('q', f.q);
         if (f.type)       params.set('type', f.type);
         if (f.category)   params.set('category', f.category);
@@ -225,22 +226,17 @@
             tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4"><i class="bx bx-info-circle mr-1"></i> No challenges found</td></tr>';
         } else {
             tbody.innerHTML = state.challenges.map(function(c, i) {
-                var imp = c.imported;
                 var sel = state.selected.has(c.id);
-                var rowCls = imp ? 'import-imported-row' : (sel ? 'import-selected-row' : '');
-                var onRow  = imp ? '' : ' onclick="window._icToggle(' + c.id + ')"';
+                var rowCls = sel ? 'import-selected-row' : '';
+                var onRow  = ' onclick="window._icToggle(' + c.id + ')"';
 
-                var chkHtml = imp
-                    ? '<input type="checkbox" class="table-check" checked disabled>'
-                    : '<input type="checkbox" class="table-check" ' + (sel ? 'checked' : '') + ' onclick="event.stopPropagation();window._icToggle(' + c.id + ')">';
+                var chkHtml = '<input type="checkbox" class="table-check" ' + (sel ? 'checked' : '') + ' onclick="event.stopPropagation();window._icToggle(' + c.id + ')">';
 
                 var dockerCell = c.require_deploy
                     ? '<span class="clean-badge" style="background:#fff3cd;color:#856404;border:1px solid #ffe08a;">Docker</span>'
                     : '<span class="text-muted">&mdash;</span>';
 
-                var statusCell = imp
-                    ? '<span class="clean-badge clean-badge-success"><i class="fas fa-check mr-1" style="font-size:0.65rem;"></i>Imported</span>'
-                    : '<span class="text-muted">&mdash;</span>';
+                var statusCell = '<span class="text-muted">&mdash;</span>';
 
                 return '<tr class="' + rowCls + '"' + onRow + '>' +
                     '<td data-checkbox style="text-align:center;">' + chkHtml + '</td>' +
@@ -256,7 +252,7 @@
         }
 
         /* select-all checkbox */
-        var avail  = state.challenges.filter(function(c) { return !c.imported; });
+        var avail  = state.challenges;
         var allChk = document.getElementById('ic-chk-all');
         allChk.checked       = avail.length > 0 && avail.every(function(c) { return state.selected.has(c.id); });
         allChk.indeterminate = !allChk.checked && avail.some(function(c) { return state.selected.has(c.id); });
@@ -305,7 +301,7 @@
     /* ── public handlers ─────────────────────────────────────────── */
     window._icToggle = function(id) {
         var c = state.challenges.find(function(x) { return x.id === id; });
-        if (!c || c.imported) return;
+        if (!c) return;
         state.selected.has(id) ? state.selected.delete(id) : state.selected.add(id);
         render();
     };
@@ -318,7 +314,7 @@
     /* ── select-all ──────────────────────────────────────────────── */
     document.getElementById('ic-chk-all').addEventListener('change', function() {
         var checked = this.checked;
-        state.challenges.filter(function(c) { return !c.imported; }).forEach(function(c) {
+        state.challenges.forEach(function(c) {
             checked ? state.selected.add(c.id) : state.selected.delete(c.id);
         });
         render();
@@ -348,30 +344,33 @@
         load(1);
     });
 
-    /* ── import ──────────────────────────────────────────────────── */
+    /* ── import (clone each selected bank challenge into this contest) ─ */
     document.getElementById('ic-btn-import').addEventListener('click', function() {
         if (!state.selected.size) return;
+        var valueStr = window.prompt('Point value to give ' + state.selected.size + ' challenge(s) in this contest (applied to all selected; you can edit each afterwards):', '100');
+        if (valueStr === null) return;
+        var value = parseInt(valueStr, 10);
+        if (isNaN(value)) { alert('Value must be a number.'); return; }
+
         var ids = Array.from(state.selected);
         var btn = this;
         btn.disabled = true;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin btn-fa"></i> Importing…';
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin btn-fa"></i> Cloning…';
 
-        fetch(API_BASE, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'CSRF-Token': CSRF },
-            body: JSON.stringify({ contest_id: CONTEST_ID, challenge_ids: ids })
-        })
-        .then(function(r) { return r.json(); })
-        .then(function(res) {
-            if (res.success) {
-                state.selected.clear();
-                load(state.page);
-                var d = res.data;
-                alert('Imported ' + d.imported + ' challenge(s) successfully.' +
-                    (d.skipped ? ' (' + d.skipped + ' already present or not found)' : ''));
-            } else {
-                alert('Import failed. Please try again.');
-            }
+        Promise.all(ids.map(function(id) {
+            return fetch(API_BASE + '/' + id + '/clone', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'CSRF-Token': CSRF },
+                body: JSON.stringify({ contest_id: CONTEST_ID, value: value, state: 'hidden' })
+            }).then(function(r) { return r.json(); });
+        }))
+        .then(function(results) {
+            var okCount = results.filter(function(r) { return r.success; }).length;
+            var failCount = results.length - okCount;
+            state.selected.clear();
+            load(state.page);
+            alert('Cloned ' + okCount + ' challenge(s) into the contest.' +
+                (failCount ? ' (' + failCount + ' failed — check permissions/type support.)' : ''));
         })
         .catch(function() { alert('Network error. Please try again.'); })
         .finally(function() {

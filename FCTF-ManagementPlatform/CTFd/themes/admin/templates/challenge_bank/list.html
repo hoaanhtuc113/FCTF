@@ -1,0 +1,238 @@
+{% extends "admin/management_hub_base.html" %}
+
+{% block content %}
+<div class="page-header">
+	<div class="container">
+		<h1><i class="bx bx-collection"></i> Challenge Bank</h1>
+	</div>
+</div>
+
+<div class="container">
+	<div class="alert alert-info" style="font-size:0.85rem;">
+		Challenges created here are independent of any contest. A contest pulls a copy in via
+		<b>Import from Bank</b> on its Challenges page — editing a bank item afterwards does not
+		change challenges already cloned from it.
+	</div>
+
+	<div class="clean-search-container">
+		<form method="GET" id="filterForm">
+			<div class="row no-gutters align-items-end">
+				<div class="col-md-4 px-1">
+					<label for="q">Search</label>
+					<input id="q" type="text" name="q" class="clean-form-control w-100" placeholder="Name or category..." value="{{ q or '' }}">
+				</div>
+				<div class="col-md-3 px-1">
+					<label for="category">Category</label>
+					<select name="category" id="category" class="clean-form-control ss-select w-100">
+						<option value="">All Categories</option>
+						{% for c in categories %}
+						<option value="{{ c }}" {% if category == c %}selected{% endif %}>{{ c }}</option>
+						{% endfor %}
+					</select>
+				</div>
+				<div class="col-md-3 px-1">
+					<label for="type">Type</label>
+					<select name="type" id="type" class="clean-form-control ss-select w-100">
+						<option value="">All Types</option>
+						<option value="standard" {% if type_ == 'standard' %}selected{% endif %}>Standard</option>
+						<option value="dynamic" {% if type_ == 'dynamic' %}selected{% endif %}>Dynamic</option>
+					</select>
+				</div>
+				<div class="col-md-2 px-1 d-flex">
+					<button type="submit" class="clean-btn clean-btn-primary flex-grow-1 mr-1">
+						<i class="fas fa-search"></i> Search
+					</button>
+					<a href="{{ url_for('admin.challenge_bank_listing') }}" class="clean-btn btn-outline-secondary" title="Reset">
+						<i class="fas fa-sync-alt"></i>
+					</a>
+				</div>
+			</div>
+		</form>
+	</div>
+
+	<div class="d-flex justify-content-between align-items-center action-buttons mt-3">
+		<button type="button" class="clean-btn clean-btn-primary" data-toggle="modal" data-target="#bank-create-modal">
+			<i class="fas fa-plus"></i> Create Bank Challenge
+		</button>
+	</div>
+
+	<div class="clean-table-wrapper mt-2">
+		<table class="clean-table table" style="cursor:default;">
+			<thead>
+				<tr>
+					<th class="text-center"><b>ID</b></th>
+					<th><b>Name</b></th>
+					<th class="text-center"><b>Category</b></th>
+					<th class="text-center"><b>Type</b></th>
+					<th class="text-center"><b>Difficulty</b></th>
+					<th class="text-center"><b>Deploy</b></th>
+					<th class="text-center"><b>Last Update</b></th>
+				</tr>
+			</thead>
+			<tbody>
+				{% for bank in items.items %}
+				<tr data-href="{{ url_for('admin.challenge_bank_detail', bank_id=bank.id) }}" onclick="window.location = this.dataset.href">
+					<td class="text-center">{{ bank.id }}</td>
+					<td><a href="{{ url_for('admin.challenge_bank_detail', bank_id=bank.id) }}">{{ bank.name }}</a></td>
+					<td class="text-center">{{ bank.category or '-' }}</td>
+					<td class="text-center">{{ bank.type or 'standard' }}</td>
+					<td class="text-center">{{ bank.difficulty if bank.difficulty is not none else '-' }}</td>
+					<td class="text-center">
+						{% if bank.require_deploy %}
+						<span class="clean-badge clean-badge-primary">Docker</span>
+						{% else %}
+						<span class="clean-badge clean-badge-secondary">Static</span>
+						{% endif %}
+					</td>
+					<td class="text-center"><small>{{ bank.last_update.strftime('%Y-%m-%d %H:%M') if bank.last_update else '-' }}</small></td>
+				</tr>
+				{% else %}
+				<tr>
+					<td colspan="7" class="text-center text-muted py-4">No challenges in the bank yet.</td>
+				</tr>
+				{% endfor %}
+			</tbody>
+		</table>
+	</div>
+
+	{% if items.pages > 1 %}
+	<nav class="d-flex justify-content-center">
+		<ul class="pagination">
+			{% for p in range(1, items.pages + 1) %}
+			<li class="page-item {% if p == items.page %}active{% endif %}">
+				<a class="page-link" href="{{ url_for('admin.challenge_bank_listing', page=p, **prev_page_args) }}">{{ p }}</a>
+			</li>
+			{% endfor %}
+		</ul>
+	</nav>
+	{% endif %}
+</div>
+
+<div id="bank-create-modal" class="modal fade">
+	<div class="modal-dialog modal-lg">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h4 class="text-center w-100">Create Bank Challenge</h4>
+				<button type="button" class="close" data-dismiss="modal" aria-label="Close">
+					<span aria-hidden="true">&times;</span>
+				</button>
+			</div>
+			<div class="modal-body">
+				<form id="bank-create-form">
+					<div class="row">
+						<div class="col-md-6 form-group">
+							<label>Name</label>
+							<input type="text" name="name" class="form-control" required>
+						</div>
+						<div class="col-md-3 form-group">
+							<label>Category</label>
+							<input type="text" name="category" class="form-control">
+						</div>
+						<div class="col-md-3 form-group">
+							<label>Difficulty</label>
+							<select name="difficulty" class="form-control">
+								<option value="">-</option>
+								<option value="1">1</option>
+								<option value="2">2</option>
+								<option value="3">3</option>
+								<option value="4">4</option>
+								<option value="5">5</option>
+							</select>
+						</div>
+					</div>
+					<div class="form-group">
+						<label>Type</label>
+						<select name="type" class="form-control">
+							<option value="standard">Standard</option>
+						</select>
+					</div>
+					<div class="form-group">
+						<label>Description</label>
+						<textarea name="description" class="form-control" rows="4"></textarea>
+					</div>
+					<div class="form-group form-check">
+						<input type="checkbox" class="form-check-input" id="bank-require-deploy" name="require_deploy">
+						<label class="form-check-label" for="bank-require-deploy">Requires Docker deployment</label>
+					</div>
+					<div id="bank-deploy-fields" style="display:none;">
+						<div class="row">
+							<div class="col-md-6 form-group">
+								<label>Image Link</label>
+								<input type="text" name="image_link" class="form-control">
+							</div>
+							<div class="col-md-6 form-group">
+								<label>Connection Protocol</label>
+								<select name="connection_protocol" class="form-control">
+									<option value="http">http</option>
+									<option value="tcp">tcp</option>
+								</select>
+							</div>
+						</div>
+						<div class="row">
+							<div class="col-md-3 form-group">
+								<label>CPU Limit</label>
+								<input type="number" name="cpu_limit" class="form-control">
+							</div>
+							<div class="col-md-3 form-group">
+								<label>CPU Request</label>
+								<input type="number" name="cpu_request" class="form-control">
+							</div>
+							<div class="col-md-3 form-group">
+								<label>Memory Limit</label>
+								<input type="number" name="memory_limit" class="form-control">
+							</div>
+							<div class="col-md-3 form-group">
+								<label>Memory Request</label>
+								<input type="number" name="memory_request" class="form-control">
+							</div>
+						</div>
+					</div>
+					<div id="bank-create-error" class="alert alert-danger" style="display:none;"></div>
+					<button type="submit" class="btn btn-primary btn-block">Create</button>
+				</form>
+			</div>
+		</div>
+	</div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('bank-require-deploy').addEventListener('change', function () {
+	document.getElementById('bank-deploy-fields').style.display = this.checked ? 'block' : 'none';
+});
+
+document.getElementById('bank-create-form').addEventListener('submit', function (e) {
+	e.preventDefault();
+	const form = e.target;
+	const errorBox = document.getElementById('bank-create-error');
+	errorBox.style.display = 'none';
+
+	const fd = new FormData(form);
+	const body = {};
+	for (const [key, value] of fd.entries()) {
+		if (key === 'require_deploy') continue;
+		if (value === '') continue;
+		body[key] = value;
+	}
+	body.require_deploy = form.querySelector('[name=require_deploy]').checked;
+	['difficulty', 'cpu_limit', 'cpu_request', 'memory_limit', 'memory_request'].forEach(function (k) {
+		if (body[k] !== undefined) body[k] = parseInt(body[k], 10);
+	});
+
+	CTFd.fetch('/api/v1/challenge_bank', {
+		method: 'POST',
+		body: JSON.stringify(body),
+	})
+		.then(function (r) { return r.json(); })
+		.then(function (result) {
+			if (!result.success) {
+				errorBox.textContent = JSON.stringify(result.errors || result);
+				errorBox.style.display = 'block';
+				return;
+			}
+			window.location = '/admin/challenge_bank/' + result.data.id;
+		});
+});
+</script>
+{% endblock %}

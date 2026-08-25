@@ -1,0 +1,311 @@
+{% extends "admin/management_hub_base.html" %}
+
+{% block content %}
+<div class="page-header">
+	<div class="container d-flex justify-content-between align-items-center">
+		<h1><i class="bx bx-collection"></i> {{ bank.name }}</h1>
+		<div>
+			<a href="{{ url_for('admin.challenge_bank_listing') }}" class="clean-btn mr-2">
+				<i class="fas fa-arrow-left"></i> Back
+			</a>
+			<button type="button" class="clean-btn clean-btn-danger" id="bank-delete-btn">
+				<i class="fas fa-trash-alt"></i> Delete
+			</button>
+		</div>
+	</div>
+</div>
+
+<div class="container">
+	<div class="row">
+		<div class="col-md-7">
+			<div class="card mb-3">
+				<div class="card-body">
+					<h5 class="card-title">Challenge Info</h5>
+					<form id="bank-edit-form">
+						<div class="row">
+							<div class="col-md-6 form-group">
+								<label>Name</label>
+								<input type="text" name="name" class="form-control" value="{{ bank.name or '' }}" required>
+							</div>
+							<div class="col-md-3 form-group">
+								<label>Category</label>
+								<input type="text" name="category" class="form-control" value="{{ bank.category or '' }}">
+							</div>
+							<div class="col-md-3 form-group">
+								<label>Difficulty</label>
+								<select name="difficulty" class="form-control">
+									<option value="">-</option>
+									{% for d in range(1, 6) %}
+									<option value="{{ d }}" {% if bank.difficulty == d %}selected{% endif %}>{{ d }}</option>
+									{% endfor %}
+								</select>
+							</div>
+						</div>
+						<div class="form-group">
+							<label>Description</label>
+							<textarea name="description" class="form-control" rows="5">{{ bank.description or '' }}</textarea>
+						</div>
+						<div class="form-group form-check">
+							<input type="checkbox" class="form-check-input" id="bank-require-deploy" name="require_deploy" {% if bank.require_deploy %}checked{% endif %}>
+							<label class="form-check-label" for="bank-require-deploy">Requires Docker deployment</label>
+						</div>
+						<div id="bank-deploy-fields" style="{% if not bank.require_deploy %}display:none;{% endif %}">
+							<div class="row">
+								<div class="col-md-6 form-group">
+									<label>Image Link</label>
+									<input type="text" name="image_link" class="form-control" value="{{ bank.image_link or '' }}">
+								</div>
+								<div class="col-md-6 form-group">
+									<label>Connection Protocol</label>
+									<select name="connection_protocol" class="form-control">
+										<option value="http" {% if bank.connection_protocol == 'http' %}selected{% endif %}>http</option>
+										<option value="tcp" {% if bank.connection_protocol == 'tcp' %}selected{% endif %}>tcp</option>
+									</select>
+								</div>
+							</div>
+							<div class="row">
+								<div class="col-md-3 form-group">
+									<label>CPU Limit</label>
+									<input type="number" name="cpu_limit" class="form-control" value="{{ bank.cpu_limit if bank.cpu_limit is not none else '' }}">
+								</div>
+								<div class="col-md-3 form-group">
+									<label>CPU Request</label>
+									<input type="number" name="cpu_request" class="form-control" value="{{ bank.cpu_request if bank.cpu_request is not none else '' }}">
+								</div>
+								<div class="col-md-3 form-group">
+									<label>Memory Limit</label>
+									<input type="number" name="memory_limit" class="form-control" value="{{ bank.memory_limit if bank.memory_limit is not none else '' }}">
+								</div>
+								<div class="col-md-3 form-group">
+									<label>Memory Request</label>
+									<input type="number" name="memory_request" class="form-control" value="{{ bank.memory_request if bank.memory_request is not none else '' }}">
+								</div>
+							</div>
+						</div>
+						<div id="bank-edit-error" class="alert alert-danger" style="display:none;"></div>
+						<div id="bank-edit-success" class="alert alert-success" style="display:none;">Saved.</div>
+						<button type="submit" class="btn btn-primary">Save</button>
+					</form>
+				</div>
+			</div>
+
+			<div class="card mb-3">
+				<div class="card-body">
+					<h5 class="card-title">Files</h5>
+					<ul class="list-group mb-2" id="bank-files-list"></ul>
+					<form id="bank-file-upload-form">
+						<input type="file" name="file" required>
+						<button type="submit" class="btn btn-sm btn-secondary mt-2">Upload</button>
+					</form>
+				</div>
+			</div>
+		</div>
+
+		<div class="col-md-5">
+			<div class="card mb-3">
+				<div class="card-body">
+					<h5 class="card-title">Flags</h5>
+					<ul class="list-group mb-2" id="bank-flags-list"></ul>
+					<form id="bank-flag-form" class="form-inline">
+						<select name="type" class="form-control mr-1 mb-1">
+							<option value="static">Static</option>
+							<option value="regex">Regex</option>
+						</select>
+						<input type="text" name="content" class="form-control mr-1 mb-1" placeholder="Flag value" required>
+						<button type="submit" class="btn btn-sm btn-secondary mb-1">Add</button>
+					</form>
+				</div>
+			</div>
+
+			<div class="card mb-3">
+				<div class="card-body">
+					<h5 class="card-title">Hints</h5>
+					<ul class="list-group mb-2" id="bank-hints-list"></ul>
+					<form id="bank-hint-form">
+						<textarea name="content" class="form-control mb-1" rows="2" placeholder="Hint text" required></textarea>
+						<div class="form-inline">
+							<input type="number" name="cost" class="form-control mr-1" placeholder="Cost" value="0" style="width:100px;">
+							<button type="submit" class="btn btn-sm btn-secondary">Add</button>
+						</div>
+					</form>
+				</div>
+			</div>
+
+			<div class="card mb-3">
+				<div class="card-body">
+					<h5 class="card-title">Tags</h5>
+					<ul class="list-group mb-2" id="bank-tags-list"></ul>
+					<form id="bank-tag-form" class="form-inline">
+						<input type="text" name="value" class="form-control mr-1 mb-1" placeholder="Tag" required>
+						<button type="submit" class="btn btn-sm btn-secondary mb-1">Add</button>
+					</form>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const BANK_ID = {{ bank.id }};
+const API_BASE = '/api/v1/challenge_bank/' + BANK_ID;
+
+function reloadSubResources() {
+	CTFd.fetch(API_BASE).then(r => r.json()).then(function (result) {
+		if (!result.success) return;
+		const d = result.data;
+
+		const flagsList = document.getElementById('bank-flags-list');
+		flagsList.innerHTML = '';
+		d.flags.forEach(function (f) {
+			const li = document.createElement('li');
+			li.className = 'list-group-item d-flex justify-content-between align-items-center';
+			li.innerHTML = `<span><b>${f.type}</b>: ${f.content}</span>`;
+			const btn = document.createElement('button');
+			btn.className = 'btn btn-sm btn-outline-danger';
+			btn.innerHTML = '<i class="fas fa-trash-alt"></i>';
+			btn.onclick = function () {
+				CTFd.fetch(API_BASE + '/flags/' + f.id, { method: 'DELETE' }).then(reloadSubResources);
+			};
+			li.appendChild(btn);
+			flagsList.appendChild(li);
+		});
+
+		const hintsList = document.getElementById('bank-hints-list');
+		hintsList.innerHTML = '';
+		d.hints.forEach(function (h) {
+			const li = document.createElement('li');
+			li.className = 'list-group-item d-flex justify-content-between align-items-center';
+			li.innerHTML = `<span>${h.content} <small class="text-muted">(cost ${h.cost})</small></span>`;
+			const btn = document.createElement('button');
+			btn.className = 'btn btn-sm btn-outline-danger';
+			btn.innerHTML = '<i class="fas fa-trash-alt"></i>';
+			btn.onclick = function () {
+				CTFd.fetch(API_BASE + '/hints/' + h.id, { method: 'DELETE' }).then(reloadSubResources);
+			};
+			li.appendChild(btn);
+			hintsList.appendChild(li);
+		});
+
+		const tagsList = document.getElementById('bank-tags-list');
+		tagsList.innerHTML = '';
+		d.tags.forEach(function (t) {
+			const li = document.createElement('li');
+			li.className = 'list-group-item d-flex justify-content-between align-items-center';
+			li.innerHTML = `<span>${t.value}</span>`;
+			const btn = document.createElement('button');
+			btn.className = 'btn btn-sm btn-outline-danger';
+			btn.innerHTML = '<i class="fas fa-trash-alt"></i>';
+			btn.onclick = function () {
+				CTFd.fetch(API_BASE + '/tags/' + t.id, { method: 'DELETE' }).then(reloadSubResources);
+			};
+			li.appendChild(btn);
+			tagsList.appendChild(li);
+		});
+
+		const filesList = document.getElementById('bank-files-list');
+		filesList.innerHTML = '';
+		d.files.forEach(function (f) {
+			const li = document.createElement('li');
+			li.className = 'list-group-item d-flex justify-content-between align-items-center';
+			const name = f.location.split('/').pop();
+			li.innerHTML = `<span>${name}</span>`;
+			const btn = document.createElement('button');
+			btn.className = 'btn btn-sm btn-outline-danger';
+			btn.innerHTML = '<i class="fas fa-trash-alt"></i>';
+			btn.onclick = function () {
+				CTFd.fetch(API_BASE + '/files/' + f.id, { method: 'DELETE' }).then(reloadSubResources);
+			};
+			li.appendChild(btn);
+			filesList.appendChild(li);
+		});
+	});
+}
+reloadSubResources();
+
+document.getElementById('bank-require-deploy').addEventListener('change', function () {
+	document.getElementById('bank-deploy-fields').style.display = this.checked ? 'block' : 'none';
+});
+
+document.getElementById('bank-edit-form').addEventListener('submit', function (e) {
+	e.preventDefault();
+	const form = e.target;
+	const errorBox = document.getElementById('bank-edit-error');
+	const successBox = document.getElementById('bank-edit-success');
+	errorBox.style.display = 'none';
+	successBox.style.display = 'none';
+
+	const fd = new FormData(form);
+	const body = {};
+	for (const [key, value] of fd.entries()) {
+		if (key === 'require_deploy') continue;
+		body[key] = value === '' ? null : value;
+	}
+	body.require_deploy = form.querySelector('[name=require_deploy]').checked;
+	['difficulty', 'cpu_limit', 'cpu_request', 'memory_limit', 'memory_request'].forEach(function (k) {
+		if (body[k] !== null && body[k] !== undefined) body[k] = parseInt(body[k], 10);
+	});
+
+	CTFd.fetch(API_BASE, { method: 'PATCH', body: JSON.stringify(body) })
+		.then(r => r.json())
+		.then(function (result) {
+			if (!result.success) {
+				errorBox.textContent = JSON.stringify(result.errors || result);
+				errorBox.style.display = 'block';
+				return;
+			}
+			successBox.style.display = 'block';
+		});
+});
+
+document.getElementById('bank-delete-btn').addEventListener('click', function () {
+	ezQuery({
+		title: 'Delete Bank Challenge',
+		body: 'Contest challenges already cloned from this stay untouched. Continue?',
+		success: function () {
+			CTFd.fetch(API_BASE, { method: 'DELETE' }).then(function () {
+				window.location = '{{ url_for("admin.challenge_bank_listing") }}';
+			});
+		},
+	});
+});
+
+document.getElementById('bank-flag-form').addEventListener('submit', function (e) {
+	e.preventDefault();
+	const fd = new FormData(e.target);
+	CTFd.fetch(API_BASE + '/flags', {
+		method: 'POST',
+		body: JSON.stringify({ type: fd.get('type'), content: fd.get('content') }),
+	}).then(function () { e.target.reset(); reloadSubResources(); });
+});
+
+document.getElementById('bank-hint-form').addEventListener('submit', function (e) {
+	e.preventDefault();
+	const fd = new FormData(e.target);
+	CTFd.fetch(API_BASE + '/hints', {
+		method: 'POST',
+		body: JSON.stringify({ content: fd.get('content'), cost: parseInt(fd.get('cost') || '0', 10) }),
+	}).then(function () { e.target.reset(); reloadSubResources(); });
+});
+
+document.getElementById('bank-tag-form').addEventListener('submit', function (e) {
+	e.preventDefault();
+	const fd = new FormData(e.target);
+	CTFd.fetch(API_BASE + '/tags', {
+		method: 'POST',
+		body: JSON.stringify({ value: fd.get('value') }),
+	}).then(function () { e.target.reset(); reloadSubResources(); });
+});
+
+document.getElementById('bank-file-upload-form').addEventListener('submit', function (e) {
+	e.preventDefault();
+	const fd = new FormData(e.target);
+	fetch(API_BASE + '/files', {
+		method: 'POST',
+		body: fd,
+		headers: { 'CSRF-Token': CTFd.config.csrfNonce },
+	}).then(function () { e.target.reset(); reloadSubResources(); });
+});
+</script>
+{% endblock %}

@@ -38,6 +38,7 @@ from CTFd.admin import action_logs  # noqa: F401
 from CTFd.admin import admin_audit  # noqa: F401
 from CTFd.admin import instances_history  # noqa: F401
 from CTFd.admin import contests  # noqa: F401
+from CTFd.admin import challenge_bank  # noqa: F401
 
 from CTFd.utils.config import ctf_logo as get_ctf_logo
 

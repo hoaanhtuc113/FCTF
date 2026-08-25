@@ -1039,25 +1039,25 @@ def contest_challenges(contest_id):
 @admin.route("/admin/contests/<int:contest_id>/challenges/import_challenges")
 @admins_only
 def contest_import_challenges(contest_id):
-    from CTFd.models import Challenges
+    from CTFd.models import ChallengeBank
 
     contest = Contests.query.filter_by(id=contest_id).first_or_404()
 
     categories = [
         r[0]
-        for r in Challenges.query.with_entities(Challenges.category)
-        .filter(Challenges.category.isnot(None))
+        for r in ChallengeBank.query.with_entities(ChallengeBank.category)
+        .filter(ChallengeBank.category.isnot(None))
         .distinct()
-        .order_by(Challenges.category.asc())
+        .order_by(ChallengeBank.category.asc())
         .all()
         if r[0]
     ]
     types = [
         r[0]
-        for r in Challenges.query.with_entities(Challenges.type)
-        .filter(Challenges.type.isnot(None))
+        for r in ChallengeBank.query.with_entities(ChallengeBank.type)
+        .filter(ChallengeBank.type.isnot(None))
         .distinct()
-        .order_by(Challenges.type.asc())
+        .order_by(ChallengeBank.type.asc())
         .all()
         if r[0]
     ]

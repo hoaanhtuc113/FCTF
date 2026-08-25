@@ -6,6 +6,7 @@ from CTFd.utils.decorators import admins_only
 from CTFd.api.v1.awards import awards_namespace
 from CTFd.api.v1.brackets import brackets_namespace
 from CTFd.api.v1.challenges import challenges_namespace
+from CTFd.api.v1.challenge_bank import challenge_bank_namespace
 from CTFd.api.v1.comments import comments_namespace
 from CTFd.api.v1.config import configs_namespace
 from CTFd.api.v1.exports import exports_namespace
@@ -73,6 +74,7 @@ CTFd_API_v1.schema_model(
 CTFd_API_v1.schema_model("APISimpleSuccessResponse", APISimpleSuccessResponse.schema())
 
 CTFd_API_v1.add_namespace(challenges_namespace, "/challenges")
+CTFd_API_v1.add_namespace(challenge_bank_namespace, "/challenge_bank")
 CTFd_API_v1.add_namespace(tags_namespace, "/tags")
 CTFd_API_v1.add_namespace(topics_namespace, "/topics")
 CTFd_API_v1.add_namespace(awards_namespace, "/awards")

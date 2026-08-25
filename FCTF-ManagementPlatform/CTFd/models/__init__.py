@@ -98,8 +98,16 @@ class Challenges(db.Model):
         db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
 
+    # Traceability only — which bank template this was cloned from, if any.
+    # Nullable and never read by scoring/deploy code; a hand-created challenge
+    # simply leaves it null.
+    source_bank_id = db.Column(
+        db.Integer, db.ForeignKey("challenge_bank.id", ondelete="SET NULL"), nullable=True
+    )
+
     # Relationships
     contest = db.relationship("Contests", foreign_keys=[contest_id], lazy="select")
+    source_bank = db.relationship("ChallengeBank", foreign_keys=[source_bank_id], lazy="select")
     next_challenge = db.relationship(
         "Challenges", foreign_keys=[next_id], remote_side=[id], lazy="select"
     )
@@ -1746,5 +1754,140 @@ class NotificationReads(db.Model):
         db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
     read_at = db.Column(db.DateTime, default=datetime.datetime.utcnow, nullable=False)
-
     user = db.relationship("Users", foreign_keys=[user_id], lazy="select")
+
+
+class ChallengeBank(db.Model):
+    """
+    A contest-independent challenge template curated in the Management Hub.
+    Cloning one (see api/v1/challenge_bank.py) creates an ordinary row in
+    `challenges`, scoped to whichever contest cloned it — this table itself
+    never appears in scoring/statistics/deploy code.
+    """
+
+    __tablename__ = "challenge_bank"
+    id = db.Column(db.Integer, primary_key=True)
+
+    # Challenge identity
+    name = db.Column(db.String(80))
+    description = db.Column(db.Text)
+    category = db.Column(db.String(80))
+    type = db.Column(db.String(80))
+    difficulty = db.Column(db.Integer, nullable=True, default=None)
+
+    # Deploy config
+    require_deploy = db.Column(db.Boolean, nullable=False, default=False)
+    deploy_status = db.Column(db.Text, nullable=True, default="CREATED")
+    deploy_file = db.Column(db.Text, nullable=True)
+    image_link = db.Column(db.Text, nullable=True)
+    connection_info = db.Column(db.Text)
+    connection_protocol = db.Column(db.String(10), nullable=False, default="http")
+    cpu_limit = db.Column(db.Integer, nullable=True)
+    cpu_request = db.Column(db.Integer, nullable=True)
+    memory_limit = db.Column(db.Integer, nullable=True)
+    memory_request = db.Column(db.Integer, nullable=True)
+    use_gvisor = db.Column(db.Boolean, nullable=True)
+    harden_container = db.Column(db.Boolean, nullable=True, default=True)
+    shared_instant = db.Column(db.Boolean, nullable=False, default=False)
+    max_deploy_count = db.Column(db.Integer, nullable=True, default=0)
+
+    # Metadata
+    last_update = db.Column(db.DateTime)
+    created_by = db.Column(
+        db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
+    creator = db.relationship("Users", foreign_keys=[created_by], lazy="select")
+    tags = db.relationship(
+        "ChallengeBankTags", foreign_keys="ChallengeBankTags.challenge_bank_id", backref="challenge_bank"
+    )
+    hints = db.relationship(
+        "ChallengeBankHints", foreign_keys="ChallengeBankHints.challenge_bank_id", backref="challenge_bank"
+    )
+    flags = db.relationship(
+        "ChallengeBankFlags", foreign_keys="ChallengeBankFlags.challenge_bank_id", backref="challenge_bank"
+    )
+    topics = db.relationship(
+        "ChallengeBankTopics", foreign_keys="ChallengeBankTopics.challenge_bank_id", backref="challenge_bank"
+    )
+
+    def __init__(self, *args, **kwargs):
+        super(ChallengeBank, self).__init__(**kwargs)
+
+    def __repr__(self):
+        return "<ChallengeBank %r>" % self.name
+
+
+class ChallengeBankFiles(Files):
+    __mapper_args__ = {"polymorphic_identity": "challenge_bank"}
+    challenge_bank_id = db.Column(
+        db.Integer, db.ForeignKey("challenge_bank.id", ondelete="CASCADE")
+    )
+
+    def __init__(self, *args, **kwargs):
+        super(ChallengeBankFiles, self).__init__(**kwargs)
+
+
+class ChallengeBankTags(db.Model):
+    __tablename__ = "challenge_bank_tags"
+    id = db.Column(db.Integer, primary_key=True)
+    challenge_bank_id = db.Column(
+        db.Integer, db.ForeignKey("challenge_bank.id", ondelete="CASCADE")
+    )
+    value = db.Column(db.String(80))
+
+    def __init__(self, *args, **kwargs):
+        super(ChallengeBankTags, self).__init__(**kwargs)
+
+
+class ChallengeBankHints(db.Model):
+    __tablename__ = "challenge_bank_hints"
+    id = db.Column(db.Integer, primary_key=True)
+    type = db.Column(db.String(80), default="standard")
+    challenge_bank_id = db.Column(
+        db.Integer, db.ForeignKey("challenge_bank.id", ondelete="CASCADE")
+    )
+    content = db.Column(db.Text)
+    cost = db.Column(db.Integer, default=0)
+    requirements = db.Column(db.JSON)
+
+    def __init__(self, *args, **kwargs):
+        super(ChallengeBankHints, self).__init__(**kwargs)
+
+    def __repr__(self):
+        return "<ChallengeBankHint %r>" % self.content
+
+
+class ChallengeBankFlags(db.Model):
+    __tablename__ = "challenge_bank_flags"
+    id = db.Column(db.Integer, primary_key=True)
+    challenge_bank_id = db.Column(
+        db.Integer, db.ForeignKey("challenge_bank.id", ondelete="CASCADE")
+    )
+    type = db.Column(db.String(80))
+    content = db.Column(db.Text)
+    data = db.Column(db.Text)
+
+    def __init__(self, *args, **kwargs):
+        super(ChallengeBankFlags, self).__init__(**kwargs)
+
+    def __repr__(self):
+        return "<ChallengeBankFlag {0} for bank challenge {1}>".format(
+            self.content, self.challenge_bank_id
+        )
+
+
+class ChallengeBankTopics(db.Model):
+    __tablename__ = "challenge_bank_topics"
+    id = db.Column(db.Integer, primary_key=True)
+    challenge_bank_id = db.Column(
+        db.Integer, db.ForeignKey("challenge_bank.id", ondelete="CASCADE")
+    )
+    topic_id = db.Column(db.Integer, db.ForeignKey("topics.id", ondelete="CASCADE"))
+
+    topic = db.relationship(
+        "Topics", foreign_keys="ChallengeBankTopics.topic_id", lazy="select"
+    )
+
+    def __init__(self, *args, **kwargs):
+        super(ChallengeBankTopics, self).__init__(**kwargs)

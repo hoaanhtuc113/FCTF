@@ -698,6 +698,12 @@
                 </li>
                 {% if is_admin() %}
                 <li class="nav-item">
+                    <a class="nav-link {% if request.endpoint and request.endpoint.startswith('admin.challenge_bank') %}active{% endif %}"
+                       href="{{ url_for('admin.challenge_bank_listing') }}">
+                        <i class="bx bx-collection"></i> Challenge Bank
+                    </a>
+                </li>
+                <li class="nav-item">
                     <a class="nav-link" href="{{ url_for('admin.users_listing') }}">
                         <i class="bx bx-user"></i> Users
                     </a>

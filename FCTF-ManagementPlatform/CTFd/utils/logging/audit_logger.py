@@ -41,6 +41,10 @@ _ACTION_TARGET_TYPES = {
     "bracket_create": "bracket",
     "bracket_update": "bracket",
     "bracket_delete": "bracket",
+    "challenge_bank_create": "challenge_bank",
+    "challenge_bank_update": "challenge_bank",
+    "challenge_bank_delete": "challenge_bank",
+    "challenge_bank_clone": "challenge_bank",
     # Bulk / destructive admin operations
     "bulk_password_reset": "user",
     "ctf_reset": "system",
@@ -67,6 +71,8 @@ def _extract_target_id(action: str, data: dict | None) -> int | None:
         return data.get("comment_id")
     if action.startswith("bracket"):
         return data.get("bracket_id")
+    if action.startswith("challenge_bank"):
+        return data.get("challenge_bank_id")
     return None
 
 

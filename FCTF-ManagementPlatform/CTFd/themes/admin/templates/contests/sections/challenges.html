@@ -207,6 +207,10 @@
                class="clean-btn clean-btn-primary">
                 <i class="btn-fa fas fa-plus"></i> Create Challenge
             </a>
+            <a href="{{ url_for('admin.contest_import_challenges', contest_id=contest.id) }}"
+               class="clean-btn ml-2">
+                <i class="btn-fa fas fa-file-import"></i> Import from Bank
+            </a>
             {% endif %}
         </div>
         <div class="btn-group" role="group">
