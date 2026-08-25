@@ -350,6 +350,66 @@
 
 /* Empty state */
 .challenge-properties-content .text-center.text-muted { padding: 2rem; color: #9ca3af !important; }
+
+/* File preview overlay — matches ChallengeFilesList.vue on the contest side */
+.preview-file { color: #6c757d; cursor: pointer; transition: all 0.2s ease; font-size: 1.1rem; padding: 0.25rem 0.5rem; }
+.preview-file:hover { color: #ff6b35; transform: scale(1.1); }
+
+.file-preview-overlay {
+	position: fixed;
+	inset: 0;
+	background: rgba(0, 0, 0, 0.6);
+	z-index: 1060;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 2rem;
+}
+
+.file-preview-box {
+	background: #ffffff;
+	border-radius: 8px;
+	box-shadow: 0 10px 40px rgba(0, 0, 0, 0.25);
+	width: 100%;
+	max-width: 1000px;
+	height: 85vh;
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+}
+
+.file-preview-head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 0.75rem 1rem;
+	border-bottom: 1px solid #e8e8e8;
+	background: #f8f9fa;
+}
+
+.file-preview-name { font-weight: 600; color: #2c3e50; font-size: 0.95rem; word-break: break-all; }
+
+.file-preview-action {
+	color: #6c757d;
+	cursor: pointer;
+	margin-left: 0.85rem;
+	font-size: 1rem;
+	transition: color 0.2s ease;
+}
+
+.file-preview-action:hover { color: #ff6b35; }
+
+.file-preview-body {
+	flex: 1;
+	overflow: auto;
+	background: #f1f1f1;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.file-preview-body iframe { width: 100%; height: 100%; border: none; background: #ffffff; }
+.file-preview-body img { max-width: 100%; max-height: 100%; object-fit: contain; }
 </style>
 {% endblock %}
 
@@ -799,6 +859,25 @@
 		</div>
 	</div>
 </div>
+
+<!-- File preview overlay. Plain fixed overlay rather than a Bootstrap modal
+     so it renders identically regardless of the tab pane it is opened from. -->
+<div id="file-preview-overlay" class="file-preview-overlay" style="display:none;">
+	<div class="file-preview-box">
+		<div class="file-preview-head">
+			<span class="file-preview-name" id="file-preview-name"></span>
+			<span>
+				<a class="file-preview-action" id="file-preview-open" href="#" target="_blank" rel="noopener" title="Open in new tab">
+					<i class="fas fa-external-link-alt"></i>
+				</a>
+				<a class="file-preview-action" id="file-preview-close" role="button" title="Close">
+					<i class="fas fa-times"></i>
+				</a>
+			</span>
+		</div>
+		<div class="file-preview-body" id="file-preview-body"></div>
+	</div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -835,6 +914,48 @@ function emptyRow(cols, text) {
 	return '<tr><td colspan="' + cols + '" class="text-center text-muted">' + text + '</td></tr>';
 }
 
+/* ── File preview ────────────────────────────────────────────────
+   Only what the browser renders on its own; an archive or binary keeps
+   its download link and gets no preview icon. Mirrors fileKind() in
+   components/files/ChallengeFilesList.vue so both pages agree on what
+   is previewable. */
+const PREVIEW_IMAGE_EXT = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp'];
+const PREVIEW_DOC_EXT = ['pdf', 'txt', 'md', 'json', 'csv', 'log', 'xml', 'html'];
+
+function fileKind(location) {
+	const ext = (location.split('.').pop() || '').toLowerCase();
+	if (PREVIEW_IMAGE_EXT.indexOf(ext) !== -1) return 'image';
+	if (PREVIEW_DOC_EXT.indexOf(ext) !== -1) return 'document';
+	return null;
+}
+
+const previewOverlay = document.getElementById('file-preview-overlay');
+const previewBody = document.getElementById('file-preview-body');
+
+function openPreview(name, url, kind) {
+	document.getElementById('file-preview-name').textContent = name;
+	document.getElementById('file-preview-open').href = url;
+	previewBody.innerHTML = kind === 'image'
+		? '<img src="' + escHtml(url) + '" alt="' + escHtml(name) + '">'
+		: '<iframe src="' + escHtml(url) + '" title="' + escHtml(name) + '"></iframe>';
+	previewOverlay.style.display = 'flex';
+}
+
+function closePreview() {
+	previewOverlay.style.display = 'none';
+	// Drop the iframe/img so a PDF viewer or video stops rather than
+	// keeping the file loaded behind a hidden overlay.
+	previewBody.innerHTML = '';
+}
+
+document.getElementById('file-preview-close').addEventListener('click', closePreview);
+previewOverlay.addEventListener('click', function (e) {
+	if (e.target === previewOverlay) closePreview();
+});
+document.addEventListener('keydown', function (e) {
+	if (e.key === 'Escape' && previewOverlay.style.display === 'flex') closePreview();
+});
+
 function reloadSubResources() {
 	CTFd.fetch(API_BASE).then(function (r) { return r.json(); }).then(function (result) {
 		if (!result.success) return;
@@ -844,13 +965,25 @@ function reloadSubResources() {
 		const filesBody = document.getElementById('bank-files-body');
 		filesBody.innerHTML = d.files.length
 			? d.files.map(function (f) {
+				const url = CTFd.config.urlRoot + '/files/' + f.location;
+				const previewBtn = fileKind(f.location)
+					? '<i role="button" class="btn-fa fas fa-eye preview-file" title="Preview file"' +
+					  ' data-url="' + escHtml(url) + '" data-name="' + escHtml(f.location.split('/').pop()) +
+					  '" data-kind="' + fileKind(f.location) + '"></i>'
+					: '';
 				return '<tr>' +
-					'<td class="text-center"><a href="' + CTFd.config.urlRoot + '/files/' + escHtml(f.location) + '">' +
+					'<td class="text-center"><a href="' + escHtml(url) + '">' +
 						escHtml(f.location.split('/').pop()) + '</a></td>' +
-					'<td class="text-center"><i role="button" class="btn-fa fas fa-times delete-file" data-id="' + f.id + '"></i></td>' +
+					'<td class="text-center">' + previewBtn +
+						'<i role="button" class="btn-fa fas fa-times delete-file" data-id="' + f.id + '"></i></td>' +
 					'</tr>';
 			}).join('')
 			: emptyRow(2, 'No files');
+		filesBody.querySelectorAll('.preview-file').forEach(function (el) {
+			el.addEventListener('click', function () {
+				openPreview(el.dataset.name, el.dataset.url, el.dataset.kind);
+			});
+		});
 		filesBody.querySelectorAll('.delete-file').forEach(function (el) {
 			el.addEventListener('click', function () {
 				_safeConfirm({

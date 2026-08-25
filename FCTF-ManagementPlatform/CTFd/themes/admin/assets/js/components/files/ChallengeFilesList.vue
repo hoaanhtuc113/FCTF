@@ -17,6 +17,13 @@
 
           <td class="text-center">
             <i
+              v-if="isPreviewable(file.location)"
+              role="button"
+              class="btn-fa fas fa-eye preview-file"
+              title="Preview file"
+              @click="previewFile(file)"
+            ></i>
+            <i
               role="button"
               class="btn-fa fas fa-times delete-file"
               @click="deleteFile(file.id)"
@@ -62,6 +69,35 @@
         </div>
       </form>
     </div>
+
+    <!-- Preview overlay. Deliberately not a Bootstrap modal: this component
+         is mounted inside a tab pane, and a self-contained fixed overlay
+         renders the same wherever it ends up in the DOM. -->
+    <div v-if="preview" class="file-preview-overlay" @click.self="closePreview()">
+      <div class="file-preview-box">
+        <div class="file-preview-head">
+          <span class="file-preview-name">{{ preview.name }}</span>
+          <span>
+            <a
+              class="file-preview-action"
+              :href="preview.url"
+              target="_blank"
+              rel="noopener"
+              title="Open in new tab"
+            >
+              <i class="fas fa-external-link-alt"></i>
+            </a>
+            <a class="file-preview-action" role="button" title="Close" @click="closePreview()">
+              <i class="fas fa-times"></i>
+            </a>
+          </span>
+        </div>
+        <div class="file-preview-body">
+          <img v-if="preview.kind === 'image'" :src="preview.url" :alt="preview.name" />
+          <iframe v-else :src="preview.url" :title="preview.name"></iframe>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -81,9 +117,35 @@ export default {
       isUploading: false,
       uploadStatus: "",
       uploadError: false,
+      preview: null,
     };
   },
   methods: {
+    // Only what the browser can render on its own. An archive or binary has
+    // nothing to show, so it keeps the download link and no preview icon.
+    fileKind: function (location) {
+      const ext = (location.split(".").pop() || "").toLowerCase();
+      if (["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp"].includes(ext)) {
+        return "image";
+      }
+      if (["pdf", "txt", "md", "json", "csv", "log", "xml", "html"].includes(ext)) {
+        return "document";
+      }
+      return null;
+    },
+    isPreviewable: function (location) {
+      return this.fileKind(location) !== null;
+    },
+    previewFile: function (file) {
+      this.preview = {
+        name: file.location.split("/").pop(),
+        url: `${this.urlRoot}/files/${file.location}`,
+        kind: this.fileKind(file.location),
+      };
+    },
+    closePreview: function () {
+      this.preview = null;
+    },
     loadFiles: function () {
       CTFd.fetch(`/api/v1/challenges/${this.$props.challenge_id}/files`, {
         method: "GET",
@@ -223,6 +285,92 @@ export default {
 .delete-file:hover {
   color: #dc3545;
   transform: scale(1.1);
+}
+
+.preview-file {
+  color: #6c757d;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 1.1rem;
+  padding: 0.25rem 0.5rem;
+}
+
+.preview-file:hover {
+  color: #ff6b35;
+  transform: scale(1.1);
+}
+
+.file-preview-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 1060;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+}
+
+.file-preview-box {
+  background: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.25);
+  width: 100%;
+  max-width: 1000px;
+  height: 85vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.file-preview-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #e8e8e8;
+  background: #f8f9fa;
+}
+
+.file-preview-name {
+  font-weight: 600;
+  color: #2c3e50;
+  font-size: 0.95rem;
+  word-break: break-all;
+}
+
+.file-preview-action {
+  color: #6c757d;
+  cursor: pointer;
+  margin-left: 0.85rem;
+  font-size: 1rem;
+  transition: color 0.2s ease;
+}
+
+.file-preview-action:hover {
+  color: #ff6b35;
+}
+
+.file-preview-body {
+  flex: 1;
+  overflow: auto;
+  background: #f1f1f1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.file-preview-body iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: #ffffff;
+}
+
+.file-preview-body img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
 }
 
 .form-control-file {
