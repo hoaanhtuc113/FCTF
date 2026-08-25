@@ -77,7 +77,7 @@
 
 <div class="container">
 	<div id="deploy-progress-container" class="clean-progress-container" style="{% if bank.deploy_status not in ('PENDING_DEPLOY',) %}display:none;{% endif %}">
-		<h6 class="clean-progress-title">Deployment Status</h6>
+		<h6 id="deploy-status-title" class="clean-progress-title">Deployment Status</h6>
 		<p id="deploy-status-message" class="clean-progress-message">Building image…</p>
 		<div class="clean-progress">
 			<div id="deploy-progress-bar" class="clean-progress-bar" role="progressbar" style="width:0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
@@ -413,68 +413,133 @@ document.getElementById('bank-edit-form').addEventListener('submit', function (e
 		});
 });
 
-/* ── Deploy: upload zip, kick off build, poll status with a progress bar ─ */
-const DEPLOY_POLL_INTERVAL_MS = 5000;
-const DEPLOY_POLL_MAX_ROUNDS = 60;
-
+/* ── Deploy: upload zip, kick off build, poll status with a progress bar ─
+   Ported from modals/challenges/deploy.html (the contest side): one server
+   poll gets estimated_duration/remaining_time, then a 1s local countdown
+   ticks the bar down between polls so it visibly moves every second
+   instead of jumping once every server round-trip. Only re-polls the
+   server once the local countdown reaches zero. */
 const progressContainer = document.getElementById('deploy-progress-container');
 const progressBar = document.getElementById('deploy-progress-bar');
-const progressPct = document.getElementById('deploy-progress-percentage');
-const progressMsg = document.getElementById('deploy-status-message');
-const progressDetail = document.getElementById('deploy-status-detail');
+const progressPercentage = document.getElementById('deploy-progress-percentage');
+const statusTitle = document.getElementById('deploy-status-title');
+const deployStatusMessage = document.getElementById('deploy-status-message');
+const statusDetail = document.getElementById('deploy-status-detail');
 
-function setProgress(pct, cls) {
-	pct = Math.max(0, Math.min(100, pct));
-	progressBar.style.width = pct + '%';
-	progressBar.setAttribute('aria-valuenow', pct);
-	progressPct.textContent = Math.round(pct) + '%';
-	progressBar.className = 'clean-progress-bar' + (cls ? ' ' + cls : '');
+let deploymentInterval = null;
+let localRemainingTime = null;
+let estimatedDuration = null;
+let pollDelay = 1000;
+
+function formatTime(seconds) {
+	seconds = Math.max(0, Math.round(seconds));
+	const h = Math.floor(seconds / 3600);
+	const m = Math.floor((seconds % 3600) / 60);
+	const s = seconds % 60;
+	return h + 'h:' + m + 'm:' + s + 's';
+}
+
+function updateStatusDetail() {
+	if (statusDetail && estimatedDuration !== null) {
+		statusDetail.textContent = 'Estimated: ' + formatTime(estimatedDuration) + ' | Remaining: ' + formatTime(localRemainingTime);
+	}
+}
+
+function updateProgressBar(phase) {
+	if (!progressBar || estimatedDuration === null || localRemainingTime === null) return;
+	const isTerminal = phase === 'Succeeded' || phase === 'Failed' || phase === 'Error';
+	const elapsed = estimatedDuration - localRemainingTime;
+	const progress = isTerminal ? 100 : Math.max(0, Math.min(100, (elapsed / estimatedDuration) * 100));
+
+	progressBar.style.width = progress + '%';
+	progressBar.setAttribute('aria-valuenow', progress);
+	progressPercentage.textContent = Math.round(progress) + '%';
+
+	if (phase === 'Succeeded') {
+		progressBar.style.backgroundColor = '#28a745';
+		if (statusTitle) statusTitle.style.color = '#28a745';
+	} else if (phase === 'Failed' || phase === 'Error') {
+		progressBar.style.backgroundColor = '#dc3545';
+		if (statusTitle) statusTitle.style.color = '#dc3545';
+	} else {
+		progressBar.style.backgroundColor = '#ff6b35';
+		if (statusTitle) statusTitle.style.color = '#ff6b35';
+	}
+}
+
+function stopLocalCountdown() {
+	if (deploymentInterval) {
+		clearInterval(deploymentInterval);
+		deploymentInterval = null;
+	}
+}
+
+function startLocalCountdown() {
+	stopLocalCountdown();
+	deploymentInterval = setInterval(function () {
+		if (localRemainingTime > 0) {
+			localRemainingTime = Math.max(0, localRemainingTime - 1);
+			updateStatusDetail();
+			updateProgressBar('Running');
+		} else {
+			stopLocalCountdown();
+			checkDeployStatus();
+			pollDelay = 2000;
+		}
+	}, pollDelay);
+}
+
+function checkDeployStatus() {
+	CTFd.fetch(API_BASE + '/deploy-duration', { method: 'GET' })
+		.then(function (r) { return r.json(); })
+		.then(function (result) {
+			if (!result.success || !result.data) return;
+			const data = result.data;
+			const phase = data.phase;
+
+			progressContainer.style.display = 'block';
+			if (statusTitle) statusTitle.textContent = 'Deployment Status: ' + (phase || 'Unknown');
+			if (deployStatusMessage && data.started_at) {
+				deployStatusMessage.textContent = 'Started at: ' + new Date(data.started_at).toLocaleString();
+			}
+
+			estimatedDuration = data.estimated_duration || 0;
+			localRemainingTime = data.remaining_time !== null && data.remaining_time !== undefined ? data.remaining_time : 0;
+			updateStatusDetail();
+			updateProgressBar(phase);
+
+			if (phase === 'Running' || phase === 'Pending') {
+				startLocalCountdown();
+			} else {
+				stopLocalCountdown();
+				if (phase === 'Succeeded' || phase === 'Failed' || phase === 'Error') {
+					deployStatusMessage.textContent = phase === 'Succeeded'
+						? 'Build succeeded — contests cloning this challenge will use the new image.'
+						: 'Build failed — check the Dockerfile in your build context and try again.';
+					setTimeout(function () { progressContainer.style.display = 'none'; }, 4000);
+				}
+			}
+		})
+		.catch(function () {
+			// A transient network hiccup shouldn't stop the monitor — try again
+			// on the same cadence rather than freezing the bar silently.
+			setTimeout(checkDeployStatus, pollDelay);
+		});
 }
 
 function pollBankDeployStatus() {
 	progressContainer.style.display = 'block';
-	setProgress(0, '');
-	progressMsg.textContent = 'Building image…';
-	progressDetail.textContent = '';
-
-	let rounds = 0;
-	const tick = function () {
-		rounds += 1;
-		CTFd.fetch(API_BASE + '/deploy-duration', { method: 'GET' })
-			.then(function (r) { return r.json(); })
-			.then(function (result) {
-				const data = result && result.data;
-				const phase = data && data.phase;
-
-				if (phase === 'Succeeded') {
-					setProgress(100, 'success');
-					progressMsg.textContent = 'Build succeeded';
-					progressDetail.textContent = 'The image is ready — contests cloning this challenge will use it.';
-					return;
-				}
-				if (phase === 'Failed' || phase === 'Error') {
-					setProgress(100, 'failed');
-					progressMsg.textContent = 'Build failed';
-					progressDetail.textContent = 'Check the Dockerfile in your build context and try uploading again.';
-					return;
-				}
-
-				if (data && data.estimated_duration && data.remaining_time !== null && data.remaining_time !== undefined) {
-					const elapsed = data.estimated_duration - data.remaining_time;
-					setProgress((elapsed / data.estimated_duration) * 100, '');
-					progressDetail.textContent = 'Phase: ' + phase + ' — ~' + Math.max(0, Math.round(data.remaining_time)) + 's remaining';
-				} else {
-					progressDetail.textContent = 'Phase: ' + (phase || 'starting…');
-				}
-
-				if (rounds < DEPLOY_POLL_MAX_ROUNDS) setTimeout(tick, DEPLOY_POLL_INTERVAL_MS);
-			})
-			.catch(function () {
-				if (rounds < DEPLOY_POLL_MAX_ROUNDS) setTimeout(tick, DEPLOY_POLL_INTERVAL_MS);
-			});
-	};
-	tick();
+	progressBar.style.width = '0%';
+	progressBar.setAttribute('aria-valuenow', '0');
+	progressPercentage.textContent = '0%';
+	if (statusTitle) { statusTitle.textContent = 'Deployment Status'; statusTitle.style.color = ''; }
+	deployStatusMessage.textContent = 'Preparing build…';
+	statusDetail.textContent = '';
+	pollDelay = 1000;
+	checkDeployStatus();
 }
+
+window.addEventListener('beforeunload', stopLocalCountdown);
 
 document.getElementById('bank-deploy-form').addEventListener('submit', function (e) {
 	e.preventDefault();
