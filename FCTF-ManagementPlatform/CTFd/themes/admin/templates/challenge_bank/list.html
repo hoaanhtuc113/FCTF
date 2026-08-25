@@ -145,7 +145,6 @@
 					<th class="text-center"><b>Creator</b></th>
 					<th class="text-center"><b>Clones</b></th>
 					<th class="text-center"><b>Value</b></th>
-					<th class="text-center"><b>Type</b></th>
 					<th class="text-center"><b>Deploy Status</b></th>
 					<th class="text-center"><b>Last Update</b></th>
 				</tr>
@@ -184,7 +183,6 @@
 						{% endif %}
 					</td>
 					<td class="text-center">{{ bank.value if bank.value is not none else '—' }}</td>
-					<td class="text-center">{{ bank.type or 'standard' }}</td>
 					<td class="text-center">
 						{% if bank.deploy_status == 'DEPLOY_SUCCESS' %}
 						<span class="clean-badge clean-badge-success">DEPLOY_SUCCESS</span>
@@ -202,7 +200,7 @@
 				</tr>
 				{% else %}
 				<tr>
-					<td colspan="11" class="text-center text-muted py-4">
+					<td colspan="10" class="text-center text-muted py-4">
 						<i class="bx bx-info-circle"></i> No challenges in the bank yet.
 						<a href="{{ url_for('admin.challenge_bank_new') }}" class="ml-2">Create one</a>
 					</td>
