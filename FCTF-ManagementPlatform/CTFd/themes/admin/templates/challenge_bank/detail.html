@@ -366,6 +366,7 @@ document.getElementById('bank-deploy-form').addEventListener('submit', function 
 	fetch(API_BASE + '/deploy', {
 		method: 'POST',
 		body: fd,
+		credentials: 'same-origin',
 		headers: { 'CSRF-Token': CTFd.config.csrfNonce },
 	})
 		.then(function (r) { return r.json(); })
@@ -437,6 +438,7 @@ document.getElementById('bank-file-upload-form').addEventListener('submit', func
 	fetch(API_BASE + '/files', {
 		method: 'POST',
 		body: fd,
+		credentials: 'same-origin',
 		headers: { 'CSRF-Token': CTFd.config.csrfNonce },
 	}).then(function () { e.target.reset(); reloadSubResources(); });
 });

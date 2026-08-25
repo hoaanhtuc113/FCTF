@@ -163,7 +163,7 @@
 
     /* ── which bank challenges are already cloned into this contest ─── */
     function loadImported() {
-        return fetch('/api/v1/contest_challenges?contest_id=' + CONTEST_ID + '&per_page=200', { headers: { 'CSRF-Token': CSRF } })
+        return fetch('/api/v1/contest_challenges?contest_id=' + CONTEST_ID + '&per_page=200', { credentials: 'same-origin', headers: { 'CSRF-Token': CSRF } })
             .then(function(r) { return r.json(); })
             .then(function(res) {
                 state.imported = new Set();
@@ -219,7 +219,7 @@
         document.getElementById('ic-tbody').innerHTML =
             '<tr><td colspan="8" class="text-center text-muted py-4"><i class="bx bx-loader-alt bx-spin mr-1"></i> Loading…</td></tr>';
 
-        fetch(API_BASE + '?' + params, { headers: { 'CSRF-Token': CSRF } })
+        fetch(API_BASE + '?' + params, { credentials: 'same-origin', headers: { 'CSRF-Token': CSRF } })
             .then(function(r) { return r.json(); })
             .then(function(res) {
                 if (!res.success) return;
@@ -380,6 +380,7 @@
         Promise.all(ids.map(function(id) {
             return fetch(API_BASE + '/' + id + '/clone', {
                 method: 'POST',
+                credentials: 'same-origin',
                 headers: { 'Content-Type': 'application/json', 'CSRF-Token': CSRF },
                 body: JSON.stringify({ contest_id: CONTEST_ID, state: 'hidden' })
             }).then(function(r) { return r.json(); });

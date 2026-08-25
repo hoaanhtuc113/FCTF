@@ -146,6 +146,29 @@
 					</label>
 				</div>
 
+				<div class="form-group d-none" id="flag-env-help">
+					<div class="alert" style="background:#fff8e6;border:1px solid #f0d789;color:#7a5c00;border-radius:6px;padding:.75rem 1rem;margin-bottom:0;">
+						<strong>Reading the flag in your challenge code</strong><br>
+						<small class="text-muted d-block mb-2">
+							Don't hardcode the flag in your source or Docker image — when the pod deploys, the flag
+							(static or the per-team dynamic one) is injected as the <code>FLAG</code> environment variable.
+						</small>
+						<div class="btn-group btn-group-sm mb-2" role="group" id="flag-help-lang-tabs">
+							<button type="button" class="btn btn-outline-secondary active" data-lang="python">Python</button>
+							<button type="button" class="btn btn-outline-secondary" data-lang="node">Node.js</button>
+							<button type="button" class="btn btn-outline-secondary" data-lang="java">Java</button>
+						</div>
+						<pre class="flag-help-snippet" data-lang="python" style="background:#282c34;color:#abb2bf;padding:.6rem .8rem;border-radius:4px;margin-bottom:0;overflow-x:auto;"><code>flag = os.environ.get("FLAG", "CTF{placeholder}")</code></pre>
+						<pre class="flag-help-snippet d-none" data-lang="node" style="background:#282c34;color:#abb2bf;padding:.6rem .8rem;border-radius:4px;margin-bottom:0;overflow-x:auto;"><code>const flag = process.env.FLAG || 'CTF{placeholder}';</code></pre>
+						<pre class="flag-help-snippet d-none" data-lang="java" style="background:#282c34;color:#abb2bf;padding:.6rem .8rem;border-radius:4px;margin-bottom:0;overflow-x:auto;"><code>/* Dockerfile - Java reads it from a file, not the env var directly: */
+ENV FLAG="CTF{placeholder}"
+CMD ["sh", "-c", "echo \"$FLAG\" &gt; /tmp/flag.txt &amp;&amp; catalina.sh run"]
+
+/* Servlet - read that file at request time */
+String flag = new String(Files.readAllBytes(Paths.get("/tmp/flag.txt"))).trim();</code></pre>
+					</div>
+				</div>
+
 				<div class="form-group d-none" id="expose_port_container">
 					<label>Exposed Port<br>
 						<small class="form-text text-muted">Port your Dockerfile exposes</small>
@@ -258,7 +281,7 @@
 		});
 	});
 
-	var deployFields = ['expose_port_container', 'connection_protocol_container', 'cpu_limit_container',
+	var deployFields = ['flag-env-help', 'expose_port_container', 'connection_protocol_container', 'cpu_limit_container',
 		'cpu_request_container', 'memory_limit_container', 'memory_request_container', 'use_gvisor_container',
 		'harden_container_container', 'max_deploy_count_container', 'shared_instant_container', 'deploy_file_container'];
 
@@ -269,10 +292,28 @@
 		document.querySelector('[name="deploy_file"]').required = on;
 	});
 
+	document.querySelectorAll('#flag-help-lang-tabs button').forEach(function (btn) {
+		btn.addEventListener('click', function () {
+			var lang = this.getAttribute('data-lang');
+			document.querySelectorAll('#flag-help-lang-tabs button').forEach(function (b) { b.classList.remove('active'); });
+			this.classList.add('active');
+			document.querySelectorAll('.flag-help-snippet').forEach(function (pre) {
+				pre.classList.toggle('d-none', pre.getAttribute('data-lang') !== lang);
+			});
+		});
+	});
+
 	var API_BASE = '/api/v1/challenge_bank';
 
 	function jsonFetch(url, opts) {
 		opts = opts || {};
+		// CTFd.fetch() always sets credentials: 'same-origin' itself because the
+		// whatwg-fetch polyfill it pulls in replaces window.fetch with one whose
+		// default is to omit cookies - a plain fetch() call anywhere on a page
+		// that has loaded that polyfill silently stops sending the session
+		// cookie unless this is set explicitly, which reads as a 403 from
+		// _restrict_non_staff_access (unauthenticated), not a CSRF failure.
+		opts.credentials = 'same-origin';
 		opts.headers = Object.assign({}, opts.headers, { 'CSRF-Token': CTFd.config.csrfNonce });
 		return fetch(url, opts).then(function (r) { return r.json().then(function (body) { return { ok: r.ok, body: body }; }); });
 	}
@@ -344,7 +385,7 @@
 					chain = chain.then(function () {
 						var fd = new FormData();
 						fd.append('file', f);
-						return fetch(API_BASE + '/' + bankId + '/files', { method: 'POST', body: fd, headers: { 'CSRF-Token': CTFd.config.csrfNonce } });
+						return fetch(API_BASE + '/' + bankId + '/files', { method: 'POST', body: fd, credentials: 'same-origin', headers: { 'CSRF-Token': CTFd.config.csrfNonce } });
 					});
 				});
 
