@@ -410,6 +410,7 @@
 
 .file-preview-body iframe { width: 100%; height: 100%; border: none; background: #ffffff; }
 .file-preview-body img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.file-preview-note { color: #6c757d; font-size: 0.95rem; }
 </style>
 {% endblock %}
 
@@ -867,8 +868,8 @@
 		<div class="file-preview-head">
 			<span class="file-preview-name" id="file-preview-name"></span>
 			<span>
-				<a class="file-preview-action" id="file-preview-open" href="#" target="_blank" rel="noopener" title="Open in new tab">
-					<i class="fas fa-external-link-alt"></i>
+				<a class="file-preview-action" id="file-preview-open" href="#" target="_blank" rel="noopener" title="Download">
+					<i class="fas fa-download"></i>
 				</a>
 				<a class="file-preview-action" id="file-preview-close" role="button" title="Close">
 					<i class="fas fa-times"></i>
@@ -918,9 +919,16 @@ function emptyRow(cols, text) {
    Only what the browser renders on its own; an archive or binary keeps
    its download link and gets no preview icon. Mirrors fileKind() in
    components/files/ChallengeFilesList.vue so both pages agree on what
-   is previewable. */
+   is previewable. HTML is deliberately absent: it would render from a
+   blob: URL, which inherits this page's origin, so an uploaded page
+   could run script against the admin session. It stays a download. */
 const PREVIEW_IMAGE_EXT = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp'];
-const PREVIEW_DOC_EXT = ['pdf', 'txt', 'md', 'json', 'csv', 'log', 'xml', 'html'];
+const PREVIEW_DOC_EXT = ['pdf', 'txt', 'md', 'json', 'csv', 'log', 'xml'];
+const PREVIEW_MIME = {
+	pdf: 'application/pdf', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg',
+	gif: 'image/gif', webp: 'image/webp', svg: 'image/svg+xml', bmp: 'image/bmp',
+	json: 'application/json', csv: 'text/csv', xml: 'application/xml',
+};
 
 function fileKind(location) {
 	const ext = (location.split('.').pop() || '').toLowerCase();
@@ -929,23 +937,62 @@ function fileKind(location) {
 	return null;
 }
 
+function previewMimeType(location) {
+	return PREVIEW_MIME[(location.split('.').pop() || '').toLowerCase()] || 'text/plain';
+}
+
 const previewOverlay = document.getElementById('file-preview-overlay');
 const previewBody = document.getElementById('file-preview-body');
+let previewObjectUrl = null;
+let previewToken = 0;
 
-function openPreview(name, url, kind) {
+// The files route serves everything with Content-Disposition: attachment, so
+// pointing an iframe straight at it downloads the file instead of showing it.
+// Fetching the bytes and handing the viewer a blob: URL is what makes it
+// render in place - the same approach the contestant portal takes.
+function openPreview(name, url, kind, location) {
+	const token = ++previewToken;
 	document.getElementById('file-preview-name').textContent = name;
 	document.getElementById('file-preview-open').href = url;
-	previewBody.innerHTML = kind === 'image'
-		? '<img src="' + escHtml(url) + '" alt="' + escHtml(name) + '">'
-		: '<iframe src="' + escHtml(url) + '" title="' + escHtml(name) + '"></iframe>';
+	previewBody.innerHTML = '<div class="file-preview-note"><i class="fas fa-spinner fa-spin mr-2"></i> Loading…</div>';
 	previewOverlay.style.display = 'flex';
+
+	fetch(url, { credentials: 'same-origin' })
+		.then(function (r) {
+			if (!r.ok) throw new Error('Could not load file');
+			return r.arrayBuffer();
+		})
+		.then(function (buf) {
+			if (token !== previewToken) return;
+			// Re-type from the extension: the store may hand back
+			// application/octet-stream, which the viewer refuses to render.
+			const blob = new Blob([buf], { type: previewMimeType(location) });
+			releasePreviewUrl();
+			previewObjectUrl = URL.createObjectURL(blob);
+			previewBody.innerHTML = kind === 'image'
+				? '<img src="' + escHtml(previewObjectUrl) + '" alt="' + escHtml(name) + '">'
+				: '<iframe src="' + escHtml(previewObjectUrl) + '" title="' + escHtml(name) + '"></iframe>';
+		})
+		.catch(function () {
+			if (token !== previewToken) return;
+			previewBody.innerHTML = '<div class="file-preview-note">Could not load this file.</div>';
+		});
+}
+
+function releasePreviewUrl() {
+	if (previewObjectUrl) {
+		URL.revokeObjectURL(previewObjectUrl);
+		previewObjectUrl = null;
+	}
 }
 
 function closePreview() {
+	previewToken++;
 	previewOverlay.style.display = 'none';
-	// Drop the iframe/img so a PDF viewer or video stops rather than
-	// keeping the file loaded behind a hidden overlay.
+	// Drop the iframe/img so a PDF viewer stops rather than keeping the
+	// file loaded behind a hidden overlay, and release the blob.
 	previewBody.innerHTML = '';
+	releasePreviewUrl();
 }
 
 document.getElementById('file-preview-close').addEventListener('click', closePreview);
@@ -969,7 +1016,8 @@ function reloadSubResources() {
 				const previewBtn = fileKind(f.location)
 					? '<i role="button" class="btn-fa fas fa-eye preview-file" title="Preview file"' +
 					  ' data-url="' + escHtml(url) + '" data-name="' + escHtml(f.location.split('/').pop()) +
-					  '" data-kind="' + fileKind(f.location) + '"></i>'
+					  '" data-kind="' + fileKind(f.location) + '"' +
+					  ' data-location="' + escHtml(f.location) + '"></i>'
 					: '';
 				return '<tr>' +
 					'<td class="text-center"><a href="' + escHtml(url) + '">' +
@@ -981,7 +1029,7 @@ function reloadSubResources() {
 			: emptyRow(2, 'No files');
 		filesBody.querySelectorAll('.preview-file').forEach(function (el) {
 			el.addEventListener('click', function () {
-				openPreview(el.dataset.name, el.dataset.url, el.dataset.kind);
+				openPreview(el.dataset.name, el.dataset.url, el.dataset.kind, el.dataset.location);
 			});
 		});
 		filesBody.querySelectorAll('.delete-file').forEach(function (el) {

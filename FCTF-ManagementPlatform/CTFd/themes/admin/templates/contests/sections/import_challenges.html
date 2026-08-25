@@ -27,6 +27,82 @@
     border-top: 1px solid var(--border-light);
     border-radius: 0 0 6px 6px;
 }
+
+/* Challenge overview popup */
+.ic-preview-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.55);
+    z-index: 1060;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+}
+.ic-preview-box {
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.25);
+    width: 100%;
+    max-width: 760px;
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+.ic-preview-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--border-light);
+    background: var(--bg-light);
+}
+.ic-preview-title { font-size: 1.15rem; font-weight: 600; color: var(--text-dark); }
+.ic-preview-sub { font-size: 0.82rem; color: var(--text-light); margin-top: 0.2rem; }
+.ic-preview-close { color: var(--text-light); cursor: pointer; font-size: 1.15rem; }
+.ic-preview-close:hover { color: var(--primary-orange); }
+.ic-preview-body { padding: 1.25rem; overflow-y: auto; flex: 1; }
+.ic-preview-foot {
+    display: flex;
+    justify-content: flex-end;
+    padding: 0.75rem 1.25rem;
+    border-top: 1px solid var(--border-light);
+    background: var(--bg-light);
+}
+.ic-pv-section { margin-bottom: 1.25rem; }
+.ic-pv-section:last-child { margin-bottom: 0; }
+.ic-pv-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-light);
+    margin-bottom: 0.4rem;
+}
+.ic-pv-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.75rem; }
+.ic-pv-stat {
+    background: var(--bg-light);
+    border: 1px solid var(--border-light);
+    border-radius: 6px;
+    padding: 0.6rem 0.75rem;
+}
+.ic-pv-stat-label { font-size: 0.68rem; text-transform: uppercase; color: var(--text-light); letter-spacing: 0.4px; }
+.ic-pv-stat-value { font-size: 1rem; font-weight: 600; color: var(--text-dark); margin-top: 0.15rem; }
+.ic-pv-desc {
+    background: var(--bg-light);
+    border: 1px solid var(--border-light);
+    border-radius: 6px;
+    padding: 0.75rem;
+    font-size: 0.87rem;
+    color: var(--text-medium);
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 220px;
+    overflow-y: auto;
+}
+.ic-pv-list { margin: 0; padding-left: 1.1rem; font-size: 0.87rem; color: var(--text-medium); }
+.ic-pv-empty { font-size: 0.85rem; color: var(--text-light); }
 </style>
 {% endblock %}
 
@@ -125,15 +201,16 @@
                     <th class="text-center">#</th>
                     <th class="text-center">Name</th>
                     <th class="text-center">Category</th>
-                    <th class="text-center">Type</th>
                     <th class="text-center">Difficulty</th>
-                    <th class="text-center">Docker</th>
+                    <th class="text-center">Value</th>
+                    <th class="text-center">Creator</th>
                     <th class="text-center">Status</th>
+                    <th class="text-center">Action</th>
                 </tr>
             </thead>
             <tbody id="ic-tbody">
                 <tr>
-                    <td colspan="8" class="text-center text-muted py-4">
+                    <td colspan="9" class="text-center text-muted py-4">
                         <i class="bx bx-loader-alt bx-spin mr-1"></i> Loading…
                     </td>
                 </tr>
@@ -149,6 +226,31 @@
         </div>
     </div>
 
+</div>
+
+<!-- Challenge overview popup. This is a summary of the bank challenge -
+     what it is, how it scores, what it ships with - so an organiser can
+     decide whether to import it. It is not a file viewer; opening the
+     actual attachment happens on the challenge's own detail page. -->
+<div id="ic-preview-overlay" class="ic-preview-overlay" style="display:none;">
+    <div class="ic-preview-box">
+        <div class="ic-preview-head">
+            <div>
+                <div class="ic-preview-title" id="ic-preview-title"></div>
+                <div class="ic-preview-sub" id="ic-preview-sub"></div>
+            </div>
+            <a class="ic-preview-close" id="ic-preview-close" role="button" title="Close">
+                <i class="fas fa-times"></i>
+            </a>
+        </div>
+        <div class="ic-preview-body" id="ic-preview-body"></div>
+        <div class="ic-preview-foot">
+            <button type="button" class="clean-btn" id="ic-preview-dismiss">Close</button>
+            <button type="button" class="clean-btn clean-btn-primary ml-2" id="ic-preview-select">
+                <i class="fas fa-check mr-1"></i>Select for import
+            </button>
+        </div>
+    </div>
 </div>
 {% endblock %}
 
@@ -237,7 +339,7 @@
         var offset = (state.page - 1) * 50;
 
         if (!state.challenges.length) {
-            tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4"><i class="bx bx-info-circle mr-1"></i> No challenges found</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-4"><i class="bx bx-info-circle mr-1"></i> No challenges found</td></tr>';
         } else {
             tbody.innerHTML = state.challenges.map(function(c, i) {
                 var imp = state.imported.has(c.id);
@@ -249,23 +351,30 @@
                     ? '<input type="checkbox" class="table-check" checked disabled>'
                     : '<input type="checkbox" class="table-check" ' + (sel ? 'checked' : '') + ' onclick="event.stopPropagation();window._icToggle(' + c.id + ')">';
 
-                var dockerCell = c.require_deploy
-                    ? '<span class="clean-badge" style="background:#fff3cd;color:#856404;border:1px solid #ffe08a;">Docker</span>'
-                    : '<span class="text-muted">&mdash;</span>';
-
                 var statusCell = imp
                     ? '<span class="clean-badge clean-badge-success"><i class="fas fa-check mr-1" style="font-size:0.65rem;"></i>Already in contest</span>'
-                    : '<span class="text-muted">&mdash;</span>';
+                    : (c.require_deploy
+                        ? '<span class="clean-badge" style="background:#fff3cd;color:#856404;border:1px solid #ffe08a;">Docker</span>'
+                        : '<span class="text-muted">&mdash;</span>');
+
+                var valueCell = (c.value === null || c.value === undefined)
+                    ? '<span class="text-muted">&mdash;</span>'
+                    : escHtml(c.value);
 
                 return '<tr class="' + rowCls + '"' + onRow + '>' +
                     '<td data-checkbox style="text-align:center;">' + chkHtml + '</td>' +
                     '<td class="text-center" style="color:var(--text-light);">' + (offset + i + 1) + '</td>' +
                     '<td class="text-center"><strong>' + escHtml(c.name) + '</strong></td>' +
                     '<td class="text-center"><span class="clean-badge clean-badge-secondary">' + escHtml(c.category) + '</span></td>' +
-                    '<td class="text-center">' + typeTag(c.type) + '</td>' +
                     '<td class="text-center">' + stars(c.difficulty) + '</td>' +
-                    '<td class="text-center">' + dockerCell + '</td>' +
+                    '<td class="text-center">' + valueCell + '</td>' +
+                    '<td class="text-center">' + escHtml(c.creator_name || 'Unknown') + '</td>' +
                     '<td class="text-center">' + statusCell + '</td>' +
+                    '<td class="text-center">' +
+                        '<button type="button" class="clean-btn clean-action-btn-sm"' +
+                        ' onclick="event.stopPropagation();window._icPreview(' + c.id + ')">' +
+                        '<i class="fas fa-eye mr-1"></i>Preview</button>' +
+                    '</td>' +
                     '</tr>';
             }).join('');
         }
@@ -329,6 +438,133 @@
         if (p < 1 || p > state.pages) return;
         load(p);
     };
+
+    /* ── challenge overview popup ────────────────────────────────── */
+    var previewOverlay = document.getElementById('ic-preview-overlay');
+    var previewBody    = document.getElementById('ic-preview-body');
+    var previewingId   = null;
+
+    function stat(label, value) {
+        return '<div class="ic-pv-stat">' +
+            '<div class="ic-pv-stat-label">' + label + '</div>' +
+            '<div class="ic-pv-stat-value">' + value + '</div></div>';
+    }
+
+    function section(label, inner) {
+        return '<div class="ic-pv-section"><div class="ic-pv-label">' + label + '</div>' + inner + '</div>';
+    }
+
+    function listOr(items, emptyText) {
+        if (!items || !items.length) return '<div class="ic-pv-empty">' + emptyText + '</div>';
+        return '<ul class="ic-pv-list">' + items.map(function(t) {
+            return '<li>' + t + '</li>';
+        }).join('') + '</ul>';
+    }
+
+    function renderPreview(d) {
+        var num = function(v) { return (v === null || v === undefined) ? '&mdash;' : escHtml(v); };
+
+        var html = '';
+
+        html += section('Scoring', '<div class="ic-pv-grid">' +
+            stat('Value', num(d.value)) +
+            stat('Max attempts', d.max_attempts ? escHtml(d.max_attempts) : 'Unlimited') +
+            stat('Cooldown', d.cooldown ? escHtml(d.cooldown) + 's' : 'None') +
+            stat('Time limit', d.time_limit ? escHtml(d.time_limit) + 'm' : 'None') +
+            '</div>');
+
+        html += section('Description', d.description
+            ? '<div class="ic-pv-desc">' + escHtml(d.description) + '</div>'
+            : '<div class="ic-pv-empty">No description</div>');
+
+        html += section('Deployment', d.require_deploy
+            ? '<div class="ic-pv-grid">' +
+                stat('Mode', d.shared_instant ? 'Shared instance' : 'Per team') +
+                stat('Protocol', escHtml((d.connection_protocol || 'http').toUpperCase())) +
+                stat('CPU', num(d.cpu_request) + ' / ' + num(d.cpu_limit) + ' mCPU') +
+                stat('Memory', num(d.memory_request) + ' / ' + num(d.memory_limit) + ' Mi') +
+                stat('Build status', escHtml(d.deploy_status || 'CREATED')) +
+                stat('Max deploys', d.max_deploy_count ? escHtml(d.max_deploy_count) : 'Unlimited') +
+              '</div>'
+            : '<div class="ic-pv-empty">Static challenge — no container is deployed.</div>');
+
+        html += section('Ships with', '<div class="ic-pv-grid">' +
+            stat('Files', (d.files || []).length) +
+            stat('Flags', (d.flags || []).length) +
+            stat('Hints', (d.hints || []).length) +
+            stat('Tags', (d.tags || []).length) +
+            '</div>');
+
+        html += section('Files', listOr((d.files || []).map(function(f) {
+            return escHtml(f.location.split('/').pop());
+        }), 'No attachments'));
+
+        html += section('Hints', listOr((d.hints || []).map(function(h) {
+            return escHtml(h.content) + ' <span class="text-muted">(cost ' + escHtml(h.cost || 0) + ')</span>';
+        }), 'No hints'));
+
+        var labels = (d.tags || []).map(function(t) { return escHtml(t.value); })
+            .concat((d.topics || []).map(function(t) { return escHtml(t.value); }));
+        html += section('Tags & topics', labels.length
+            ? labels.map(function(v) {
+                return '<span class="clean-badge clean-badge-secondary mr-1">' + v + '</span>';
+              }).join('')
+            : '<div class="ic-pv-empty">None</div>');
+
+        previewBody.innerHTML = html;
+    }
+
+    window._icPreview = function(id) {
+        var c = state.challenges.find(function(x) { return x.id === id; });
+        if (!c) return;
+        previewingId = id;
+
+        document.getElementById('ic-preview-title').textContent = c.name;
+        document.getElementById('ic-preview-sub').innerHTML =
+            escHtml(c.category || '—') + ' · ' + escHtml(c.type || 'standard') +
+            ' · by ' + escHtml(c.creator_name || 'Unknown');
+        document.getElementById('ic-preview-select').style.display =
+            state.imported.has(id) ? 'none' : 'inline-block';
+        previewBody.innerHTML = '<div class="text-center text-muted py-4"><i class="bx bx-loader-alt bx-spin mr-1"></i> Loading…</div>';
+        previewOverlay.style.display = 'flex';
+
+        fetch('/api/v1/challenge_bank/' + id, { credentials: 'same-origin', headers: { 'CSRF-Token': CSRF } })
+            .then(function(r) { return r.json(); })
+            .then(function(res) {
+                if (previewingId !== id) return;
+                if (!res.success) {
+                    previewBody.innerHTML = '<div class="ic-pv-empty">Could not load this challenge.</div>';
+                    return;
+                }
+                renderPreview(res.data);
+            })
+            .catch(function() {
+                if (previewingId !== id) return;
+                previewBody.innerHTML = '<div class="ic-pv-empty">Could not load this challenge.</div>';
+            });
+    };
+
+    function closePreview() {
+        previewingId = null;
+        previewOverlay.style.display = 'none';
+        previewBody.innerHTML = '';
+    }
+
+    document.getElementById('ic-preview-close').addEventListener('click', closePreview);
+    document.getElementById('ic-preview-dismiss').addEventListener('click', closePreview);
+    previewOverlay.addEventListener('click', function(e) {
+        if (e.target === previewOverlay) closePreview();
+    });
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && previewOverlay.style.display === 'flex') closePreview();
+    });
+    document.getElementById('ic-preview-select').addEventListener('click', function() {
+        if (previewingId !== null && !state.imported.has(previewingId)) {
+            state.selected.add(previewingId);
+            render();
+        }
+        closePreview();
+    });
 
     /* ── select-all ──────────────────────────────────────────────── */
     document.getElementById('ic-chk-all').addEventListener('change', function() {

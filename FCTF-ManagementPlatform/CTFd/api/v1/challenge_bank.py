@@ -144,9 +144,28 @@ class ChallengeBankList(Resource):
             page=page, per_page=per_page, error_out=False
         )
 
+        # Resolve author names for the whole page in one query — the import
+        # picker shows a Creator column, and a lookup per row would turn one
+        # page into fifty queries.
+        creator_ids = {b.created_by for b in paginated.items if b.created_by}
+        creator_names = {}
+        if creator_ids:
+            creator_names = {
+                uid: name
+                for uid, name in db.session.query(Users.id, Users.name)
+                .filter(Users.id.in_(creator_ids))
+                .all()
+            }
+
+        data = []
+        for b in paginated.items:
+            item = _bank_to_dict(b)
+            item["creator_name"] = creator_names.get(b.created_by, "Unknown")
+            data.append(item)
+
         return {
             "success": True,
-            "data": [_bank_to_dict(b) for b in paginated.items],
+            "data": data,
             "meta": {
                 "page": paginated.page,
                 "pages": paginated.pages,

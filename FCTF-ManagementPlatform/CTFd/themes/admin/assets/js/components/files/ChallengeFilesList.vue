@@ -80,12 +80,12 @@
           <span>
             <a
               class="file-preview-action"
-              :href="preview.url"
+              :href="preview.href"
               target="_blank"
               rel="noopener"
-              title="Open in new tab"
+              title="Download"
             >
-              <i class="fas fa-external-link-alt"></i>
+              <i class="fas fa-download"></i>
             </a>
             <a class="file-preview-action" role="button" title="Close" @click="closePreview()">
               <i class="fas fa-times"></i>
@@ -93,7 +93,17 @@
           </span>
         </div>
         <div class="file-preview-body">
-          <img v-if="preview.kind === 'image'" :src="preview.url" :alt="preview.name" />
+          <div v-if="preview.loading" class="file-preview-note">
+            <i class="fas fa-spinner fa-spin mr-2"></i> Loading…
+          </div>
+          <div v-else-if="preview.error" class="file-preview-note">
+            Could not load this file.
+          </div>
+          <img
+            v-else-if="preview.kind === 'image'"
+            :src="preview.url"
+            :alt="preview.name"
+          />
           <iframe v-else :src="preview.url" :title="preview.name"></iframe>
         </div>
       </div>
@@ -123,27 +133,79 @@ export default {
   methods: {
     // Only what the browser can render on its own. An archive or binary has
     // nothing to show, so it keeps the download link and no preview icon.
+    // HTML is deliberately absent: it is rendered from a blob: URL, which
+    // inherits this page's origin, so an uploaded page could run script
+    // against the admin session. It stays a download, as it is today.
     fileKind: function (location) {
       const ext = (location.split(".").pop() || "").toLowerCase();
       if (["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp"].includes(ext)) {
         return "image";
       }
-      if (["pdf", "txt", "md", "json", "csv", "log", "xml", "html"].includes(ext)) {
+      if (["pdf", "txt", "md", "json", "csv", "log", "xml"].includes(ext)) {
         return "document";
       }
       return null;
+    },
+    // The files route serves everything with Content-Disposition: attachment,
+    // so pointing an iframe at it downloads the file instead of showing it.
+    // Fetching the bytes and handing the viewer a blob: URL is what makes it
+    // render in place - the same approach the contestant portal takes.
+    previewMimeType: function (location) {
+      const ext = (location.split(".").pop() || "").toLowerCase();
+      const types = {
+        pdf: "application/pdf",
+        png: "image/png",
+        jpg: "image/jpeg",
+        jpeg: "image/jpeg",
+        gif: "image/gif",
+        webp: "image/webp",
+        svg: "image/svg+xml",
+        bmp: "image/bmp",
+        json: "application/json",
+        csv: "text/csv",
+        xml: "application/xml",
+      };
+      return types[ext] || "text/plain";
     },
     isPreviewable: function (location) {
       return this.fileKind(location) !== null;
     },
     previewFile: function (file) {
-      this.preview = {
-        name: file.location.split("/").pop(),
-        url: `${this.urlRoot}/files/${file.location}`,
-        kind: this.fileKind(file.location),
-      };
+      const name = file.location.split("/").pop();
+      const kind = this.fileKind(file.location);
+      const href = `${this.urlRoot}/files/${file.location}`;
+
+      this.preview = { name: name, url: "", href: href, kind: kind, loading: true };
+
+      fetch(href, { credentials: "same-origin" })
+        .then((response) => {
+          if (!response.ok) throw new Error("Could not load file");
+          return response.arrayBuffer();
+        })
+        .then((buffer) => {
+          // Re-type the blob from the extension: the store may hand back
+          // application/octet-stream, which the viewer refuses to render.
+          const blob = new Blob([buffer], {
+            type: this.previewMimeType(file.location),
+          });
+          if (!this.preview || this.preview.name !== name) return;
+          this.preview = Object.assign({}, this.preview, {
+            url: URL.createObjectURL(blob),
+            loading: false,
+          });
+        })
+        .catch(() => {
+          if (!this.preview || this.preview.name !== name) return;
+          this.preview = Object.assign({}, this.preview, {
+            loading: false,
+            error: true,
+          });
+        });
     },
     closePreview: function () {
+      if (this.preview && this.preview.url) {
+        URL.revokeObjectURL(this.preview.url);
+      }
       this.preview = null;
     },
     loadFiles: function () {
@@ -371,6 +433,11 @@ export default {
   max-width: 100%;
   max-height: 100%;
   object-fit: contain;
+}
+
+.file-preview-note {
+  color: #6c757d;
+  font-size: 0.95rem;
 }
 
 .form-control-file {
