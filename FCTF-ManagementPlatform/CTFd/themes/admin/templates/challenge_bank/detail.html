@@ -302,6 +302,15 @@
 
 {% block scripts %}
 <script>
+// main.js (defining window.CTFd) loads as a deferred module script, which
+// always executes after the document finishes parsing - strictly after any
+// plain synchronous <script> like this one. Calling CTFd.fetch() at the top
+// level here throws "CTFd is not defined" before it ever runs, which aborts
+// the rest of this script silently: no sub-resource list loads, no form
+// below gets its submit handler wired up, and the deploy poll never starts.
+// Waiting for DOMContentLoaded (same as modals/challenges/deploy.html on
+// the contest side) guarantees CTFd exists first.
+document.addEventListener('DOMContentLoaded', function () {
 const BANK_ID = {{ bank.id }};
 const API_BASE = '/api/v1/challenge_bank/' + BANK_ID;
 
@@ -637,5 +646,7 @@ document.getElementById('bank-file-upload-form').addEventListener('submit', func
 		headers: { 'CSRF-Token': CTFd.config.csrfNonce },
 	}).then(function () { e.target.reset(); reloadSubResources(); });
 });
+
+}); // DOMContentLoaded
 </script>
 {% endblock %}
