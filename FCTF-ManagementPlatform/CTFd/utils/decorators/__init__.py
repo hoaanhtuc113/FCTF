@@ -233,7 +233,7 @@ def admin_or_jury(f):
     @functools.wraps(f)
     def admin_or_jury_only_wrapper(*args, **kwargs):
 
-        if is_jury() or is_admin():
+        if is_jury() or is_admin() or is_conductor():
             return f(*args, **kwargs)
         else:
             if request.content_type == "application/json":

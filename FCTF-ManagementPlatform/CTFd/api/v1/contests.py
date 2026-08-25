@@ -455,7 +455,6 @@ class ContestDetail(Resource):
             ChallengeVersion,
             Challenges,
             DeployedChallenge,
-            DynamicChallenge,
             DynamicFlagInstance,
             Flags,
             Hints,
@@ -474,6 +473,7 @@ class ContestDetail(Resource):
             Unlocks,
             UserComments,
         )
+        from CTFd.plugins.dynamic_challenges import DynamicChallenge
 
         contest = Contests.query.filter_by(id=contest_id).first_or_404()
         _require_owner_or_admin(contest)
