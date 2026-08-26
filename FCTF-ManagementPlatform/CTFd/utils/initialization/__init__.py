@@ -35,6 +35,7 @@ from CTFd.utils.security.auth import login_user, logout_user, lookup_user_token
 from CTFd.utils.security.csrf import generate_nonce
 from CTFd.utils.user import (
     authed,
+    can_write_challenges_for_contest,
     get_current_team_attrs,
     get_current_user_attrs,
     get_current_user_recent_ips,
@@ -114,6 +115,9 @@ def init_template_globals(app):
     app.jinja_env.globals.update(is_conductor=is_conductor)
     app.jinja_env.globals.update(is_jury=is_jury)
     app.jinja_env.globals.update(get_user_role_in_contest=get_user_role_in_contest)
+    app.jinja_env.globals.update(
+        can_write_challenges_for_contest=can_write_challenges_for_contest
+    )
     app.jinja_env.globals.update(get_current_user_attrs=get_current_user_attrs)
     app.jinja_env.globals.update(get_current_team_attrs=get_current_team_attrs)
     app.jinja_env.globals.update(get_ip=get_ip)

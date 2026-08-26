@@ -1040,8 +1040,15 @@ def contest_challenges(contest_id):
 @admins_only
 def contest_import_challenges(contest_id):
     from CTFd.models import ChallengeBank
+    from CTFd.utils.user import can_write_challenges_for_contest
 
     contest = Contests.query.filter_by(id=contest_id).first_or_404()
+
+    # The decorator lets jury through as well, because it guards every contest
+    # page at once. Importing writes challenges into the contest, so it is held
+    # to the same permission as creating one: admin, conductor, challenge_writer.
+    if not can_write_challenges_for_contest(contest_id):
+        abort(403)
 
     categories = [
         r[0]
@@ -1075,7 +1082,15 @@ def contest_import_challenges(contest_id):
 @admins_only
 def contest_challenges_new(contest_id):
     from itsdangerous import URLSafeTimedSerializer
+    from CTFd.utils.user import can_write_challenges_for_contest
+
     contest = Contests.query.filter_by(id=contest_id).first_or_404()
+
+    # Same check as the import page — the create-challenge token minted below
+    # must not be handed to a role that may not write challenges here.
+    if not can_write_challenges_for_contest(contest_id):
+        abort(403)
+
     s = URLSafeTimedSerializer(current_app.secret_key)
     contest_token = s.dumps({"contest_id": contest_id}, salt="create-challenge")
     types = CHALLENGE_CLASSES.keys()
