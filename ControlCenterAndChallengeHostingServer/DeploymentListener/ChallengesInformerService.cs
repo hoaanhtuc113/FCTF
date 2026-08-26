@@ -362,10 +362,17 @@ public class ChallengesInformerService
             using var scope = _scopeFactory.CreateScope();
             var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-            // tracking "StoppedAt == null" but pod not exits in k8s → orphaned
+            // tracking "StoppedAt == null" but pod not exits in k8s → orphaned.
+            // Chỉ xét tracking của deployment K8s: Label của chúng là tên namespace
+            // (K8sService.HandleChallengeRunning ghi). Phiên KYPO dùng Label = "kypo"
+            // làm marker, không bao giờ trùng namespace → sẽ bị coi là orphaned ở mọi
+            // lần resync (~5 phút), đóng phiên trước hạn và khiến KypoTimeoutWatcher
+            // bỏ qua việc chốt điểm.
             var orphaned = await dbContext.ChallengeStartTrackings
                 .Where(ct => ct.StoppedAt == null
                           && ct.Label != null
+                          && ct.Label != "kypo"
+                          && ct.Label != "submitted"
                           && !activeNamespaces.Contains(ct.Label))
                 .ToListAsync();
 
