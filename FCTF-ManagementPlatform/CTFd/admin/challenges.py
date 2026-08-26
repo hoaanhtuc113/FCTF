@@ -17,7 +17,7 @@ from flask import (
 from werkzeug.utils import secure_filename
 
 from CTFd.admin import admin
-from CTFd.models import Challenges, ChallengeStartTracking, DeployedChallenge, ChallengeVersion, Flags, Solves, Users, Tags, db
+from CTFd.models import Challenges, ChallengeFiles, ChallengeStartTracking, DeployedChallenge, ChallengeVersion, Flags, Solves, Users, Tags, db
 from CTFd.plugins.challenges import CHALLENGE_CLASSES, get_chal_class, BaseChallenge
 from CTFd.schemas.tags import TagSchema
 from CTFd.utils.decorators import (
@@ -36,7 +36,7 @@ from CTFd.utils.user import (
     is_admin,
     is_jury,
 )
-from CTFd.utils.uploads import upload_file
+from CTFd.utils.uploads import get_uploader, upload_file
 from CTFd.constants.envvars import DEPLOYMENT_SERVICE_API, PRIVATE_KEY
 from CTFd.utils.connector.multiservice_connector import create_secret_key
 from CTFd.plugins import bypass_csrf_protection
@@ -260,6 +260,33 @@ def challenges_detail(challenge_id):
         versions=versions,
         files_only_tabs=(challenge.type == "sandbox"),
     )
+
+
+@admin.route("/admin/challenges/<int:challenge_id>/files/<int:file_id>")
+@admin_or_challenge_writer_only_or_jury
+def challenges_file(challenge_id, file_id):
+    """Serve one challenge attachment to the admin panel.
+
+    /files/<path> is the contestant-facing route. It gates anything whose Files
+    row is of type "challenge" on challenge visibility, CTF time and a signed
+    download token, so a challenge's own brief comes back as 403 for the person
+    editing it outside those hours. Bank attachments are of type
+    "challenge_bank", which that route does not gate at all - which is why the
+    same preview works on the bank page and fails here.
+
+    The gate is right for contestants and wrong for this page, so the admin
+    panel reads attachments through here instead, under the permission that
+    already decides who may open the challenge.
+    """
+    challenge = Challenges.query.filter_by(id=challenge_id).first_or_404()
+    f = ChallengeFiles.query.filter_by(
+        id=file_id, challenge_id=challenge.id
+    ).first_or_404()
+
+    try:
+        return get_uploader().download(f.location)
+    except IOError:
+        abort(404)
 
 
 @admin.route("/admin/challenges/preview/<int:challenge_id>")

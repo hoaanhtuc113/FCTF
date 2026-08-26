@@ -10,7 +10,7 @@
       <tbody>
         <tr v-for="file in files" :key="file.id">
           <td class="text-center">
-            <a :href="`${urlRoot}/files/${file.location}`">{{
+            <a :href="fileUrl(file)">{{
               file.location.split("/").pop()
             }}</a>
           </td>
@@ -146,10 +146,17 @@ export default {
       }
       return null;
     },
-    // The files route serves everything with Content-Disposition: attachment,
-    // so pointing an iframe at it downloads the file instead of showing it.
-    // Fetching the bytes and handing the viewer a blob: URL is what makes it
-    // render in place - the same approach the contestant portal takes.
+    // Attachments are read through the admin route rather than /files/, which
+    // is the contestant one: that route gates anything of type "challenge" on
+    // challenge visibility, CTF time and a signed token, so a challenge's own
+    // brief comes back 403 for the person editing it outside those hours.
+    fileUrl: function (file) {
+      return `${this.urlRoot}/admin/challenges/${this.$props.challenge_id}/files/${file.id}`;
+    },
+    // Both routes serve with Content-Disposition: attachment, so pointing an
+    // iframe at one downloads the file instead of showing it. Fetching the
+    // bytes and handing the viewer a blob: URL is what makes it render in
+    // place - the same approach the contestant portal takes.
     previewMimeType: function (location) {
       const ext = (location.split(".").pop() || "").toLowerCase();
       const types = {
@@ -173,7 +180,7 @@ export default {
     previewFile: function (file) {
       const name = file.location.split("/").pop();
       const kind = this.fileKind(file.location);
-      const href = `${this.urlRoot}/files/${file.location}`;
+      const href = this.fileUrl(file);
 
       this.preview = { name: name, url: "", href: href, kind: kind, loading: true };
 
