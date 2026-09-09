@@ -29,8 +29,8 @@ on:
   workflow_dispatch: # allow manual trigger
 
 env:
-  REGISTRY: registry.fctf.nvtai24.site
-  IMAGE_BASE: registry.fctf.nvtai24.site/fctf
+  REGISTRY: registry.fctf-iahn-phuong-v6.name.vn
+  IMAGE_BASE: registry.fctf-iahn-phuong-v6.name.vn/fctf
 
 # ---------------------------------------------------------------------------
 # 1. Detect which services changed
