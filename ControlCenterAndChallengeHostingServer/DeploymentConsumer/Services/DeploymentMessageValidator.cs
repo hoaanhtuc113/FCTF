@@ -145,6 +145,14 @@ internal static class DeploymentMessageValidator
             return false;
         }
 
+        if (!Guid.TryParse(parsed.instanceId, out _)
+            || !Guid.TryParse(parsed.provisionRequestId, out _)
+            || string.IsNullOrWhiteSpace(parsed.instanceNamespace))
+        {
+            error = "missing or invalid native instance identity";
+            return false;
+        }
+
         if (parsed.challengeName.Length > MaxStringLength
             || (parsed.ns?.Length ?? 0) > MaxStringLength
             || (parsed.unixTime?.Length ?? 0) > MaxStringLength)

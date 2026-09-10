@@ -15,6 +15,12 @@ namespace ResourceShared.DTOs.Challenge
         public string? unixTime { get; set; }
         public string? ns { get; set; }
         public int? contestId { get; set; }
+        // Assigned by DeploymentCenter after the start request is accepted.
+        // These are propagated through Redis, RabbitMQ and Argo; callers do
+        // not get to choose them from the browser request.
+        public string? instanceId { get; set; }
+        public string? provisionRequestId { get; set; }
+        public string? instanceNamespace { get; set; }
 
         // There is deliberately no flag field here. The dynamic flag for a
         // (challenge, team) already lives in dynamic_flag_instances by the time

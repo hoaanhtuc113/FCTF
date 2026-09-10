@@ -482,7 +482,7 @@
 		return td;
 	}
 
-	function createActionCell(challengeId, teamId, nsRaw) {
+	function createActionCell(challengeId, teamId, nsRaw, instanceId) {
 		const td = document.createElement("td");
 		td.className = "text-center";
 
@@ -510,15 +510,18 @@
 			closeAllActionMenus();
 		});
 
-		const requestLogs = document.createElement("a");
-		requestLogs.className = "action-menu-item";
-		requestLogs.href = "#";
-		requestLogs.innerHTML = '<i class="fas fa-exchange-alt fa-fw mr-1"></i> Request Logs';
-		requestLogs.addEventListener("click", function (event) {
-			event.preventDefault();
-			viewRequestLogs(challengeId, teamId, nsRaw || "");
-			closeAllActionMenus();
-		});
+		let requestLogs = null;
+		if (instanceId) {
+			requestLogs = document.createElement("a");
+			requestLogs.className = "action-menu-item";
+			requestLogs.href = "#";
+			requestLogs.innerHTML = '<i class="fas fa-exchange-alt fa-fw mr-1"></i> Request Logs';
+			requestLogs.addEventListener("click", function (event) {
+				event.preventDefault();
+				viewRequestLogs(challengeId, instanceId);
+				closeAllActionMenus();
+			});
+		}
 
 		const divider = document.createElement("div");
 		divider.className = "action-menu-divider";
@@ -534,7 +537,7 @@
 		});
 
 		menu.appendChild(podLogs);
-		menu.appendChild(requestLogs);
+		if (requestLogs) menu.appendChild(requestLogs);
 		menu.appendChild(divider);
 		menu.appendChild(stop);
 
@@ -589,7 +592,7 @@
 		tr.appendChild(createCell("text-center", finished));
 
 		const nsRaw = String(row.ns || "");
-		tr.appendChild(createActionCell(challengeId, teamId, nsRaw));
+		tr.appendChild(createActionCell(challengeId, teamId, nsRaw, String(row.instance_id || "")));
 
 		return tr;
 	}
@@ -799,14 +802,12 @@
 
 	function handleViewRequestLogs(el) {
 		const challengeId = el.dataset.challengeId;
-		const teamId = el.dataset.teamId;
-		const ns = decodeURIComponent(el.dataset.ns || '');
-		viewRequestLogs(challengeId, teamId, ns);
+		viewRequestLogs(challengeId, el.dataset.instanceId || '');
 	}
 
-	function viewRequestLogs(challengeId, teamId, ns) {
-		const nsParam = ns ? `&ns=${encodeURIComponent(ns)}` : '';
-		window.location.href = `/deploy_History/${challengeId}/request-logs?team_id=${teamId}${nsParam}`;
+	function viewRequestLogs(challengeId, instanceId) {
+		if (!instanceId) return;
+		window.location.href = `/deploy_History/${challengeId}/instances/${encodeURIComponent(instanceId)}/request-logs`;
 	}
 
 	async function copyChallengeToken(button) {

@@ -21,6 +21,8 @@ public partial class AppDbContext : DbContext
     public virtual DbSet<AwardBadge> AwardBadges { get; set; }
     public virtual DbSet<Bracket> Brackets { get; set; }
     public virtual DbSet<Challenge> Challenges { get; set; }
+    public virtual DbSet<ChallengeInstance> ChallengeInstances { get; set; }
+    public virtual DbSet<ChallengeInstancePod> ChallengeInstancePods { get; set; }
     public virtual DbSet<ChallengeStartTracking> ChallengeStartTrackings { get; set; }
     public virtual DbSet<ChallengeTopic> ChallengeTopics { get; set; }
     public virtual DbSet<ChallengeVersion> ChallengeVersions { get; set; }
@@ -259,6 +261,60 @@ public partial class AppDbContext : DbContext
                 .HasForeignKey<SandboxChallenge>(d => d.Id)
                 .OnDelete(DeleteBehavior.Cascade)
                 .HasConstraintName("sandbox_challenge_ibfk_1");
+        });
+
+        modelBuilder.Entity<ChallengeInstance>(entity =>
+        {
+            entity.HasKey(e => e.InstanceId).HasName("PRIMARY");
+            entity.ToTable("challenge_instances");
+            entity.HasIndex(e => e.ProvisionRequestId, "uq_challenge_instances_provision_request_id").IsUnique();
+            entity.HasIndex(e => e.Namespace, "uq_challenge_instances_namespace").IsUnique();
+            entity.HasIndex(e => new { e.ContestId, e.ChallengeId, e.RequestedAt }, "ix_challenge_instances_contest_challenge_requested");
+            entity.HasIndex(e => new { e.LifecycleState, e.ExpiresAt }, "ix_challenge_instances_state_expires");
+
+            entity.Property(e => e.InstanceId).HasMaxLength(36).UseCollation("ascii_bin").HasColumnName("instance_id");
+            entity.Property(e => e.ProvisionRequestId).HasMaxLength(36).UseCollation("ascii_bin").HasColumnName("provision_request_id");
+            entity.Property(e => e.ContestId).HasColumnType("int(11)").HasColumnName("contest_id");
+            entity.Property(e => e.ChallengeId).HasColumnType("int(11)").HasColumnName("challenge_id");
+            entity.Property(e => e.ContestNameSnapshot).HasMaxLength(255).HasColumnName("contest_name_snapshot");
+            entity.Property(e => e.ChallengeNameSnapshot).HasMaxLength(255).HasColumnName("challenge_name_snapshot");
+            entity.Property(e => e.Namespace).HasMaxLength(63).UseCollation("ascii_bin").HasColumnName("namespace");
+            entity.Property(e => e.InstanceScope).HasMaxLength(16).HasColumnName("instance_scope");
+            entity.Property(e => e.InstanceOwnerTeamId).HasColumnType("int(11)").HasColumnName("instance_owner_team_id");
+            entity.Property(e => e.OwnerTeamNameSnapshot).HasMaxLength(255).HasColumnName("owner_team_name_snapshot");
+            entity.Property(e => e.StartedByUserId).HasColumnType("int(11)").HasColumnName("started_by_user_id");
+            entity.Property(e => e.RequestedAt).HasPrecision(6).HasColumnName("requested_at");
+            entity.Property(e => e.RunningAt).HasPrecision(6).HasColumnName("running_at");
+            entity.Property(e => e.StoppedAt).HasPrecision(6).HasColumnName("stopped_at");
+            entity.Property(e => e.ExpiresAt).HasPrecision(6).HasColumnName("expires_at");
+            entity.Property(e => e.LifecycleState).HasMaxLength(24).HasColumnName("lifecycle_state");
+            entity.Property(e => e.TerminalReason).HasMaxLength(64).HasColumnName("terminal_reason");
+            entity.Property(e => e.IdentitySource).HasMaxLength(16).HasColumnName("identity_source");
+            entity.Property(e => e.StateVersion).HasColumnType("bigint").HasDefaultValue(0L).IsConcurrencyToken().HasColumnName("state_version");
+            entity.Property(e => e.StateChangedAt).HasPrecision(6).HasColumnName("state_changed_at");
+            entity.Property(e => e.CreatedAt).HasPrecision(6).HasColumnName("created_at");
+            entity.Property(e => e.UpdatedAt).HasPrecision(6).HasColumnName("updated_at");
+        });
+
+        modelBuilder.Entity<ChallengeInstancePod>(entity =>
+        {
+            entity.HasKey(e => new { e.InstanceId, e.PodUid }).HasName("PRIMARY");
+            entity.ToTable("challenge_instance_pods");
+            entity.HasIndex(e => new { e.InstanceId, e.LastObservedAt }, "ix_challenge_instance_pods_instance_observed");
+            entity.HasIndex(e => e.PodUid, "uq_challenge_instance_pods_pod_uid").IsUnique();
+
+            entity.Property(e => e.InstanceId).HasMaxLength(36).UseCollation("ascii_bin").HasColumnName("instance_id");
+            entity.Property(e => e.PodUid).HasMaxLength(64).UseCollation("ascii_bin").HasColumnName("pod_uid");
+            entity.Property(e => e.PodName).HasMaxLength(63).UseCollation("ascii_bin").HasColumnName("pod_name");
+            entity.Property(e => e.FirstObservedAt).HasPrecision(6).HasColumnName("first_observed_at");
+            entity.Property(e => e.LastObservedAt).HasPrecision(6).HasColumnName("last_observed_at");
+            entity.Property(e => e.TerminatedAt).HasPrecision(6).HasColumnName("terminated_at");
+            entity.Property(e => e.TerminationReason).HasMaxLength(64).HasColumnName("termination_reason");
+
+            entity.HasOne(d => d.Instance).WithMany(p => p.Pods)
+                .HasForeignKey(d => d.InstanceId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("fk_challenge_instance_pods_instance");
         });
 
         modelBuilder.Entity<ChallengeStartTracking>(entity =>

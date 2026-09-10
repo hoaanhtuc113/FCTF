@@ -11,6 +11,9 @@ namespace ResourceShared.DTOs.Challenge
         public int challenge_id { get; set; }
         public int user_id { get; set; }
         public int team_id { get; set; }
+        public int contest_id { get; set; }
+        public string? instance_id { get; set; }
+        public string? provision_request_id { get; set; }
         public string? _namespace { get; set; } = string.Empty;
         public string? pod_id { get; set; } = string.Empty;
         public string? workflow_name { get; set; } = string.Empty;

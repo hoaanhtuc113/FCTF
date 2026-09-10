@@ -6,17 +6,24 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 )
 
 // Payload is the decoded content of a challenge access token.
 type Payload struct {
-	Exp   int64  `json:"exp"`
-	Route string `json:"route"`
+	Exp          int64  `json:"exp"`
+	Route        string `json:"route"`
+	InstanceID   string `json:"instance_id,omitempty"`
+	ContestID    *int   `json:"contest_id,omitempty"`
+	ChallengeID  *int   `json:"challenge_id,omitempty"`
+	ActorUserRef string `json:"actor_user_ref,omitempty"`
+	ActorTeamID  *int   `json:"actor_team_id,omitempty"`
 }
+
+var namespacePattern = regexp.MustCompile(`^[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?$`)
 
 // Verify parses and validates a token string, returning its payload on success.
 func Verify(token string) (Payload, error) {
@@ -25,9 +32,16 @@ func Verify(token string) (Payload, error) {
 		return Payload{}, fmt.Errorf("invalid token format")
 	}
 
-	secret := os.Getenv("PRIVATE_KEY")
+	// Challenge access assertions have their own signing key. PRIVATE_KEY remains
+	// a temporary compatibility fallback for tokens minted before the key split;
+	// deployments must set CHALLENGE_ACCESS_TOKEN_KEY before enabling instance
+	// request logs.
+	secret := os.Getenv("CHALLENGE_ACCESS_TOKEN_KEY")
 	if strings.TrimSpace(secret) == "" {
-		return Payload{}, fmt.Errorf("missing PRIVATE_KEY")
+		secret = os.Getenv("PRIVATE_KEY")
+	}
+	if strings.TrimSpace(secret) == "" {
+		return Payload{}, fmt.Errorf("missing challenge access token signing key")
 	}
 
 	payloadB64 := parts[0]
@@ -42,12 +56,8 @@ func Verify(token string) (Payload, error) {
 	_, _ = mac.Write([]byte(payloadB64))
 	expected := mac.Sum(nil)
 	if !hmac.Equal(sigBytes, expected) {
-		// Never log `expected` (or any prefix of it): it is the correct HMAC of
-		// a caller-supplied payload, so anyone who can read the logs could
-		// submit an arbitrary payload with a junk signature, read the answer
-		// back, and mint a valid token without ever knowing PRIVATE_KEY.
-		// The payload half carries no secret, so it stays for diagnostics.
-		log.Printf("[token.Verify] signature mismatch for payload=%q", payloadB64)
+		// Do not log either half of a failed assertion. A token can be carried in
+		// a query string and access telemetry must never become a token sink.
 		return Payload{}, fmt.Errorf("invalid token signature")
 	}
 
@@ -61,29 +71,25 @@ func Verify(token string) (Payload, error) {
 		return Payload{}, fmt.Errorf("invalid payload json")
 	}
 
-	if payload.Exp <= 0 || payload.Route == "" {
+	if payload.Exp <= 0 || !namespacePattern.MatchString(payload.Route) {
 		return Payload{}, fmt.Errorf("invalid payload content")
 	}
 
 	if time.Now().Unix() > payload.Exp {
-		nowStr := time.Now().Format("2006-01-02 15:04:05")
-		expStr := time.Unix(payload.Exp, 0).Format("2006-01-02 15:04:05")
-		return Payload{}, fmt.Errorf("token expired (Exp: %s, Server: %s)", expStr, nowStr)
+		return Payload{}, fmt.Errorf("token expired")
 	}
 
 	return payload, nil
 }
 
-// ExpandRoute turns a bare pod/service name into a full k8s cluster-local address.
-// Routes that already contain ':', '.', or '/' are returned unchanged.
-func ExpandRoute(route string) string {
-	if route == "" {
-		return route
+// ExpandRoute turns a signed bare namespace into the one fixed Service address
+// the gateway is allowed to reach. Assertions must never select arbitrary hosts,
+// ports, URLs, or cluster-local suffixes.
+func ExpandRoute(route string) (string, error) {
+	if !namespacePattern.MatchString(route) {
+		return "", fmt.Errorf("invalid route")
 	}
-	if strings.ContainsAny(route, ":./") {
-		return route
-	}
-	return fmt.Sprintf("%s-svc.%s.svc.cluster.local:3333", route, route)
+	return fmt.Sprintf("%s-svc.%s.svc.cluster.local:3333", route, route), nil
 }
 
 // LooksLike returns true when value has the shape of a challenge token

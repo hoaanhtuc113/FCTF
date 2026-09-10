@@ -11,7 +11,7 @@ from sqlalchemy import or_
 from sqlalchemy.orm import joinedload
 
 from CTFd.admin import admin
-from CTFd.models import ChallengeStartTracking, ChallengeVersion, Challenges, ContestParticipant, Contests, DeployedChallenge, Flags, Solves, Teams, Users, db
+from CTFd.models import ChallengeInstance, ChallengeStartTracking, ChallengeVersion, Challenges, ContestParticipant, Contests, DeployedChallenge, Flags, Solves, Teams, Users, db
 from CTFd.plugins.challenges import CHALLENGE_CLASSES, get_chal_class
 from CTFd.utils.dates import ctftime
 from CTFd.utils.decorators import admin_or_challenge_writer_only_or_jury as admins_only
@@ -144,40 +144,28 @@ def _ci_parse_quick_range(value):
 
 
 def _ci_base_query(contest_id):
-    return (
-        db.session.query(
-            ChallengeStartTracking,
-            Teams.id.label("team_id"),
-            Teams.name.label("team_name"),
-            Challenges.id.label("challenge_id"),
-            Challenges.name.label("challenge_name"),
-        )
-        .outerjoin(Teams, ChallengeStartTracking.team_id == Teams.id)
-        .join(Challenges, ChallengeStartTracking.challenge_id == Challenges.id)
-        .filter(Challenges.contest_id == contest_id)
-        .order_by(ChallengeStartTracking.started_at.desc())
-    )
+    return ChallengeInstance.query.filter(ChallengeInstance.contest_id == contest_id).order_by(ChallengeInstance.requested_at.desc())
 
 
 def _ci_apply_filters(query, team_filter, challenge_filter, start_date, end_date):
     team_id = _ci_parse_int(team_filter)
     if team_filter:
         if team_id is not None:
-            query = query.filter(Teams.id == team_id)
+            query = query.filter(ChallengeInstance.instance_owner_team_id == team_id)
         else:
-            query = query.filter(Teams.name.ilike(f"%{_ci_escape_like(team_filter)}%", escape="\\"))
+            query = query.filter(ChallengeInstance.owner_team_name_snapshot.ilike(f"%{_ci_escape_like(team_filter)}%", escape="\\"))
 
     challenge_id = _ci_parse_int(challenge_filter)
     if challenge_filter:
         if challenge_id is not None:
-            query = query.filter(Challenges.id == challenge_id)
+            query = query.filter(ChallengeInstance.challenge_id == challenge_id)
         else:
-            query = query.filter(Challenges.name.ilike(f"%{_ci_escape_like(challenge_filter)}%", escape="\\"))
+            query = query.filter(ChallengeInstance.challenge_name_snapshot.ilike(f"%{_ci_escape_like(challenge_filter)}%", escape="\\"))
 
     if start_date:
-        query = query.filter(ChallengeStartTracking.started_at >= start_date)
+        query = query.filter(ChallengeInstance.requested_at >= start_date)
     if end_date:
-        query = query.filter(ChallengeStartTracking.started_at <= end_date)
+        query = query.filter(ChallengeInstance.requested_at <= end_date)
 
     return query
 
@@ -3349,22 +3337,22 @@ def contest_instances_export_csv(contest_id):
     def generate():
         sio = StringIO()
         writer = csv.writer(sio)
-        writer.writerow(["id", "started_at", "stopped_at", "label", "challenge_id", "challenge_name", "team_id", "team_name"])
+        writer.writerow(["instance_id", "requested_at", "stopped_at", "namespace", "lifecycle_state", "challenge_id", "challenge_name", "team_id", "team_name"])
         yield sio.getvalue()
         sio.seek(0)
         sio.truncate(0)
 
-        for row in query.yield_per(1000):
-            tracking = row.ChallengeStartTracking
+        for instance in query.yield_per(1000):
             writer.writerow([
-                tracking.id,
-                tracking.started_at.isoformat() if tracking.started_at else "",
-                tracking.stopped_at.isoformat() if tracking.stopped_at else "",
-                tracking.label or "",
-                row.challenge_id,
-                row.challenge_name or "",
-                row.team_id or "",
-                row.team_name or "",
+                instance.instance_id,
+                instance.requested_at.isoformat() if instance.requested_at else "",
+                instance.stopped_at.isoformat() if instance.stopped_at else "",
+                instance.namespace or "",
+                instance.lifecycle_state,
+                instance.challenge_id,
+                instance.challenge_name_snapshot or "",
+                instance.instance_owner_team_id or "",
+                instance.owner_team_name_snapshot or "",
             ])
             yield sio.getvalue()
             sio.seek(0)

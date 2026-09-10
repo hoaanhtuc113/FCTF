@@ -136,10 +136,10 @@
                 <tr>
                     <th class="text-center"><b>Started At</b></th>
                     <th class="text-center"><b>Stopped At</b></th>
-                    <th class="text-center"><b>Label</b></th>
+                    <th class="text-center"><b>Namespace Snapshot</b></th>
                     <th class="text-center"><b>Challenge</b></th>
                     <th class="text-center"><b>Team</b></th>
-                    <th class="text-center"><b>Tracking ID</b></th>
+                    <th class="text-center"><b>Instance ID</b></th>
                     <th class="text-center"><b>Actions</b></th>
                 </tr>
             </thead>
@@ -147,37 +147,37 @@
                 {% for row in logs.items %}
                 <tr>
                     <td class="mono text-center">
-                        {% if row.ChallengeStartTracking.started_at %}
-                        <span data-time="{{ row.ChallengeStartTracking.started_at | isoformat }}" data-time-format="YYYY-MM-DD HH:mm:ss"></span>
+                        {% if row.requested_at %}
+                        <span data-time="{{ row.requested_at | isoformat }}" data-time-format="YYYY-MM-DD HH:mm:ss"></span>
                         {% else %}-{% endif %}
                     </td>
                     <td class="mono text-center">
-                        {% if row.ChallengeStartTracking.stopped_at %}
-                        <span data-time="{{ row.ChallengeStartTracking.stopped_at | isoformat }}" data-time-format="YYYY-MM-DD HH:mm:ss"></span>
+                        {% if row.stopped_at %}
+                        <span data-time="{{ row.stopped_at | isoformat }}" data-time-format="YYYY-MM-DD HH:mm:ss"></span>
                         {% else %}-{% endif %}
                     </td>
-                    <td class="text-center cell-truncate" title="{{ row.ChallengeStartTracking.label }}">
-                        {{ row.ChallengeStartTracking.label | truncate(24) if row.ChallengeStartTracking.label else '-' }}
+                    <td class="text-center cell-truncate" title="{{ row.namespace }}">
+                        {{ row.namespace | truncate(24) if row.namespace else '-' }}
                     </td>
-                    <td class="text-center cell-truncate" title="{{ row.challenge_name }}">
+                    <td class="text-center cell-truncate" title="{{ row.challenge_name_snapshot }}">
                         {% if row.challenge_id %}
                         <a href="{{ url_for('admin.challenges_detail', challenge_id=row.challenge_id) }}">
-                            {{ row.challenge_name | truncate(28) }}
+                            {{ row.challenge_name_snapshot | truncate(28) }}
                         </a>
                         <div class="text-muted small">#{{ row.challenge_id }}</div>
                         {% else %}-{% endif %}
                     </td>
-                    <td class="text-center cell-truncate" title="{{ row.team_name }}">
-                        {% if row.team_id %}
-                        <a href="{{ url_for('admin.teams_detail', team_id=row.team_id) }}">
-                            {{ row.team_name | truncate(24) }}
+                    <td class="text-center cell-truncate" title="{{ row.owner_team_name_snapshot }}">
+                        {% if row.instance_owner_team_id %}
+                        <a href="{{ url_for('admin.teams_detail', team_id=row.instance_owner_team_id) }}">
+                            {{ row.owner_team_name_snapshot | truncate(24) }}
                         </a>
-                        <div class="text-muted small">#{{ row.team_id }}</div>
+                        <div class="text-muted small">#{{ row.instance_owner_team_id }}</div>
                         {% else %}-{% endif %}
                     </td>
-                    <td class="mono text-center">{{ row.ChallengeStartTracking.id }}</td>
+                    <td class="mono text-center" title="{{ row.instance_id }}">{{ row.instance_id | truncate(16, True, '') }}</td>
                     <td class="text-center">
-                        {% if row.challenge_id and row.team_id %}
+                        {% if row.challenge_id %}
                         <div class="action-dropdown">
                             <button type="button" class="clean-btn clean-btn-sm"
                                     onclick="toggleActionMenu(this, event)">
@@ -185,11 +185,7 @@
                             </button>
                             <div class="action-menu">
                                 <a class="action-menu-item"
-                                   href="/deploy_History/{{ row.challenge_id }}/pods-logs?team_id={{ row.team_id }}">
-                                    <i class="fas fa-file-alt fa-fw"></i> Pod Logs
-                                </a>
-                                <a class="action-menu-item"
-                                   href="/deploy_History/{{ row.challenge_id }}/request-logs?team_id={{ row.team_id }}{% if row.ChallengeStartTracking.label %}&ns={{ row.ChallengeStartTracking.label | urlencode }}{% endif %}">
+                                   href="{{ url_for('challengeHistory.get_instance_request_logs_page', challenge_id=row.challenge_id, instance_id=row.instance_id) }}">
                                     <i class="fas fa-exchange-alt fa-fw"></i> Request Logs
                                 </a>
                             </div>

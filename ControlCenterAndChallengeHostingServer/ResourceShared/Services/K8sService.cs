@@ -241,6 +241,12 @@ public class K8sService : IK8sService
                 }
 
                 var (teamId, challengeId) = ChallengeHelper.ParseChallengeLabels(pod.Metadata?.Labels);
+                string? instanceId = null;
+                if (pod.Metadata?.Labels != null)
+                {
+                    pod.Metadata.Labels.TryGetValue("ctf/instance-id", out instanceId);
+                }
+                var podUid = pod.Metadata?.Uid;
 
                 var isStuck = IsPodStuck(pod);
                 var deploymentKey = ChallengeHelper.GetCacheKey(challengeId, teamId);
@@ -266,6 +272,8 @@ public class K8sService : IK8sService
                                 Namespace = ns,
                                 TeamId = teamId,
                                 ChallengeId = challengeId,
+                                InstanceId = instanceId,
+                                PodUid = podUid,
                                 //UserId = deploymentCache?.user_id ?? 0,
                                 Name = name,
                                 Ready = ready,
@@ -283,6 +291,8 @@ public class K8sService : IK8sService
                     Namespace = ns,
                     TeamId = teamId,
                     ChallengeId = challengeId,
+                    InstanceId = instanceId,
+                    PodUid = podUid,
                     //UserId = deploymentCache?.user_id ?? 0,
                     Name = name,
                     Ready = ready,
@@ -367,7 +377,12 @@ public class K8sService : IK8sService
             }
 
             var expiryOffset = DateTimeOffset.FromUnixTimeSeconds(finalUnixFinished);
-            var challengeDomain = ChallengeHelper.GenerateChallengeToken(podName, expiryOffset);
+            var challengeDomain = ChallengeHelper.GenerateChallengeToken(
+                podName,
+                expiryOffset,
+                deploymentCache.instance_id,
+                deploymentCache.contest_id > 0 ? deploymentCache.contest_id : null,
+                challengeId);
             int realTtlSeconds = (int)(expiryOffset - DateTimeOffset.UtcNow).TotalSeconds;
 
             if (realTtlSeconds <= 0) realTtlSeconds = 60;
@@ -377,6 +392,22 @@ public class K8sService : IK8sService
             deploymentCache.challenge_url = challengeDomain;
             deploymentCache.time_finished = finalUnixFinished;
             deploymentCache.ready = true;
+
+            if (!string.IsNullOrWhiteSpace(deploymentCache.instance_id))
+            {
+                var instance = await dbContext.ChallengeInstances
+                    .FirstOrDefaultAsync(i => i.InstanceId == deploymentCache.instance_id);
+                if (instance != null && instance.LifecycleState == "provisioning")
+                {
+                    var now = DateTime.UtcNow;
+                    instance.LifecycleState = "running";
+                    instance.RunningAt ??= now;
+                    instance.StateChangedAt = now;
+                    instance.UpdatedAt = now;
+                    instance.StateVersion++;
+                    await dbContext.SaveChangesAsync();
+                }
+            }
 
             await _redisHelper.AtomicUpdateExpiration(
                 teamId.ToString(),

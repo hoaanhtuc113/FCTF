@@ -218,6 +218,11 @@ public class ChallengesInformerService
         var ns = pod.Metadata.NamespaceProperty ?? "unknown";
         var uid = pod.Metadata.Uid ?? "";
 
+        // The immutable instance label is the only Kubernetes value persisted
+        // as the telemetry join key. Namespace and pod names are observations
+        // that can be deleted or recycled, never identity substitutes.
+        await RecordInstancePodAsync(pod, eventType);
+
         // Get cache
         int teamId, challengeId;
         try
@@ -290,11 +295,83 @@ public class ChallengesInformerService
                 challengeTracking.StoppedAt = DateTime.UtcNow;
                 await dbContext.SaveChangesAsync();
             }
+
+            await MarkInstanceStoppedAsync(cache?.instance_id, ns, "namespace_deleted");
             
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, data: new { challengeId, teamId, errorType = "ChallengeStopTrackingSaveError" });
+        }
+    }
+
+    private async Task RecordInstancePodAsync(V1Pod pod, WatchEventType eventType)
+    {
+        var labels = pod.Metadata?.Labels;
+        var uid = pod.Metadata?.Uid;
+        if (labels == null || string.IsNullOrWhiteSpace(uid)
+            || !labels.TryGetValue("ctf/instance-id", out var instanceId)
+            || !Guid.TryParse(instanceId, out _)) return;
+
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var now = DateTime.UtcNow;
+            var record = await dbContext.ChallengeInstancePods
+                .FirstOrDefaultAsync(p => p.InstanceId == instanceId && p.PodUid == uid);
+            if (record == null)
+            {
+                record = new ChallengeInstancePod
+                {
+                    InstanceId = instanceId,
+                    PodUid = uid,
+                    PodName = pod.Metadata?.Name ?? "unknown",
+                    FirstObservedAt = now,
+                    LastObservedAt = now,
+                };
+                dbContext.ChallengeInstancePods.Add(record);
+            }
+            else
+            {
+                record.PodName = pod.Metadata?.Name ?? record.PodName;
+                record.LastObservedAt = now;
+            }
+            if (eventType == WatchEventType.Deleted)
+            {
+                record.TerminatedAt ??= now;
+                record.TerminationReason ??= "pod_deleted";
+            }
+            await dbContext.SaveChangesAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, data: new { instanceId, uid, errorType = "ChallengeInstancePodUpsertError" });
+        }
+    }
+
+    private async Task MarkInstanceStoppedAsync(string? instanceId, string ns, string reason)
+    {
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var instance = !string.IsNullOrWhiteSpace(instanceId)
+                ? await dbContext.ChallengeInstances.FirstOrDefaultAsync(i => i.InstanceId == instanceId)
+                : await dbContext.ChallengeInstances.FirstOrDefaultAsync(i => i.Namespace == ns && i.StoppedAt == null);
+            if (instance == null || instance.LifecycleState is "stopped" or "failed") return;
+            var now = DateTime.UtcNow;
+            instance.LifecycleState = "stopped";
+            instance.StoppedAt ??= now;
+            instance.TerminalReason = reason;
+            instance.StateChangedAt = now;
+            instance.UpdatedAt = now;
+            instance.StateVersion++;
+            await dbContext.SaveChangesAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, data: new { instanceId, ns, errorType = "ChallengeInstanceStopUpdateError" });
         }
     }
     private async Task CleanupGhostResources(string ns, int teamId, int challengeId, string key, OnDeploymentStatusChanged onStatusChange, string status = DeploymentStatus.STOPPED)
@@ -393,6 +470,24 @@ public class ChallengesInformerService
                     (tracking.TeamId ?? -1).ToString(),
                     cacheKey,
                     tracking.ChallengeId.ToString());
+            }
+
+            // The native registry is also reconciled independently of the
+            // legacy tracking rows. A watch disconnect must not leave an
+            // instance perpetually "running" after its namespace disappeared.
+            var nativeOrphans = await dbContext.ChallengeInstances
+                .Where(i => (i.LifecycleState == "running" || i.LifecycleState == "stopping")
+                    && !activeNamespaces.Contains(i.Namespace))
+                .ToListAsync();
+            var stoppedAt = DateTime.UtcNow;
+            foreach (var instance in nativeOrphans)
+            {
+                instance.LifecycleState = "stopped";
+                instance.StoppedAt ??= stoppedAt;
+                instance.TerminalReason = "namespace_missing_reconcile";
+                instance.StateChangedAt = stoppedAt;
+                instance.UpdatedAt = stoppedAt;
+                instance.StateVersion++;
             }
 
             await dbContext.SaveChangesAsync();

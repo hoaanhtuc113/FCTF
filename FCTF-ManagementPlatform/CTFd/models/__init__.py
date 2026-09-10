@@ -281,6 +281,51 @@ class ChallengeStartTracking(db.Model):
         )
 
 
+class ChallengeInstance(db.Model):
+    """Durable deployment identity used to join Gateway telemetry after pod cleanup."""
+
+    __tablename__ = "challenge_instances"
+
+    instance_id = db.Column(db.String(36), primary_key=True)
+    provision_request_id = db.Column(db.String(36), nullable=False, unique=True)
+    contest_id = db.Column(db.Integer, nullable=False, index=True)
+    challenge_id = db.Column(db.Integer, nullable=False, index=True)
+    contest_name_snapshot = db.Column(db.String(255), nullable=False)
+    challenge_name_snapshot = db.Column(db.String(255), nullable=False)
+    namespace = db.Column(db.String(63), nullable=False)
+    instance_scope = db.Column(db.String(16), nullable=False)
+    instance_owner_team_id = db.Column(db.Integer, nullable=True, index=True)
+    owner_team_name_snapshot = db.Column(db.String(255), nullable=True)
+    started_by_user_id = db.Column(db.Integer, nullable=True)
+    requested_at = db.Column(db.DateTime, nullable=False, index=True)
+    running_at = db.Column(db.DateTime, nullable=True)
+    stopped_at = db.Column(db.DateTime, nullable=True)
+    expires_at = db.Column(db.DateTime, nullable=True)
+    lifecycle_state = db.Column(db.String(24), nullable=False, index=True)
+    terminal_reason = db.Column(db.String(64), nullable=True)
+    identity_source = db.Column(db.String(16), nullable=False)
+    state_version = db.Column(db.BigInteger, nullable=False, default=0)
+    state_changed_at = db.Column(db.DateTime, nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False)
+    updated_at = db.Column(db.DateTime, nullable=False)
+
+    pods = db.relationship("ChallengeInstancePod", back_populates="instance", lazy="select")
+
+
+class ChallengeInstancePod(db.Model):
+    __tablename__ = "challenge_instance_pods"
+
+    instance_id = db.Column(db.String(36), db.ForeignKey("challenge_instances.instance_id", ondelete="RESTRICT"), primary_key=True)
+    pod_uid = db.Column(db.String(64), primary_key=True, unique=True)
+    pod_name = db.Column(db.String(63), nullable=False)
+    first_observed_at = db.Column(db.DateTime, nullable=False)
+    last_observed_at = db.Column(db.DateTime, nullable=False)
+    terminated_at = db.Column(db.DateTime, nullable=True)
+    termination_reason = db.Column(db.String(64), nullable=True)
+
+    instance = db.relationship("ChallengeInstance", back_populates="pods", lazy="select")
+
+
 class Tickets(db.Model):
     __tablename__ = "tickets"
     id = db.Column(db.Integer, primary_key=True)
@@ -1608,6 +1653,7 @@ class AdminAuditLog(db.Model):
     action = db.Column(db.String(128), nullable=False)
     target_type = db.Column(db.String(80), nullable=True)
     target_id = db.Column(db.Integer, nullable=True)
+    target_ref = db.Column(db.String(36), nullable=True, index=True)
 
     # Which contest the action landed in. Nullable because some audited
     # actions are platform-wide (user CRUD, config, ctf_reset) and some
@@ -1643,6 +1689,7 @@ class AdminAuditLog(db.Model):
             "action": self.action,
             "target_type": self.target_type,
             "target_id": self.target_id,
+            "target_ref": self.target_ref,
             "contest_id": self.contest_id,
             "before_state": self.before_state,
             "after_state": self.after_state,

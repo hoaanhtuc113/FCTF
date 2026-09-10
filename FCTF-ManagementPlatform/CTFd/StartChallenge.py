@@ -360,6 +360,7 @@ def get_all_instance():
                 "time_finished": finished_time,  # dạng ISO 8601
                 "time_finished_timestamp": raw_timestamp if raw_timestamp else 0,
                 "ns": value.get("_namespace", ""),
+                "instance_id": value.get("instance_id", ""),
             }
 
             if team_id == -1:

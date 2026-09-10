@@ -6,6 +6,8 @@ import (
 	"net"
 	"strconv"
 	"strings"
+
+	"challenge-gateway/internal/token"
 )
 
 // ParseRemoteIP extracts the host part from a "host:port" remote address string.
@@ -33,6 +35,24 @@ func BuildRateLimitKey(token, ip string) string {
 	default:
 		return ip
 	}
+}
+
+// BuildRateLimitKeyForPayload uses the durable instance identity whenever a
+// current assertion supplies it. Refreshing a bearer token then cannot create a
+// fresh quota bucket. Tokens minted before the migration fall back to the
+// hashed-token key until they expire.
+func BuildRateLimitKeyForPayload(payload token.Payload, rawToken, ip string) string {
+	if payload.InstanceID != "" {
+		base := "instance:" + payload.InstanceID
+		if payload.ActorUserRef != "" {
+			base += ":actor:" + payload.ActorUserRef
+		}
+		if ip != "" {
+			base += ":ip:" + ip
+		}
+		return base
+	}
+	return BuildRateLimitKey(rawToken, ip)
 }
 
 func hashToken(token string) string {

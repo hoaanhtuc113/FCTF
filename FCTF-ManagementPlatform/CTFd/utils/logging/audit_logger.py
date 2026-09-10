@@ -48,6 +48,7 @@ _ACTION_TARGET_TYPES = {
     # Bulk / destructive admin operations
     "bulk_password_reset": "user",
     "ctf_reset": "system",
+    "view_instance_logs": "challenge_instance",
 }
 
 
@@ -148,7 +149,7 @@ def _resolve_contest_id(action: str, data: dict | None, explicit) -> int | None:
     return None
 
 
-def log_audit(action: str, before=None, after=None, data=None, contest_id=None) -> None:
+def log_audit(action: str, before=None, after=None, data=None, contest_id=None, target_ref=None) -> None:
     """
     Record a privileged action performed by an admin / jury / challenge_writer.
 
@@ -175,6 +176,7 @@ def log_audit(action: str, before=None, after=None, data=None, contest_id=None) 
         "before": before,
         "after": after,
         "data": data,
+        "targetRef": target_ref,
         "timestamp": datetime.utcnow().isoformat(timespec="milliseconds") + "Z",
     }
     audit_logger.info(json.dumps(entry))
@@ -215,6 +217,7 @@ def log_audit(action: str, before=None, after=None, data=None, contest_id=None) 
             action=action,
             target_type=_ACTION_TARGET_TYPES.get(action),
             target_id=_extract_target_id(action, data),
+            target_ref=target_ref,
             contest_id=contest_id,
             before_state=before,
             after_state=after,

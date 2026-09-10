@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fctf.local/schemas/gateway-access-event-v1.json",
+  "title": "FCTF Gateway Access Event v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "event_id", "occurred_at", "event", "protocol", "data_class"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "event_id": {"type": "string", "format": "uuid"},
+    "occurred_at": {"type": "string", "format": "date-time"},
+    "event": {"type": "string", "enum": ["http_request", "http_auth_failed", "http_rate_limited", "http_upstream_error", "tcp_connect", "tcp_session_end", "tcp_auth_failed", "tcp_rate_limited", "tcp_dial_failed", "telemetry_encode_failed"]},
+    "protocol": {"type": "string", "enum": ["http", "tcp", "internal"]},
+    "instance_id": {"type": "string", "format": "uuid"},
+    "instance_namespace": {"type": "string", "maxLength": 63},
+    "contest_id": {"type": "integer"},
+    "challenge_id": {"type": "integer"},
+    "actor_user_ref": {"type": "string", "maxLength": 128},
+    "actor_team_id": {"type": "integer"},
+    "peer_ip": {"type": "string"},
+    "ip_source": {"type": "string", "enum": ["remote_addr"]},
+    "method": {"type": "string", "maxLength": 16},
+    "path": {"type": "string", "maxLength": 2048, "description": "Path only; query strings are forbidden."},
+    "status": {"type": "integer", "minimum": 100, "maximum": 599},
+    "request_bytes": {"type": "integer", "minimum": 0},
+    "response_bytes": {"type": "integer", "minimum": 0},
+    "bytes_c2s": {"type": "integer", "minimum": 0},
+    "bytes_s2c": {"type": "integer", "minimum": 0},
+    "duration_ms": {"type": "integer", "minimum": 0},
+    "outcome": {"type": "string", "maxLength": 64},
+    "termination_reason": {"type": "string", "maxLength": 64},
+    "auth_strength": {"type": "string", "maxLength": 32},
+    "error_code": {"type": "string", "maxLength": 64},
+    "data_class": {"const": "metadata"}
+  },
+  "not": {
+    "anyOf": [
+      {"required": ["query"]}, {"required": ["body"]}, {"required": ["authorization"]},
+      {"required": ["cookie"]}, {"required": ["token"]}, {"required": ["sample_b64"]}
+    ]
+  }
+}

@@ -10,9 +10,9 @@ using ResourceShared.Services;
 using ResourceShared.Utils;
 using RabbitMQ.Client.Exceptions;
 using System.Net;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
-using System.Text.RegularExpressions;
 using static ResourceShared.Enums;
 using DeploymentCenter.Utils;
 
@@ -28,10 +28,11 @@ public interface IDeployService
     Task<BaseResponseDTO> HandleMessageFromArgo(WorkflowStatusDTO message);
     Task<BaseResponseDTO<DeploymentLogsDTO>> GetDeploymentLogs(string workflowName);
     Task<BaseResponseDTO<PodLogsDTO>> GetPodLogs(ChallengeStartStopReqDTO challengeReq);
-    Task<BaseResponseDTO<PodLogsDTO>> GetPodRequestLog(ChallengeStartStopReqDTO challengeReq);
+    Task<BaseResponseDTO<InstanceRequestLogsDTO>> GetInstanceRequestLogs(InstanceRequestLogsReqDTO request);
 }
 public class DeployService : IDeployService
 {
+    private const int MaxLokiResponseBytes = 2 * 1024 * 1024;
     private readonly IK8sService _k8SHealthService;
     private readonly AppDbContext _dbContext;
     private readonly RedisHelper _redisHelper;
@@ -145,11 +146,32 @@ public class DeployService : IDeployService
             // queue it may take, so it is read from the challenge row rather than
             // from the request - a caller that picks its own contest picks its own
             // quota. deployment_center already holds SELECT on challenges.
-            var contestId = await _dbContext.Challenges
+            var challengeContext = await _dbContext.Challenges
                 .AsNoTracking()
                 .Where(c => c.Id == startReq.challengeId)
-                .Select(c => c.ContestId)
+                .Select(c => new
+                {
+                    c.ContestId,
+                    c.Name,
+                    ContestName = c.Contest.Name,
+                    c.TimeLimit,
+                })
                 .FirstOrDefaultAsync();
+
+            if (challengeContext == null)
+            {
+                return new ChallengeDeployResponeDTO
+                {
+                    status = (int)HttpStatusCode.NotFound,
+                    success = false,
+                    message = "Challenge not found."
+                };
+            }
+
+            var contestId = challengeContext.ContestId;
+            // The contest boundary is resolved from the challenge row, never
+            // trusted from an external start request.
+            startReq.contestId = contestId;
 
             // Both limits below are enforced on start rather than on stop, although the
             // loop they bound is start/stop/start. Stopping is one API call; starting is
@@ -221,6 +243,28 @@ public class DeployService : IDeployService
                 };
             }
 
+            var instanceResult = await CreateChallengeInstanceAsync(
+                startReq,
+                contestId,
+                challengeContext.Name ?? string.Empty,
+                challengeContext.ContestName ?? string.Empty,
+                challengeContext.TimeLimit);
+            var instance = instanceResult.Instance;
+            if (!instanceResult.Created)
+            {
+                await _redisHelper.AtomicRemoveDeploymentZSet(startReq.teamId.ToString(), deploymentKey, startReq.challengeId.ToString());
+                return new ChallengeDeployResponeDTO
+                {
+                    status = (int)HttpStatusCode.OK,
+                    success = true,
+                    message = "Your existing challenge instance is still being prepared or running.",
+                    instance_id = instance.InstanceId,
+                };
+            }
+            startReq.instanceId = instance.InstanceId;
+            startReq.provisionRequestId = instance.ProvisionRequestId;
+            startReq.instanceNamespace = instance.Namespace;
+
             await _deploymentProducerService.EnqueueDeploymentAsync(startReq, expirySeconds);
 
             deploymentCache = new ChallengeDeploymentCacheDTO
@@ -228,7 +272,10 @@ public class DeployService : IDeployService
                 challenge_id = startReq.challengeId,
                 user_id = startReq?.userId ?? 0,
                 team_id = startReq?.teamId ?? 0,
-                _namespace = string.Empty,
+                contest_id = contestId,
+                instance_id = instance.InstanceId,
+                provision_request_id = instance.ProvisionRequestId,
+                _namespace = instance.Namespace,
                 workflow_name = string.Empty,
                 status = DeploymentStatus.PENDING_DEPLOY,
                 time_finished = 0
@@ -247,6 +294,7 @@ public class DeployService : IDeployService
             if (!updated)
             {
                 await _redisHelper.RemoveCacheAsync(deploymentKey);
+                await MarkInstanceFailedAsync(startReq.instanceId, "cache_write_failed");
                 return new ChallengeDeployResponeDTO
                 {
                     status = (int)HttpStatusCode.Conflict,
@@ -259,11 +307,13 @@ public class DeployService : IDeployService
                 status = (int)HttpStatusCode.OK,
                 success = true,
                 message = "Request received. Your challenge has been queued for deployment.",
+                instance_id = instance.InstanceId,
             };
         }
         catch (BrokerUnreachableException ex)
         {
             await _redisHelper.RemoveCacheAsync(deploymentKey);
+            await MarkInstanceFailedAsync(startReq.instanceId, "queue_unavailable");
 
             _logger.LogError(ex, null, startReq.teamId, new { startReq.challengeId }, contestId: startReq.contestId);
             return new ChallengeDeployResponeDTO
@@ -276,6 +326,7 @@ public class DeployService : IDeployService
         catch (DeploymentQueueFullException ex)
         {
             await _redisHelper.RemoveCacheAsync(deploymentKey);
+            await MarkInstanceFailedAsync(startReq.instanceId, "queue_full");
 
             _logger.LogError(ex, null, startReq.teamId, new { startReq.challengeId }, contestId: startReq.contestId);
             return new ChallengeDeployResponeDTO
@@ -288,6 +339,7 @@ public class DeployService : IDeployService
         catch (DeploymentRoutingFailedException ex)
         {
             await _redisHelper.RemoveCacheAsync(deploymentKey);
+            await MarkInstanceFailedAsync(startReq.instanceId, "queue_routing_failed");
 
             _logger.LogError(ex, null, startReq.teamId, new { startReq.challengeId }, contestId: startReq.contestId);
             return new ChallengeDeployResponeDTO
@@ -300,6 +352,7 @@ public class DeployService : IDeployService
         catch (Exception ex)
         {
             await _redisHelper.RemoveCacheAsync(deploymentKey);
+            await MarkInstanceFailedAsync(startReq.instanceId, "start_failed");
 
             _logger.LogError(ex, null, startReq.teamId, new { startReq.challengeId }, contestId: startReq.contestId);
 
@@ -310,6 +363,107 @@ public class DeployService : IDeployService
                 message = "Something went wrong while starting the challenge. Please try again."
             };
         }
+    }
+
+    private async Task<(ChallengeInstance Instance, bool Created)> CreateChallengeInstanceAsync(
+        ChallengeStartStopReqDTO request,
+        int contestId,
+        string challengeName,
+        string contestName,
+        int? timeLimitMinutes)
+    {
+        var scope = request.teamId == -2 ? "shared" : "team";
+        int? ownerTeamId = scope == "team" && request.teamId > 0 ? request.teamId : null;
+
+        // If Redis lost a cache entry after the request was accepted, preserve
+        // the native instance rather than starting another deployment for the
+        // same active team/shared scope.
+        var existing = await _dbContext.ChallengeInstances
+            .Where(i => i.ContestId == contestId
+                && i.ChallengeId == request.challengeId
+                && i.InstanceScope == scope
+                && i.InstanceOwnerTeamId == ownerTeamId
+                && (i.LifecycleState == "provisioning" || i.LifecycleState == "running" || i.LifecycleState == "stopping"))
+            .OrderByDescending(i => i.RequestedAt)
+            .FirstOrDefaultAsync();
+        if (existing != null)
+        {
+            return (existing, false);
+        }
+
+        var ownerTeamName = ownerTeamId.HasValue
+            ? await _dbContext.Teams.AsNoTracking()
+                .Where(team => team.Id == ownerTeamId.Value)
+                .Select(team => team.Name)
+                .FirstOrDefaultAsync()
+            : null;
+
+        var now = DateTime.UtcNow;
+        var instanceId = Guid.NewGuid().ToString();
+        var instance = new ChallengeInstance
+        {
+            InstanceId = instanceId,
+            ProvisionRequestId = Guid.NewGuid().ToString(),
+            ContestId = contestId,
+            ChallengeId = request.challengeId,
+            ContestNameSnapshot = contestName ?? string.Empty,
+            ChallengeNameSnapshot = challengeName,
+            Namespace = ChallengeHelper.GetDeploymentAppName(request.teamId, contestId, challengeName, instanceId),
+            InstanceScope = scope,
+            InstanceOwnerTeamId = ownerTeamId,
+            OwnerTeamNameSnapshot = ownerTeamName,
+            StartedByUserId = request.userId,
+            RequestedAt = now,
+            ExpiresAt = timeLimitMinutes is > 0 ? now.AddMinutes(timeLimitMinutes.Value) : null,
+            LifecycleState = "provisioning",
+            IdentitySource = "native",
+            StateVersion = 0,
+            StateChangedAt = now,
+            CreatedAt = now,
+            UpdatedAt = now,
+        };
+
+        await _dbContext.ChallengeInstances.AddAsync(instance);
+        await _dbContext.SaveChangesAsync();
+        return (instance, true);
+    }
+
+    private async Task MarkInstanceFailedAsync(string? instanceId, string reason)
+    {
+        if (string.IsNullOrWhiteSpace(instanceId))
+        {
+            return;
+        }
+
+        var instance = await _dbContext.ChallengeInstances.FirstOrDefaultAsync(i => i.InstanceId == instanceId);
+        if (instance == null || instance.LifecycleState is "running" or "stopping" or "stopped" or "failed")
+        {
+            return;
+        }
+
+        var now = DateTime.UtcNow;
+        instance.LifecycleState = "failed";
+        instance.TerminalReason = reason;
+        instance.StoppedAt = now;
+        instance.StateChangedAt = now;
+        instance.UpdatedAt = now;
+        instance.StateVersion++;
+        await _dbContext.SaveChangesAsync();
+    }
+
+    private async Task TransitionInstanceAsync(string? instanceId, string state, string? terminalReason = null)
+    {
+        if (string.IsNullOrWhiteSpace(instanceId)) return;
+        var instance = await _dbContext.ChallengeInstances.FirstOrDefaultAsync(i => i.InstanceId == instanceId);
+        if (instance == null || instance.LifecycleState is "stopped" or "failed") return;
+        var now = DateTime.UtcNow;
+        instance.LifecycleState = state;
+        if (state == "stopped") instance.StoppedAt ??= now;
+        if (!string.IsNullOrWhiteSpace(terminalReason)) instance.TerminalReason = terminalReason;
+        instance.StateChangedAt = now;
+        instance.UpdatedAt = now;
+        instance.StateVersion++;
+        await _dbContext.SaveChangesAsync();
     }
 
     public async Task<ChallengeDeployResponeDTO> Stop(ChallengeStartStopReqDTO stopReq)
@@ -364,6 +518,7 @@ public class DeployService : IDeployService
                 }
 
                 deployInfo.status = DeploymentStatus.STOPPED;
+                await TransitionInstanceAsync(deployInfo.instance_id, "stopped", "admin_force_delete");
                 await _redisHelper.AtomicRemoveDeploymentZSet(stopReq.teamId.ToString(), deploymentKey, stopReq.challengeId.ToString());
                 await _redisHelper.RemoveCacheAsync(deploymentKey);
 
@@ -378,6 +533,7 @@ public class DeployService : IDeployService
             // User thường: set DELETING và để watcher xử lý
             deployInfo.status = DeploymentStatus.DELETING;
             deployInfo.ready = false;
+            await TransitionInstanceAsync(deployInfo.instance_id, "stopping");
 
             // Cập nhật cache với TTL dài (60s) để watcher bắt được event Terminating
             var cacheJson = System.Text.Json.JsonSerializer.Serialize(deployInfo);
@@ -894,166 +1050,276 @@ public class DeployService : IDeployService
         }
     }
 
-    public async Task<BaseResponseDTO<PodLogsDTO>> GetPodRequestLog(ChallengeStartStopReqDTO challengeReq)
+    public async Task<BaseResponseDTO<InstanceRequestLogsDTO>> GetInstanceRequestLogs(InstanceRequestLogsReqDTO request)
     {
+        if (request == null || !Guid.TryParse(request.InstanceId, out var parsedInstanceId))
+        {
+            return new BaseResponseDTO<InstanceRequestLogsDTO>
+            {
+                Success = false,
+                HttpStatusCode = HttpStatusCode.BadRequest,
+                Message = "instanceId must be a UUID."
+            };
+        }
+
+        var limit = request.Limit <= 0 ? 50 : Math.Min(request.Limit, 100);
+        var now = DateTimeOffset.UtcNow;
+        var from = request.Filters?.From ?? now.AddHours(-24);
+        var to = request.Filters?.To ?? now;
+        if (from > to || to - from > TimeSpan.FromHours(24))
+        {
+            return new BaseResponseDTO<InstanceRequestLogsDTO>
+            {
+                Success = false,
+                HttpStatusCode = HttpStatusCode.BadRequest,
+                Message = "The requested time range must be ordered and at most 24 hours."
+            };
+        }
+
+        // from/to default to a rolling window. Binding those implicit values to
+        // a cursor would make a perfectly valid "load older" request fail a few
+        // milliseconds later; explicit event filters remain bound instead.
+        var filterHash = BuildFilterHash(request.Filters);
+        CursorState? cursor = null;
+        if (!string.IsNullOrWhiteSpace(request.Cursor)
+            && !TryReadCursor(request.Cursor, parsedInstanceId.ToString(), filterHash, out cursor))
+        {
+            return new BaseResponseDTO<InstanceRequestLogsDTO>
+            {
+                Success = false,
+                HttpStatusCode = HttpStatusCode.BadRequest,
+                Message = "The request-log cursor is invalid or expired."
+            };
+        }
+
+        var instance = await _dbContext.ChallengeInstances
+            .AsNoTracking()
+            .Include(i => i.Pods)
+            .FirstOrDefaultAsync(i => i.InstanceId == parsedInstanceId.ToString());
+        if (instance == null)
+        {
+            return new BaseResponseDTO<InstanceRequestLogsDTO>
+            {
+                Success = false,
+                HttpStatusCode = HttpStatusCode.NotFound,
+                Message = "Challenge instance was not found."
+            };
+        }
+
+        var result = new InstanceRequestLogsDTO
+        {
+            Instance = new InstanceSummaryDTO
+            {
+                InstanceId = instance.InstanceId,
+                ContestId = instance.ContestId,
+                ChallengeId = instance.ChallengeId,
+                ContestName = instance.ContestNameSnapshot,
+                ChallengeName = instance.ChallengeNameSnapshot,
+                Namespace = instance.Namespace,
+                Scope = instance.InstanceScope,
+                OwnerTeamId = instance.InstanceOwnerTeamId,
+                OwnerTeamName = instance.OwnerTeamNameSnapshot,
+                LifecycleState = instance.LifecycleState,
+                IdentitySource = instance.IdentitySource,
+                RequestedAt = instance.RequestedAt,
+                RunningAt = instance.RunningAt,
+                StoppedAt = instance.StoppedAt,
+                ExpiresAt = instance.ExpiresAt,
+            },
+            PodHistory = instance.Pods
+                .OrderByDescending(p => p.LastObservedAt)
+                .Select(p => new InstancePodHistoryDTO
+                {
+                    PodUid = p.PodUid,
+                    PodName = p.PodName,
+                    FirstObservedAt = p.FirstObservedAt,
+                    LastObservedAt = p.LastObservedAt,
+                    TerminatedAt = p.TerminatedAt,
+                    TerminationReason = p.TerminationReason,
+                }).ToList(),
+        };
+
         try
         {
-            // teamId/challengeId are ints, but ns is a free string that gets
-            // interpolated straight into the LogQL below. A value carrying a
-            // quote can close the ns matcher and append filters of its own -
-            // dropping the team filter to read another team's logs, or adding
-            // a line filter that makes Loki scan the whole retention window.
-            // The only legitimate value is a Kubernetes namespace name, so
-            // reject anything else instead of trying to escape it.
-            var ns = challengeReq.ns?.Trim();
-            if (!string.IsNullOrEmpty(ns) && !Regex.IsMatch(ns, @"^[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?$"))
-            {
-                return new BaseResponseDTO<PodLogsDTO>
-                {
-                    Success = false,
-                    HttpStatusCode = HttpStatusCode.BadRequest,
-                    Message = "Invalid namespace"
-                };
-            }
-
-            var lokiBaseUrl = (DeploymentCenterConfigHelper.LOKI_BASE_URL ?? "http://loki-stack:3100").Trim();
-            var lokiSelector = (DeploymentCenterConfigHelper.LOKI_QUERY_SELECTOR ?? "{app=\"challenge-gateway\"}").Trim();
-
-            // Handle escaped quotes from env files, e.g. {app=\"challenge-gateway\"}
-            lokiSelector = lokiSelector.Replace("\\\"", "\"");
-
-            // Normalize selector to valid LogQL (handle env like: app=challenge-gateway)
-            if (string.IsNullOrWhiteSpace(lokiSelector))
-            {
-                lokiSelector = "{app=\"challenge-gateway\"}";
-            }
-            while (lokiSelector.StartsWith("{{") && lokiSelector.EndsWith("}}") && lokiSelector.Length >= 4)
-            {
-                lokiSelector = lokiSelector[1..^1].Trim();
-            }
-            if (!lokiSelector.StartsWith("{"))
-            {
-                lokiSelector = "{" + lokiSelector;
-            }
-            if (!lokiSelector.EndsWith("}"))
-            {
-                lokiSelector = lokiSelector + "}";
-            }
-            lokiSelector = Regex.Replace(
-                lokiSelector,
-                @"(?<key>[a-zA-Z_][a-zA-Z0-9_]*)=(?<val>[a-zA-Z0-9._:-]+)",
-                "${key}=\"${val}\"");
-
-            using var httpClient = new HttpClient
-            {
-                BaseAddress = new Uri(lokiBaseUrl),
-                Timeout = TimeSpan.FromSeconds(15),
-            };
-
-            var endNs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() * 1_000_000;
-            var startNs = DateTimeOffset.UtcNow.AddHours(-6).ToUnixTimeMilliseconds() * 1_000_000;
-
-            // Base filter: team + challenge. Optionally narrow to a specific namespace.
-            var logql = string.IsNullOrEmpty(ns)
-                ? $"{lokiSelector} | logfmt | team=\"{challengeReq.teamId}\" | challenge=\"{challengeReq.challengeId}\""
-                : $"{lokiSelector} | logfmt | team=\"{challengeReq.teamId}\" | challenge=\"{challengeReq.challengeId}\" | ns=\"{ns}\"";
-
-            var query = Uri.EscapeDataString(logql);
-            var url = $"/loki/api/v1/query_range?query={query}&start={startNs}&end={endNs}&limit=2000&direction=backward";
-            await Console.Out.WriteLineAsync($"Loki request. BaseUrl={lokiBaseUrl}, Selector={lokiSelector}, LogQL={logql}, Url={url}");
-
-            var response = await httpClient.GetAsync(url);
+            var selector = "{app=\"challenge-gateway\",contest_id=\"" + instance.ContestId + "\"}";
+            var logql = selector + " | json | instance_id=\"" + instance.InstanceId + "\"";
+            var startNs = from.ToUnixTimeMilliseconds() * 1_000_000;
+            var endNs = to.ToUnixTimeMilliseconds() * 1_000_000;
+            var baseUrl = (DeploymentCenterConfigHelper.LOKI_BASE_URL ?? "http://loki-stack:3100").Trim();
+            using var client = new HttpClient { BaseAddress = new Uri(baseUrl), Timeout = TimeSpan.FromSeconds(15) };
+            var url = "/loki/api/v1/query_range?query=" + Uri.EscapeDataString(logql)
+                + "&start=" + startNs + "&end=" + endNs + "&limit=2000&direction=backward";
+            using var response = await client.GetAsync(url);
             if (!response.IsSuccessStatusCode)
             {
-                var errorBody = await response.Content.ReadAsStringAsync();
-                if (errorBody.Length > 500)
-                {
-                    errorBody = errorBody[..500] + "...";
-                }
-                var errorMessage = $"Error retrieving request logs from Loki. Status={(int)response.StatusCode} ({response.ReasonPhrase}). Body={errorBody}";
-                await Console.Error.WriteLineAsync(errorMessage);
-                return new BaseResponseDTO<PodLogsDTO>
+                _logger.Log("instance_request_logs_unavailable", null, null,
+                    new { instanceId = instance.InstanceId, status = (int)response.StatusCode },
+                    level: LogLevel.Warning, contestId: instance.ContestId);
+                result.SourceStatus = "unavailable";
+                return new BaseResponseDTO<InstanceRequestLogsDTO>
                 {
                     Success = false,
-                    HttpStatusCode = response.StatusCode,
-                    Message = errorMessage
+                    HttpStatusCode = HttpStatusCode.ServiceUnavailable,
+                    Message = "Request telemetry is temporarily unavailable.",
+                    Data = result
                 };
             }
 
-            var json = await response.Content.ReadAsStringAsync();
-            using var document = JsonDocument.Parse(json);
-            if (!document.RootElement.TryGetProperty("data", out var dataElem)
-                || !dataElem.TryGetProperty("result", out var resultElem)
-                || resultElem.ValueKind != JsonValueKind.Array)
+            using var document = JsonDocument.Parse(await ReadLokiResponseAsync(response.Content));
+            var allEvents = ReadGatewayEvents(document.RootElement, instance.InstanceId)
+                .Where(e => EventMatches(e, request.Filters))
+                .OrderByDescending(e => e.OccurredAt)
+                .ThenByDescending(e => e.EventId, StringComparer.Ordinal)
+                .ToList();
+
+            var unique = new Dictionary<string, GatewayAccessEventDTO>(StringComparer.Ordinal);
+            foreach (var item in allEvents)
             {
-                return new BaseResponseDTO<PodLogsDTO>
+                if (unique.TryGetValue(item.EventId, out var prior)
+                    && JsonSerializer.Serialize(prior) != JsonSerializer.Serialize(item))
                 {
-                    Success = true,
-                    HttpStatusCode = HttpStatusCode.OK,
-                    Data = new PodLogsDTO
+                    return new BaseResponseDTO<InstanceRequestLogsDTO>
                     {
-                        TeamId = challengeReq.teamId,
-                        ChallengeId = challengeReq.challengeId,
-                        PodName = "challenge-gateway",
-                        Logs = string.Empty,
-                    }
-                };
-            }
-
-            var lines = new List<(long Ts, string LogLine)>();
-
-            foreach (var stream in resultElem.EnumerateArray())
-            {
-                if (!stream.TryGetProperty("values", out var valuesElem) || valuesElem.ValueKind != JsonValueKind.Array)
-                    continue;
-
-                foreach (var pair in valuesElem.EnumerateArray())
-                {
-                    if (pair.ValueKind != JsonValueKind.Array || pair.GetArrayLength() < 2)
-                        continue;
-
-                    var tsRaw = pair[0].GetString() ?? "0";
-                    var logLine = pair[1].GetString() ?? string.Empty;
-                    if (!long.TryParse(tsRaw, out var tsNs))
-                        continue;
-
-                    lines.Add((tsNs, logLine.TrimEnd()));
+                        Success = false,
+                        HttpStatusCode = HttpStatusCode.Conflict,
+                        Message = "Telemetry event identity collision detected."
+                    };
                 }
+                unique[item.EventId] = item;
             }
 
-            var builder = new StringBuilder();
-            foreach (var item in lines.OrderByDescending(x => x.Ts))
+            var ordered = unique.Values
+                .OrderByDescending(e => e.OccurredAt)
+                .ThenByDescending(e => e.EventId, StringComparer.Ordinal)
+                .Where(e => cursor == null || e.OccurredAt < cursor.OccurredAt
+                    || (e.OccurredAt == cursor.OccurredAt && string.CompareOrdinal(e.EventId, cursor.EventId) < 0))
+                .ToList();
+            result.Events = ordered.Take(limit).ToList();
+            if (ordered.Count > result.Events.Count && result.Events.Count > 0)
             {
-                var tsMs = item.Ts / 1_000_000;
-                var localTime = DateTimeOffset.FromUnixTimeMilliseconds(tsMs).ToLocalTime();
-                builder.AppendLine(localTime.ToString("yyyy-MM-dd HH:mm:ss.fff"));
-                builder.AppendLine(item.LogLine);
-                builder.AppendLine();
+                var last = result.Events[^1];
+                result.NextCursor = CreateCursor(instance.InstanceId, filterHash, last.OccurredAt, last.EventId);
             }
 
-            return new BaseResponseDTO<PodLogsDTO>
+            return new BaseResponseDTO<InstanceRequestLogsDTO>
             {
                 Success = true,
                 HttpStatusCode = HttpStatusCode.OK,
-                Data = new PodLogsDTO
-                {
-                    TeamId = challengeReq.teamId,
-                    ChallengeId = challengeReq.challengeId,
-                    PodName = "challenge-gateway",
-                    Logs = builder.ToString().TrimEnd()
-                }
+                Data = result
             };
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, null, challengeReq.teamId, new { challengeId = challengeReq.challengeId }, contestId: challengeReq.contestId);
-            await Console.Error.WriteLineAsync($"Error retrieving request logs from Loki. BaseUrl={DeploymentCenterConfigHelper.LOKI_BASE_URL}, Selector={DeploymentCenterConfigHelper.LOKI_QUERY_SELECTOR}, Error={ex.Message}");
-            return new BaseResponseDTO<PodLogsDTO>
+            _logger.LogError(ex, null, null, new { instanceId = instance.InstanceId }, contestId: instance.ContestId);
+            result.SourceStatus = "unavailable";
+            return new BaseResponseDTO<InstanceRequestLogsDTO>
             {
                 Success = false,
-                HttpStatusCode = HttpStatusCode.InternalServerError,
-                Message = $"Error retrieving request logs from Loki: {ex.Message}"
+                HttpStatusCode = HttpStatusCode.ServiceUnavailable,
+                Message = "Request telemetry is temporarily unavailable.",
+                Data = result
             };
         }
     }
+
+    private static IEnumerable<GatewayAccessEventDTO> ReadGatewayEvents(JsonElement root, string instanceId)
+    {
+        if (!root.TryGetProperty("data", out var data) || !data.TryGetProperty("result", out var streams)
+            || streams.ValueKind != JsonValueKind.Array)
+            yield break;
+
+        foreach (var stream in streams.EnumerateArray())
+        {
+            if (!stream.TryGetProperty("values", out var values) || values.ValueKind != JsonValueKind.Array)
+                continue;
+            foreach (var value in values.EnumerateArray())
+            {
+                if (value.ValueKind != JsonValueKind.Array || value.GetArrayLength() < 2)
+                    continue;
+                var line = value[1].GetString();
+                if (string.IsNullOrWhiteSpace(line)) continue;
+                GatewayAccessEventDTO? item;
+                try { item = JsonSerializer.Deserialize<GatewayAccessEventDTO>(line, GatewayJsonOptions); }
+                catch (JsonException) { continue; }
+                if (item == null || item.SchemaVersion != 1 || item.InstanceId != instanceId
+                    || string.IsNullOrWhiteSpace(item.EventId)) continue;
+                yield return item;
+            }
+        }
+    }
+
+    private static async Task<string> ReadLokiResponseAsync(HttpContent content)
+    {
+        if (content.Headers.ContentLength is > MaxLokiResponseBytes)
+            throw new InvalidOperationException("Loki response exceeds the instance log response limit.");
+
+        await using var source = await content.ReadAsStreamAsync();
+        await using var destination = new MemoryStream();
+        var buffer = new byte[16 * 1024];
+        int read;
+        while ((read = await source.ReadAsync(buffer)) > 0)
+        {
+            if (destination.Length + read > MaxLokiResponseBytes)
+                throw new InvalidOperationException("Loki response exceeds the instance log response limit.");
+            await destination.WriteAsync(buffer.AsMemory(0, read));
+        }
+        return Encoding.UTF8.GetString(destination.GetBuffer(), 0, (int)destination.Length);
+    }
+
+    private static bool EventMatches(GatewayAccessEventDTO item, InstanceRequestLogFiltersDTO? filters)
+    {
+        if (filters == null) return true;
+        return (filters.Protocol == null || filters.Protocol.Count == 0 || filters.Protocol.Contains(item.Protocol, StringComparer.OrdinalIgnoreCase))
+            && (filters.Events == null || filters.Events.Count == 0 || filters.Events.Contains(item.Event, StringComparer.OrdinalIgnoreCase))
+            && (filters.Status == null || filters.Status.Count == 0 || (item.Status.HasValue && filters.Status.Contains(item.Status.Value)))
+            && (filters.Outcome == null || filters.Outcome.Count == 0 || (item.Outcome != null && filters.Outcome.Contains(item.Outcome, StringComparer.OrdinalIgnoreCase)))
+            && (string.IsNullOrWhiteSpace(filters.ActorUserRef) || item.ActorUserRef == filters.ActorUserRef);
+    }
+
+    private sealed record CursorState(DateTimeOffset OccurredAt, string EventId);
+    private static readonly JsonSerializerOptions GatewayJsonOptions = new() { PropertyNameCaseInsensitive = true };
+
+    private static string BuildFilterHash(InstanceRequestLogFiltersDTO? filters)
+    {
+        var serialized = JsonSerializer.Serialize(filters);
+        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(serialized)));
+    }
+
+    private static string CreateCursor(string instanceId, string filterHash, DateTimeOffset occurredAt, string eventId)
+    {
+        var payload = JsonSerializer.Serialize(new { instanceId, filterHash, occurredAt, eventId, expiresAt = DateTimeOffset.UtcNow.AddMinutes(10) });
+        var body = ToBase64Url(Encoding.UTF8.GetBytes(payload));
+        var signature = ToBase64Url(HMACSHA256.HashData(CursorKey(), Encoding.UTF8.GetBytes(body)));
+        return body + "." + signature;
+    }
+
+    private static bool TryReadCursor(string cursor, string instanceId, string filterHash, out CursorState? state)
+    {
+        state = null;
+        try
+        {
+            var parts = cursor.Split('.', 2);
+            if (parts.Length != 2 || !CryptographicOperations.FixedTimeEquals(FromBase64Url(parts[1]), HMACSHA256.HashData(CursorKey(), Encoding.UTF8.GetBytes(parts[0])))) return false;
+            using var doc = JsonDocument.Parse(Encoding.UTF8.GetString(FromBase64Url(parts[0])));
+            var root = doc.RootElement;
+            if (root.GetProperty("instanceId").GetString() != instanceId
+                || root.GetProperty("filterHash").GetString() != filterHash
+                || root.GetProperty("expiresAt").GetDateTimeOffset() < DateTimeOffset.UtcNow) return false;
+            state = new CursorState(root.GetProperty("occurredAt").GetDateTimeOffset(), root.GetProperty("eventId").GetString() ?? string.Empty);
+            return state.EventId.Length > 0;
+        }
+        catch (Exception) { return false; }
+    }
+
+    private static byte[] CursorKey() => Encoding.UTF8.GetBytes(
+        Environment.GetEnvironmentVariable("INSTANCE_LOG_CURSOR_KEY")
+        ?? Environment.GetEnvironmentVariable("CHALLENGE_ACCESS_TOKEN_KEY")
+        ?? DeploymentCenterConfigHelper.PRIVATE_KEY);
+    private static string ToBase64Url(byte[] value) => Convert.ToBase64String(value).TrimEnd('=').Replace('+', '-').Replace('/', '_');
+    private static byte[] FromBase64Url(string value)
+    {
+        value = value.Replace('-', '+').Replace('_', '/');
+        return Convert.FromBase64String(value.PadRight(value.Length + (4 - value.Length % 4) % 4, '='));
+    }
+
 }

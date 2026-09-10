@@ -1,9 +1,8 @@
 package gateway
 
 import (
-	"bytes"
+	"bufio"
 	"context"
-	"fmt"
 	"io"
 	"log"
 	"net"
@@ -15,13 +14,13 @@ import (
 
 	"challenge-gateway/internal/config"
 	"challenge-gateway/internal/limiter"
+	"challenge-gateway/internal/telemetry"
 	"challenge-gateway/internal/token"
 )
 
 const (
-	httpListenAddr        = ":8080"
-	challengeCookieName   = "FCTF_Auth_Token"
-	maxLoggedPostBodyBytes = 2048
+	httpListenAddr      = ":8080"
+	challengeCookieName = "FCTF_Auth_Token"
 )
 
 type ctxKey string
@@ -32,24 +31,93 @@ const (
 )
 
 type requestInfo struct {
-	TargetHost string
-	Route      string
+	TargetHost    string
+	Route         string
+	Payload       *token.Payload
+	Event         string
+	Outcome       string
+	ErrorCode     string
+	Authenticated bool
 }
 
-type teeReadCloser struct {
-	io.Reader
-	io.Closer
+type countingReadCloser struct {
+	io.ReadCloser
+	bytesRead int64
+}
+
+func (cr *countingReadCloser) Read(p []byte) (int, error) {
+	n, err := cr.ReadCloser.Read(p)
+	cr.bytesRead += int64(n)
+	return n, err
 }
 
 type statusRecorder struct {
 	http.ResponseWriter
-	status int
+	status       int
+	bytesWritten int64
+	wroteHeader  bool
 }
 
 func (sr *statusRecorder) WriteHeader(code int) {
+	if sr.wroteHeader {
+		return
+	}
 	sr.status = code
+	sr.wroteHeader = true
 	sr.ResponseWriter.WriteHeader(code)
 }
+
+func (sr *statusRecorder) Write(p []byte) (int, error) {
+	if !sr.wroteHeader {
+		sr.WriteHeader(http.StatusOK)
+	}
+	n, err := sr.ResponseWriter.Write(p)
+	sr.bytesWritten += int64(n)
+	return n, err
+}
+
+// Preserve optional ResponseWriter capabilities. ReverseProxy uses these for
+// streaming, SSE, and WebSocket upgrades; losing one while adding telemetry
+// would change challenge behavior.
+func (sr *statusRecorder) ReadFrom(r io.Reader) (int64, error) {
+	if !sr.wroteHeader {
+		sr.WriteHeader(http.StatusOK)
+	}
+	if readerFrom, ok := sr.ResponseWriter.(io.ReaderFrom); ok {
+		n, err := readerFrom.ReadFrom(r)
+		sr.bytesWritten += n
+		return n, err
+	}
+	return io.Copy(struct{ io.Writer }{sr}, r)
+}
+
+func (sr *statusRecorder) Flush() {
+	if !sr.wroteHeader {
+		sr.WriteHeader(http.StatusOK)
+	}
+	if flusher, ok := sr.ResponseWriter.(http.Flusher); ok {
+		flusher.Flush()
+	}
+}
+
+func (sr *statusRecorder) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	hijacker, ok := sr.ResponseWriter.(http.Hijacker)
+	if !ok {
+		return nil, nil, http.ErrNotSupported
+	}
+	return hijacker.Hijack()
+}
+
+func (sr *statusRecorder) Push(target string, opts *http.PushOptions) error {
+	pusher, ok := sr.ResponseWriter.(http.Pusher)
+	if !ok {
+		return http.ErrNotSupported
+	}
+	return pusher.Push(target, opts)
+}
+
+func (sr *statusRecorder) Unwrap() http.ResponseWriter { return sr.ResponseWriter }
+
 // ── HTTP gateway ─────────────────────────────────────────────────────────────
 // StartHTTP initialises and starts the HTTP reverse-proxy gateway.
 // It returns the *http.Server so the caller can gracefully shut it down.
@@ -81,7 +149,14 @@ func StartHTTP(cfg config.Config, limiters *limiter.Set) *http.Server {
 			cleanProxyCookies(req)
 		},
 		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
-			log.Printf("HTTP upstream error: %v", err)
+			if info, ok := r.Context().Value(requestInfoKey).(*requestInfo); ok {
+				info.Event = "http_upstream_error"
+				info.Outcome = "upstream_error"
+				info.ErrorCode = "upstream_unavailable"
+			}
+			// Error text may contain an upstream URL or request-derived data. The
+			// structured event retains only the stable error code above.
+			log.Print("HTTP upstream error")
 			http.Error(w, "Cannot connect to challenge", http.StatusBadGateway)
 		},
 		ModifyResponse: func(resp *http.Response) error {
@@ -95,10 +170,9 @@ func StartHTTP(cfg config.Config, limiters *limiter.Set) *http.Server {
 	mux.HandleFunc("/healthcheck", healthHandler)
 	mux.Handle("/", loggingMiddleware(
 		rateLimitMiddleware(limiters,
-			bodySizeLimitMiddleware(cfg.HTTPMaxBodyBytes,
-				http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-					httpGatewayHandler(w, r, proxy, limiters)
-				})))))
+			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				httpGatewayHandler(w, r, proxy, limiters, cfg.HTTPMaxBodyBytes)
+			}))))
 
 	server := &http.Server{
 		Addr:              httpListenAddr,
@@ -135,9 +209,10 @@ func healthHandler(w http.ResponseWriter, _ *http.Request) {
 	_, _ = w.Write([]byte("ok"))
 }
 
-func httpGatewayHandler(w http.ResponseWriter, r *http.Request, proxy *httputil.ReverseProxy, limiters *limiter.Set) {
+func httpGatewayHandler(w http.ResponseWriter, r *http.Request, proxy *httputil.ReverseProxy, limiters *limiter.Set, maxBodyBytes int64) {
 	remoteAddr := r.RemoteAddr
 	clientIP := ParseRemoteIP(remoteAddr)
+	info, _ := r.Context().Value(requestInfoKey).(*requestInfo)
 
 	tok, cleanedPath := extractTokenFromRequest(r)
 
@@ -145,12 +220,14 @@ func httpGatewayHandler(w http.ResponseWriter, r *http.Request, proxy *httputil.
 	if tok != "" {
 		payload, err := token.Verify(tok)
 		if err != nil {
-			log.Printf("[-] HTTP auth failed from %s: %v", remoteAddr, err)
-			http.Error(w, fmt.Sprintf("invalid token: %v", err), http.StatusUnauthorized)
+			setHTTPFailure(info, "http_auth_failed", "authentication_failed", "invalid_assertion")
+			http.Error(w, "invalid token", http.StatusUnauthorized)
 			return
 		}
+		setAuthenticatedRequestInfo(info, payload)
 		if limiters != nil && limiters.HTTPRate != nil {
-			if !limiters.HTTPRate.Allow(r.Context(), BuildRateLimitKey(tok, clientIP)) {
+			if !limiters.HTTPRate.Allow(r.Context(), BuildRateLimitKeyForPayload(payload, tok, clientIP)) {
+				setHTTPFailure(info, "http_rate_limited", "rate_limited", "authenticated_rate_limit")
 				http.Error(w, "too many requests", http.StatusTooManyRequests)
 				return
 			}
@@ -168,33 +245,64 @@ func httpGatewayHandler(w http.ResponseWriter, r *http.Request, proxy *httputil.
 	}
 
 	if tok == "" {
-		log.Printf("[-] HTTP auth failed from %s: missing token", remoteAddr)
+		setHTTPFailure(info, "http_auth_failed", "authentication_failed", "missing_assertion")
 		http.Error(w, "missing token", http.StatusUnauthorized)
 		return
 	}
 
 	payload, err := token.Verify(tok)
 	if err != nil {
-		log.Printf("[-] HTTP auth failed from %s: %v", remoteAddr, err)
-		http.Error(w, fmt.Sprintf("invalid token: %v", err), http.StatusUnauthorized)
+		setHTTPFailure(info, "http_auth_failed", "authentication_failed", "invalid_assertion")
+		http.Error(w, "invalid token", http.StatusUnauthorized)
 		return
 	}
+	setAuthenticatedRequestInfo(info, payload)
 
 	if limiters != nil && limiters.HTTPRate != nil {
-		if !limiters.HTTPRate.Allow(r.Context(), BuildRateLimitKey(tok, clientIP)) {
+		if !limiters.HTTPRate.Allow(r.Context(), BuildRateLimitKeyForPayload(payload, tok, clientIP)) {
+			setHTTPFailure(info, "http_rate_limited", "rate_limited", "authenticated_rate_limit")
 			http.Error(w, "too many requests", http.StatusTooManyRequests)
 			return
 		}
 	}
 
-	host := token.ExpandRoute(payload.Route)
-	if info, ok := r.Context().Value(requestInfoKey).(*requestInfo); ok {
+	if !enforceBodyLimit(w, r, maxBodyBytes) {
+		setHTTPFailure(info, "http_request", "request_rejected", "body_too_large")
+		return
+	}
+
+	host, err := token.ExpandRoute(payload.Route)
+	if err != nil {
+		setHTTPFailure(info, "http_auth_failed", "authentication_failed", "invalid_route")
+		http.Error(w, "invalid token", http.StatusUnauthorized)
+		return
+	}
+	if info != nil {
 		info.TargetHost = host
 		info.Route = payload.Route
 	}
 
 	ctx := context.WithValue(r.Context(), targetHostKey, host)
 	proxy.ServeHTTP(w, r.WithContext(ctx))
+}
+
+func setAuthenticatedRequestInfo(info *requestInfo, payload token.Payload) {
+	if info == nil {
+		return
+	}
+	info.Payload = &payload
+	info.Authenticated = true
+	info.Event = "http_request"
+	info.Outcome = "upstream_response"
+}
+
+func setHTTPFailure(info *requestInfo, event, outcome, errorCode string) {
+	if info == nil {
+		return
+	}
+	info.Event = event
+	info.Outcome = outcome
+	info.ErrorCode = errorCode
 }
 
 // ── cookie / redirect helpers ─────────────────────────────────────────────────
@@ -306,60 +414,48 @@ func extractTokenFromRequest(r *http.Request) (string, string) {
 
 func loggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		startedAt := time.Now()
 		rec := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
-
-		var postBodyBuf bytes.Buffer
-		capturePost := r.Method == http.MethodPost && r.Body != nil
-		if capturePost {
-			r.Body = &teeReadCloser{
-				Reader: io.TeeReader(r.Body, &postBodyBuf),
-				Closer: r.Body,
-			}
-		}
+		body := &countingReadCloser{ReadCloser: r.Body}
+		r.Body = body
 
 		info := &requestInfo{}
 		ctx := context.WithValue(r.Context(), requestInfoKey, info)
 		next.ServeHTTP(rec, r.WithContext(ctx))
 
-		targetHost := info.TargetHost
-		if targetHost == "" {
-			targetHost = "-"
+		eventName := info.Event
+		if eventName == "" {
+			eventName = "http_rate_limited"
+			info.Outcome = "rate_limited"
+			info.ErrorCode = "ip_rate_limit"
 		}
-		nsName := info.Route
-
-		// Suppress noisy token-redirect log lines.
-		if r.Method == http.MethodGet && rec.status == http.StatusFound && targetHost == "-" {
-			if tok, _ := extractTokenFromRequest(r); tok != "" {
-				return
+		event := telemetry.New(eventName, "http")
+		event.PeerIP = ParseRemoteIP(r.RemoteAddr)
+		event.IPSource = "remote_addr"
+		event.Method = r.Method
+		event.Path = telemetry.SanitizePath(r.URL.EscapedPath())
+		event.Status = &rec.status
+		event.RequestBytes = body.bytesRead
+		event.ResponseBytes = rec.bytesWritten
+		event.DurationMS = time.Since(startedAt).Milliseconds()
+		event.Outcome = info.Outcome
+		event.ErrorCode = info.ErrorCode
+		if info.Payload != nil {
+			event.InstanceID = info.Payload.InstanceID
+			event.InstanceNamespace = info.Payload.Route
+			event.ContestID = info.Payload.ContestID
+			event.ChallengeID = info.Payload.ChallengeID
+			event.ActorUserRef = info.Payload.ActorUserRef
+			event.ActorTeamID = info.Payload.ActorTeamID
+			if info.Payload.InstanceID == "" {
+				event.AuthStrength = "legacy"
+			} else if info.Payload.ActorUserRef == "" {
+				event.AuthStrength = "actor_unavailable"
+			} else {
+				event.AuthStrength = "credential_owner"
 			}
 		}
-
-		postSuffix := ""
-		if capturePost {
-			body := postBodyBuf.String()
-			if len(body) > maxLoggedPostBodyBytes {
-				body = body[:maxLoggedPostBodyBytes] + "... (truncated)"
-			}
-			postSuffix = fmt.Sprintf(" body=%q", body)
-		}
-
-		loggedPath := r.URL.Path
-		if r.Method == http.MethodGet && r.URL.RawQuery != "" {
-			loggedPath = fmt.Sprintf("%s?%s", r.URL.Path, r.URL.RawQuery)
-		}
-
-		if targetHost != "-" {
-			if teamID, challengeID, ok := ParseTeamChallengeFromRoute(targetHost); ok {
-					log.Printf("HTTP %s %s %d team=\"%d\" challenge=\"%d\" ns=\"%s\" method=\"%s\" status=\"%d\" -> %s%s",
-						r.Method, loggedPath, rec.status, teamID, challengeID, nsName, r.Method, rec.status, targetHost, postSuffix)
-				return
-			}
-		}
-		if nsName != "" {
-			log.Printf("HTTP %s %s %d ns=\"%s\" method=\"%s\" status=\"%d\" -> %s%s", r.Method, loggedPath, rec.status, nsName, r.Method, rec.status, targetHost, postSuffix)
-		} else {
-			log.Printf("HTTP %s %s %d method=\"%s\" status=\"%d\" -> %s%s", r.Method, loggedPath, rec.status, r.Method, rec.status, targetHost, postSuffix)
-		}
+		telemetry.Emit(event)
 	})
 }
 
@@ -395,4 +491,20 @@ func bodySizeLimitMiddleware(maxBytes int64, next http.Handler) http.Handler {
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+// enforceBodyLimit applies the limit only after the signed access token has been
+// verified. That keeps rejected unauthenticated requests from consuming an
+// instance's request budget while still ensuring the upstream never receives an
+// oversized body.
+func enforceBodyLimit(w http.ResponseWriter, r *http.Request, maxBytes int64) bool {
+	if maxBytes <= 0 {
+		return true
+	}
+	if r.ContentLength > maxBytes {
+		http.Error(w, "request body too large", http.StatusRequestEntityTooLarge)
+		return false
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, maxBytes)
+	return true
 }

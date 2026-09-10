@@ -1,13 +1,16 @@
+import uuid
+
 from flask import Blueprint, render_template, abort, request, flash, redirect, url_for, jsonify, session  # type: ignore
 
-from CTFd.models import Challenges, db, Users, DeployedChallenge
+from CTFd.models import Challenges, ChallengeInstance, db, Users, DeployedChallenge
 from CTFd.utils.decorators import admins_only, admin_or_challenge_writer_only_or_jury,is_jury,is_admin
 from CTFd.utils.user import authed
 from CTFd.utils.connector.multiservice_connector import (
     get_workflow_logs,
     get_challenge_pod_logs,
-    get_challenge_request_logs,
+    get_instance_request_logs,
 )
+from CTFd.utils.logging.audit_logger import log_audit
 
 challengeHistory = Blueprint("challengeHistory", __name__)
 
@@ -148,59 +151,38 @@ def get_pods_logs_api(challenge_id):
     return jsonify({"success": True, "logs": logs}), 200
 
 
-@challengeHistory.route("/deploy_History/<int:challenge_id>/request-logs", methods=["GET"])
+@challengeHistory.route("/deploy_History/<int:challenge_id>/instances/<instance_id>/request-logs", methods=["GET"])
 @admin_or_challenge_writer_only_or_jury
-def get_request_logs(challenge_id):
-    user_id = session["id"]
-    user = Users.query.filter_by(id=user_id).first()
+def get_instance_request_logs_page(challenge_id, instance_id):
+    try:
+        parsed_instance_id = str(uuid.UUID(instance_id))
+    except ValueError:
+        abort(404)
 
-    if not user:
-        return jsonify({"error": "User Not found"}), 403
+    instance = ChallengeInstance.query.filter_by(
+        instance_id=parsed_instance_id, challenge_id=challenge_id
+    ).first_or_404()
+    return render_template("admin/challenges/request_logs.html", instance=instance)
 
-    if user.type == "user":
-        return jsonify({"error": "Permission denied"}), 400
 
-    team_id = -1
-    team_id_param = request.args.get("team_id")
-    if team_id_param is not None:
-        try:
-            team_id = int(team_id_param)
-        except ValueError:
-            return jsonify({"error": "Invalid team_id"}), 400
+@challengeHistory.route("/deploy_History/<int:challenge_id>/instances/<instance_id>/request-logs-api", methods=["GET"])
+@admin_or_challenge_writer_only_or_jury
+def get_instance_request_logs_api(challenge_id, instance_id):
+    try:
+        parsed_instance_id = str(uuid.UUID(instance_id))
+    except ValueError:
+        return jsonify({"success": False, "message": "Instance was not found."}), 404
 
-    ns = request.args.get("ns") or None
-    logs = get_challenge_request_logs(challenge_id, team_id, ns)
-
-    return render_template(
-        "admin/challenges/request_logs.html",
-        challenge_id=challenge_id,
-        team_id=team_id,
-        ns=ns or "",
-        log_content=logs,
+    instance = ChallengeInstance.query.filter_by(
+        instance_id=parsed_instance_id, challenge_id=challenge_id
+    ).first_or_404()
+    cursor = request.args.get("cursor") or None
+    limit = request.args.get("limit", 50)
+    response, status = get_instance_request_logs(instance.instance_id, cursor=cursor, limit=limit)
+    log_audit(
+        "view_instance_logs",
+        data={"challenge_id": instance.challenge_id, "contest_id": instance.contest_id},
+        contest_id=instance.contest_id,
+        target_ref=instance.instance_id,
     )
-
-
-@challengeHistory.route("/deploy_History/<int:challenge_id>/request-logs-api", methods=["GET"])
-@admin_or_challenge_writer_only_or_jury
-def get_request_logs_api(challenge_id):
-    user_id = session["id"]
-    user = Users.query.filter_by(id=user_id).first()
-
-    if not user:
-        return jsonify({"success": False, "error": "User not found"}), 403
-
-    if user.type == "user":
-        return jsonify({"success": False, "error": "Permission denied"}), 400
-
-    team_id = -1
-    team_id_param = request.args.get("team_id")
-    if team_id_param is not None:
-        try:
-            team_id = int(team_id_param)
-        except ValueError:
-            return jsonify({"success": False, "error": "Invalid team_id"}), 400
-
-    ns = request.args.get("ns") or None
-    logs = get_challenge_request_logs(challenge_id, team_id, ns)
-
-    return jsonify({"success": True, "logs": logs}), 200
+    return jsonify(response), status

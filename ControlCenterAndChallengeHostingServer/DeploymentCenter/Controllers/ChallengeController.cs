@@ -4,6 +4,7 @@ using DeploymentCenter.Utils;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ResourceShared.DTOs.Challenge;
+using ResourceShared.DTOs.Deployments;
 using ResourceShared.Models;
 using ResourceShared.Utils;
 using System.Net;
@@ -198,14 +199,24 @@ public class ChallengeController : ControllerBase
 
     [HttpPost("request-logs")]
     [RequireSecretKey]
-    public async Task<IActionResult> GetPodRequestLog([FromBody] ChallengeStartStopReqDTO challengeReq)
+    public IActionResult GetPodRequestLog([FromBody] ChallengeStartStopReqDTO challengeReq)
     {
-        var response = await _deployService.GetPodRequestLog(challengeReq);
+        // Legacy team/namespace LogQL lookup returned a raw log stream. It is
+        // deliberately retired: use the durable instanceId endpoint below.
+        return StatusCode(StatusCodes.Status410Gone, new { success = false, message = "Use instance-request-logs with instanceId." });
+    }
+
+    [HttpPost("instance-request-logs")]
+    [RequireSecretKey]
+    public async Task<IActionResult> GetInstanceRequestLogs([FromBody] InstanceRequestLogsReqDTO request)
+    {
+        var response = await _deployService.GetInstanceRequestLogs(request);
         return response.HttpStatusCode switch
         {
             HttpStatusCode.OK => Ok(response),
             HttpStatusCode.BadRequest => BadRequest(response),
             HttpStatusCode.NotFound => NotFound(response),
+            HttpStatusCode.Conflict => Conflict(response),
             _ => StatusCode((int)response.HttpStatusCode, response)
         };
     }

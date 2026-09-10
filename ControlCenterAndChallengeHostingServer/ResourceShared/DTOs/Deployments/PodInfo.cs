@@ -12,6 +12,8 @@ namespace ResourceShared.DTOs.Deployments
         public string Name { get; set; } = string.Empty;
         public int TeamId { get; set; }
         public int ChallengeId { get; set; }
+        public string? InstanceId { get; set; }
+        public string? PodUid { get; set; }
         public bool Ready { get; set; }
         public string Status { get; set; } = string.Empty;
         public string Age { get; set; } = string.Empty;

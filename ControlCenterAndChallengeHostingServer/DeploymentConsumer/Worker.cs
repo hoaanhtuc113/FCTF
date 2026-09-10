@@ -165,7 +165,9 @@ internal class Worker : BackgroundService
                     hardenContainer,
                     DeploymentConsumerConfigHelper.POD_START_TIMEOUT_MINUTES,
                     flagValue,
-                    mess.CorrelationId);
+                    mess.CorrelationId,
+                    startReq.instanceId,
+                    startReq.instanceNamespace);
 
                 var response = await _multiServiceConnector.ExecuteRequest(
                     DeploymentConsumerConfigHelper.ARGO_WORKFLOWS_URL,
@@ -206,6 +208,8 @@ internal class Worker : BackgroundService
             catch (Exception ex)
             {
                 await queueService.NackAsync(mess.DeliveryTag);
+                // This is deliberately not a terminal registry transition: a
+                // nacked message may be retried after a temporary Argo outage.
                 _appLogger.LogError(
                     ex,
                     startReq.userId,

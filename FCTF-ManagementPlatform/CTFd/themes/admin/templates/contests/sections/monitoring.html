@@ -340,7 +340,7 @@ function createTokenCell(token) {
     return td;
 }
 
-function createActionCell(cid, tid, ns) {
+function createActionCell(cid, tid, ns, instanceId) {
     const td = document.createElement("td");
     td.className = "text-center";
     const wrap = document.createElement("div");
@@ -358,14 +358,16 @@ function createActionCell(cid, tid, ns) {
     podLog.innerHTML = '<i class="fas fa-file-alt fa-fw mr-1"></i> Pod Logs';
     podLog.addEventListener("click", e => { e.preventDefault(); closeAllMenus(); window.location.href = `/deploy_History/${cid}/pods-logs?team_id=${tid}`; });
 
-    const reqLog = document.createElement("a");
-    reqLog.className = "action-menu-item"; reqLog.href = "#";
-    reqLog.innerHTML = '<i class="fas fa-exchange-alt fa-fw mr-1"></i> Request Logs';
-    reqLog.addEventListener("click", e => {
-        e.preventDefault(); closeAllMenus();
-        const nsParam = ns ? `&ns=${encodeURIComponent(ns)}` : '';
-        window.location.href = `/deploy_History/${cid}/request-logs?team_id=${tid}${nsParam}`;
-    });
+    let reqLog = null;
+    if (instanceId) {
+        reqLog = document.createElement("a");
+        reqLog.className = "action-menu-item"; reqLog.href = "#";
+        reqLog.innerHTML = '<i class="fas fa-exchange-alt fa-fw mr-1"></i> Request Logs';
+        reqLog.addEventListener("click", e => {
+            e.preventDefault(); closeAllMenus();
+            window.location.href = `/deploy_History/${cid}/instances/${encodeURIComponent(instanceId)}/request-logs`;
+        });
+    }
 
     const div = document.createElement("div");
     div.className = "action-menu-divider";
@@ -376,7 +378,7 @@ function createActionCell(cid, tid, ns) {
     stop.addEventListener("click", e => { e.preventDefault(); closeAllMenus(); stopInstance(cid, tid); });
 
     menu.appendChild(podLog);
-    menu.appendChild(reqLog);
+    if (reqLog) menu.appendChild(reqLog);
     menu.appendChild(div);
     menu.appendChild(stop);
     wrap.appendChild(btn);
@@ -420,7 +422,7 @@ function buildRow(row) {
 
     tr.appendChild(createTokenCell(String(row.challenge_url || "")));
     tr.appendChild(cell(formatContestTime(row.time_finished)));
-    tr.appendChild(createActionCell(cid, tid, String(row.ns || "")));
+    tr.appendChild(createActionCell(cid, tid, String(row.ns || ""), String(row.instance_id || "")));
     return tr;
 }
 

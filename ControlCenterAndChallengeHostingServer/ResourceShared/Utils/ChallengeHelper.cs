@@ -15,10 +15,12 @@ namespace ResourceShared.Utils
 
         private static byte[] GetSecretBytes()
         {
-            var secret = Environment.GetEnvironmentVariable("PRIVATE_KEY");
+            var secret = Environment.GetEnvironmentVariable("CHALLENGE_ACCESS_TOKEN_KEY");
+            if (string.IsNullOrWhiteSpace(secret))
+                secret = Environment.GetEnvironmentVariable("PRIVATE_KEY");
             if (string.IsNullOrWhiteSpace(secret))
             {
-                throw new InvalidOperationException("Missing PRIVATE_KEY");
+                throw new InvalidOperationException("Missing CHALLENGE_ACCESS_TOKEN_KEY");
             }
             return Encoding.UTF8.GetBytes(secret);
         }
@@ -92,12 +94,18 @@ namespace ResourceShared.Utils
 
         public static string GenerateChallengeToken(
             string routeInfo,
-            DateTimeOffset expiryUtc)
+            DateTimeOffset expiryUtc,
+            string? instanceId = null,
+            int? contestId = null,
+            int? challengeId = null)
         {
             var payload = new
             {
                 exp = expiryUtc.ToUnixTimeSeconds(),
-                route = routeInfo
+                route = routeInfo,
+                instance_id = instanceId,
+                contest_id = contestId,
+                challenge_id = challengeId,
             };
 
             var payloadJson = JsonSerializer.Serialize(payload);
@@ -125,13 +133,20 @@ namespace ResourceShared.Utils
         //     return BitConverter.ToString(hashBytes).Replace("-", "").ToLowerInvariant();
         // }
 
-        public static string GetDeploymentAppName(int teamId, int contestId, string challengeName)
+        public static string GetDeploymentAppName(int teamId, int contestId, string challengeName, string? instanceId = null)
         {
-            var date = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             var challName = ParseAlphaNumeric(challengeName);
             teamId = teamId == -1 ? 0 : teamId;
             string srtTeamId = teamId == -2 ? "shared" : null;
             var teamPart = !string.IsNullOrEmpty(srtTeamId) ? srtTeamId : teamId.ToString();
+
+            // A UUID-derived suffix prevents namespace reuse during telemetry
+            // retention and makes a retry carry the same namespace rather than
+            // creating a second, ambiguous physical target.
+            var normalizedInstanceId = instanceId?.Replace("-", string.Empty, StringComparison.Ordinal) ?? string.Empty;
+            var suffix = normalizedInstanceId.Length == 0
+                ? DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(CultureInfo.InvariantCulture)
+                : normalizedInstanceId[..Math.Min(12, normalizedInstanceId.Length)].ToLowerInvariant();
 
             // This becomes the Kubernetes namespace name AND, via
             // challenge-plain.yaml/challenge-hardened.yaml's "${CHALLENGE_NAME}-job"
@@ -148,12 +163,12 @@ namespace ResourceShared.Utils
             // itself must stay under 63 - "-job".Length = 59. challName is the one
             // segment with no natural bound, so it is what gets trimmed to fit.
             const string jobSuffix = "-job";
-            var fixedPart = $"contest-{contestId}-team-{teamPart}--{date}";
+            var fixedPart = $"contest-{contestId}-team-{teamPart}--{suffix}";
             var maxChallNameLen = Math.Max(0, 63 - jobSuffix.Length - fixedPart.Length);
             if (challName.Length > maxChallNameLen)
                 challName = challName[..maxChallNameLen];
 
-            return $"contest-{contestId}-team-{teamPart}-{challName}-{date}"
+            return $"contest-{contestId}-team-{teamPart}-{challName}-{suffix}"
                 .ToLower().Replace(" ", "-");
         }
 
@@ -224,7 +239,9 @@ namespace ResourceShared.Utils
             bool harden_container,
             string pow_difficulty,
             string? flagValue = null,
-            string? correlationId = null)
+            string? correlationId = null,
+            string? instanceId = null,
+            string? instanceNamespace = null)
         {
             var isTemp = true;
             if (challenge.TimeLimit.HasValue && challenge.TimeLimit.Value <= 0)
@@ -235,7 +252,9 @@ namespace ResourceShared.Utils
                 challenge.TimeLimit = 1;
             }
 
-            var deploymentAppName = GetDeploymentAppName(teamId, challenge.ContestId, challenge.Name);
+            var deploymentAppName = string.IsNullOrWhiteSpace(instanceNamespace)
+                ? GetDeploymentAppName(teamId, challenge.ContestId, challenge.Name, instanceId)
+                : instanceNamespace;
             var startChallengeTemplate = Environment.GetEnvironmentVariable("START_CHALLENGE_TEMPLATE")
                 ?? throw new InvalidOperationException("Missing START_CHALLENGE_TEMPLATE");
 
@@ -259,6 +278,9 @@ namespace ResourceShared.Utils
                 $"CHALLENGE_ID={challenge.Id}",
                 $"TEAM_ID={labelTeamId}",
             };
+
+            if (!string.IsNullOrWhiteSpace(instanceId))
+                parameters.Add($"INSTANCE_ID={instanceId}");
 
             // The manifest carries the flag as `value: "${CHALLENGE_FLAG}"`, and
             // envsubst drops the value in as raw text before anything parses YAML.
