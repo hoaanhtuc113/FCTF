@@ -75,9 +75,18 @@ GRANT SELECT ON ctfd.kypo_team_accounts TO 'contestant_be'@'%';
 GRANT SELECT ON ctfd.users TO 'deployment_center'@'%';
 GRANT SELECT ON ctfd.challenges TO 'deployment_center'@'%';
 GRANT UPDATE ON ctfd.challenges TO 'deployment_center'@'%';
+-- Resolve the contest from the challenge row; callers must not choose the
+-- contest quota themselves.
+GRANT SELECT ON ctfd.contests TO 'deployment_center'@'%';
+-- Snapshot the owning team's display name when a native instance is accepted.
+GRANT SELECT ON ctfd.teams TO 'deployment_center'@'%';
 GRANT INSERT ON ctfd.deploy_histories TO 'deployment_center'@'%';
 GRANT SELECT ON ctfd.deploy_histories TO 'deployment_center'@'%';
 GRANT INSERT ON ctfd.challenge_start_tracking TO 'deployment_center'@'%';
+-- The durable registry is created and transitioned by DeploymentCenter.
+GRANT SELECT, INSERT, UPDATE ON ctfd.challenge_instances TO 'deployment_center'@'%';
+-- Request Logs reads pod history through the instance registry.
+GRANT SELECT ON ctfd.challenge_instance_pods TO 'deployment_center'@'%';
 
 -- DeploymentListener
 GRANT SELECT ON ctfd.challenge_start_tracking TO 'deployment_listener'@'%';
@@ -86,6 +95,9 @@ GRANT UPDATE ON ctfd.challenge_start_tracking TO 'deployment_listener'@'%';
 GRANT SELECT ON ctfd.challenges TO 'deployment_listener'@'%';
 GRANT SELECT ON ctfd.contests TO 'deployment_listener'@'%';
 GRANT UPDATE ON ctfd.contests TO 'deployment_listener'@'%';
+-- Persist immutable pod observations and reconcile instance lifecycle state.
+GRANT SELECT, UPDATE ON ctfd.challenge_instances TO 'deployment_listener'@'%';
+GRANT SELECT, INSERT, UPDATE ON ctfd.challenge_instance_pods TO 'deployment_listener'@'%';
 
 -- DeploymentConsumer
 GRANT SELECT ON ctfd.challenges TO 'deployment_consumer'@'%';

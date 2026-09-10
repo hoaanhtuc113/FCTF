@@ -382,7 +382,11 @@ public class K8sService : IK8sService
                 expiryOffset,
                 deploymentCache.instance_id,
                 deploymentCache.contest_id > 0 ? deploymentCache.contest_id : null,
-                challengeId);
+                challengeId,
+                deploymentCache.user_id > 0 ? deploymentCache.user_id : null,
+                // Shared deployments use the shared sentinel in the cache;
+                // never report that sentinel as a contestant's team.
+                deploymentCache.team_id > 0 ? deploymentCache.team_id : null);
             int realTtlSeconds = (int)(expiryOffset - DateTimeOffset.UtcNow).TotalSeconds;
 
             if (realTtlSeconds <= 0) realTtlSeconds = 60;

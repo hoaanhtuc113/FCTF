@@ -33,6 +33,10 @@ spec:
                 name: deployment-listener-secret
             - secretRef:
                 name: common-private-key-secret
+            - secretRef:
+                # K8sService mints the short-lived challenge access assertion.
+                # Keep this separate from the internal-service signing key.
+                name: challenge-access-token-secret
           env:
             # CA that signed the Redis server certificate. Without it the
             # service falls back to the container trust store, which does not

@@ -17,8 +17,6 @@ namespace ResourceShared.Utils
         {
             var secret = Environment.GetEnvironmentVariable("CHALLENGE_ACCESS_TOKEN_KEY");
             if (string.IsNullOrWhiteSpace(secret))
-                secret = Environment.GetEnvironmentVariable("PRIVATE_KEY");
-            if (string.IsNullOrWhiteSpace(secret))
             {
                 throw new InvalidOperationException("Missing CHALLENGE_ACCESS_TOKEN_KEY");
             }
@@ -97,7 +95,9 @@ namespace ResourceShared.Utils
             DateTimeOffset expiryUtc,
             string? instanceId = null,
             int? contestId = null,
-            int? challengeId = null)
+            int? challengeId = null,
+            int? actorUserId = null,
+            int? actorTeamId = null)
         {
             var payload = new
             {
@@ -106,6 +106,11 @@ namespace ResourceShared.Utils
                 instance_id = instanceId,
                 contest_id = contestId,
                 challenge_id = challengeId,
+                // This identifies the credential owner, not a claim that a
+                // particular human physically generated every request. The
+                // distinction is exposed by Gateway's auth_strength field.
+                actor_user_ref = actorUserId?.ToString(CultureInfo.InvariantCulture),
+                actor_team_id = actorTeamId,
             };
 
             var payloadJson = JsonSerializer.Serialize(payload);

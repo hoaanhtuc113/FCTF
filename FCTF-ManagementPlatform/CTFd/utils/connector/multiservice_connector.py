@@ -972,7 +972,17 @@ def get_challenge_pod_logs(challenge_id, team_id):
         print(f"Error getting pod logs: {e}")
         return str(e)
 
-def get_instance_request_logs(instance_id, cursor=None, limit=50):
+def _request_log_signing_value(value):
+    """Match the JSON object text that ASP.NET receives for HMAC signing."""
+    if isinstance(value, (dict, list)):
+        # requests serializes JSON with these defaults. Keeping the same compact
+        # contract on both sides means the signed `filters` object cannot be
+        # modified between CTFd and DeploymentCenter.
+        return json.dumps(value, ensure_ascii=True, separators=(", ", ": "))
+    return value
+
+
+def get_instance_request_logs(instance_id, cursor=None, limit=50, filters=None):
     """Fetch metadata-only Gateway events for one durable instance identity.
 
     The CTFd layer has already authorized the viewer against the instance's
@@ -990,6 +1000,12 @@ def get_instance_request_logs(instance_id, cursor=None, limit=50):
     if cursor:
         signing_data["cursor"] = str(cursor)
         payload["cursor"] = str(cursor)
+    if filters:
+        # The HTTP payload retains a structured object for ASP.NET model
+        # binding. HMAC signs its exact JSON representation, never a looser
+        # namespace/team selector or an unsigned free-text query.
+        signing_data["filters"] = _request_log_signing_value(filters)
+        payload["filters"] = filters
 
     secret_key = create_secret_key(PRIVATE_KEY, unix_time, signing_data)
     url = f"{DEPLOYMENT_SERVICE_API}/api/challenge/instance-request-logs"

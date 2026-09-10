@@ -29,7 +29,10 @@ spec:
             - secretRef:
                 name: challenge-gateway-secret
             - secretRef:
-                name: common-private-key-secret
+                # This secret is deliberately separate from PRIVATE_KEY. The
+                # Gateway verifies challenge assertions but has no legitimate
+                # need to sign internal control-plane callbacks.
+                name: challenge-access-token-secret
           env:
             - name: GATEWAY_TLS_CERT_FILE
               value: /etc/gateway/tls/tls.crt

@@ -32,14 +32,10 @@ func Verify(token string) (Payload, error) {
 		return Payload{}, fmt.Errorf("invalid token format")
 	}
 
-	// Challenge access assertions have their own signing key. PRIVATE_KEY remains
-	// a temporary compatibility fallback for tokens minted before the key split;
-	// deployments must set CHALLENGE_ACCESS_TOKEN_KEY before enabling instance
-	// request logs.
-	secret := os.Getenv("CHALLENGE_ACCESS_TOKEN_KEY")
-	if strings.TrimSpace(secret) == "" {
-		secret = os.Getenv("PRIVATE_KEY")
-	}
+	// Challenge assertions have a key of their own. Never accept the shared
+	// control-plane PRIVATE_KEY here: compromise of an internal callback must not
+	// also grant access to every challenge instance.
+	secret := strings.TrimSpace(os.Getenv("CHALLENGE_ACCESS_TOKEN_KEY"))
 	if strings.TrimSpace(secret) == "" {
 		return Payload{}, fmt.Errorf("missing challenge access token signing key")
 	}

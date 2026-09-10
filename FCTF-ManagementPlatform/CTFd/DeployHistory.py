@@ -1,4 +1,6 @@
+import re
 import uuid
+from datetime import datetime, timedelta, timezone
 
 from flask import Blueprint, render_template, abort, request, flash, redirect, url_for, jsonify, session  # type: ignore
 
@@ -13,6 +15,84 @@ from CTFd.utils.connector.multiservice_connector import (
 from CTFd.utils.logging.audit_logger import log_audit
 
 challengeHistory = Blueprint("challengeHistory", __name__)
+
+
+_INSTANCE_LOG_PROTOCOLS = {"http", "tcp"}
+_INSTANCE_LOG_VALUE = re.compile(r"^[A-Za-z0-9_.:-]{1,64}$")
+
+
+def _parse_instance_log_time(value, label):
+    if not value:
+        return None, None
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None, f"{label} must be an ISO-8601 timestamp."
+    if parsed.tzinfo is None:
+        return None, f"{label} must include a timezone."
+    return parsed.astimezone(timezone.utc).isoformat().replace("+00:00", "Z"), None
+
+
+def _parse_instance_log_filters():
+    """Read only the bounded metadata filters accepted by the log API."""
+    filters = {}
+    from_value, error = _parse_instance_log_time(request.args.get("from"), "from")
+    if error:
+        return None, error
+    to_value, error = _parse_instance_log_time(request.args.get("to"), "to")
+    if error:
+        return None, error
+    if from_value:
+        filters["from"] = from_value
+    if to_value:
+        filters["to"] = to_value
+    if from_value and to_value:
+        if datetime.fromisoformat(from_value.replace("Z", "+00:00")) > datetime.fromisoformat(to_value.replace("Z", "+00:00")):
+            return None, "from must be before to."
+        if datetime.fromisoformat(to_value.replace("Z", "+00:00")) - datetime.fromisoformat(from_value.replace("Z", "+00:00")) > timedelta(hours=24):
+            return None, "The time range may not exceed 24 hours."
+
+    def values(name, target, allowed=None):
+        raw_values = [value.strip() for value in request.args.getlist(name) if value.strip()]
+        if len(raw_values) > 10:
+            return f"Too many {name} filters."
+        if any(not _INSTANCE_LOG_VALUE.fullmatch(value) for value in raw_values):
+            return f"Invalid {name} filter."
+        if allowed and any(value not in allowed for value in raw_values):
+            return f"Invalid {name} filter."
+        if raw_values:
+            filters[target] = raw_values
+        return None
+
+    for name, target, allowed in (
+        ("protocol", "protocol", _INSTANCE_LOG_PROTOCOLS),
+        ("event", "events", None),
+        ("outcome", "outcome", None),
+    ):
+        error = values(name, target, allowed)
+        if error:
+            return None, error
+
+    statuses = []
+    for value in request.args.getlist("status"):
+        try:
+            parsed = int(value)
+        except (TypeError, ValueError):
+            return None, "status must be an HTTP status code."
+        if not 100 <= parsed <= 599:
+            return None, "status must be an HTTP status code."
+        statuses.append(parsed)
+    if len(statuses) > 10:
+        return None, "Too many status filters."
+    if statuses:
+        filters["status"] = statuses
+
+    actor_user_ref = (request.args.get("actor_user_ref") or "").strip()
+    if actor_user_ref:
+        if len(actor_user_ref) > 128 or not _INSTANCE_LOG_VALUE.fullmatch(actor_user_ref):
+            return None, "Invalid actor filter."
+        filters["actorUserRef"] = actor_user_ref
+    return filters or None, None
 
 
 def get_list_challenge_deploy(challenge_id):
@@ -176,12 +256,28 @@ def get_instance_request_logs_api(challenge_id, instance_id):
     instance = ChallengeInstance.query.filter_by(
         instance_id=parsed_instance_id, challenge_id=challenge_id
     ).first_or_404()
+    filters, error = _parse_instance_log_filters()
+    if error:
+        return jsonify({"success": False, "message": error}), 400
     cursor = request.args.get("cursor") or None
     limit = request.args.get("limit", 50)
-    response, status = get_instance_request_logs(instance.instance_id, cursor=cursor, limit=limit)
+    response, status = get_instance_request_logs(
+        instance.instance_id,
+        cursor=cursor,
+        limit=limit,
+        filters=filters,
+    )
+    data = response.get("data") if isinstance(response, dict) else None
+    events = data.get("events", []) if isinstance(data, dict) else []
     log_audit(
         "view_instance_logs",
-        data={"challenge_id": instance.challenge_id, "contest_id": instance.contest_id},
+        data={
+            "challenge_id": instance.challenge_id,
+            "contest_id": instance.contest_id,
+            "filters": filters or {},
+            "event_count": len(events) if isinstance(events, list) else 0,
+            "source_status": (data or {}).get("sourceStatus", (data or {}).get("source_status", "unavailable" if status >= 500 else "healthy")),
+        },
         contest_id=instance.contest_id,
         target_ref=instance.instance_id,
     )

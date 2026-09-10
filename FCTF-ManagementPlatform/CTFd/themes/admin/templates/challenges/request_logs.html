@@ -3,18 +3,66 @@
 {% block content %}
 <div class="page-header"><div class="container"><h1>Instance Request Logs</h1></div></div>
 <div class="container">
-  <div class="d-flex justify-content-between align-items-center mb-3">
-    <div>
-      <div><strong>{{ instance.challenge_name_snapshot }}</strong> &middot; instance <code>{{ instance.instance_id }}</code></div>
-      <div class="text-muted small">State: {{ instance.lifecycle_state }} &middot; namespace snapshot: {{ instance.namespace }}</div>
+  <section class="card mb-3" aria-labelledby="instance-summary-title">
+    <div class="card-body">
+      <div class="d-flex justify-content-between align-items-start">
+        <div>
+          <h2 class="h5 mb-1" id="instance-summary-title">{{ instance.challenge_name_snapshot }}</h2>
+          <div class="text-muted small">Contest #{{ instance.contest_id }} &middot; Challenge #{{ instance.challenge_id }}</div>
+        </div>
+        <button class="btn btn-primary" id="refresh" type="button">Refresh</button>
+      </div>
+      <dl class="row mb-0 mt-3 small">
+        <dt class="col-sm-3">Instance ID</dt><dd class="col-sm-9"><code>{{ instance.instance_id }}</code></dd>
+        <dt class="col-sm-3">Lifecycle</dt><dd class="col-sm-9">{{ instance.lifecycle_state }}</dd>
+        <dt class="col-sm-3">Scope / owner</dt><dd class="col-sm-9">{{ instance.instance_scope }}{% if instance.instance_owner_team_id %} &middot; {{ instance.owner_team_name_snapshot }} (#{{ instance.instance_owner_team_id }}){% endif %}</dd>
+        <dt class="col-sm-3">Namespace snapshot</dt><dd class="col-sm-9"><code>{{ instance.namespace }}</code></dd>
+        <dt class="col-sm-3">Lifecycle times</dt><dd class="col-sm-9">Requested {{ instance.requested_at or '–' }} &middot; Running {{ instance.running_at or '–' }} &middot; Stopped {{ instance.stopped_at or '–' }} &middot; Expires {{ instance.expires_at or '–' }}</dd>
+      </dl>
+      <p class="text-muted small mb-0">Actor is the credential owner recorded when the access assertion was issued; it is not proof of the person physically operating the client.</p>
     </div>
-    <button class="btn btn-primary" id="refresh" type="button">Refresh</button>
-  </div>
+  </section>
+
+  <section class="card mb-3" aria-labelledby="pod-history-title">
+    <div class="card-body py-3">
+      <h2 class="h6" id="pod-history-title">Pod history</h2>
+      {% if instance.pods %}
+      <ul class="mb-0 small">
+        {% for pod in instance.pods|sort(attribute='last_observed_at', reverse=true) %}
+        <li><code>{{ pod.pod_name }}</code> &middot; UID <code>{{ pod.pod_uid }}</code> &middot; first {{ pod.first_observed_at }} &middot; last {{ pod.last_observed_at }}{% if pod.terminated_at %} &middot; terminated {{ pod.terminated_at }} ({{ pod.termination_reason or 'unknown' }}){% endif %}</li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="text-muted small mb-0">No pod observation has been recorded for this instance yet.</p>
+      {% endif %}
+    </div>
+  </section>
+
+  <form class="card mb-3" id="filters" novalidate>
+    <div class="card-body">
+      <h2 class="h6">Metadata filters</h2>
+      <div class="form-row">
+        <div class="form-group col-md-3"><label for="from">From</label><input class="form-control" id="from" type="datetime-local" step="1"></div>
+        <div class="form-group col-md-3"><label for="to">To</label><input class="form-control" id="to" type="datetime-local" step="1"></div>
+        <div class="form-group col-md-2"><label for="actor">Credential owner</label><input class="form-control" id="actor" maxlength="128" placeholder="e.g. 42"></div>
+        <div class="form-group col-md-2"><label for="status">HTTP status</label><select class="form-control" id="status" multiple size="3"><option>200</option><option>400</option><option>401</option><option>413</option><option>429</option><option>502</option><option>503</option></select></div>
+        <div class="form-group col-md-2"><label for="protocol">Protocol</label><select class="form-control" id="protocol" multiple size="3"><option value="http">HTTP</option><option value="tcp">TCP</option></select></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group col-md-5"><label for="event">Event</label><select class="form-control" id="event" multiple size="4"><option value="http_request">HTTP request</option><option value="http_auth_failed">HTTP auth failed</option><option value="http_rate_limited">HTTP rate limited</option><option value="http_upstream_error">HTTP upstream error</option><option value="tcp_connect">TCP connect</option><option value="tcp_auth_failed">TCP auth failed</option><option value="tcp_rate_limited">TCP rate limited</option><option value="tcp_dial_failed">TCP dial failed</option><option value="tcp_session_end">TCP session end</option></select></div>
+        <div class="form-group col-md-4"><label for="outcome">Outcome</label><select class="form-control" id="outcome" multiple size="4"><option value="success">Success</option><option value="authentication_failed">Authentication failed</option><option value="rate_limited">Rate limited</option><option value="upstream_error">Upstream error</option><option value="request_rejected">Request rejected</option><option value="session_closed">Session closed</option></select></div>
+        <div class="form-group col-md-3 d-flex align-items-end"><button class="btn btn-primary mr-2" type="submit">Apply filters</button><button class="btn btn-outline-secondary" id="clear" type="button">Clear</button></div>
+      </div>
+      <small class="text-muted">Only metadata fields are filterable. Times are sent as UTC; the time range is limited to 24 hours.</small>
+    </div>
+  </form>
+
   <div id="error" class="alert alert-warning d-none" role="alert"></div>
+  <div id="source" class="small text-muted mb-2" aria-live="polite"></div>
   <div class="table-responsive">
     <table class="table table-sm">
-      <thead><tr><th>Time</th><th>Protocol</th><th>Event</th><th>Path / reason</th><th>Status</th><th>Bytes</th><th>Outcome</th></tr></thead>
-      <tbody id="events"><tr><td colspan="7" class="text-muted">Loading metadata-only telemetry…</td></tr></tbody>
+      <thead><tr><th>Time</th><th>Protocol</th><th>Event</th><th>Credential owner</th><th>Path / reason</th><th>Status</th><th>Bytes (in / out)</th><th>Outcome</th></tr></thead>
+      <tbody id="events"><tr><td colspan="8" class="text-muted">Loading metadata-only telemetry…</td></tr></tbody>
     </table>
   </div>
   <button class="btn btn-outline-secondary d-none" id="more" type="button">Load older events</button>
@@ -27,19 +75,38 @@
   const api = {{ url_for('challengeHistory.get_instance_request_logs_api', challenge_id=instance.challenge_id, instance_id=instance.instance_id) | tojson }};
   const eventsBody = document.getElementById('events');
   const error = document.getElementById('error');
+  const source = document.getElementById('source');
   const more = document.getElementById('more');
+  const form = document.getElementById('filters');
   let cursor = null;
 
   function field(event, camel, snake) { return event[camel] ?? event[snake] ?? ''; }
   function cell(row, value) { const td = document.createElement('td'); td.textContent = value === '' || value === null ? '–' : String(value); row.appendChild(td); }
+  function showEmpty(message) { eventsBody.replaceChildren(); const row = document.createElement('tr'); const td = document.createElement('td'); td.colSpan = 8; td.className = 'text-muted'; td.textContent = message; row.appendChild(td); eventsBody.appendChild(row); }
+  function selectedValues(id) { return Array.from(document.getElementById(id).selectedOptions).map(option => option.value); }
+  function dateForInput(date) { const offset = date.getTimezoneOffset() * 60000; return new Date(date.getTime() - offset).toISOString().slice(0, 19); }
+  function setDefaultRange() { const to = new Date(); const from = new Date(to.getTime() - 24 * 60 * 60 * 1000); document.getElementById('from').value = dateForInput(from); document.getElementById('to').value = dateForInput(to); }
+  function toUtcIso(id) { const value = document.getElementById(id).value; if (!value) return null; const date = new Date(value); return Number.isNaN(date.valueOf()) ? null : date.toISOString(); }
+
+  function appendFilters(params) {
+    const from = toUtcIso('from'); const to = toUtcIso('to');
+    if (!from || !to) return 'Select both from and to times.';
+    if (Date.parse(to) < Date.parse(from) || Date.parse(to) - Date.parse(from) > 24 * 60 * 60 * 1000) return 'The time range must be ordered and at most 24 hours.';
+    params.set('from', from); params.set('to', to);
+    const actor = document.getElementById('actor').value.trim(); if (actor) params.set('actor_user_ref', actor);
+    [['protocol', 'protocol'], ['event', 'event'], ['outcome', 'outcome'], ['status', 'status']].forEach(([control, name]) => selectedValues(control).forEach(value => params.append(name, value)));
+    return null;
+  }
+
   function render(events, append) {
     if (!append) eventsBody.replaceChildren();
-    if (!events.length && !append) { eventsBody.innerHTML = '<tr><td colspan="7" class="text-muted">No events in the selected retention window.</td></tr>'; return; }
+    if (!events.length && !append) { showEmpty('No events match this instance and filter window.'); return; }
     events.forEach(event => {
       const row = document.createElement('tr');
       cell(row, field(event, 'occurredAt', 'occurred_at'));
       cell(row, field(event, 'protocol'));
       cell(row, field(event, 'event'));
+      cell(row, field(event, 'actorUserRef', 'actor_user_ref'));
       cell(row, field(event, 'path') || field(event, 'terminationReason', 'termination_reason'));
       cell(row, field(event, 'status'));
       const sent = field(event, 'responseBytes', 'response_bytes') || field(event, 'bytesS2C', 'bytes_s2c') || 0;
@@ -49,20 +116,33 @@
       eventsBody.appendChild(row);
     });
   }
+
   async function load(append = false) {
     error.classList.add('d-none');
     const url = new URL(api, window.location.origin);
+    const validationError = appendFilters(url.searchParams);
+    if (validationError) { error.textContent = validationError; error.classList.remove('d-none'); return; }
     if (append && cursor) url.searchParams.set('cursor', cursor);
     const response = await fetch(url, {headers: {'Accept': 'application/json'}});
     const payload = await response.json().catch(() => ({}));
-    if (!response.ok || !payload.success) { error.textContent = payload.message || 'Request telemetry is unavailable.'; error.classList.remove('d-none'); return; }
     const data = payload.data || {};
+    const sourceStatus = data.sourceStatus || data.source_status || (response.status === 503 ? 'unavailable' : 'healthy');
+    source.textContent = `Telemetry source: ${sourceStatus}. Events contain metadata only.`;
+    if (!response.ok || !payload.success) {
+      error.textContent = sourceStatus === 'unavailable' ? 'Request telemetry source is temporarily unavailable; this is not an empty result.' : (payload.message || 'Request telemetry is unavailable.');
+      error.classList.remove('d-none');
+      return;
+    }
     render(data.events || [], append);
     cursor = data.nextCursor || data.next_cursor || null;
     more.classList.toggle('d-none', !cursor);
   }
+
+  form.addEventListener('submit', event => { event.preventDefault(); cursor = null; load(false); });
   document.getElementById('refresh').addEventListener('click', () => { cursor = null; load(false); });
+  document.getElementById('clear').addEventListener('click', () => { form.reset(); setDefaultRange(); cursor = null; load(false); });
   more.addEventListener('click', () => load(true));
+  setDefaultRange();
   load(false);
 })();
 </script>

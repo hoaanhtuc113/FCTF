@@ -119,7 +119,19 @@ public class RequireSecretKeyAttribute : Attribute, IAsyncResourceFilter
                 bodyData.Remove("unixTime");
             }
 
-            data = bodyData.ToDictionary(k => k.Key, v => v.Value?.ToString() ?? string.Empty);
+            data = bodyData.ToDictionary(k => k.Key, v =>
+            {
+                // A nested object (currently the instance-log `filters`)
+                // needs its exact JSON representation in the MAC. Calling
+                // ToString() is implementation-dependent for JsonElement;
+                // GetRawText() binds the signature to every nested filter.
+                if (v.Value is JsonElement element
+                    && element.ValueKind is JsonValueKind.Object or JsonValueKind.Array)
+                {
+                    return element.GetRawText();
+                }
+                return v.Value?.ToString() ?? string.Empty;
+            });
         }
 
         long skewSeconds = Math.Abs(DateTimeOffset.UtcNow.ToUnixTimeSeconds() - unixTime);

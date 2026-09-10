@@ -1311,10 +1311,13 @@ public class DeployService : IDeployService
         catch (Exception) { return false; }
     }
 
-    private static byte[] CursorKey() => Encoding.UTF8.GetBytes(
-        Environment.GetEnvironmentVariable("INSTANCE_LOG_CURSOR_KEY")
-        ?? Environment.GetEnvironmentVariable("CHALLENGE_ACCESS_TOKEN_KEY")
-        ?? DeploymentCenterConfigHelper.PRIVATE_KEY);
+    private static byte[] CursorKey()
+    {
+        var secret = Environment.GetEnvironmentVariable("INSTANCE_LOG_CURSOR_KEY");
+        if (string.IsNullOrWhiteSpace(secret))
+            throw new InvalidOperationException("Missing INSTANCE_LOG_CURSOR_KEY");
+        return Encoding.UTF8.GetBytes(secret);
+    }
     private static string ToBase64Url(byte[] value) => Convert.ToBase64String(value).TrimEnd('=').Replace('+', '-').Replace('/', '_');
     private static byte[] FromBase64Url(string value)
     {

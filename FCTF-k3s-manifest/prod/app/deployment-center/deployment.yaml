@@ -33,6 +33,11 @@ spec:
                 name: deployment-center-secret
             - secretRef:
                 name: common-private-key-secret
+            - secretRef:
+                # Cursor MACs are independent from both access assertions and
+                # inter-service requests, so a leaked cursor cannot be forged
+                # with either of those credentials.
+                name: instance-log-query-secret
           env:
             # CA that signed the Redis server certificate. Without it the
             # service falls back to the container trust store, which does not
