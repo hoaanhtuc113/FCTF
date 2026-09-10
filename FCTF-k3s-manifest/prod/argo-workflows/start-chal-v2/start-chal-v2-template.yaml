@@ -41,6 +41,8 @@ spec:
         value: "0"
       - name: TEAM_ID
         value: "0"
+      - name: INSTANCE_ID
+        value: ""
 
   templates:
     - name: main
@@ -79,6 +81,8 @@ spec:
                   value: "{{workflow.parameters.CHALLENGE_ID}}"
                 - name: TEAM_ID
                   value: "{{workflow.parameters.TEAM_ID}}"
+                - name: INSTANCE_ID
+                  value: "{{workflow.parameters.INSTANCE_ID}}"
 
     - name: deploy-challenge-v2
       inputs:
@@ -98,6 +102,7 @@ spec:
           - name: CONTEST_ID
           - name: CHALLENGE_ID
           - name: TEAM_ID
+          - name: INSTANCE_ID
       priorityClassName: lowest
       activeDeadlineSeconds: 120
       timeout: "120s"
@@ -169,6 +174,8 @@ spec:
             value: "{{inputs.parameters.CHALLENGE_ID}}"
           - name: TEAM_ID
             value: "{{inputs.parameters.TEAM_ID}}"
+          - name: INSTANCE_ID
+            value: "{{inputs.parameters.INSTANCE_ID}}"
           - name: USE_GVISOR
             value: "{{inputs.parameters.USE_GVISOR}}"
           - name: HARDEN_CONTAINER

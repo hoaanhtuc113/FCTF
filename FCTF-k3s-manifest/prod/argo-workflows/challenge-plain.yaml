@@ -16,6 +16,7 @@ metadata:
     ctf/contest-id: "${CONTEST_ID}"
     ctf/challenge-id: "${CHALLENGE_ID}"
     ctf/team-id: "${TEAM_ID}"
+    ctf/instance-id: "${INSTANCE_ID}"
 ---
 apiVersion: v1
 kind: ResourceQuota
@@ -177,6 +178,7 @@ spec:
         ctf/contest-id: "${CONTEST_ID}"
         ctf/challenge-id: "${CHALLENGE_ID}"
         ctf/team-id: "${TEAM_ID}"
+        ctf/instance-id: "${INSTANCE_ID}"
     spec:
       restartPolicy: Never
       automountServiceAccountToken: false

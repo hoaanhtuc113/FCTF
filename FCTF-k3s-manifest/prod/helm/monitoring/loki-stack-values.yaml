@@ -111,7 +111,12 @@ promtail:
               action: action
               userId: userId
               teamId: teamId
-              contest_id: contestId
+              # Gateway schema is snake_case; .NET audit events retain the
+              # existing camelCase name. JMESPath picks whichever is present.
+              contest_id: 'contest_id || contestId'
+              event: event
+              protocol: protocol
+              data_class: data_class
 
         - replace:
             source: level
@@ -145,6 +150,9 @@ promtail:
             type:
             action:
             contest_id:
+            event:
+            protocol:
+            data_class:
   extraObjects:
     - apiVersion: networking.k8s.io/v1
       kind: NetworkPolicy
