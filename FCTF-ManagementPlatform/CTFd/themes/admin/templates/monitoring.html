@@ -500,13 +500,13 @@
 		const menu = document.createElement("div");
 		menu.className = "action-menu";
 
-		const podLogs = document.createElement("a");
-		podLogs.className = "action-menu-item";
-		podLogs.href = "#";
-		podLogs.innerHTML = '<i class="fas fa-file-alt fa-fw mr-1"></i> Pod Logs';
-		podLogs.addEventListener("click", function (event) {
+		const livePodLogs = document.createElement("a");
+		livePodLogs.className = "action-menu-item";
+		livePodLogs.href = "#";
+		livePodLogs.innerHTML = '<i class="fas fa-file-alt fa-fw mr-1"></i> Live Pod Logs';
+		livePodLogs.addEventListener("click", function (event) {
 			event.preventDefault();
-			viewLogs(challengeId, teamId);
+			viewLogs(challengeId, teamId, instanceId);
 			closeAllActionMenus();
 		});
 
@@ -536,8 +536,8 @@
 			closeAllActionMenus();
 		});
 
-		menu.appendChild(podLogs);
 		if (requestLogs) menu.appendChild(requestLogs);
+		menu.appendChild(livePodLogs);
 		menu.appendChild(divider);
 		menu.appendChild(stop);
 
@@ -796,8 +796,9 @@
 		loadData();
 	});
 
-	function viewLogs(challengeId, teamId) {
-		window.location.href = `/deploy_History/${challengeId}/pods-logs?team_id=${teamId}`;
+	function viewLogs(challengeId, teamId, instanceId) {
+		const instanceQuery = instanceId ? `&instance_id=${encodeURIComponent(instanceId)}` : '';
+		window.location.href = `/deploy_History/${challengeId}/pods-logs?team_id=${teamId}${instanceQuery}`;
 	}
 
 	function handleViewRequestLogs(el) {

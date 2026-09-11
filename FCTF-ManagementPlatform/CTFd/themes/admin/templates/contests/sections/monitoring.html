@@ -353,10 +353,14 @@ function createActionCell(cid, tid, ns, instanceId) {
     const menu = document.createElement("div");
     menu.className = "action-menu";
 
-    const podLog = document.createElement("a");
-    podLog.className = "action-menu-item"; podLog.href = "#";
-    podLog.innerHTML = '<i class="fas fa-file-alt fa-fw mr-1"></i> Pod Logs';
-    podLog.addEventListener("click", e => { e.preventDefault(); closeAllMenus(); window.location.href = `/deploy_History/${cid}/pods-logs?team_id=${tid}`; });
+    const livePodLog = document.createElement("a");
+    livePodLog.className = "action-menu-item"; livePodLog.href = "#";
+    livePodLog.innerHTML = '<i class="fas fa-file-alt fa-fw mr-1"></i> Live Pod Logs';
+    livePodLog.addEventListener("click", e => {
+        e.preventDefault(); closeAllMenus();
+        const instanceQuery = instanceId ? `&instance_id=${encodeURIComponent(instanceId)}` : '';
+        window.location.href = `/deploy_History/${cid}/pods-logs?team_id=${tid}${instanceQuery}`;
+    });
 
     let reqLog = null;
     if (instanceId) {
@@ -377,8 +381,8 @@ function createActionCell(cid, tid, ns, instanceId) {
     stop.innerHTML = '<i class="fas fa-stop-circle fa-fw mr-1"></i> Stop';
     stop.addEventListener("click", e => { e.preventDefault(); closeAllMenus(); stopInstance(cid, tid); });
 
-    menu.appendChild(podLog);
     if (reqLog) menu.appendChild(reqLog);
+    menu.appendChild(livePodLog);
     menu.appendChild(div);
     menu.appendChild(stop);
     wrap.appendChild(btn);

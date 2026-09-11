@@ -935,6 +935,13 @@ def get_workflow_logs(challenge_id, workflow_name, user_id):
         raise Exception(e)
 
 def get_challenge_pod_logs(challenge_id, team_id):
+    """Return the structured Live Pod Logs response and its HTTP status.
+
+    The legacy connector collapsed every non-200 result into a log string.
+    Keeping the response structured lets the UI distinguish a missing Pod,
+    unavailable source, and a failed log read without exposing infrastructure
+    errors in the log console.
+    """
     if team_id is None:
         team_id = -1
 
@@ -953,24 +960,75 @@ def get_challenge_pod_logs(challenge_id, team_id):
     headers = {"SecretKey": secret_key}
     logs_url = f"{DEPLOYMENT_SERVICE_API}/api/challenge/pod-logs"
     try:
-        response = requests.post(logs_url, headers=headers, json=payload)
-        print(f"Get pod logs response status: {response.status_code}")
-        
-        if response.status_code == 200:
+        response = requests.post(logs_url, headers=headers, json=payload, timeout=20)
+        try:
             response_data = response.json()
-            # Extract logs from the nested data structure
-            if response_data.get("success") and "data" in response_data:
-                logs = response_data["data"].get("logs", "")
-                return logs
-            return response_data.get("logs", "")
+        except ValueError:
+            response_data = {
+                "success": False,
+                "message": "Live Pod Logs is temporarily unavailable.",
+                "data": {
+                    "sourceState": "UNAVAILABLE",
+                    "podState": "UNKNOWN",
+                    "logState": "NOT_REQUESTED",
+                    "logs": "",
+                },
+            }
+            return response_data, 503
+
+        if not isinstance(response_data, dict):
+            response_data = {
+                "success": False,
+                "message": "Live Pod Logs is temporarily unavailable.",
+                "data": {
+                    "sourceState": "UNAVAILABLE",
+                    "podState": "UNKNOWN",
+                    "logState": "NOT_REQUESTED",
+                    "logs": "",
+                },
+            }
+            return response_data, 503
+
+        data = response_data.get("data")
+        if not isinstance(data, dict):
+            data = {}
+            response_data["data"] = data
+
+        # The top-level logs field is deliberately retained for existing
+        # clients. New clients use data.sourceState/podState/logState.
+        logs = data.get("logs", response_data.get("logs", ""))
+        if not isinstance(logs, str):
+            logs = ""
+        response_data["logs"] = logs
+
+        # These fallbacks allow a rolling deploy to keep rendering the old
+        # DeploymentCenter payload while the structured DTO is being rolled
+        # out. The new service always supplies these values explicitly.
+        if response.status_code == 404:
+            data.setdefault("sourceState", "AVAILABLE")
+            data.setdefault("podState", "NOT_FOUND")
+            data.setdefault("logState", "NOT_REQUESTED")
+        elif response.status_code >= 500:
+            data.setdefault("sourceState", "UNAVAILABLE")
+            data.setdefault("podState", "UNKNOWN")
+            data.setdefault("logState", "NOT_REQUESTED")
         else:
-            print(f"Get pod logs failed: {response.text}")
-            response_data = response.json()
-            logs = response_data.get("message", "")
-            return logs
-    except requests.exceptions.RequestException as e:
-        print(f"Error getting pod logs: {e}")
-        return str(e)
+            data.setdefault("sourceState", "AVAILABLE")
+            data.setdefault("podState", "UNKNOWN")
+            data.setdefault("logState", "AVAILABLE" if logs else "EMPTY")
+        return response_data, response.status_code
+    except requests.exceptions.RequestException:
+        return {
+            "success": False,
+            "message": "Live Pod Logs is temporarily unavailable.",
+            "data": {
+                "sourceState": "UNAVAILABLE",
+                "podState": "UNKNOWN",
+                "logState": "NOT_REQUESTED",
+                "logs": "",
+            },
+            "logs": "",
+        }, 503
 
 def _request_log_signing_value(value):
     """Match the JSON object text that ASP.NET receives for HMAC signing."""

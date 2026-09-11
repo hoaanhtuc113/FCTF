@@ -1010,44 +1010,92 @@ public class DeployService : IDeployService
 
     public async Task<BaseResponseDTO<PodLogsDTO>> GetPodLogs(ChallengeStartStopReqDTO challengeReq)
     {
+        var checkedAt = DateTimeOffset.UtcNow;
         try
         {
-            var currentPods = await _k8SHealthService.GetPodsByLabel();
-            var deployInfo = currentPods.FirstOrDefault(p => p.TeamId == challengeReq.teamId && p.ChallengeId == challengeReq.challengeId);
+            var deployInfo = await _k8SHealthService.GetChallengePod(
+                challengeReq.challengeId,
+                challengeReq.teamId);
             if (deployInfo == null)
             {
                 return new BaseResponseDTO<PodLogsDTO>
                 {
                     Success = false,
                     HttpStatusCode = HttpStatusCode.NotFound,
-                    Message = "Pod not found"
+                    Message = "Pod not found",
+                    Data = CreatePodLogsResponse(challengeReq, checkedAt, "NOT_FOUND"),
                 };
             }
 
+            var podState = deployInfo.IsTerminated
+                ? "TERMINATED"
+                : deployInfo.Ready ? "READY" : "NOT_READY";
+            var responseData = CreatePodLogsResponse(challengeReq, checkedAt, podState, deployInfo);
             var log = await _k8SHealthService.GetPodLogs(deployInfo.Namespace, deployInfo.Name);
+            if (!log.Success)
+            {
+                responseData.LogState = "READ_FAILED";
+                responseData.LogReason = log.SafeReason;
+                return new BaseResponseDTO<PodLogsDTO>
+                {
+                    Success = false,
+                    HttpStatusCode = HttpStatusCode.BadGateway,
+                    Message = "Pod logs could not be read.",
+                    Data = responseData,
+                };
+            }
+
+            responseData.Logs = log.Logs;
+            responseData.LogState = string.IsNullOrWhiteSpace(log.Logs) ? "EMPTY" : "AVAILABLE";
             return new BaseResponseDTO<PodLogsDTO>
             {
                 Success = true,
                 HttpStatusCode = HttpStatusCode.OK,
-                Data = new PodLogsDTO
-                {
-                    PodName = deployInfo.Name,
-                    Logs = log
-                }
+                Data = responseData,
             };
 
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, null, challengeReq.teamId, new { challengeId = challengeReq.challengeId }, contestId: challengeReq.contestId);
-            await Console.Error.WriteLineAsync($"Error retrieving pod logs: {ex.Message}");
             return new BaseResponseDTO<PodLogsDTO>
             {
                 Success = false,
-                HttpStatusCode = HttpStatusCode.InternalServerError,
-                Message = "Error retrieving pod logs"
+                HttpStatusCode = HttpStatusCode.ServiceUnavailable,
+                Message = "Live Pod Logs is temporarily unavailable.",
+                Data = new PodLogsDTO
+                {
+                    TeamId = challengeReq.teamId,
+                    ChallengeId = challengeReq.challengeId,
+                    SourceState = "UNAVAILABLE",
+                    PodState = "UNKNOWN",
+                    LogState = "NOT_REQUESTED",
+                    CheckedAt = checkedAt,
+                }
             };
         }
+    }
+
+    private static PodLogsDTO CreatePodLogsResponse(
+        ChallengeStartStopReqDTO request,
+        DateTimeOffset checkedAt,
+        string podState,
+        PodInfo? pod = null)
+    {
+        return new PodLogsDTO
+        {
+            TeamId = request.teamId,
+            ChallengeId = request.challengeId,
+            SourceState = "AVAILABLE",
+            PodState = podState,
+            LogState = "NOT_REQUESTED",
+            PodName = pod?.Name ?? string.Empty,
+            Namespace = pod?.Namespace ?? string.Empty,
+            PodPhase = pod?.Phase ?? "Unknown",
+            Ready = pod?.Ready,
+            Reason = pod?.Reason,
+            CheckedAt = checkedAt,
+        };
     }
 
     public async Task<BaseResponseDTO<InstanceRequestLogsDTO>> GetInstanceRequestLogs(InstanceRequestLogsReqDTO request)

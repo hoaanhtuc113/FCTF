@@ -49,6 +49,7 @@ _ACTION_TARGET_TYPES = {
     "bulk_password_reset": "user",
     "ctf_reset": "system",
     "view_instance_logs": "challenge_instance",
+    "view_live_pod_logs": "challenge",
 }
 
 
@@ -74,6 +75,8 @@ def _extract_target_id(action: str, data: dict | None) -> int | None:
         return data.get("bracket_id")
     if action.startswith("challenge_bank"):
         return data.get("challenge_bank_id")
+    if action == "view_live_pod_logs":
+        return data.get("challenge_id")
     return None
 
 

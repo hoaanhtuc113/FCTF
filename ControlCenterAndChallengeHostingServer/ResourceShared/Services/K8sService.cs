@@ -22,6 +22,13 @@ public interface IK8sService
         string label = "ctf/kind=challenge",
         K8sService.PodEventHandler? _event = null);
 
+    /// <summary>
+    /// Locate the current challenge Pod without converting an unavailable
+    /// Kubernetes API into an empty list. Live Pod Logs needs that distinction
+    /// to report NOT_FOUND (404) separately from UNAVAILABLE (503).
+    /// </summary>
+    Task<PodInfo?> GetChallengePod(int challengeId, int teamId);
+
     Task<bool> DeleteNamespace(string namespaceName);
 
     Task<(int successCount, int failCount, List<string> errors)> DeleteAllChallengeNamespaces(
@@ -46,7 +53,7 @@ public interface IK8sService
         string workflowName,
         string namespaceName = "argo");
 
-    Task<string> GetPodLogs(
+    Task<PodLogReadResultDTO> GetPodLogs(
         string namespaceName,
         string podName);
 
@@ -218,15 +225,26 @@ public class K8sService : IK8sService
                 var csList = pod.Status?.ContainerStatuses ?? new List<V1ContainerStatus>();
                 var name = pod.Metadata?.Name ?? "unknown";
                 var ns = pod.Metadata?.NamespaceProperty ?? "unknown";
-                var status = pod.Status?.Phase ?? "Unknown";
-                var ready = csList.All(c => c.Ready);
+                var phase = pod.Status?.Phase ?? "Unknown";
+                var status = phase;
+                var ready = csList.Count > 0 && csList.All(c => c.Ready);
+                string? reason = null;
+                var isTerminated = phase.Equals(DeploymentStatus.FAILED, StringComparison.OrdinalIgnoreCase)
+                    || phase.Equals(DeploymentStatus.SUCCEEDED, StringComparison.OrdinalIgnoreCase);
 
                 foreach (var cs in csList)
                 {
                     if (cs.State?.Waiting != null)
-                        status = cs.State.Waiting.Reason ?? DeploymentReason.WAITING;
+                    {
+                        reason = cs.State.Waiting.Reason ?? DeploymentReason.WAITING;
+                        status = reason;
+                    }
                     else if (cs.State?.Terminated != null)
-                        status = cs.State.Terminated.Reason ?? DeploymentReason.TERMINATED;
+                    {
+                        reason = cs.State.Terminated.Reason ?? DeploymentReason.TERMINATED;
+                        status = reason;
+                        isTerminated = true;
+                    }
                     else if (cs.State?.Running != null)
                         status = DeploymentStatus.RUNING;
                 }
@@ -278,6 +296,9 @@ public class K8sService : IK8sService
                                 Name = name,
                                 Ready = ready,
                                 Status = status,
+                                Phase = phase,
+                                Reason = reason,
+                                IsTerminated = isTerminated,
                                 Age = age,
                                 IsPending = true,
                             });
@@ -297,6 +318,9 @@ public class K8sService : IK8sService
                     Name = name,
                     Ready = ready,
                     Status = status,
+                    Phase = phase,
+                    Reason = reason,
+                    IsTerminated = isTerminated,
                     Age = age,
                     IsPending = false,
                 });
@@ -310,6 +334,94 @@ public class K8sService : IK8sService
         }
 
         return podsResult;
+    }
+
+    public async Task<PodInfo?> GetChallengePod(int challengeId, int teamId)
+    {
+        // Do not catch the Kubernetes call here. DeploymentCenter must be able
+        // to distinguish an unavailable source from an empty successful query.
+        var pods = await _kubernetes.CoreV1.ListPodForAllNamespacesAsync(
+            labelSelector: "ctf/kind=challenge");
+
+        foreach (var pod in pods.Items)
+        {
+            int podTeamId;
+            int podChallengeId;
+            try
+            {
+                (podTeamId, podChallengeId) = ChallengeHelper.ParseChallengeLabels(pod.Metadata?.Labels);
+            }
+            catch (ArgumentException)
+            {
+                // A malformed, unrelated Pod must not make this team's live
+                // log view unavailable.
+                continue;
+            }
+            catch (FormatException)
+            {
+                continue;
+            }
+
+            if (podChallengeId != challengeId || podTeamId != teamId)
+                continue;
+
+            var containerStatuses = pod.Status?.ContainerStatuses ?? new List<V1ContainerStatus>();
+            var phase = pod.Status?.Phase ?? "Unknown";
+            var status = phase;
+            var ready = containerStatuses.Count > 0 && containerStatuses.All(container => container.Ready);
+            string? reason = null;
+            var isTerminated = phase.Equals(DeploymentStatus.FAILED, StringComparison.OrdinalIgnoreCase)
+                || phase.Equals(DeploymentStatus.SUCCEEDED, StringComparison.OrdinalIgnoreCase);
+
+            foreach (var container in containerStatuses)
+            {
+                if (container.State?.Waiting != null)
+                {
+                    reason = container.State.Waiting.Reason ?? DeploymentReason.WAITING;
+                    status = reason;
+                }
+                else if (container.State?.Terminated != null)
+                {
+                    reason = container.State.Terminated.Reason ?? DeploymentReason.TERMINATED;
+                    status = reason;
+                    isTerminated = true;
+                }
+                else if (container.State?.Running != null)
+                {
+                    status = DeploymentStatus.RUNING;
+                }
+            }
+
+            var age = string.Empty;
+            if (pod.Status?.StartTime != null)
+            {
+                var ageSpan = DateTime.UtcNow - pod.Status.StartTime.Value;
+                if (ageSpan.TotalDays >= 1) age = $"{(int)ageSpan.TotalDays}d";
+                else if (ageSpan.TotalHours >= 1) age = $"{(int)ageSpan.TotalHours}h";
+                else age = $"{(int)ageSpan.TotalMinutes}m";
+            }
+
+            string? instanceId = null;
+            pod.Metadata?.Labels?.TryGetValue("ctf/instance-id", out instanceId);
+
+            return new PodInfo
+            {
+                Namespace = pod.Metadata?.NamespaceProperty ?? "unknown",
+                Name = pod.Metadata?.Name ?? "unknown",
+                TeamId = podTeamId,
+                ChallengeId = podChallengeId,
+                InstanceId = instanceId,
+                PodUid = pod.Metadata?.Uid,
+                Ready = ready,
+                Status = status,
+                Phase = phase,
+                Reason = reason,
+                IsTerminated = isTerminated,
+                Age = age,
+            };
+        }
+
+        return null;
     }
 
     public async Task<ChallengeDeployResponeDTO?> HandleChallengeRunning(int challengeId, int teamId, string podName, ChallengeDeploymentCacheDTO deploymentCache)
@@ -705,27 +817,48 @@ public class K8sService : IK8sService
         return false;
     }
 
-    public async Task<string> GetPodLogs(string namespaceName, string podName)
+    public async Task<PodLogReadResultDTO> GetPodLogs(string namespaceName, string podName)
     {
         try
         {
             var stream = await _kubernetes.CoreV1.ReadNamespacedPodLogAsync(
                 name: podName,
-                namespaceParameter: namespaceName
+                namespaceParameter: namespaceName,
+                container: "challenge",
+                follow: false,
+                tailLines: 1000,
+                limitBytes: 256 * 1024
             );
 
             using var reader = new StreamReader(stream);
             var logs = await reader.ReadToEndAsync();
 
             if (string.IsNullOrWhiteSpace(logs))
-                return "No logs available.";
+            {
+                return new PodLogReadResultDTO
+                {
+                    Success = true,
+                    Logs = string.Empty,
+                };
+            }
 
-            await Console.Out.WriteLineAsync($"Raw logs for pod {podName} in namespace {namespaceName}:\n{logs}");
-            return NormalizeLog(logs);
+            return new PodLogReadResultDTO
+            {
+                Success = true,
+                // Preserve stdout/stderr exactly as supplied by Kubernetes.
+                // It is already bounded by tailLines and limitBytes above.
+                Logs = logs,
+            };
         }
         catch (Exception ex)
         {
-            return $"Error retrieving logs: {ex.Message}";
+            _logger.LogError(ex, data: new { namespaceName, podName, errorType = "GetPodLogsError" });
+            return new PodLogReadResultDTO
+            {
+                Success = false,
+                // Do not send Kubernetes exception text to CTFd or the browser.
+                SafeReason = "The Kubernetes log API could not read this Pod log.",
+            };
         }
     }
 

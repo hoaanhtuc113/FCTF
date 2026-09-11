@@ -16,6 +16,9 @@ namespace ResourceShared.DTOs.Deployments
         public string? PodUid { get; set; }
         public bool Ready { get; set; }
         public string Status { get; set; } = string.Empty;
+        public string Phase { get; set; } = "Unknown";
+        public string? Reason { get; set; }
+        public bool IsTerminated { get; set; }
         public string Age { get; set; } = string.Empty;
         public bool IsPending { get; set; } = false;
     }

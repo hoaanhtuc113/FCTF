@@ -188,6 +188,15 @@
                                    href="{{ url_for('challengeHistory.get_instance_request_logs_page', challenge_id=row.challenge_id, instance_id=row.instance_id) }}">
                                     <i class="fas fa-exchange-alt fa-fw"></i> Request Logs
                                 </a>
+                                {% if row.lifecycle_state in ['provisioning', 'running', 'stopping'] %}
+                                {% set live_team_id = -2 if row.instance_scope == 'shared' else row.instance_owner_team_id %}
+                                {% if live_team_id is not none %}
+                                <a class="action-menu-item"
+                                   href="{{ url_for('challengeHistory.get_pods_logs', challenge_id=row.challenge_id, team_id=live_team_id, instance_id=row.instance_id) }}">
+                                    <i class="fas fa-file-alt fa-fw"></i> Live Pod Logs
+                                </a>
+                                {% endif %}
+                                {% endif %}
                             </div>
                         </div>
                         {% else %}-{% endif %}

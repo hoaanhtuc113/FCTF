@@ -187,7 +187,7 @@ def get_pods_logs(challenge_id):
         return jsonify({"error": "User Not found"}), 403
 
     if user.type == "user":
-        return jsonify({"error": "Permission denied"}), 400
+        return jsonify({"error": "Permission denied"}), 403
 
     team_id = -1
     team_id_param = request.args.get("team_id")
@@ -196,12 +196,50 @@ def get_pods_logs(challenge_id):
             team_id = int(team_id_param)
         except ValueError:
             return jsonify({"error": "Invalid team_id"}), 400
-    logs = get_challenge_pod_logs(challenge_id, team_id)
+    response, status = get_challenge_pod_logs(challenge_id, team_id)
+    live_data = response.get("data") if isinstance(response, dict) else {}
+    live_data = live_data if isinstance(live_data, dict) else {}
+    request_logs_url = None
+    instance_id = request.args.get("instance_id")
+    if instance_id:
+        try:
+            parsed_instance_id = str(uuid.UUID(instance_id))
+        except ValueError:
+            parsed_instance_id = None
+        if parsed_instance_id:
+            instance = ChallengeInstance.query.filter_by(
+                instance_id=parsed_instance_id, challenge_id=challenge_id
+            ).first()
+            if instance:
+                request_logs_url = url_for(
+                    "challengeHistory.get_instance_request_logs_page",
+                    challenge_id=challenge_id,
+                    instance_id=instance.instance_id,
+                )
+
+    # This is intentionally the only audit write for Live Pod Logs. The JSON
+    # endpoint below is used for manual/automatic refresh and must not create
+    # an audit row for every polling request.
+    log_audit(
+        "view_live_pod_logs",
+        data={
+            "challenge_id": challenge_id,
+            "team_id": team_id,
+            "scope": "shared" if team_id == -2 else "team",
+            "source_state": live_data.get("sourceState", "UNAVAILABLE" if status >= 500 else "AVAILABLE"),
+            "pod_state": live_data.get("podState", "UNKNOWN"),
+            "log_state": live_data.get("logState", "NOT_REQUESTED"),
+        },
+        target_ref=f"challenge:{challenge_id}:team:{team_id}",
+    )
 
     return render_template(
         "admin/challenges/pod_logs.html",
         challenge_id=challenge_id,
-        log_content=logs,
+        team_id=team_id,
+        pod_log_response=response,
+        pod_log_status=status,
+        request_logs_url=request_logs_url,
     )
 
 
@@ -216,7 +254,7 @@ def get_pods_logs_api(challenge_id):
         return jsonify({"success": False, "error": "User not found"}), 403
 
     if user.type == "user":
-        return jsonify({"success": False, "error": "Permission denied"}), 400
+        return jsonify({"success": False, "error": "Permission denied"}), 403
 
     team_id = -1
     team_id_param = request.args.get("team_id")
@@ -226,9 +264,8 @@ def get_pods_logs_api(challenge_id):
         except ValueError:
             return jsonify({"success": False, "error": "Invalid team_id"}), 400
 
-    logs = get_challenge_pod_logs(challenge_id, team_id)
-
-    return jsonify({"success": True, "logs": logs}), 200
+    response, status = get_challenge_pod_logs(challenge_id, team_id)
+    return jsonify(response), status
 
 
 @challengeHistory.route("/deploy_History/<int:challenge_id>/instances/<instance_id>/request-logs", methods=["GET"])

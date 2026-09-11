@@ -1,224 +1,228 @@
 {% extends "admin/base.html" %}
 
 {% block stylesheets %}
-	{{ Assets.css("assets/css/challenge-board.scss", theme="admin") }}
-	<style>
-		.pod-logs-header {
-			background: #ffffff;
-			padding: 2rem 0 1rem 0;
-			margin-bottom: 2rem;
-		}
-		.pod-logs-header h1 {
-			font-size: 1.75rem;
-			font-weight: 700;
-			color: #2c3e50;
-			margin: 0;
-			text-transform: uppercase;
-			letter-spacing: 0.5px;
-		}
-		.btn-refresh {
-			background-color: #ff6b35;
-			border-color: #ff6b35;
-			color: #ffffff;
-			padding: 0.5rem 1.25rem;
-			font-weight: 600;
-			border-radius: 6px;
-			transition: all 0.2s ease;
-		}
-		.btn-refresh:hover {
-			background-color: #e85d2a;
-			border-color: #e85d2a;
-			color: #ffffff;
-			transform: translateY(-2px);
-			box-shadow: 0 4px 8px rgba(255, 107, 53, 0.3);
-		}
-		.btn-refresh:disabled {
-			opacity: 0.65;
-			cursor: not-allowed;
-			transform: none;
-			box-shadow: none;
-		}
-		.btn-back {
-			padding: 0.5rem 1.25rem;
-			font-weight: 600;
-			border-radius: 6px;
-		}
-		.log-box {
-			background: #1e1e1e;
-			color: #d4d4d4;
-			border: 1px solid #333;
-			border-radius: 8px;
-			padding: 1rem;
-			height: 70vh;
-			overflow: auto;
-			white-space: pre-wrap;
-			font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-			font-size: 0.85rem;
-			line-height: 1.5;
-		}
-		@keyframes spin {
-			from { transform: rotate(0deg); }
-			to { transform: rotate(360deg); }
-		}
-		.fa-spin {
-			animation: spin 1s linear infinite;
-		}
-		.btn-sync-group {
-			display: inline-flex;
-			align-items: center;
-			gap: 3px;
-			background: #f5f5f5;
-			border: 1px solid #dee2e6;
-			border-radius: 6px;
-			padding: 3px;
-		}
-		.btn-sync-group .sync-label {
-			color: #6c757d;
-			font-size: 0.78rem;
-			font-weight: 600;
-			padding: 0 6px;
-			white-space: nowrap;
-		}
-		.btn-sync {
-			background: transparent;
-			border: 1px solid transparent;
-			color: #495057;
-			padding: 3px 10px;
-			font-size: 0.78rem;
-			font-weight: 600;
-			border-radius: 4px;
-			cursor: pointer;
-			transition: all 0.15s;
-		}
-		.btn-sync:hover {
-			background: #e9ecef;
-			border-color: #ced4da;
-		}
-		.btn-sync.active {
-			background: #ff6b35;
-			border-color: #ff6b35;
-			color: #fff;
-		}
-		.sync-countdown {
-			font-size: 0.78rem;
-			color: #6c757d;
-			font-family: 'Consolas', monospace;
-		}
-	</style>
+{{ Assets.css("assets/css/challenge-board.scss", theme="admin") }}
+<style>
+	.pod-logs-header { background: #fff; padding: 2rem 0 1rem; margin-bottom: 2rem; }
+	.pod-logs-header h1 { color: #2c3e50; font-size: 1.75rem; font-weight: 700; letter-spacing: .5px; margin: 0; text-transform: uppercase; }
+	.btn-refresh { background: #ff6b35; border-color: #ff6b35; color: #fff; font-weight: 600; padding: .5rem 1.25rem; }
+	.btn-refresh:hover, .btn-refresh:focus { background: #e85d2a; border-color: #e85d2a; color: #fff; }
+	.btn-refresh:disabled { cursor: not-allowed; opacity: .65; }
+	.btn-back { font-weight: 600; padding: .5rem 1.25rem; }
+	.btn-sync-group { align-items: center; background: #f5f5f5; border: 1px solid #dee2e6; border-radius: 6px; display: inline-flex; gap: 3px; padding: 3px; }
+	.btn-sync-group .sync-label { color: #6c757d; font-size: .78rem; font-weight: 600; padding: 0 6px; white-space: nowrap; }
+	.btn-sync { background: transparent; border: 1px solid transparent; border-radius: 4px; color: #495057; cursor: pointer; font-size: .78rem; font-weight: 600; padding: 3px 10px; }
+	.btn-sync:hover { background: #e9ecef; border-color: #ced4da; }
+	.btn-sync.active { background: #ff6b35; border-color: #ff6b35; color: #fff; }
+	.sync-countdown, .last-refreshed { color: #6c757d; font-family: Consolas, Monaco, monospace; font-size: .78rem; }
+	.live-warning { color: #6c757d; font-size: .82rem; margin: 0 0 .75rem; }
+	.status-banner { border: 1px solid #ced4da; border-left: 5px solid #6c757d; border-radius: 6px; margin-bottom: .75rem; padding: .75rem 1rem; }
+	.status-banner.status-ready { background: #eaf7ee; border-color: #b8dfc2; border-left-color: #28a745; }
+	.status-banner.status-warning { background: #fff8e1; border-color: #ffe2a1; border-left-color: #f0ad4e; }
+	.status-banner.status-danger { background: #fff0f0; border-color: #f2b8b8; border-left-color: #dc3545; }
+	.status-banner.status-muted { background: #f2f4f6; }
+	.status-banner-title { color: #2c3e50; font-weight: 700; }
+	.status-banner-detail { color: #5f6b76; font-size: .85rem; margin-top: .25rem; }
+	.status-banner-actions { margin-top: .5rem; }
+	.log-limit-note { color: #6c757d; font-size: .8rem; margin: 0 0 .5rem; }
+	.log-box { background: #1e1e1e; border: 1px solid #333; border-radius: 8px; color: #d4d4d4; font-family: Consolas, Monaco, "Courier New", monospace; font-size: .85rem; height: 70vh; line-height: 1.5; overflow: auto; padding: 1rem; white-space: pre-wrap; }
+	@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+	.fa-spin { animation: spin 1s linear infinite; }
+</style>
 {% endblock %}
 
 {% block content %}
-    <div class="pod-logs-header">
-        <div class="container">
-            <h1>Pod Logs - Challenge ID {{ challenge_id }}</h1>
-        </div>
-    </div>
-    <div class="container">
-        <div class="row mb-3">
-            <div class="col-md-12 d-flex justify-content-between align-items-center">
-                <div class="d-flex align-items-center flex-wrap" style="gap:8px">
-                    <button onclick="window.history.back()" class="btn btn-secondary btn-back">
-                        <i class="fas fa-arrow-left"></i> Back
-                    </button>
-                    <button id="refreshBtn" onclick="refreshLogs()" class="btn btn-refresh">
-                        <i class="fas fa-sync-alt" id="refreshIcon"></i> Refresh
-                    </button>
-                    <div class="btn-sync-group">
-                        <span class="sync-label"><i class="fas fa-clock"></i> Auto:</span>
-                        <button class="btn-sync active" onclick="setAutoSync(0)" id="sync-off">Off</button>
-                        <button class="btn-sync" onclick="setAutoSync(5)" id="sync-5">5s</button>
-                        <button class="btn-sync" onclick="setAutoSync(10)" id="sync-10">10s</button>
-                        <button class="btn-sync" onclick="setAutoSync(30)" id="sync-30">30s</button>
-                        <button class="btn-sync" onclick="setAutoSync(60)" id="sync-60">60s</button>
-                    </div>
-                </div>
-                <div class="d-flex align-items-center" style="gap:12px">
-                    <span class="sync-countdown" id="syncCountdown"></span>
-                    <span class="text-muted" id="lastRefreshed"></span>
-                </div>
-            </div>
-        </div>
-        <div class="row">
-            <div class="col-md-12">
-                <div id="log-content" class="log-box">{{ log_content }}</div>
-            </div>
-        </div>
-    </div>
+<div class="pod-logs-header">
+	<div class="container"><h1>Live Pod Logs - Challenge ID {{ challenge_id }}</h1></div>
+</div>
+<div class="container">
+	<div class="row mb-3">
+		<div class="col-md-12 d-flex justify-content-between align-items-center">
+			<div class="d-flex align-items-center flex-wrap" style="gap:8px">
+				<button type="button" onclick="window.history.back()" class="btn btn-secondary btn-back"><i class="fas fa-arrow-left"></i> Back</button>
+				<button type="button" id="refreshBtn" class="btn btn-refresh"><i class="fas fa-sync-alt" id="refreshIcon"></i> Refresh</button>
+				<div class="btn-sync-group" aria-label="Automatic refresh interval">
+					<span class="sync-label"><i class="fas fa-clock"></i> Auto:</span>
+					<button type="button" class="btn-sync active" data-auto-seconds="0">Off</button>
+					<button type="button" class="btn-sync" data-auto-seconds="5">5s</button>
+					<button type="button" class="btn-sync" data-auto-seconds="10">10s</button>
+					<button type="button" class="btn-sync" data-auto-seconds="30">30s</button>
+					<button type="button" class="btn-sync" data-auto-seconds="60">60s</button>
+				</div>
+			</div>
+			<div class="d-flex align-items-center" style="gap:12px">
+				<span class="sync-countdown" id="syncCountdown" aria-live="polite"></span>
+				<span class="last-refreshed" id="lastRefreshed"></span>
+			</div>
+		</div>
+	</div>
+	<div class="row"><div class="col-md-12">
+		<p class="live-warning">Live view only. This log belongs to the currently active Pod matching this challenge and team; it may not be the historical Pod of this instance.</p>
+		<div id="statusBanner" class="status-banner status-muted" role="status" aria-live="polite">
+			<div id="statusTitle" class="status-banner-title"></div>
+			<div id="statusDetail" class="status-banner-detail"></div>
+			<div id="statusActions" class="status-banner-actions"></div>
+		</div>
+		<p id="logLimitNote" class="log-limit-note">Showing the latest 1,000 lines / 256 KiB at most.</p>
+		<div id="log-content" class="log-box" aria-label="Live stdout and stderr"></div>
+	</div></div>
+</div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-    var challengeId = {{ challenge_id }};
-    var teamId = new URLSearchParams(window.location.search).get('team_id') || '';
+(() => {
+	const challengeId = {{ challenge_id }};
+	const teamId = {{ team_id }};
+	const initialResponse = {{ pod_log_response | tojson }};
+	const requestLogsUrl = {{ request_logs_url | tojson }};
+	let autoTimer = null;
+	let countdownTimer = null;
+	let autoSeconds = 0;
+	let countdownLeft = 0;
+	let requestInFlight = false;
+	let hasVisibleLogs = false;
 
-    var _autoSyncTimer = null;
-    var _countdownTimer = null;
-    var _autoSyncSeconds = 0;
-    var _countdownLeft = 0;
+	const refreshButton = document.getElementById('refreshBtn');
+	const refreshIcon = document.getElementById('refreshIcon');
+	const logContent = document.getElementById('log-content');
+	const statusBanner = document.getElementById('statusBanner');
+	const statusTitle = document.getElementById('statusTitle');
+	const statusDetail = document.getElementById('statusDetail');
+	const statusActions = document.getElementById('statusActions');
+	const countdown = document.getElementById('syncCountdown');
+	const lastRefreshed = document.getElementById('lastRefreshed');
+	const limitNote = document.getElementById('logLimitNote');
 
-    function setAutoSync(seconds) {
-        if (_autoSyncTimer)   { clearInterval(_autoSyncTimer);   _autoSyncTimer = null; }
-        if (_countdownTimer)  { clearInterval(_countdownTimer);  _countdownTimer = null; }
-        _autoSyncSeconds = seconds;
+	function dataFrom(response) {
+		return response && typeof response.data === 'object' && response.data !== null ? response.data : {};
+	}
 
-        var keys = ['off', '5', '10', '30', '60'];
-        keys.forEach(function(k) {
-            var el = document.getElementById('sync-' + k);
-            if (el) el.classList.remove('active');
-        });
-        var activeId = seconds === 0 ? 'sync-off' : 'sync-' + seconds;
-        var activeEl = document.getElementById(activeId);
-        if (activeEl) activeEl.classList.add('active');
+	function neutralLog() {
+		return 'No container log available.';
+	}
 
-        var cd = document.getElementById('syncCountdown');
-        if (seconds === 0) {
-            if (cd) cd.textContent = '';
-            return;
-        }
+	function setBanner(kind, title, detail, showRequestLogsLink) {
+		statusBanner.className = `status-banner status-${kind}`;
+		statusTitle.textContent = title;
+		statusDetail.textContent = detail || '';
+		statusActions.replaceChildren();
+		if (showRequestLogsLink && requestLogsUrl) {
+			const link = document.createElement('a');
+			link.className = 'btn btn-sm btn-outline-secondary';
+			link.href = requestLogsUrl;
+			link.textContent = 'View Request Logs';
+			statusActions.appendChild(link);
+		}
+	}
 
-        _countdownLeft = seconds;
-        if (cd) cd.textContent = 'Next in ' + _countdownLeft + 's';
+	function setAutoSync(seconds) {
+		if (autoTimer) { clearInterval(autoTimer); autoTimer = null; }
+		if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
+		autoSeconds = seconds;
 
-        _autoSyncTimer = setInterval(function() {
-            refreshLogs();
-            _countdownLeft = seconds;
-        }, seconds * 1000);
+		document.querySelectorAll('[data-auto-seconds]').forEach((button) => {
+			button.classList.toggle('active', Number(button.dataset.autoSeconds) === seconds);
+		});
 
-        _countdownTimer = setInterval(function() {
-            _countdownLeft--;
-            if (_countdownLeft < 0) _countdownLeft = 0;
-            if (cd) cd.textContent = 'Next in ' + _countdownLeft + 's';
-        }, 1000);
-    }
+		if (seconds === 0) {
+			countdown.textContent = '';
+			return;
+		}
 
-    function refreshLogs() {
-        var btn = document.getElementById('refreshBtn');
-        var icon = document.getElementById('refreshIcon');
-        var logContent = document.getElementById('log-content');
+		countdownLeft = seconds;
+		countdown.textContent = `Next in ${countdownLeft}s`;
+		autoTimer = window.setInterval(() => {
+			if (!requestInFlight) {
+				refreshLogs();
+				countdownLeft = seconds;
+			}
+		}, seconds * 1000);
+		countdownTimer = window.setInterval(() => {
+			if (countdownLeft > 0) countdownLeft -= 1;
+			countdown.textContent = `Next in ${countdownLeft}s`;
+		}, 1000);
+	}
 
-        btn.disabled = true;
-        icon.classList.add('fa-spin');
+	function applyResponse(response, status) {
+		const data = dataFrom(response);
+		const sourceState = data.sourceState || (status >= 500 ? 'UNAVAILABLE' : 'AVAILABLE');
+		const podState = data.podState || 'UNKNOWN';
+		const logState = data.logState || 'NOT_REQUESTED';
+		const podName = data.podName || '';
+		const namespace = data.namespace || '';
+		const reason = data.reason || '';
+		const checkedAt = data.checkedAt ? new Date(data.checkedAt).toLocaleTimeString() : new Date().toLocaleTimeString();
+		const tailLines = Number(data.tailLines) || 1000;
+		const limitBytes = Number(data.limitBytes) || (256 * 1024);
 
-        var url = `/deploy_History/${challengeId}/pods-logs-api?team_id=${teamId}`;
+		limitNote.textContent = `Showing the latest ${tailLines.toLocaleString()} lines / ${(limitBytes / 1024).toLocaleString()} KiB at most.`;
+		lastRefreshed.textContent = `Checked: ${checkedAt}`;
 
-        fetch(url)
-            .then(function(response) { return response.json(); })
-            .then(function(data) {
-                if (data.success) {
-                    logContent.textContent = data.logs;
-                } else {
-                    logContent.textContent = 'Error: ' + (data.error || 'Failed to fetch logs');
-                }
-				var now = new Date().toLocaleTimeString();
-                document.getElementById('lastRefreshed').textContent = 'Last refreshed: ' + now;
-            })
-            .catch(function(error) {
-                logContent.textContent = 'Network error: ' + error.message;
-            })
-            .finally(function() {
-                btn.disabled = false;
-                icon.classList.remove('fa-spin');
-            });
-    }
+		if (sourceState === 'UNAVAILABLE') {
+			setBanner('danger', 'Live Pod Logs is temporarily unavailable.', 'Retry when DeploymentCenter and Kubernetes are reachable.');
+			if (!hasVisibleLogs) logContent.textContent = neutralLog();
+			return;
+		}
+
+		if (podState === 'NOT_FOUND') {
+			setBanner('danger', 'No Pod currently matches this challenge and team.', 'Use Request Logs to view historical Gateway traffic.', true);
+			logContent.textContent = neutralLog();
+			hasVisibleLogs = false;
+			return;
+		}
+
+		const podDetail = [podName && `Pod: ${podName}`, namespace && `Namespace: ${namespace}`, `Checked: ${checkedAt}`].filter(Boolean).join(' · ');
+		if (podState === 'READY') {
+			setBanner('ready', 'Live Pod is running and ready.', podDetail);
+		} else if (podState === 'TERMINATED') {
+			setBanner('warning', 'Pod is no longer running.', [reason, podDetail].filter(Boolean).join(' · '));
+			setAutoSync(0);
+		} else {
+			setBanner('warning', 'Pod exists but is not ready.', [reason, podDetail].filter(Boolean).join(' · '));
+		}
+
+		if (logState === 'AVAILABLE') {
+			const logs = typeof data.logs === 'string' ? data.logs : (typeof response.logs === 'string' ? response.logs : '');
+			logContent.textContent = logs;
+			hasVisibleLogs = Boolean(logs);
+		} else if (logState === 'EMPTY') {
+			statusDetail.textContent = `${statusDetail.textContent}${statusDetail.textContent ? ' · ' : ''}Pod has not produced stdout/stderr yet.`;
+			logContent.textContent = neutralLog();
+			hasVisibleLogs = false;
+		} else if (logState === 'READ_FAILED') {
+			const logReason = data.logReason || 'The Kubernetes log API could not read this Pod log.';
+			statusDetail.textContent = `${statusDetail.textContent}${statusDetail.textContent ? ' · ' : ''}Pod logs could not be read: ${logReason}`;
+			logContent.textContent = neutralLog();
+			hasVisibleLogs = false;
+		}
+	}
+
+	async function refreshLogs() {
+		if (requestInFlight) return;
+		requestInFlight = true;
+		refreshButton.disabled = true;
+		refreshIcon.classList.add('fa-spin');
+		try {
+			const response = await fetch(`/deploy_History/${challengeId}/pods-logs-api?team_id=${encodeURIComponent(teamId)}`, { credentials: 'same-origin' });
+			let body;
+			try { body = await response.json(); }
+			catch (_) { body = { success: false, data: { sourceState: 'UNAVAILABLE', podState: 'UNKNOWN', logState: 'NOT_REQUESTED' } }; }
+			applyResponse(body, response.status);
+		} catch (_) {
+			applyResponse({ success: false, data: { sourceState: 'UNAVAILABLE', podState: 'UNKNOWN', logState: 'NOT_REQUESTED' } }, 503);
+		} finally {
+			requestInFlight = false;
+			refreshButton.disabled = false;
+			refreshIcon.classList.remove('fa-spin');
+		}
+	}
+
+	refreshButton.addEventListener('click', refreshLogs);
+	document.querySelectorAll('[data-auto-seconds]').forEach((button) => {
+		button.addEventListener('click', () => setAutoSync(Number(button.dataset.autoSeconds)));
+	});
+	applyResponse(initialResponse, {{ pod_log_status }});
+})();
 </script>
 {% endblock %}
