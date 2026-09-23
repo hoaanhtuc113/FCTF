@@ -368,6 +368,13 @@ public class ChallengesInformerService
             instance.UpdatedAt = now;
             instance.StateVersion++;
             await dbContext.SaveChangesAsync();
+            if (!await _redisHelper.RevokeChallengeInstanceAccessAsync(instance.InstanceId))
+            {
+                _logger.LogDebug(
+                    "Gateway assertion revocation could not be persisted",
+                    new { instanceId = instance.InstanceId, ns },
+                    level: LogLevel.Warning);
+            }
         }
         catch (Exception ex)
         {

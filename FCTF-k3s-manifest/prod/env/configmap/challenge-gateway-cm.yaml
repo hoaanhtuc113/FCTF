@@ -8,6 +8,42 @@ data:
   HTTP_RATE: "100"
   HTTP_BURST: "200"
   HTTP_MAX_BODY_BYTES: "10485760"
+
+  # Request content capture is an explicit rollout gate. Metadata events remain
+  # enabled when this is false; no raw body is written to stdout/Loki.
+  REQUEST_LOG_CAPTURE_ENABLED: "false"
+  REQUEST_LOG_CAPTURE_PROFILE: "metadata"
+  # Generic S3-compatible endpoint/bucket. Keep both blank until bucket IAM,
+  # TLS, lifecycle and the endpoint-specific NetworkPolicy egress rule exist.
+  REQUEST_LOG_S3_ENDPOINT: ""
+  REQUEST_LOG_S3_BUCKET: ""
+  REQUEST_LOG_S3_REGION: "us-east-1"
+  REQUEST_LOG_S3_PATH_STYLE: "true"
+  REQUEST_LOG_S3_SSE: "AES256"
+  REQUEST_LOG_S3_KMS_KEY_ID: ""
+  # Local filesystem storage is development-only. Production content capture
+  # refuses to use this setting.
+  REQUEST_LOG_OBJECT_DIR: ""
+  REQUEST_LOG_SPOOL_DIR: "/var/spool/request-logs"
+  REQUEST_LOG_SPOOL_MAX_BYTES: "268435456"
+  REQUEST_LOG_QUEUE_SIZE: "128"
+  REQUEST_LOG_RETRY_ATTEMPTS: "3"
+  REQUEST_LOG_WORKER_COUNT: "1"
+  REQUEST_LOG_FLUSH_SECONDS: "8"
+  REQUEST_LOG_HEADER_CAP_BYTES: "65536"
+  REQUEST_LOG_BODY_CAP_BYTES: "262144"
+  REQUEST_LOG_QUOTA_BYTES: "536870912"
+  REQUEST_LOG_QUOTA_WINDOW_SECONDS: "3600"
+
+  # Forwarded client IP is ignored unless the direct peer belongs to one of
+  # these CIDRs. Leave empty for direct NodePort exposure; do not add an
+  # ingress CIDR until that ingress is verified to overwrite X-Forwarded-For.
+  TRUSTED_PROXY_CIDRS: ""
+
+  # New access assertions carry a random jti. The Gateway exchanges a URL
+  # assertion only once, then uses its HttpOnly cookie for subsequent HTTP
+  # requests. Deploy the issuer before enabling this production guard.
+  REQUIRE_ASSERTION_JTI: "true"
   
   # Per-IP HTTP limiter to prevent token rotation attacks
   # Increased default because many contestants may share a network

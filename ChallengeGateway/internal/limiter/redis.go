@@ -19,6 +19,8 @@ import (
 type RedisClient interface {
 	redis.Scripter
 	Ping(ctx context.Context) *redis.StatusCmd
+	Exists(ctx context.Context, keys ...string) *redis.IntCmd
+	SetArgs(ctx context.Context, key string, value interface{}, a redis.SetArgs) *redis.StatusCmd
 }
 
 // redisTLSConfig builds the TLS settings for the Redis connection.

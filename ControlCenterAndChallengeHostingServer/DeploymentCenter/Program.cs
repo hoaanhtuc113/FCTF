@@ -26,6 +26,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 new DeploymentCenterConfigHelper().InitConfig();
 builder.Services.AddControllers();
 builder.Services.AddResourceShared();
+builder.Services.AddSingleton<IRequestLogObjectStore, RequestLogObjectStore>();
 builder.Services.AddScoped<IDeployService, DeployService>();
 builder.Services.AddHealthChecks();
 // Register DeploymentConsumerService consumer

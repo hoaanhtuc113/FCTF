@@ -221,6 +221,36 @@ public class ChallengeController : ControllerBase
         };
     }
 
+    [HttpPost("instance-request-log-detail")]
+    [RequireSecretKey]
+    public async Task<IActionResult> GetInstanceRequestLogDetail([FromBody] InstanceRequestLogDetailReqDTO request)
+    {
+        var response = await _deployService.GetInstanceRequestLogDetail(request);
+        return response.HttpStatusCode switch
+        {
+            HttpStatusCode.OK => Ok(response),
+            HttpStatusCode.BadRequest => BadRequest(response),
+            HttpStatusCode.NotFound => NotFound(response),
+            _ => StatusCode((int)response.HttpStatusCode, response)
+        };
+    }
+
+    [HttpPost("instance-request-log-download")]
+    [RequireSecretKey]
+    public async Task<IActionResult> DownloadInstanceRequestLog([FromBody] InstanceRequestLogDetailReqDTO request)
+    {
+        var response = await _deployService.DownloadInstanceRequestLog(request);
+        if (response.Status == HttpStatusCode.OK && response.Content != null)
+            return File(response.Content, "application/json", response.FileName);
+        return StatusCode((int)response.Status, new
+        {
+            success = false,
+            message = response.Status == HttpStatusCode.NotFound
+                ? "Request-log content is not available."
+                : "Request-log content is temporarily unavailable."
+        });
+    }
+
     [HttpPost("upload")]
     [RequireSecretKey]
     public async Task<IActionResult> SubmitUploadWorkflow([FromBody] ChallengeUploadWorkflowReqDTO req)

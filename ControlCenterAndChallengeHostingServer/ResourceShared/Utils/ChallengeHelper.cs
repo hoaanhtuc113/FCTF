@@ -97,12 +97,26 @@ namespace ResourceShared.Utils
             int? contestId = null,
             int? challengeId = null,
             int? actorUserId = null,
-            int? actorTeamId = null)
+            int? actorTeamId = null,
+            string? captureProfile = null)
         {
+            // `kid` lets the Gateway accept an old and a new challenge-access
+            // key during a bounded rotation. `jti` is an opaque, per-link ID:
+            // the Gateway consumes it exactly once when it exchanges the URL
+            // assertion for an HttpOnly cookie. Neither value identifies a user.
+            var keyId = Environment.GetEnvironmentVariable("CHALLENGE_ACCESS_TOKEN_ACTIVE_KID");
+            if (string.IsNullOrWhiteSpace(keyId)) keyId = "legacy";
+            var configuredCaptureProfile = captureProfile;
+            if (string.IsNullOrWhiteSpace(configuredCaptureProfile))
+                configuredCaptureProfile = Environment.GetEnvironmentVariable("CHALLENGE_ACCESS_TOKEN_CAPTURE_PROFILE");
+            if (!string.Equals(configuredCaptureProfile, "bounded_content", StringComparison.Ordinal))
+                configuredCaptureProfile = null;
             var payload = new
             {
                 exp = expiryUtc.ToUnixTimeSeconds(),
                 route = routeInfo,
+                kid = keyId,
+                jti = Guid.NewGuid().ToString("N"),
                 instance_id = instanceId,
                 contest_id = contestId,
                 challenge_id = challengeId,
@@ -111,6 +125,7 @@ namespace ResourceShared.Utils
                 // distinction is exposed by Gateway's auth_strength field.
                 actor_user_ref = actorUserId?.ToString(CultureInfo.InvariantCulture),
                 actor_team_id = actorTeamId,
+                capture_profile = configuredCaptureProfile,
             };
 
             var payloadJson = JsonSerializer.Serialize(payload);

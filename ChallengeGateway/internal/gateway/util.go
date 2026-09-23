@@ -4,6 +4,8 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"net"
+	"net/http"
+	"net/netip"
 	"strconv"
 	"strings"
 
@@ -20,6 +22,59 @@ func ParseRemoteIP(addr string) string {
 		return ""
 	}
 	return host
+}
+
+// peerIPResolver uses forwarding headers only when the immediate peer is a
+// configured, trusted proxy. Without that explicit boundary, user-controlled
+// X-Forwarded-For values are ignored and telemetry records the TCP peer.
+type peerIPResolver struct {
+	trustedProxies []netip.Prefix
+}
+
+func newPeerIPResolver(rawCIDRs string) (*peerIPResolver, error) {
+	resolver := &peerIPResolver{}
+	for _, raw := range strings.Split(rawCIDRs, ",") {
+		value := strings.TrimSpace(raw)
+		if value == "" {
+			continue
+		}
+		prefix, err := netip.ParsePrefix(value)
+		if err != nil {
+			return nil, err
+		}
+		resolver.trustedProxies = append(resolver.trustedProxies, prefix)
+	}
+	return resolver, nil
+}
+
+func (resolver *peerIPResolver) Resolve(r *http.Request) (string, string) {
+	remote := ParseRemoteIP(r.RemoteAddr)
+	if remote == "" || !resolver.isTrusted(remote) {
+		return remote, "remote_addr"
+	}
+
+	// A trusted ingress must overwrite this header; the Gateway nevertheless
+	// treats malformed values as untrusted and falls back to the actual peer.
+	for _, part := range strings.Split(r.Header.Get("X-Forwarded-For"), ",") {
+		candidate := strings.TrimSpace(part)
+		if parsed, err := netip.ParseAddr(candidate); err == nil {
+			return parsed.String(), "trusted_x_forwarded_for"
+		}
+	}
+	return remote, "remote_addr"
+}
+
+func (resolver *peerIPResolver) isTrusted(ip string) bool {
+	parsed, err := netip.ParseAddr(ip)
+	if err != nil {
+		return false
+	}
+	for _, prefix := range resolver.trustedProxies {
+		if prefix.Contains(parsed) {
+			return true
+		}
+	}
+	return false
 }
 
 // BuildRateLimitKey builds a composite rate-limit key from a token and client IP.

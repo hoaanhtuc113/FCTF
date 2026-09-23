@@ -14,6 +14,7 @@ import (
 
 	"challenge-gateway/internal/config"
 	"challenge-gateway/internal/limiter"
+	"challenge-gateway/internal/requestlog"
 	"challenge-gateway/internal/telemetry"
 	"challenge-gateway/internal/token"
 )
@@ -31,23 +32,29 @@ const (
 )
 
 type requestInfo struct {
-	TargetHost    string
-	Route         string
-	Payload       *token.Payload
-	Event         string
-	Outcome       string
-	ErrorCode     string
-	Authenticated bool
+	EventID        string
+	TargetHost     string
+	Route          string
+	Payload        *token.Payload
+	Event          string
+	Outcome        string
+	ErrorCode      string
+	Authenticated  bool
+	CaptureProfile requestlog.CaptureProfile
 }
 
 type countingReadCloser struct {
 	io.ReadCloser
 	bytesRead int64
+	capture   *requestlog.Buffer
 }
 
 func (cr *countingReadCloser) Read(p []byte) (int, error) {
 	n, err := cr.ReadCloser.Read(p)
 	cr.bytesRead += int64(n)
+	if cr.capture != nil && n > 0 {
+		_, _ = cr.capture.Write(p[:n])
+	}
 	return n, err
 }
 
@@ -56,6 +63,7 @@ type statusRecorder struct {
 	status       int
 	bytesWritten int64
 	wroteHeader  bool
+	capture      *requestlog.Buffer
 }
 
 func (sr *statusRecorder) WriteHeader(code int) {
@@ -73,6 +81,9 @@ func (sr *statusRecorder) Write(p []byte) (int, error) {
 	}
 	n, err := sr.ResponseWriter.Write(p)
 	sr.bytesWritten += int64(n)
+	if sr.capture != nil && n > 0 {
+		_, _ = sr.capture.Write(p[:n])
+	}
 	return n, err
 }
 
@@ -83,10 +94,12 @@ func (sr *statusRecorder) ReadFrom(r io.Reader) (int64, error) {
 	if !sr.wroteHeader {
 		sr.WriteHeader(http.StatusOK)
 	}
-	if readerFrom, ok := sr.ResponseWriter.(io.ReaderFrom); ok {
-		n, err := readerFrom.ReadFrom(r)
-		sr.bytesWritten += n
-		return n, err
+	if sr.capture == nil {
+		if readerFrom, ok := sr.ResponseWriter.(io.ReaderFrom); ok {
+			n, err := readerFrom.ReadFrom(r)
+			sr.bytesWritten += n
+			return n, err
+		}
 	}
 	return io.Copy(struct{ io.Writer }{sr}, r)
 }
@@ -119,10 +132,49 @@ func (sr *statusRecorder) Push(target string, opts *http.PushOptions) error {
 func (sr *statusRecorder) Unwrap() http.ResponseWriter { return sr.ResponseWriter }
 
 // ── HTTP gateway ─────────────────────────────────────────────────────────────
-// StartHTTP initialises and starts the HTTP reverse-proxy gateway.
-// It returns the *http.Server so the caller can gracefully shut it down.
-func StartHTTP(cfg config.Config, limiters *limiter.Set) *http.Server {
+// StartHTTP initialises and starts the HTTP reverse-proxy gateway. The returned
+// closer drains the bounded request-log queue after HTTP shutdown.
+func StartHTTP(cfg config.Config, limiters *limiter.Set) (*http.Server, func(context.Context) error) {
 	log.SetFlags(log.Flags() &^ (log.Ldate | log.Ltime | log.Lmicroseconds))
+	var store requestlog.ObjectStore
+	if cfg.RequestLogS3Endpoint != "" || cfg.RequestLogS3Bucket != "" {
+		var err error
+		store, err = requestlog.NewS3ObjectStore(requestlog.S3Config{
+			Endpoint: cfg.RequestLogS3Endpoint, Bucket: cfg.RequestLogS3Bucket,
+			Region: cfg.RequestLogS3Region, AccessKeyID: cfg.RequestLogS3AccessKey,
+			SecretAccessKey: cfg.RequestLogS3SecretKey, SessionToken: cfg.RequestLogS3SessionToken,
+			PathStyle: cfg.RequestLogS3PathStyle, SSE: cfg.RequestLogS3SSE, KMSKeyID: cfg.RequestLogS3KMSKeyID,
+		})
+		if err != nil {
+			log.Printf("[!] Request-log S3 configuration refused; content capture is disabled: %v", err)
+			store = nil
+		}
+	} else if !cfg.IsProduction() && cfg.RequestLogObjectDir != "" {
+		// The local adapter is intentionally unavailable in production: it cannot
+		// provide independent write/read identities or object lifecycle controls.
+		store = requestlog.FileObjectStore{Root: cfg.RequestLogObjectDir}
+	}
+	requestLogManager := requestlog.NewManager(requestlog.ManagerConfig{
+		Store:         store,
+		QueueSize:     cfg.RequestLogQueueSize,
+		RetryAttempts: cfg.RequestLogRetryAttempts,
+		WorkerCount:   cfg.RequestLogWorkerCount,
+		SpoolDir:      cfg.RequestLogSpoolDir,
+		SpoolMaxBytes: cfg.RequestLogSpoolMaxBytes,
+		Quota: func() requestlog.Quota {
+			if limiters == nil {
+				return nil
+			}
+			return limiters.CaptureQuota
+		}(),
+	})
+	if cfg.RequestLogCaptureEnabled && requestlog.NormalizeProfile(cfg.RequestLogCaptureProfile) == requestlog.ProfileBoundedContent && !requestLogManager.Enabled() {
+		log.Printf("[!] Request-log content capture is enabled without an object store; captures will be dropped")
+	}
+	peerResolver, err := newPeerIPResolver(cfg.TrustedProxyCIDRs)
+	if err != nil {
+		log.Fatalf("HTTP Gateway trusted proxy configuration error: %v", err)
+	}
 	tlsConfig, err := gatewayTLSConfig(cfg)
 	if err != nil {
 		log.Fatalf("HTTP Gateway TLS config error: %v", err)
@@ -168,10 +220,12 @@ func StartHTTP(cfg config.Config, limiters *limiter.Set) *http.Server {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/healthz", healthHandler)
 	mux.HandleFunc("/healthcheck", healthHandler)
-	mux.Handle("/", loggingMiddleware(
-		rateLimitMiddleware(limiters,
+	mux.HandleFunc("/metrics", telemetry.MetricsHandler)
+	contentCaptureEnabled := cfg.RequestLogCaptureEnabled && requestlog.NormalizeProfile(cfg.RequestLogCaptureProfile) == requestlog.ProfileBoundedContent && requestLogManager.Enabled()
+	mux.Handle("/", loggingMiddleware(peerResolver, requestLogManager, contentCaptureEnabled, cfg.RequestLogHeaderCapBytes, cfg.RequestLogBodyCapBytes,
+		rateLimitMiddleware(limiters, peerResolver,
 			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				httpGatewayHandler(w, r, proxy, limiters, cfg.HTTPMaxBodyBytes)
+				httpGatewayHandler(w, r, proxy, limiters, cfg.HTTPMaxBodyBytes, peerResolver)
 			}))))
 
 	server := &http.Server{
@@ -183,7 +237,6 @@ func StartHTTP(cfg config.Config, limiters *limiter.Set) *http.Server {
 		IdleTimeout:       60 * time.Second,
 		MaxHeaderBytes:    1 << 20,
 	}
-
 	ln, err := net.Listen("tcp", httpListenAddr)
 	if err != nil {
 		log.Fatalf("Error starting HTTP gateway: %v", err)
@@ -201,7 +254,7 @@ func StartHTTP(cfg config.Config, limiters *limiter.Set) *http.Server {
 		}
 	}()
 
-	return server
+	return server, requestLogManager.Close
 }
 
 func healthHandler(w http.ResponseWriter, _ *http.Request) {
@@ -209,9 +262,8 @@ func healthHandler(w http.ResponseWriter, _ *http.Request) {
 	_, _ = w.Write([]byte("ok"))
 }
 
-func httpGatewayHandler(w http.ResponseWriter, r *http.Request, proxy *httputil.ReverseProxy, limiters *limiter.Set, maxBodyBytes int64) {
-	remoteAddr := r.RemoteAddr
-	clientIP := ParseRemoteIP(remoteAddr)
+func httpGatewayHandler(w http.ResponseWriter, r *http.Request, proxy *httputil.ReverseProxy, limiters *limiter.Set, maxBodyBytes int64, peerResolver *peerIPResolver) {
+	clientIP, _ := peerResolver.Resolve(r)
 	info, _ := r.Context().Value(requestInfoKey).(*requestInfo)
 
 	tok, cleanedPath := extractTokenFromRequest(r)
@@ -225,12 +277,20 @@ func httpGatewayHandler(w http.ResponseWriter, r *http.Request, proxy *httputil.
 			return
 		}
 		setAuthenticatedRequestInfo(info, payload)
+		if err := validateAssertion(r.Context(), limiters, payload, false); err != nil {
+			rejectHTTPAssertion(w, info, err)
+			return
+		}
 		if limiters != nil && limiters.HTTPRate != nil {
 			if !limiters.HTTPRate.Allow(r.Context(), BuildRateLimitKeyForPayload(payload, tok, clientIP)) {
 				setHTTPFailure(info, "http_rate_limited", "rate_limited", "authenticated_rate_limit")
 				http.Error(w, "too many requests", http.StatusTooManyRequests)
 				return
 			}
+		}
+		if err := validateAssertion(r.Context(), limiters, payload, true); err != nil {
+			rejectHTTPAssertion(w, info, err)
+			return
 		}
 		resetAllCookies(w, r)
 		setTokenCookie(w, r, tok, payload.Exp)
@@ -257,6 +317,10 @@ func httpGatewayHandler(w http.ResponseWriter, r *http.Request, proxy *httputil.
 		return
 	}
 	setAuthenticatedRequestInfo(info, payload)
+	if err := validateAssertion(r.Context(), limiters, payload, false); err != nil {
+		rejectHTTPAssertion(w, info, err)
+		return
+	}
 
 	if limiters != nil && limiters.HTTPRate != nil {
 		if !limiters.HTTPRate.Allow(r.Context(), BuildRateLimitKeyForPayload(payload, tok, clientIP)) {
@@ -294,6 +358,9 @@ func setAuthenticatedRequestInfo(info *requestInfo, payload token.Payload) {
 	info.Authenticated = true
 	info.Event = "http_request"
 	info.Outcome = "upstream_response"
+	if payload.CaptureProfile != "" {
+		info.CaptureProfile = requestlog.NormalizeProfile(payload.CaptureProfile)
+	}
 }
 
 func setHTTPFailure(info *requestInfo, event, outcome, errorCode string) {
@@ -303,6 +370,23 @@ func setHTTPFailure(info *requestInfo, event, outcome, errorCode string) {
 	info.Event = event
 	info.Outcome = outcome
 	info.ErrorCode = errorCode
+}
+
+func validateAssertion(ctx context.Context, limiters *limiter.Set, payload token.Payload, consumeOneTime bool) error {
+	if limiters == nil || limiters.Assertions == nil {
+		return nil
+	}
+	return limiters.Assertions.Validate(ctx, payload, consumeOneTime)
+}
+
+func rejectHTTPAssertion(w http.ResponseWriter, info *requestInfo, err error) {
+	code := limiter.AssertionErrorCode(err)
+	setHTTPFailure(info, "http_auth_failed", "authentication_failed", code)
+	if code == "assertion_store_unavailable" {
+		http.Error(w, "authorization temporarily unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	http.Error(w, "invalid token", http.StatusUnauthorized)
 }
 
 // ── cookie / redirect helpers ─────────────────────────────────────────────────
@@ -412,16 +496,34 @@ func extractTokenFromRequest(r *http.Request) (string, string) {
 
 // ── middleware ────────────────────────────────────────────────────────────────
 
-func loggingMiddleware(next http.Handler) http.Handler {
+func loggingMiddleware(peerResolver *peerIPResolver, manager *requestlog.Manager, contentCaptureEnabled bool, headerCap, bodyCap int, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		startedAt := time.Now()
-		rec := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
-		body := &countingReadCloser{ReadCloser: r.Body}
+		// The transaction identifier and timestamp belong to request entry, not
+		// to the later stdout write. Future bounded-content work will reuse this
+		// ID but must never delay or replace this metadata event.
+		event := telemetry.New("http_request", "http")
+		profile := requestlog.ProfileMetadata
+		contentAllowed := contentCaptureEnabled
+		var requestCapture, responseCapture *requestlog.Buffer
+		if contentAllowed {
+			requestCapture = requestlog.NewBuffer(bodyCap)
+			responseCapture = requestlog.NewBuffer(bodyCap)
+		}
+		rec := &statusRecorder{ResponseWriter: w, status: http.StatusOK, capture: responseCapture}
+		body := &countingReadCloser{ReadCloser: r.Body, capture: requestCapture}
 		r.Body = body
 
-		info := &requestInfo{}
+		info := &requestInfo{EventID: event.EventID, CaptureProfile: profile}
 		ctx := context.WithValue(r.Context(), requestInfoKey, info)
 		next.ServeHTTP(rec, r.WithContext(ctx))
+		if rec.status == http.StatusSwitchingProtocols ||
+			r.Header.Get("Upgrade") != "" ||
+			strings.HasPrefix(strings.ToLower(rec.Header().Get("Content-Type")), "text/event-stream") {
+			if info.Authenticated && info.CaptureProfile == requestlog.ProfileBoundedContent {
+				event.CaptureSubmission = string(requestlog.SubmissionSkippedByPolicy)
+			}
+		}
 
 		eventName := info.Event
 		if eventName == "" {
@@ -429,9 +531,8 @@ func loggingMiddleware(next http.Handler) http.Handler {
 			info.Outcome = "rate_limited"
 			info.ErrorCode = "ip_rate_limit"
 		}
-		event := telemetry.New(eventName, "http")
-		event.PeerIP = ParseRemoteIP(r.RemoteAddr)
-		event.IPSource = "remote_addr"
+		event.Event = eventName
+		event.PeerIP, event.IPSource = peerResolver.Resolve(r)
 		event.Method = r.Method
 		event.Path = telemetry.SanitizePath(r.URL.EscapedPath())
 		event.Status = &rec.status
@@ -440,6 +541,8 @@ func loggingMiddleware(next http.Handler) http.Handler {
 		event.DurationMS = time.Since(startedAt).Milliseconds()
 		event.Outcome = info.Outcome
 		event.ErrorCode = info.ErrorCode
+		event.ContentSchemaVersion = 1
+		event.CaptureProfile = string(info.CaptureProfile)
 		if info.Payload != nil {
 			event.InstanceID = info.Payload.InstanceID
 			event.InstanceNamespace = info.Payload.Route
@@ -455,17 +558,67 @@ func loggingMiddleware(next http.Handler) http.Handler {
 				event.AuthStrength = "credential_owner"
 			}
 		}
+		if info.Authenticated && info.CaptureProfile == requestlog.ProfileMetadata {
+			event.CaptureSubmission = string(requestlog.SubmissionNotRequested)
+		} else if info.Authenticated && info.CaptureProfile == requestlog.ProfileBoundedContent && !contentAllowed {
+			event.CaptureSubmission = string(requestlog.SubmissionSkippedByPolicy)
+		} else if contentAllowed && info.Authenticated && info.CaptureProfile == requestlog.ProfileBoundedContent && requestCapture != nil && responseCapture != nil && info.Payload != nil && info.Payload.InstanceID != "" && event.CaptureSubmission == "" {
+			occurredAt, parseErr := time.Parse(time.RFC3339Nano, event.OccurredAt)
+			if parseErr != nil {
+				occurredAt = startedAt.UTC()
+			}
+			tx := requestlog.Transaction{
+				ContentSchemaVersion: 1,
+				EventID:              event.EventID,
+				InstanceID:           info.Payload.InstanceID,
+				ContestID:            info.Payload.ContestID,
+				ChallengeID:          info.Payload.ChallengeID,
+				ActorUserRef:         info.Payload.ActorUserRef,
+				ActorTeamID:          info.Payload.ActorTeamID,
+				OccurredAt:           occurredAt,
+				CapturedAt:           time.Now().UTC(),
+				CaptureProfile:       info.CaptureProfile,
+				Method:               r.Method,
+				Path:                 event.Path,
+				Status:               rec.status,
+				DurationMS:           event.DurationMS,
+				Outcome:              event.Outcome,
+				ErrorCode:            event.ErrorCode,
+				UpstreamService:      info.Route,
+				BackendPodMapping:    "unknown",
+				RemoteIP:             event.PeerIP,
+				Request:              requestCapture.SanitizedPart(r.Header.Get("Content-Type")),
+				Response:             responseCapture.SanitizedPart(rec.Header().Get("Content-Type")),
+			}
+			tx.Request.Headers = requestlog.SanitizeHeadersLimited(r.Header, headerCap)
+			tx.Request.QueryParams = requestlog.ParametersLimited(r.URL.Query(), headerCap)
+			tx.Request.ContentType = r.Header.Get("Content-Type")
+			tx.Request.Encoding = r.Header.Get("Content-Encoding")
+			if strings.HasPrefix(strings.ToLower(tx.Request.ContentType), "application/x-www-form-urlencoded") {
+				if form, err := url.ParseQuery(string(requestCapture.Bytes())); err == nil {
+					tx.Request.FormParams = requestlog.ParametersLimited(form, headerCap)
+				}
+			}
+			tx.Response.Headers = requestlog.SanitizeHeadersLimited(rec.Header(), headerCap)
+			tx.Response.ContentType = rec.Header().Get("Content-Type")
+			tx.Response.Encoding = rec.Header().Get("Content-Encoding")
+			submission := manager.Enqueue(tx)
+			telemetry.ObserveCaptureSubmission(string(submission))
+			event.CaptureSubmission = string(submission)
+		} else if info.Authenticated && info.CaptureProfile == requestlog.ProfileBoundedContent && (info.Payload == nil || info.Payload.InstanceID == "") {
+			event.CaptureSubmission = string(requestlog.SubmissionSkippedByPolicy)
+		}
 		telemetry.Emit(event)
 	})
 }
 
-func rateLimitMiddleware(limiters *limiter.Set, next http.Handler) http.Handler {
+func rateLimitMiddleware(limiters *limiter.Set, peerResolver *peerIPResolver, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if limiters == nil || limiters.HTTPIPRate == nil {
 			next.ServeHTTP(w, r)
 			return
 		}
-		ip := ParseRemoteIP(r.RemoteAddr)
+		ip, _ := peerResolver.Resolve(r)
 		if !limiters.HTTPIPRate.Allow(r.Context(), ip) {
 			http.Error(w, "too many requests", http.StatusTooManyRequests)
 			return

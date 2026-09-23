@@ -34,7 +34,7 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	httpServer := gateway.StartHTTP(cfg, limiters)
+	httpServer, flushRequestLogs := gateway.StartHTTP(cfg, limiters)
 	tcpListener := gateway.StartTCP(ctx, cfg, limiters)
 
 	<-ctx.Done()
@@ -47,6 +47,13 @@ func main() {
 		if err := httpServer.Shutdown(shutdownCtx); err != nil {
 			log.Printf("HTTP shutdown error: %v", err)
 		}
+	}
+	if flushRequestLogs != nil {
+		flushCtx, flushCancel := context.WithTimeout(context.Background(), time.Duration(cfg.RequestLogFlushSeconds)*time.Second)
+		if err := flushRequestLogs(flushCtx); err != nil {
+			log.Printf("Request-log flush error: %v", err)
+		}
+		flushCancel()
 	}
 	if tcpListener != nil {
 		_ = tcpListener.Close()

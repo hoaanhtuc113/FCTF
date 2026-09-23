@@ -131,10 +131,14 @@ func handleTCPConnection(clientConn net.Conn, authTimeout time.Duration, limiter
 		log.Printf("[*] TCP pending auth connections: %d", p)
 	}()
 
-	payload, rawToken, err := authenticateTCPClient(clientConn, authTimeout)
+	payload, rawToken, assertionCode, err := authenticateTCPClient(clientConn, authTimeout, limiters)
 	if err != nil {
 		fmt.Fprintln(clientConn, "Auth failed!")
-		emitTCPWithoutAssertion("tcp_auth_failed", peerIP, "authentication_failed", "invalid_assertion")
+		if payload.InstanceID != "" {
+			emitTCPEvent("tcp_auth_failed", payload, peerIP, "authentication_failed", assertionCode, 0, 0, 0, "")
+		} else {
+			emitTCPWithoutAssertion("tcp_auth_failed", peerIP, "authentication_failed", assertionCode)
+		}
 		return
 	}
 
@@ -291,8 +295,10 @@ func emitTCPEvent(eventName string, payload token.Payload, peerIP, outcome, erro
 	telemetry.Emit(event)
 }
 
-// authenticateTCPClient prompts the client for a token and verifies it.
-func authenticateTCPClient(conn net.Conn, authTimeout time.Duration) (token.Payload, string, error) {
+// authenticateTCPClient prompts the client for a token and verifies it. TCP
+// assertions are not consumed because a TCP client may legitimately reconnect;
+// they are still checked against instance revocation on every connection.
+func authenticateTCPClient(conn net.Conn, authTimeout time.Duration, limiters *limiter.Set) (token.Payload, string, string, error) {
 	timeout := authTimeout
 	if timeout <= 0 {
 		timeout = 10 * time.Second
@@ -306,25 +312,28 @@ func authenticateTCPClient(conn net.Conn, authTimeout time.Duration) (token.Payl
 	input, err := reader.ReadString('\n')
 	if err != nil {
 		if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
-			return token.Payload{}, "", fmt.Errorf("authentication timed out")
+			return token.Payload{}, "", "auth_timeout", fmt.Errorf("authentication timed out")
 		}
 		if err == io.EOF && len(input) > tcpMaxAuthTokenBytes {
-			return token.Payload{}, "", fmt.Errorf("token too long")
+			return token.Payload{}, "", "invalid_assertion", fmt.Errorf("token too long")
 		}
-		return token.Payload{}, "", err
+		return token.Payload{}, "", "invalid_assertion", err
 	}
 	if len(input) > tcpMaxAuthTokenBytes {
-		return token.Payload{}, "", fmt.Errorf("token too long")
+		return token.Payload{}, "", "invalid_assertion", fmt.Errorf("token too long")
 	}
 
 	rawToken := strings.TrimSpace(input)
 	if rawToken == "" {
-		return token.Payload{}, "", fmt.Errorf("empty token")
+		return token.Payload{}, "", "missing_assertion", fmt.Errorf("empty token")
 	}
 
 	payload, err := token.Verify(rawToken)
 	if err != nil {
-		return token.Payload{}, "", err
+		return token.Payload{}, "", "invalid_assertion", err
 	}
-	return payload, rawToken, nil
+	if err := validateAssertion(context.Background(), limiters, payload, false); err != nil {
+		return payload, rawToken, limiter.AssertionErrorCode(err), err
+	}
+	return payload, rawToken, "", nil
 }

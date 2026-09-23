@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using System.Text.Json;
 
 namespace ResourceShared.DTOs.Deployments;
 
@@ -8,6 +9,22 @@ public sealed class InstanceRequestLogsReqDTO
     public string? Cursor { get; set; }
     public InstanceRequestLogFiltersDTO? Filters { get; set; }
     public int Limit { get; set; } = 50;
+}
+
+public sealed class InstanceRequestLogDetailReqDTO
+{
+    public string InstanceId { get; set; } = string.Empty;
+    public string EventId { get; set; } = string.Empty;
+}
+
+public sealed class InstanceRequestLogDetailDTO
+{
+    public string InstanceId { get; set; } = string.Empty;
+    public string EventId { get; set; } = string.Empty;
+    public GatewayAccessEventDTO? Metadata { get; set; }
+    public string ContentState { get; set; } = "unavailable";
+    public int? ContentSchemaVersion { get; set; }
+    public JsonElement? Transaction { get; set; }
 }
 
 public sealed class InstanceRequestLogFiltersDTO
@@ -113,4 +130,10 @@ public sealed class GatewayAccessEventDTO
     public string? AuthStrength { get; set; }
     [JsonPropertyName("data_class")]
     public string DataClass { get; set; } = "metadata";
+    [JsonPropertyName("content_schema_version")]
+    public int? ContentSchemaVersion { get; set; }
+    [JsonPropertyName("capture_profile")]
+    public string? CaptureProfile { get; set; }
+    [JsonPropertyName("capture_submission")]
+    public string? CaptureSubmission { get; set; }
 }

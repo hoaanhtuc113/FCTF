@@ -1,0 +1,68 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: challenge-gateway-telemetry
+  namespace: app
+  labels:
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: challenge-gateway
+  endpoints:
+    - port: http-8080
+      path: /metrics
+      interval: 30s
+      scrapeTimeout: 10s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: challenge-gateway-telemetry
+  namespace: app
+  labels:
+    release: prometheus
+spec:
+  groups:
+    - name: challenge-gateway-telemetry
+      rules:
+        - alert: ChallengeGatewayTelemetryWriteFailure
+          expr: increase(challenge_gateway_telemetry_write_failures_total[5m]) > 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: Challenge Gateway cannot write metadata events to stdout
+            description: Check the Gateway pod stdout/stderr and log collector path before enabling HTTP content capture.
+        - alert: ChallengeGatewayRequestLogCaptureDropped
+          expr: increase(challenge_gateway_request_log_capture_dropped_total[10m]) > 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: Gateway dropped bounded request-log captures
+            description: Check capture queue depth, emptyDir spool capacity and object-store availability. Challenge traffic is not affected.
+        - alert: ChallengeGatewayRequestLogUploadErrors
+          expr: increase(challenge_gateway_request_log_capture_upload_errors_total[10m]) > 3
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: Gateway cannot persist request-log content
+            description: Check the S3 endpoint, write-only credential, TLS and NetworkPolicy egress.
+        - alert: ChallengeGatewayRequestLogSpoolNearCapacity
+          expr: challenge_gateway_request_log_capture_spool_bytes / 268435456 > 0.8
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: Gateway request-log spool is near its configured cap
+            description: Capture is best effort; increase quota/capacity only after a capacity review.
+        - alert: ChallengeGatewayRequestLogQueueNearCapacity
+          expr: challenge_gateway_request_log_capture_queue_depth / 128 > 0.8
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: Gateway request-log queue is near its configured cap
+            description: Object-store upload is lagging; request metadata and challenge traffic remain independent.

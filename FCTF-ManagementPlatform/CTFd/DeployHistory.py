@@ -2,7 +2,7 @@ import re
 import uuid
 from datetime import datetime, timedelta, timezone
 
-from flask import Blueprint, render_template, abort, request, flash, redirect, url_for, jsonify, session  # type: ignore
+from flask import Blueprint, render_template, abort, request, flash, redirect, url_for, jsonify, session, Response  # type: ignore
 
 from CTFd.models import Challenges, ChallengeInstance, db, Users, DeployedChallenge
 from CTFd.utils.decorators import admins_only, admin_or_challenge_writer_only_or_jury,is_jury,is_admin
@@ -11,6 +11,8 @@ from CTFd.utils.connector.multiservice_connector import (
     get_workflow_logs,
     get_challenge_pod_logs,
     get_instance_request_logs,
+    get_instance_request_log_detail,
+    download_instance_request_log,
 )
 from CTFd.utils.logging.audit_logger import log_audit
 
@@ -319,3 +321,63 @@ def get_instance_request_logs_api(challenge_id, instance_id):
         target_ref=instance.instance_id,
     )
     return jsonify(response), status
+
+
+@challengeHistory.route("/deploy_History/<int:challenge_id>/instances/<instance_id>/request-log-detail-api", methods=["GET"])
+@admins_only
+def get_instance_request_log_detail_api(challenge_id, instance_id):
+    try:
+        parsed_instance_id = str(uuid.UUID(instance_id))
+    except ValueError:
+        return jsonify({"success": False, "message": "Instance was not found."}), 404
+    instance = ChallengeInstance.query.filter_by(instance_id=parsed_instance_id, challenge_id=challenge_id).first_or_404()
+    event_id = request.args.get("event_id", "")
+    if not _INSTANCE_LOG_VALUE.fullmatch(event_id):
+        return jsonify({"success": False, "message": "Invalid request event."}), 400
+    response, status, _ = get_instance_request_log_detail(instance.instance_id, event_id)
+    detail = response.get("data", {}) if isinstance(response, dict) else {}
+    log_audit(
+        "view_instance_request_content",
+        data={
+            "event_id": event_id,
+            "result": "success" if status == 200 else "error",
+            "content_state": detail.get("contentState", detail.get("content_state", "unknown")) if isinstance(detail, dict) else "unknown",
+            "byte_count": 0,
+            "reason": "" if status == 200 else (response.get("message", "request_failed") if isinstance(response, dict) else "request_failed"),
+        },
+        contest_id=instance.contest_id,
+        target_ref=instance.instance_id,
+    )
+    return jsonify(response), status
+
+
+@challengeHistory.route("/deploy_History/<int:challenge_id>/instances/<instance_id>/request-log-download", methods=["GET"])
+@admins_only
+def download_instance_request_log_api(challenge_id, instance_id):
+    try:
+        parsed_instance_id = str(uuid.UUID(instance_id))
+    except ValueError:
+        return jsonify({"success": False, "message": "Instance was not found."}), 404
+    instance = ChallengeInstance.query.filter_by(instance_id=parsed_instance_id, challenge_id=challenge_id).first_or_404()
+    event_id = request.args.get("event_id", "")
+    if not _INSTANCE_LOG_VALUE.fullmatch(event_id):
+        return jsonify({"success": False, "message": "Invalid request event."}), 400
+    content, status, headers = download_instance_request_log(instance.instance_id, event_id)
+    log_audit(
+        "download_instance_request_content",
+        data={
+            "event_id": event_id,
+            "result": "success" if status == 200 and isinstance(content, (bytes, bytearray)) else "error",
+            "byte_count": len(content) if isinstance(content, (bytes, bytearray)) else 0,
+            "reason": "" if status == 200 else (content.get("message", "request_failed") if isinstance(content, dict) else "request_failed"),
+        },
+        contest_id=instance.contest_id,
+        target_ref=instance.instance_id,
+    )
+    if status != 200 or not isinstance(content, (bytes, bytearray)):
+        return jsonify(content), status
+    response = Response(content, status=200, mimetype=headers.get("content_type", "application/json"))
+    disposition = headers.get("content_disposition")
+    if disposition:
+        response.headers["Content-Disposition"] = disposition
+    return response

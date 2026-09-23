@@ -152,3 +152,18 @@ FCTF-ManagementPlatform/data/*
 
 
 .claude
+
+# GitHub Spec Kit is installed locally for this checkout. Its skills,
+# templates, scripts, specifications, and generated state must not be pushed.
+/.agents/
+/.specify/
+/.understand-anything/
+
+# Local implementation notes
+/fix.md
+/log_pod.md
+/LivePodLogs.md
+/request_log.md
+
+# Local test/build artifacts
+/tmp/

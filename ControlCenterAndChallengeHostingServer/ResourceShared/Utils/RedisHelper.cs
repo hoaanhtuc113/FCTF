@@ -9,6 +9,11 @@ namespace ResourceShared.Utils;
 
 public class RedisHelper
 {
+    // Must stay aligned with ChallengeGateway/internal/limiter/assertion.go.
+    // Instance IDs are UUIDs, so retaining a revocation marker cannot affect a
+    // later deployment even when a team starts the same challenge again.
+    private const string GatewayAssertionRevocationPrefix = "fctf:gateway:assertion:revoked:instance:";
+    private static readonly TimeSpan GatewayAssertionRevocationTtl = TimeSpan.FromDays(30);
     private readonly IDatabase _cache;
     private readonly AppLogger _logger;
     private const int RedisScanPageSize = 1000;
@@ -119,6 +124,28 @@ public class RedisHelper
             // day chinh la nguyen nhan bug "Invalid user token" duoi tai cao (stale cache
             // sau khi login cap tokenUuid moi). Log lai de phat hien duoc su co nay.
             _logger.LogError(ex, data: new { operation = "RemoveCacheAsync", key });
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Makes every Gateway assertion for one instance unusable before its
+    /// namespace is removed. The Gateway fails closed if it cannot read this
+    /// key, so a Redis failure cannot turn a stop operation into continued access.
+    /// </summary>
+    public async Task<bool> RevokeChallengeInstanceAccessAsync(string? instanceId)
+    {
+        if (string.IsNullOrWhiteSpace(instanceId)) return false;
+        try
+        {
+            return await _cache.StringSetAsync(
+                GatewayAssertionRevocationPrefix + instanceId,
+                "1",
+                GatewayAssertionRevocationTtl);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, data: new { operation = "RevokeChallengeInstanceAccessAsync", instanceId });
             return false;
         }
     }

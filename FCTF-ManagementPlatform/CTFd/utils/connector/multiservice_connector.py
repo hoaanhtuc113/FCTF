@@ -1078,6 +1078,47 @@ def get_instance_request_logs(instance_id, cursor=None, limit=50, filters=None):
         # Do not reflect internal endpoint details into an admin browser.
         return {"success": False, "message": "Request telemetry is temporarily unavailable."}, 503
 
+
+def _request_log_content_call(instance_id, event_id, endpoint):
+    """Proxy detail/content by instance+event; object keys never cross CTFd."""
+    instance_id = str(instance_id)
+    event_id = str(event_id)
+    if not event_id or len(event_id) > 128 or not all(ch.isalnum() or ch in "-_" for ch in event_id):
+        return {"success": False, "message": "Invalid request event."}, 400, {}
+    unix_time = str(int(time.time()))
+    signing_data = {"instanceId": instance_id, "eventId": event_id, "operation": endpoint}
+    payload = {**signing_data, "unixTime": unix_time}
+    secret_key = create_secret_key(PRIVATE_KEY, unix_time, signing_data)
+    try:
+        response = requests.post(
+            f"{DEPLOYMENT_SERVICE_API}/api/challenge/{endpoint}",
+            headers={"SecretKey": secret_key}, json=payload, timeout=20,
+        )
+        if endpoint.endswith("download"):
+            if response.status_code != 200:
+                try:
+                    return response.json(), response.status_code, {}
+                except ValueError:
+                    return {"success": False, "message": "Request-log content is unavailable."}, response.status_code, {}
+            return response.content, response.status_code, {
+                "content_type": response.headers.get("Content-Type", "application/json"),
+                "content_disposition": response.headers.get("Content-Disposition", ""),
+            }
+        try:
+            return response.json(), response.status_code, {}
+        except ValueError:
+            return {"success": False, "message": "Deployment service returned an invalid response."}, 502, {}
+    except requests.exceptions.RequestException:
+        return {"success": False, "message": "Request-log content is temporarily unavailable."}, 503, {}
+
+
+def get_instance_request_log_detail(instance_id, event_id):
+    return _request_log_content_call(instance_id, event_id, "instance-request-log-detail")
+
+
+def download_instance_request_log(instance_id, event_id):
+    return _request_log_content_call(instance_id, event_id, "instance-request-log-download")
+
 def start_challenge_status_checking(challenge_id, team_id):
     unix_time = str(int(time.time()))
     secret_key = create_secret_key(

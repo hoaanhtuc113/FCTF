@@ -40,3 +40,20 @@ data:
   LOKI_BASE_URL: "http://loki-stack.monitoring.svc.cluster.local:3100"
 
   LOKI_QUERY_SELECTOR: "{app=\"challenge-gateway\"}"
+
+  # S3 reader is intentionally distinct from the Gateway writer. Keep the
+  # endpoint/bucket blank until the read-only credential and a least-privilege
+  # NetworkPolicy egress rule have been provisioned.
+  REQUEST_LOG_S3_ENDPOINT: ""
+  REQUEST_LOG_S3_BUCKET: ""
+  REQUEST_LOG_S3_REGION: "us-east-1"
+  REQUEST_LOG_S3_PATH_STYLE: "true"
+  # Local shared-volume reader is development-only. Detail/list metadata still
+  # work when content is unavailable.
+  REQUEST_LOG_OBJECT_DIR: ""
+  REQUEST_LOG_READ_MAX_BYTES: "8388608"
+  REQUEST_LOG_COMPRESSED_READ_MAX_BYTES: "4194304"
+  REQUEST_LOG_BODY_CAP_BYTES: "262144"
+  REQUEST_LOG_UPLOAD_GRACE_SECONDS: "60"
+  REQUEST_LOG_CONTENT_TTL_SECONDS: "86400"
+  CHALLENGE_ACCESS_TOKEN_CAPTURE_PROFILE: ""

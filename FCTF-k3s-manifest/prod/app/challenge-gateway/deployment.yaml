@@ -14,6 +14,9 @@ spec:
         app: challenge-gateway
     spec:
       priorityClassName: app-normal-preemption
+      # Lets the non-root Gateway write only its bounded emptyDir spool.
+      fsGroup: 1000
+      fsGroupChangePolicy: OnRootMismatch
       # No K8s API calls made from this pod - don't hand it a token it has no use for.
       automountServiceAccountToken: false
       tolerations:
@@ -33,6 +36,13 @@ spec:
                 # Gateway verifies challenge assertions but has no legitimate
                 # need to sign internal control-plane callbacks.
                 name: challenge-access-token-secret
+            - secretRef:
+                # Write-only S3 identity. The tracked manifest deliberately holds
+                # empty values; production supplies it via the secret manager.
+                name: request-log-s3-writer-secret
+                # Capture is disabled by default, so a missing optional secret
+                # must not stop unrelated challenge traffic.
+                optional: true
           env:
             - name: GATEWAY_TLS_CERT_FILE
               value: /etc/gateway/tls/tls.crt
@@ -49,9 +59,11 @@ spec:
             requests:
               cpu: 0.1
               memory: 128Mi
+              ephemeral-storage: 300Mi
             limits:
               cpu: 0.3
               memory: 512Mi
+              ephemeral-storage: 384Mi
           readinessProbe:
             httpGet:
               path: /healthz
@@ -76,6 +88,8 @@ spec:
             - name: redis-ca
               mountPath: /etc/redis-ca
               readOnly: true
+            - name: request-log-spool
+              mountPath: /var/spool/request-logs
           securityContext:
             readOnlyRootFilesystem: true
             runAsNonRoot: true
@@ -104,6 +118,9 @@ spec:
             items:
               - key: ca.crt
                 path: ca.crt
+        - name: request-log-spool
+          emptyDir:
+            sizeLimit: 256Mi
   revisionHistoryLimit: 3
 ---
 apiVersion: v1
@@ -111,6 +128,8 @@ kind: Service
 metadata:
   name: challenge-gateway-svc
   namespace: app
+  labels:
+    app: challenge-gateway
 spec:
   ports:
     - protocol: TCP

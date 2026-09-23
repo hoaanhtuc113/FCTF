@@ -38,6 +38,12 @@ spec:
                 # inter-service requests, so a leaked cursor cannot be forged
                 # with either of those credentials.
                 name: instance-log-query-secret
+            - secretRef:
+                # Read-only S3 identity, separate from Gateway write credentials.
+                name: request-log-s3-reader-secret
+                # Metadata list must remain available before the content store
+                # is provisioned.
+                optional: true
           env:
             # CA that signed the Redis server certificate. Without it the
             # service falls back to the container trust store, which does not

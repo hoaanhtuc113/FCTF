@@ -29,6 +29,8 @@ public interface IDeployService
     Task<BaseResponseDTO<DeploymentLogsDTO>> GetDeploymentLogs(string workflowName);
     Task<BaseResponseDTO<PodLogsDTO>> GetPodLogs(ChallengeStartStopReqDTO challengeReq);
     Task<BaseResponseDTO<InstanceRequestLogsDTO>> GetInstanceRequestLogs(InstanceRequestLogsReqDTO request);
+    Task<BaseResponseDTO<InstanceRequestLogDetailDTO>> GetInstanceRequestLogDetail(InstanceRequestLogDetailReqDTO request);
+    Task<(HttpStatusCode Status, string? FileName, byte[]? Content)> DownloadInstanceRequestLog(InstanceRequestLogDetailReqDTO request);
 }
 public class DeployService : IDeployService
 {
@@ -38,12 +40,14 @@ public class DeployService : IDeployService
     private readonly RedisHelper _redisHelper;
     private readonly AppLogger _logger;
     private readonly IDeploymentProducerService _deploymentProducerService;
+    private readonly IRequestLogObjectStore _requestLogObjectStore;
     public DeployService(
         AppDbContext dbContext,
         RedisHelper redisHelper,
         IK8sService k8SHealthService,
         AppLogger logger,
-        IDeploymentProducerService deploymentProducerService)
+        IDeploymentProducerService deploymentProducerService,
+        IRequestLogObjectStore requestLogObjectStore)
     {
         _dbContext = dbContext;
         _redisHelper = redisHelper;
@@ -51,6 +55,7 @@ public class DeployService : IDeployService
         _k8SHealthService = k8SHealthService;
         _logger = logger;
         _deploymentProducerService = deploymentProducerService;
+        _requestLogObjectStore = requestLogObjectStore;
     }
 
     public async Task<ChallengeDeployResponeDTO> Start(ChallengeStartStopReqDTO startReq)
@@ -441,6 +446,7 @@ public class DeployService : IDeployService
             return;
         }
 
+        await RevokeInstanceAccessOrThrowAsync(instanceId);
         var now = DateTime.UtcNow;
         instance.LifecycleState = "failed";
         instance.TerminalReason = reason;
@@ -456,6 +462,10 @@ public class DeployService : IDeployService
         if (string.IsNullOrWhiteSpace(instanceId)) return;
         var instance = await _dbContext.ChallengeInstances.FirstOrDefaultAsync(i => i.InstanceId == instanceId);
         if (instance == null || instance.LifecycleState is "stopped" or "failed") return;
+        if (state is "stopping" or "stopped" or "failed")
+        {
+            await RevokeInstanceAccessOrThrowAsync(instanceId);
+        }
         var now = DateTime.UtcNow;
         instance.LifecycleState = state;
         if (state == "stopped") instance.StoppedAt ??= now;
@@ -464,6 +474,27 @@ public class DeployService : IDeployService
         instance.UpdatedAt = now;
         instance.StateVersion++;
         await _dbContext.SaveChangesAsync();
+    }
+
+    private async Task RevokeInstanceAccessOrThrowAsync(string? instanceId)
+    {
+        if (string.IsNullOrWhiteSpace(instanceId)) return;
+        if (!await _redisHelper.RevokeChallengeInstanceAccessAsync(instanceId))
+        {
+            throw new InvalidOperationException("Could not revoke challenge Gateway access");
+        }
+    }
+
+    private async Task RevokeActiveInstanceAccessOrThrowAsync(IQueryable<ChallengeInstance> instances)
+    {
+        var instanceIds = await instances
+            .Where(i => i.LifecycleState != "stopped" && i.LifecycleState != "failed")
+            .Select(i => i.InstanceId)
+            .ToListAsync();
+        foreach (var instanceId in instanceIds)
+        {
+            await RevokeInstanceAccessOrThrowAsync(instanceId);
+        }
     }
 
     public async Task<ChallengeDeployResponeDTO> Stop(ChallengeStartStopReqDTO stopReq)
@@ -497,6 +528,7 @@ public class DeployService : IDeployService
                     contestId: stopReq.contestId,
                     teamId: stopReq.teamId);
 
+                await RevokeInstanceAccessOrThrowAsync(deployInfo.instance_id);
                 var namespaceDeleted = await _k8SHealthService.DeleteNamespace(deployInfo._namespace ?? string.Empty);
 
                 // DeleteNamespace swallows its own exceptions and returns false on
@@ -531,6 +563,7 @@ public class DeployService : IDeployService
             }
 
             // User thường: set DELETING và để watcher xử lý
+            await RevokeInstanceAccessOrThrowAsync(deployInfo.instance_id);
             deployInfo.status = DeploymentStatus.DELETING;
             deployInfo.ready = false;
             await TransitionInstanceAsync(deployInfo.instance_id, "stopping");
@@ -634,6 +667,7 @@ public class DeployService : IDeployService
                 level: LogLevel.Warning,
                 contestId: contestId);
 
+            await RevokeActiveInstanceAccessOrThrowAsync(_dbContext.ChallengeInstances.Where(i => i.ContestId == contestId));
             var (successCount, failCount, errors) = await _k8SHealthService.DeleteAllChallengeNamespaces("ctf/kind=challenge", challengeIdFilter);
 
             // Clears the ZSET entries as well as the JSON keys. Dropping only
@@ -704,6 +738,7 @@ public class DeployService : IDeployService
 
         try
         {
+            await RevokeActiveInstanceAccessOrThrowAsync(_dbContext.ChallengeInstances);
             var (successCount, failCount, errors) = await _k8SHealthService.DeleteAllChallengeNamespaces("ctf/kind=challenge", null);
 
             await _redisHelper.RemoveCacheByPattern("deploy_challenge_*");
@@ -1268,6 +1303,144 @@ public class DeployService : IDeployService
                 Data = result
             };
         }
+    }
+
+    public async Task<BaseResponseDTO<InstanceRequestLogDetailDTO>> GetInstanceRequestLogDetail(InstanceRequestLogDetailReqDTO request)
+    {
+        if (request == null || !Guid.TryParse(request.InstanceId, out var instanceId)
+            || string.IsNullOrWhiteSpace(request.EventId)
+            || request.EventId.Any(ch => !(char.IsLetterOrDigit(ch) || ch is '-' or '_')))
+        {
+            return new BaseResponseDTO<InstanceRequestLogDetailDTO>
+            {
+                Success = false, HttpStatusCode = HttpStatusCode.BadRequest,
+                Message = "instanceId and eventId are required."
+            };
+        }
+
+        var instance = await _dbContext.ChallengeInstances.AsNoTracking()
+            .FirstOrDefaultAsync(i => i.InstanceId == instanceId.ToString());
+        if (instance == null)
+            return new BaseResponseDTO<InstanceRequestLogDetailDTO>
+            {
+                Success = false, HttpStatusCode = HttpStatusCode.NotFound,
+                Message = "Challenge instance was not found."
+            };
+
+        GatewayAccessEventDTO? metadata;
+        try
+        {
+            metadata = await ResolveGatewayEvent(request.InstanceId, request.EventId, instance.ContestId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, null, null, new { request.InstanceId, request.EventId }, contestId: instance.ContestId);
+            return new BaseResponseDTO<InstanceRequestLogDetailDTO>
+            {
+                Success = false, HttpStatusCode = HttpStatusCode.ServiceUnavailable,
+                Message = "Request telemetry is temporarily unavailable."
+            };
+        }
+
+        if (metadata == null)
+            return new BaseResponseDTO<InstanceRequestLogDetailDTO>
+            {
+                Success = false, HttpStatusCode = HttpStatusCode.NotFound,
+                Message = "Request event was not found for this instance."
+            };
+
+        var detail = new InstanceRequestLogDetailDTO
+        {
+            InstanceId = request.InstanceId,
+            EventId = request.EventId,
+            Metadata = metadata,
+            ContentSchemaVersion = metadata.ContentSchemaVersion,
+            ContentState = metadata.CaptureSubmission switch
+            {
+                _ when !string.Equals(metadata.Protocol, "http", StringComparison.OrdinalIgnoreCase) => "skipped",
+                "not_requested" => "skipped",
+                "skipped_by_policy" => "skipped",
+                "dropped" => "dropped",
+                _ when !string.Equals(metadata.CaptureProfile, "bounded_content", StringComparison.OrdinalIgnoreCase) => "skipped",
+                _ => "pending"
+            }
+        };
+
+        if (detail.ContentState == "pending")
+        {
+            RequestLogObjectReadResult stored;
+            try
+            {
+                stored = await _requestLogObjectStore.ReadAsync(metadata);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, null, null, new { request.InstanceId, request.EventId, operation = "request_log_object_read" }, contestId: instance.ContestId);
+                stored = new RequestLogObjectReadResult("unavailable", null);
+            }
+            detail.ContentState = stored.State switch
+            {
+                "available" => "available",
+                "unavailable" => "unavailable",
+                "missing" when DateTimeOffset.UtcNow - metadata.OccurredAt > TimeSpan.FromSeconds(DeploymentCenterConfigHelper.REQUEST_LOG_CONTENT_TTL_SECONDS) => "expired",
+                "missing" when DateTimeOffset.UtcNow - metadata.OccurredAt > TimeSpan.FromSeconds(RequestLogGraceSeconds()) => "missing",
+                _ => "pending"
+            };
+            if (detail.ContentState == "available" && stored.Json is not null)
+            {
+                if (RequestLogTransactionValidator.TryValidate(stored.Json, metadata, out var transaction))
+                {
+                    detail.Transaction = transaction;
+                    detail.ContentSchemaVersion = 1;
+                }
+                else
+                {
+                    detail.ContentState = "unavailable";
+                }
+            }
+        }
+
+        return new BaseResponseDTO<InstanceRequestLogDetailDTO>
+        {
+            Success = true, HttpStatusCode = HttpStatusCode.OK, Data = detail
+        };
+    }
+
+    public async Task<(HttpStatusCode Status, string? FileName, byte[]? Content)> DownloadInstanceRequestLog(InstanceRequestLogDetailReqDTO request)
+    {
+        var detail = await GetInstanceRequestLogDetail(request);
+        if (!detail.Success || detail.Data == null)
+            return (detail.HttpStatusCode, null, null);
+        if (detail.Data.ContentState != "available" || detail.Data.Transaction is null)
+            return (HttpStatusCode.NotFound, null, null);
+
+        var content = JsonSerializer.SerializeToUtf8Bytes(detail.Data.Transaction.Value);
+        return (HttpStatusCode.OK, $"request-{request.EventId}.json", content);
+    }
+
+    private async Task<GatewayAccessEventDTO?> ResolveGatewayEvent(string instanceId, string eventId, int contestId)
+    {
+        var selector = "{app=\"challenge-gateway\",contest_id=\"" + contestId + "\"}";
+        var logql = selector + " | json | instance_id=\"" + instanceId + "\" | event_id=\"" + eventId + "\"";
+        var end = DateTimeOffset.UtcNow;
+        var start = end.AddDays(-30);
+        var baseUrl = (DeploymentCenterConfigHelper.LOKI_BASE_URL ?? "http://loki-stack:3100").Trim();
+        using var client = new HttpClient { BaseAddress = new Uri(baseUrl), Timeout = TimeSpan.FromSeconds(15) };
+        var url = "/loki/api/v1/query_range?query=" + Uri.EscapeDataString(logql)
+            + "&start=" + (start.ToUnixTimeMilliseconds() * 1_000_000)
+            + "&end=" + (end.ToUnixTimeMilliseconds() * 1_000_000)
+            + "&limit=100&direction=backward";
+        using var response = await client.GetAsync(url);
+        if (!response.IsSuccessStatusCode)
+            throw new InvalidOperationException("Loki request failed");
+        using var document = JsonDocument.Parse(await ReadLokiResponseAsync(response.Content));
+        return ReadGatewayEvents(document.RootElement, instanceId)
+            .FirstOrDefault(e => string.Equals(e.EventId, eventId, StringComparison.Ordinal));
+    }
+
+    private static int RequestLogGraceSeconds()
+    {
+        return DeploymentCenterConfigHelper.REQUEST_LOG_UPLOAD_GRACE_SECONDS;
     }
 
     private static IEnumerable<GatewayAccessEventDTO> ReadGatewayEvents(JsonElement root, string instanceId)

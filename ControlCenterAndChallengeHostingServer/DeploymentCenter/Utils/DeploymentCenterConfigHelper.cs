@@ -16,6 +16,19 @@ public class DeploymentCenterConfigHelper
     public static string POD_START_TIMEOUT_MINUTES = "";
     public static string LOKI_BASE_URL = "http://loki-stack:3100";
     public static string LOKI_QUERY_SELECTOR = "{app=\"challenge-gateway\"}";
+    public static string REQUEST_LOG_OBJECT_DIR = "";
+    public static int REQUEST_LOG_READ_MAX_BYTES = 8 * 1024 * 1024;
+	public static int REQUEST_LOG_COMPRESSED_READ_MAX_BYTES = 4 * 1024 * 1024;
+	public static int REQUEST_LOG_BODY_CAP_BYTES = 256 * 1024;
+    public static int REQUEST_LOG_UPLOAD_GRACE_SECONDS = 60;
+	public static int REQUEST_LOG_CONTENT_TTL_SECONDS = 24 * 60 * 60;
+	public static string REQUEST_LOG_S3_ENDPOINT = "";
+	public static string REQUEST_LOG_S3_BUCKET = "";
+	public static string REQUEST_LOG_S3_REGION = "us-east-1";
+	public static string REQUEST_LOG_S3_ACCESS_KEY = "";
+	public static string REQUEST_LOG_S3_SECRET_KEY = "";
+	public static string REQUEST_LOG_S3_SESSION_TOKEN = "";
+	public static bool REQUEST_LOG_S3_PATH_STYLE = true;
 
     public static int DEPLOYMENT_QUEUE_TIMEOUT_MINUTES = 5;
 
@@ -56,6 +69,29 @@ public class DeploymentCenterConfigHelper
         POD_START_TIMEOUT_MINUTES = Environment.GetEnvironmentVariable("POD_START_TIMEOUT_MINUTES") ?? "5";
         LOKI_BASE_URL = Environment.GetEnvironmentVariable("LOKI_BASE_URL") ?? "http://loki-stack:3100";
         LOKI_QUERY_SELECTOR = Environment.GetEnvironmentVariable("LOKI_QUERY_SELECTOR") ?? "{app=\"challenge-gateway\"}";
+        REQUEST_LOG_OBJECT_DIR = Environment.GetEnvironmentVariable("REQUEST_LOG_OBJECT_DIR") ?? "";
+        if (!int.TryParse(Environment.GetEnvironmentVariable("REQUEST_LOG_READ_MAX_BYTES"), out var requestLogReadCap) || requestLogReadCap <= 0)
+            requestLogReadCap = 8 * 1024 * 1024;
+        REQUEST_LOG_READ_MAX_BYTES = requestLogReadCap;
+		if (!int.TryParse(Environment.GetEnvironmentVariable("REQUEST_LOG_COMPRESSED_READ_MAX_BYTES"), out var compressedReadCap) || compressedReadCap <= 0)
+			compressedReadCap = 4 * 1024 * 1024;
+		REQUEST_LOG_COMPRESSED_READ_MAX_BYTES = compressedReadCap;
+		if (!int.TryParse(Environment.GetEnvironmentVariable("REQUEST_LOG_BODY_CAP_BYTES"), out var requestLogBodyCap) || requestLogBodyCap <= 0)
+			requestLogBodyCap = 256 * 1024;
+		REQUEST_LOG_BODY_CAP_BYTES = requestLogBodyCap;
+        if (!int.TryParse(Environment.GetEnvironmentVariable("REQUEST_LOG_UPLOAD_GRACE_SECONDS"), out var requestLogGrace) || requestLogGrace < 0)
+            requestLogGrace = 60;
+        REQUEST_LOG_UPLOAD_GRACE_SECONDS = requestLogGrace;
+		if (!int.TryParse(Environment.GetEnvironmentVariable("REQUEST_LOG_CONTENT_TTL_SECONDS"), out var requestLogTtl) || requestLogTtl <= 0)
+			requestLogTtl = 24 * 60 * 60;
+		REQUEST_LOG_CONTENT_TTL_SECONDS = requestLogTtl;
+		REQUEST_LOG_S3_ENDPOINT = Environment.GetEnvironmentVariable("REQUEST_LOG_S3_ENDPOINT") ?? "";
+		REQUEST_LOG_S3_BUCKET = Environment.GetEnvironmentVariable("REQUEST_LOG_S3_BUCKET") ?? "";
+		REQUEST_LOG_S3_REGION = Environment.GetEnvironmentVariable("REQUEST_LOG_S3_REGION") ?? "us-east-1";
+		REQUEST_LOG_S3_ACCESS_KEY = Environment.GetEnvironmentVariable("REQUEST_LOG_S3_ACCESS_KEY") ?? "";
+		REQUEST_LOG_S3_SECRET_KEY = Environment.GetEnvironmentVariable("REQUEST_LOG_S3_SECRET_KEY") ?? "";
+		REQUEST_LOG_S3_SESSION_TOKEN = Environment.GetEnvironmentVariable("REQUEST_LOG_S3_SESSION_TOKEN") ?? "";
+		REQUEST_LOG_S3_PATH_STYLE = !bool.TryParse(Environment.GetEnvironmentVariable("REQUEST_LOG_S3_PATH_STYLE"), out var requestLogPathStyle) || requestLogPathStyle;
 
         if (string.IsNullOrWhiteSpace(LOKI_BASE_URL))
         {

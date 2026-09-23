@@ -14,13 +14,16 @@ import (
 
 // Payload is the decoded content of a challenge access token.
 type Payload struct {
-	Exp          int64  `json:"exp"`
-	Route        string `json:"route"`
-	InstanceID   string `json:"instance_id,omitempty"`
-	ContestID    *int   `json:"contest_id,omitempty"`
-	ChallengeID  *int   `json:"challenge_id,omitempty"`
-	ActorUserRef string `json:"actor_user_ref,omitempty"`
-	ActorTeamID  *int   `json:"actor_team_id,omitempty"`
+	Exp            int64  `json:"exp"`
+	Route          string `json:"route"`
+	KeyID          string `json:"kid,omitempty"`
+	JTI            string `json:"jti,omitempty"`
+	CaptureProfile string `json:"capture_profile,omitempty"`
+	InstanceID     string `json:"instance_id,omitempty"`
+	ContestID      *int   `json:"contest_id,omitempty"`
+	ChallengeID    *int   `json:"challenge_id,omitempty"`
+	ActorUserRef   string `json:"actor_user_ref,omitempty"`
+	ActorTeamID    *int   `json:"actor_team_id,omitempty"`
 }
 
 var namespacePattern = regexp.MustCompile(`^[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?$`)
@@ -32,29 +35,12 @@ func Verify(token string) (Payload, error) {
 		return Payload{}, fmt.Errorf("invalid token format")
 	}
 
-	// Challenge assertions have a key of their own. Never accept the shared
-	// control-plane PRIVATE_KEY here: compromise of an internal callback must not
-	// also grant access to every challenge instance.
-	secret := strings.TrimSpace(os.Getenv("CHALLENGE_ACCESS_TOKEN_KEY"))
-	if strings.TrimSpace(secret) == "" {
-		return Payload{}, fmt.Errorf("missing challenge access token signing key")
-	}
-
 	payloadB64 := parts[0]
 	sigB64 := parts[1]
 
 	sigBytes, err := base64.RawURLEncoding.DecodeString(sigB64)
 	if err != nil {
 		return Payload{}, fmt.Errorf("invalid signature encoding")
-	}
-
-	mac := hmac.New(sha256.New, []byte(secret))
-	_, _ = mac.Write([]byte(payloadB64))
-	expected := mac.Sum(nil)
-	if !hmac.Equal(sigBytes, expected) {
-		// Do not log either half of a failed assertion. A token can be carried in
-		// a query string and access telemetry must never become a token sink.
-		return Payload{}, fmt.Errorf("invalid token signature")
 	}
 
 	payloadBytes, err := base64.RawURLEncoding.DecodeString(payloadB64)
@@ -67,6 +53,19 @@ func Verify(token string) (Payload, error) {
 		return Payload{}, fmt.Errorf("invalid payload json")
 	}
 
+	secret, err := signingKey(payload.KeyID)
+	if err != nil {
+		return Payload{}, err
+	}
+	mac := hmac.New(sha256.New, []byte(secret))
+	_, _ = mac.Write([]byte(payloadB64))
+	expected := mac.Sum(nil)
+	if !hmac.Equal(sigBytes, expected) {
+		// Do not log either half of a failed assertion. A token can be carried in
+		// a query string and access telemetry must never become a token sink.
+		return Payload{}, fmt.Errorf("invalid token signature")
+	}
+
 	if payload.Exp <= 0 || !namespacePattern.MatchString(payload.Route) {
 		return Payload{}, fmt.Errorf("invalid payload content")
 	}
@@ -76,6 +75,37 @@ func Verify(token string) (Payload, error) {
 	}
 
 	return payload, nil
+}
+
+// signingKey supports a rolling keyring without granting the Gateway the
+// control-plane signing key. CHALLENGE_ACCESS_TOKEN_KEYS is a comma-separated
+// `kid:secret` list. While migrating, the legacy single key remains available
+// only under kid `legacy`; once all old assertions have expired, it can be
+// removed and the single-key variable unset.
+func signingKey(kid string) (string, error) {
+	if kid == "" {
+		kid = "legacy"
+	}
+	if rawKeyring := strings.TrimSpace(os.Getenv("CHALLENGE_ACCESS_TOKEN_KEYS")); rawKeyring != "" {
+		for _, entry := range strings.Split(rawKeyring, ",") {
+			keyID, secret, ok := strings.Cut(strings.TrimSpace(entry), ":")
+			if !ok || strings.TrimSpace(keyID) == "" || strings.TrimSpace(secret) == "" {
+				continue
+			}
+			if keyID == kid {
+				return secret, nil
+			}
+		}
+	}
+	if kid == "legacy" {
+		// Challenge assertions have a key of their own. Never accept the shared
+		// control-plane PRIVATE_KEY here: compromise of an internal callback must
+		// not also grant access to every challenge instance.
+		if secret := strings.TrimSpace(os.Getenv("CHALLENGE_ACCESS_TOKEN_KEY")); secret != "" {
+			return secret, nil
+		}
+	}
+	return "", fmt.Errorf("unknown challenge access token signing key")
 }
 
 // ExpandRoute turns a signed bare namespace into the one fixed Service address

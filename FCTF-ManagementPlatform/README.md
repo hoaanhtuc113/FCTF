@@ -1,4 +1,3 @@
-
 # ![](https://github.com/CTFd/CTFd/blob/master/CTFd/themes/core/static/img/logo.png?raw=true)
 
 ![CTFd MySQL CI](https://github.com/CTFd/CTFd/workflows/CTFd%20MySQL%20CI/badge.svg?branch=master)
@@ -91,5 +90,26 @@ OAUTH_CLIENT_SECRET = None
 - Notification Sound by [Terrence Martin](https://soundcloud.com/tj-martin-composer)
 
 # SEP490-FPTUCTFPortal
+
 <!-- redeploy trigger -->
 
+# Terminal 1 — database + Redis
+
+cd D:\FCTF\FCTF
+docker compose -f docker-compose.dev.yml up -d mariadb redis
+
+# Terminal 2 — Admin / Management Platform
+
+cd FCTF-ManagementPlatform
+.\.venv\Scripts\Activate
+flask db upgrade
+flask run
+
+# Terminal 3 — Contestant backend
+
+& "C:\Program Files\dotnet\dotnet.exe" run --project D:\FCTF\FCTF\ControlCenterAndChallengeHostingServer\ContestantBE
+
+# Terminal 4 — Contestant frontend
+
+cd ContestantPortal
+npm run dev
