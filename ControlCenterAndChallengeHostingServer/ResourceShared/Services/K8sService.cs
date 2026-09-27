@@ -312,11 +312,7 @@ public class K8sService : IK8sService
             }
 
             var expiryOffset = DateTimeOffset.FromUnixTimeSeconds(finalUnixFinished);
-            var challengeDomain = ChallengeHelper.GenerateChallengeToken(
-                podName,
-                expiryOffset,
-                challengeId,
-                teamId > 0 ? teamId : null);
+            var challengeDomain = ChallengeHelper.GenerateChallengeToken(podName, expiryOffset);
             int realTtlSeconds = (int)(expiryOffset - DateTimeOffset.UtcNow).TotalSeconds;
 
             if (realTtlSeconds <= 0) realTtlSeconds = 60;

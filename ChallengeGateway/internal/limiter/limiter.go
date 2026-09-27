@@ -27,7 +27,6 @@ type Set struct {
 	TCPIPConn     ConnLimiter
 	TCPTokenConn  ConnLimiter
 	TCPGlobalConn ConnLimiter
-	CaptureQuota  CaptureQuota
 }
 
 // Init creates all limiters from the provided config and Redis client.
@@ -44,7 +43,6 @@ func Init(cfg config.Config, redisClient RedisClient) (*Set, error) {
 		TCPIPConn:     newRedisConnLimiter(redisClient, cfg.TCPMaxConnsPerIP, cfg.RedisKeyPrefix+":tcp:conn:ip", cfg.TCPConnTTLSeconds, cfg.RedisFailClosed),
 		TCPTokenConn:  newRedisConnLimiter(redisClient, cfg.TCPMaxConnsPerToken, cfg.RedisKeyPrefix+":tcp:conn:token", cfg.TCPConnTTLSeconds, cfg.RedisFailClosed),
 		TCPGlobalConn: newRedisConnLimiter(redisClient, cfg.TCPMaxConns, cfg.RedisKeyPrefix+":tcp:conn:global", cfg.TCPConnTTLSeconds, cfg.RedisFailClosed),
-		CaptureQuota:  newRedisCaptureQuota(redisClient, cfg.RedisKeyPrefix+":request-log:capture", cfg.RequestLogQuotaBytes, cfg.RequestLogQuotaWindowSec),
 	}, nil
 }
 
