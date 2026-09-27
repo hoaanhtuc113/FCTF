@@ -26,7 +26,8 @@ public interface IDeployService
     Task<BaseResponseDTO> HandleMessageFromArgo(WorkflowStatusDTO message);
     Task<BaseResponseDTO<DeploymentLogsDTO>> GetDeploymentLogs(string workflowName);
     Task<BaseResponseDTO<PodLogsDTO>> GetPodLogs(ChallengeStartStopReqDTO challengeReq);
-    Task<BaseResponseDTO<PodLogsDTO>> GetPodRequestLog(ChallengeStartStopReqDTO challengeReq);
+    Task<BaseResponseDTO<RequestLogsDTO>> GetRequestLogs(ChallengeStartStopReqDTO challengeReq);
+    Task<BaseResponseDTO<RequestLogDetailDTO>> GetRequestLogDetail(ChallengeStartStopReqDTO challengeReq);
 }
 public class DeployService : IDeployService
 {
@@ -35,6 +36,7 @@ public class DeployService : IDeployService
     private readonly RedisHelper _redisHelper;
     private readonly AppLogger _logger;
     private readonly IDeploymentProducerService _deploymentProducerService;
+    private readonly RequestLogsService _requestLogsService;
     public DeployService(
         AppDbContext dbContext,
         RedisHelper redisHelper,
@@ -48,7 +50,14 @@ public class DeployService : IDeployService
         _k8SHealthService = k8SHealthService;
         _logger = logger;
         _deploymentProducerService = deploymentProducerService;
+        _requestLogsService = new RequestLogsService(dbContext);
     }
+
+    public Task<BaseResponseDTO<RequestLogsDTO>> GetRequestLogs(ChallengeStartStopReqDTO challengeReq)
+        => _requestLogsService.ListAsync(challengeReq);
+
+    public Task<BaseResponseDTO<RequestLogDetailDTO>> GetRequestLogDetail(ChallengeStartStopReqDTO challengeReq)
+        => _requestLogsService.DetailAsync(challengeReq);
 
     public async Task<ChallengeDeployResponeDTO> Start(ChallengeStartStopReqDTO startReq)
     {
@@ -607,148 +616,5 @@ public class DeployService : IDeployService
         }
     }
 
-    public async Task<BaseResponseDTO<PodLogsDTO>> GetPodRequestLog(ChallengeStartStopReqDTO challengeReq)
-    {
-        try
-        {
-            var lokiBaseUrl = (DeploymentCenterConfigHelper.LOKI_BASE_URL ?? "http://loki-stack:3100").Trim();
-            var lokiSelector = (DeploymentCenterConfigHelper.LOKI_QUERY_SELECTOR ?? "{app=\"challenge-gateway\"}").Trim();
 
-            // Handle escaped quotes from env files, e.g. {app=\"challenge-gateway\"}
-            lokiSelector = lokiSelector.Replace("\\\"", "\"");
-
-            // Normalize selector to valid LogQL (handle env like: app=challenge-gateway)
-            if (string.IsNullOrWhiteSpace(lokiSelector))
-            {
-                lokiSelector = "{app=\"challenge-gateway\"}";
-            }
-            while (lokiSelector.StartsWith("{{") && lokiSelector.EndsWith("}}") && lokiSelector.Length >= 4)
-            {
-                lokiSelector = lokiSelector[1..^1].Trim();
-            }
-            if (!lokiSelector.StartsWith("{"))
-            {
-                lokiSelector = "{" + lokiSelector;
-            }
-            if (!lokiSelector.EndsWith("}"))
-            {
-                lokiSelector = lokiSelector + "}";
-            }
-            lokiSelector = Regex.Replace(
-                lokiSelector,
-                @"(?<key>[a-zA-Z_][a-zA-Z0-9_]*)=(?<val>[a-zA-Z0-9._:-]+)",
-                "${key}=\"${val}\"");
-
-            using var httpClient = new HttpClient
-            {
-                BaseAddress = new Uri(lokiBaseUrl),
-                Timeout = TimeSpan.FromSeconds(15),
-            };
-
-            var endNs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() * 1_000_000;
-            var startNs = DateTimeOffset.UtcNow.AddHours(-6).ToUnixTimeMilliseconds() * 1_000_000;
-
-            // Base filter: team + challenge. Optionally narrow to a specific namespace.
-            var logql = string.IsNullOrWhiteSpace(challengeReq.ns)
-                ? $"{lokiSelector} | logfmt | team=\"{challengeReq.teamId}\" | challenge=\"{challengeReq.challengeId}\""
-                : $"{lokiSelector} | logfmt | team=\"{challengeReq.teamId}\" | challenge=\"{challengeReq.challengeId}\" | ns=\"{challengeReq.ns}\"";
-
-            var query = Uri.EscapeDataString(logql);
-            var url = $"/loki/api/v1/query_range?query={query}&start={startNs}&end={endNs}&limit=2000&direction=backward";
-            await Console.Out.WriteLineAsync($"Loki request. BaseUrl={lokiBaseUrl}, Selector={lokiSelector}, LogQL={logql}, Url={url}");
-
-            var response = await httpClient.GetAsync(url);
-            if (!response.IsSuccessStatusCode)
-            {
-                var errorBody = await response.Content.ReadAsStringAsync();
-                if (errorBody.Length > 500)
-                {
-                    errorBody = errorBody[..500] + "...";
-                }
-                var errorMessage = $"Error retrieving request logs from Loki. Status={(int)response.StatusCode} ({response.ReasonPhrase}). Body={errorBody}";
-                await Console.Error.WriteLineAsync(errorMessage);
-                return new BaseResponseDTO<PodLogsDTO>
-                {
-                    Success = false,
-                    HttpStatusCode = response.StatusCode,
-                    Message = errorMessage
-                };
-            }
-
-            var json = await response.Content.ReadAsStringAsync();
-            using var document = JsonDocument.Parse(json);
-            if (!document.RootElement.TryGetProperty("data", out var dataElem)
-                || !dataElem.TryGetProperty("result", out var resultElem)
-                || resultElem.ValueKind != JsonValueKind.Array)
-            {
-                return new BaseResponseDTO<PodLogsDTO>
-                {
-                    Success = true,
-                    HttpStatusCode = HttpStatusCode.OK,
-                    Data = new PodLogsDTO
-                    {
-                        TeamId = challengeReq.teamId,
-                        ChallengeId = challengeReq.challengeId,
-                        PodName = "challenge-gateway",
-                        Logs = string.Empty,
-                    }
-                };
-            }
-
-            var lines = new List<(long Ts, string LogLine)>();
-
-            foreach (var stream in resultElem.EnumerateArray())
-            {
-                if (!stream.TryGetProperty("values", out var valuesElem) || valuesElem.ValueKind != JsonValueKind.Array)
-                    continue;
-
-                foreach (var pair in valuesElem.EnumerateArray())
-                {
-                    if (pair.ValueKind != JsonValueKind.Array || pair.GetArrayLength() < 2)
-                        continue;
-
-                    var tsRaw = pair[0].GetString() ?? "0";
-                    var logLine = pair[1].GetString() ?? string.Empty;
-                    if (!long.TryParse(tsRaw, out var tsNs))
-                        continue;
-
-                    lines.Add((tsNs, logLine.TrimEnd()));
-                }
-            }
-
-            var builder = new StringBuilder();
-            foreach (var item in lines.OrderByDescending(x => x.Ts))
-            {
-                var tsMs = item.Ts / 1_000_000;
-                var localTime = DateTimeOffset.FromUnixTimeMilliseconds(tsMs).ToLocalTime();
-                builder.AppendLine(localTime.ToString("yyyy-MM-dd HH:mm:ss.fff"));
-                builder.AppendLine(item.LogLine);
-                builder.AppendLine();
-            }
-
-            return new BaseResponseDTO<PodLogsDTO>
-            {
-                Success = true,
-                HttpStatusCode = HttpStatusCode.OK,
-                Data = new PodLogsDTO
-                {
-                    TeamId = challengeReq.teamId,
-                    ChallengeId = challengeReq.challengeId,
-                    PodName = "challenge-gateway",
-                    Logs = builder.ToString().TrimEnd()
-                }
-            };
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, null, challengeReq.teamId, new { challengeId = challengeReq.challengeId });
-            await Console.Error.WriteLineAsync($"Error retrieving request logs from Loki. BaseUrl={DeploymentCenterConfigHelper.LOKI_BASE_URL}, Selector={DeploymentCenterConfigHelper.LOKI_QUERY_SELECTOR}, Error={ex.Message}");
-            return new BaseResponseDTO<PodLogsDTO>
-            {
-                Success = false,
-                HttpStatusCode = HttpStatusCode.InternalServerError,
-                Message = $"Error retrieving request logs from Loki: {ex.Message}"
-            };
-        }
-    }
 }
