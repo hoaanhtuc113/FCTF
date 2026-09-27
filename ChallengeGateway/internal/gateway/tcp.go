@@ -2,9 +2,7 @@ package gateway
 
 import (
 	"bufio"
-	"bytes"
 	"context"
-	"encoding/base64"
 	"fmt"
 	"io"
 	"log"
@@ -16,6 +14,8 @@ import (
 
 	"challenge-gateway/internal/config"
 	"challenge-gateway/internal/limiter"
+	"challenge-gateway/internal/requestlog"
+	"challenge-gateway/internal/telemetry"
 	"challenge-gateway/internal/token"
 )
 
@@ -40,10 +40,7 @@ func StartTCP(ctx context.Context, cfg config.Config, limiters *limiter.Set) net
 	if cfg.TCPCopyBufBytes > 0 {
 		copyBufBytes = cfg.TCPCopyBufBytes
 	}
-	// Memory pool for copy buffers reduces GC pressure under load.
-	copyBufPool := &sync.Pool{
-		New: func() any { return make([]byte, copyBufBytes) },
-	}
+	copyBufPool := &sync.Pool{New: func() any { return make([]byte, copyBufBytes) }}
 
 	var authTimeout time.Duration
 	if cfg.TCPAuthTimeoutSeconds > 0 {
@@ -57,37 +54,38 @@ func StartTCP(ctx context.Context, cfg config.Config, limiters *limiter.Set) net
 	ln = newGatewayListener(ln, tlsConfig)
 
 	if tlsConfig != nil {
-		fmt.Printf("[*] TCP Gateway running on port %s (TLS enabled)...\n", tcpListenAddr)
+		log.Printf("[*] TCP Gateway running on port %s (TLS enabled)...", tcpListenAddr)
 	} else {
-		fmt.Printf("[*] TCP Gateway running on port %s...\n", tcpListenAddr)
+		log.Printf("[*] TCP Gateway running on port %s...", tcpListenAddr)
 	}
 
-	// Close listener when context is cancelled.
 	go func() {
 		<-ctx.Done()
 		_ = ln.Close()
 	}()
 
-	// Semaphore limits total goroutines (and thus OS resources) per config.
 	sem := make(chan struct{}, cfg.TCPMaxConns)
-
 	go func() {
 		for {
 			conn, err := ln.Accept()
 			if err != nil {
 				if ctx.Err() != nil {
-					return // shutting down
+					return
 				}
 				continue
 			}
 
+			// One ID per accepted socket, including connections rejected before
+			// token authentication. It is correlation metadata, never an identity.
+			sessionID := telemetry.NewSessionID()
 			ip := ParseRemoteIP(conn.RemoteAddr().String())
-
 			if limiters != nil && limiters.TCPRate != nil && !limiters.TCPRate.Allow(context.Background(), ip) {
+				emitTCPEvent("tcp_rate_limited", sessionID, ip, nil, "rate_limited", "ip_rate_limit")
 				_ = conn.Close()
 				continue
 			}
 			if limiters != nil && limiters.TCPIPConn != nil && !limiters.TCPIPConn.Acquire(context.Background(), ip) {
+				emitTCPEvent("tcp_rate_limited", sessionID, ip, nil, "rate_limited", "ip_connection_limit")
 				_ = conn.Close()
 				continue
 			}
@@ -95,12 +93,13 @@ func StartTCP(ctx context.Context, cfg config.Config, limiters *limiter.Set) net
 				if limiters.TCPIPConn != nil {
 					limiters.TCPIPConn.Release(context.Background(), ip)
 				}
+				emitTCPEvent("tcp_rate_limited", sessionID, ip, nil, "rate_limited", "global_connection_limit")
 				_ = conn.Close()
 				continue
 			}
 
 			sem <- struct{}{}
-			go func(clientIP string) {
+			go func(conn net.Conn, clientIP, id string) {
 				defer func() { <-sem }()
 				if limiters != nil && limiters.TCPIPConn != nil {
 					defer limiters.TCPIPConn.Release(context.Background(), clientIP)
@@ -108,20 +107,18 @@ func StartTCP(ctx context.Context, cfg config.Config, limiters *limiter.Set) net
 				if limiters != nil && limiters.TCPGlobalConn != nil {
 					defer limiters.TCPGlobalConn.Release(context.Background(), "global")
 				}
-				handleTCPConnection(conn, authTimeout, limiters, copyBufPool)
-			}(ip)
+				handleTCPConnection(conn, id, authTimeout, limiters, copyBufPool)
+			}(conn, ip, sessionID)
 		}
 	}()
 
 	return ln
 }
 
-func handleTCPConnection(clientConn net.Conn, authTimeout time.Duration, limiters *limiter.Set, copyBufPool *sync.Pool) {
+func handleTCPConnection(clientConn net.Conn, sessionID string, authTimeout time.Duration, limiters *limiter.Set, copyBufPool *sync.Pool) {
 	defer clientConn.Close()
-
-	remoteAddr := clientConn.RemoteAddr().String()
-	clientIP := ParseRemoteIP(remoteAddr)
-	log.Printf("[+] TCP connection from %s proto=\"tcp\" event=\"connect\"", remoteAddr)
+	startedAt := time.Now()
+	clientIP := ParseRemoteIP(clientConn.RemoteAddr().String())
 
 	if rawConnProvider, ok := clientConn.(interface{ RawConn() net.Conn }); ok {
 		if tcpConn, ok := rawConnProvider.RawConn().(*net.TCPConn); ok {
@@ -133,192 +130,196 @@ func handleTCPConnection(clientConn net.Conn, authTimeout time.Duration, limiter
 		_ = tcpConn.SetKeepAlivePeriod(30 * time.Second)
 	}
 
-	pending := atomic.AddInt64(&tcpPendingAuth, 1)
-	log.Printf("[*] TCP pending auth connections: %d", pending)
-	defer func() {
-		p := atomic.AddInt64(&tcpPendingAuth, -1)
-		log.Printf("[*] TCP pending auth connections: %d", p)
-	}()
+	atomic.AddInt64(&tcpPendingAuth, 1)
+	defer atomic.AddInt64(&tcpPendingAuth, -1)
 
 	payload, tok, err := authenticateTCPClient(clientConn, authTimeout)
 	if err != nil {
 		fmt.Fprintln(clientConn, "Auth failed!")
-		log.Printf("[-] Auth failed from %s proto=\"tcp\" event=\"auth_failed\": %v", remoteAddr, err)
+		emitTCPEvent("tcp_auth_failed", sessionID, clientIP, nil, "authentication_failed", authErrorCode(err))
 		return
 	}
 
-	if limiters != nil && limiters.TCPRate != nil {
-		if !limiters.TCPRate.Allow(context.Background(), BuildRateLimitKey(tok, clientIP)) {
-			fmt.Fprintln(clientConn, "Rate limit exceeded")
-			return
-		}
+	if limiters != nil && limiters.TCPRate != nil && !limiters.TCPRate.Allow(context.Background(), BuildRateLimitKey(tok, clientIP)) {
+		fmt.Fprintln(clientConn, "Rate limit exceeded")
+		emitTCPEvent("tcp_rate_limited", sessionID, clientIP, &payload, "rate_limited", "authenticated_rate_limit")
+		return
+	}
+	if limiters != nil && limiters.TCPTokenConn != nil && tok != "" && !limiters.TCPTokenConn.Acquire(context.Background(), tok) {
+		fmt.Fprintln(clientConn, "Too many connections for token")
+		emitTCPEvent("tcp_rate_limited", sessionID, clientIP, &payload, "rate_limited", "token_connection_limit")
+		return
 	}
 	if limiters != nil && limiters.TCPTokenConn != nil && tok != "" {
-		if !limiters.TCPTokenConn.Acquire(context.Background(), tok) {
-			fmt.Fprintln(clientConn, "Too many connections for token")
-			return
-		}
 		defer limiters.TCPTokenConn.Release(context.Background(), tok)
 	}
 
 	host := token.ExpandRoute(payload.Route)
-	teamID, challengeID, ok := ParseTeamChallengeFromRoute(payload.Route)
-	if !ok {
-		teamID, challengeID, ok = ParseTeamChallengeFromRoute(host)
-	}
-	if ok {
-		log.Printf("[+] Auth OK from %s team=\"%d\" challenge=\"%d\" proto=\"tcp\" event=\"auth_ok\" -> %s", remoteAddr, teamID, challengeID, host)
-	} else {
-		log.Printf("[+] Auth OK from %s proto=\"tcp\" event=\"auth_ok\" -> %s", remoteAddr, host)
-	}
-
-	fmt.Fprintf(clientConn, "Access Granted! Connecting to challenge...\n")
 	challengeConn, err := net.Dial("tcp", host)
 	if err != nil {
-		fmt.Fprintf(clientConn, "[!] Could not connect to challenge server.\n")
-		if ok {
-			log.Printf("[-] Dial failed from %s team=\"%d\" challenge=\"%d\" proto=\"tcp\" event=\"dial_failed\" -> %s: %v", remoteAddr, teamID, challengeID, host, err)
-		} else {
-			log.Printf("[-] Dial failed from %s proto=\"tcp\" event=\"dial_failed\" -> %s: %v", remoteAddr, host, err)
-		}
+		fmt.Fprintln(clientConn, "Could not connect to challenge server.")
+		emitTCPEvent("tcp_dial_failed", sessionID, clientIP, &payload, "dial_failed", "upstream_unavailable")
 		return
 	}
 	defer challengeConn.Close()
 
-	done := make(chan struct{}, 2)
+	if time.Now().Unix() >= payload.Exp {
+		_ = clientConn.Close()
+		_ = challengeConn.Close()
+		emitTCPEventWithStats("tcp_session_end", sessionID, clientIP, &payload, 0, 0, time.Since(startedAt), "token_expired")
+		return
+	}
+
+	fmt.Fprintln(clientConn, "Access Granted! Connecting to challenge...")
+	emitTCPEvent("tcp_connect", sessionID, clientIP, &payload, "connected", "")
+
 	var closeOnce sync.Once
 	closeAll := func() {
 		_ = clientConn.Close()
 		_ = challengeConn.Close()
 	}
-
-	// Auto-close session when the token expires.
-	expiry := time.Unix(payload.Exp, 0)
-	untilExpiry := time.Until(expiry)
-	if untilExpiry <= 0 {
-		if ok {
-			log.Printf("[-] Token already expired for %s team=\"%d\" challenge=\"%d\" proto=\"tcp\" event=\"token_expired\" -> %s", remoteAddr, teamID, challengeID, host)
-		} else {
-			log.Printf("[-] Token already expired for %s proto=\"tcp\" event=\"token_expired\" -> %s", remoteAddr, host)
+	var terminationMu sync.Mutex
+	terminationReason := "connection_closed"
+	setTermination := func(reason string) {
+		terminationMu.Lock()
+		if terminationReason == "connection_closed" && reason != "" {
+			terminationReason = reason
 		}
-		closeOnce.Do(closeAll)
-		return
+		terminationMu.Unlock()
 	}
 
 	expiryCtx, cancelExpiry := context.WithCancel(context.Background())
 	defer cancelExpiry()
-	expiryTimer := time.NewTimer(untilExpiry)
-	defer func() {
-		if !expiryTimer.Stop() {
-			select {
-			case <-expiryTimer.C:
-			default:
-			}
-		}
-	}()
-
+	expiryTimer := time.NewTimer(time.Until(time.Unix(payload.Exp, 0)))
+	defer expiryTimer.Stop()
 	go func() {
 		select {
 		case <-expiryTimer.C:
-			if ok {
-				log.Printf("[*] Token expired; closing session for %s team=\"%d\" challenge=\"%d\" proto=\"tcp\" event=\"session_expired\" -> %s", remoteAddr, teamID, challengeID, host)
-			} else {
-				log.Printf("[*] Token expired; closing session for %s proto=\"tcp\" event=\"session_expired\" -> %s", remoteAddr, host)
-			}
+			setTermination("token_expired")
 			closeOnce.Do(closeAll)
 		case <-expiryCtx.Done():
 		}
 	}()
 
+	type copyResult struct {
+		direction string
+		bytes     int64
+		err       error
+	}
+	results := make(chan copyResult, 2)
 	proxyCopy := func(dst, src net.Conn, direction string) {
 		buf := copyBufPool.Get().([]byte)
-		sampleLimit := 0
-		if direction == "c2s" {
-			sampleLimit = 32768 // log up to 32 KB of client→server data per connection
-		}
-		copied, sampleB64, copyErr := proxyCopyWithSample(dst, src, buf, sampleLimit)
+		copied, copyErr := io.CopyBuffer(dst, src, buf)
 		copyBufPool.Put(buf)
-
-		// errSuffix is appended when there is no b64 sample (e.g. s2c disconnect).
-		// errB64Suffix is a separate space-prefixed field used when a b64 sample IS
-		// present, so the b64 value is cleanly terminated by a space and not glued
-		// to the error text (which would make it unparseable / invalid base64).
-		errSuffix := ""
-		errB64Suffix := ""
-		if copyErr != nil {
-			errSuffix = ": " + copyErr.Error()
-			errB64Suffix = fmt.Sprintf(" conn_err=%q", copyErr.Error())
-		}
-		if ok {
-			if sampleB64 != "" {
-				log.Printf("[~] TCP proxy %s from %s team=\"%d\" challenge=\"%d\" ns=\"%s\" proto=\"tcp\" direction=\"%s\" bytes=%d sample_b64=%s%s",
-					direction, remoteAddr, teamID, challengeID, payload.Route, direction, copied, sampleB64, errB64Suffix)
-			} else {
-				log.Printf("[~] TCP proxy %s from %s team=\"%d\" challenge=\"%d\" ns=\"%s\" proto=\"tcp\" direction=\"%s\" bytes=%d%s",
-					direction, remoteAddr, teamID, challengeID, payload.Route, direction, copied, errSuffix)
-			}
-		} else {
-			if sampleB64 != "" {
-				log.Printf("[~] TCP proxy %s from %s ns=\"%s\" proto=\"tcp\" direction=\"%s\" bytes=%d sample_b64=%s%s",
-					direction, remoteAddr, payload.Route, direction, copied, sampleB64, errB64Suffix)
-			} else {
-				log.Printf("[~] TCP proxy %s from %s ns=\"%s\" proto=\"tcp\" direction=\"%s\" bytes=%d%s",
-					direction, remoteAddr, payload.Route, direction, copied, errSuffix)
-			}
-		}
-
-		closeOnce.Do(closeAll)
-		done <- struct{}{}
+		results <- copyResult{direction: direction, bytes: copied, err: copyErr}
 	}
-
 	go proxyCopy(challengeConn, clientConn, "c2s")
 	go proxyCopy(clientConn, challengeConn, "s2c")
 
-	<-done
+	var bytesC2S, bytesS2C int64
+	for i := 0; i < 2; i++ {
+		result := <-results
+		if result.direction == "c2s" {
+			bytesC2S = result.bytes
+		} else {
+			bytesS2C = result.bytes
+		}
+		if result.err != nil {
+			setTermination(copyTermination(result.direction, result.err))
+		} else if result.direction == "c2s" {
+			setTermination("client_disconnect")
+		} else {
+			setTermination("upstream_disconnect")
+		}
+		closeOnce.Do(closeAll)
+	}
 	cancelExpiry()
 
-	if ok {
-		log.Printf("[+] Session ended: %s team=\"%d\" challenge=\"%d\" proto=\"tcp\" event=\"session_end\"", remoteAddr, teamID, challengeID)
-	} else {
-		log.Printf("[+] Session ended: %s proto=\"tcp\" event=\"session_end\"", remoteAddr)
+	terminationMu.Lock()
+	reason := terminationReason
+	terminationMu.Unlock()
+	emitTCPEventWithStats("tcp_session_end", sessionID, clientIP, &payload, bytesC2S, bytesS2C, time.Since(startedAt), reason)
+}
+
+func emitTCPEvent(eventName, sessionID, peerIP string, payload *token.Payload, outcome, errorCode string) {
+	event := telemetry.New(eventName, "tcp")
+	event.SessionID = sessionID
+	event.PeerIP = peerIP
+	event.IPSource = "remote_addr"
+	event.Outcome = outcome
+	event.ErrorCode = errorCode
+	addTCPIdentity(&event, payload)
+	telemetry.Emit(event)
+}
+
+func emitTCPEventWithStats(eventName, sessionID, peerIP string, payload *token.Payload, bytesC2S, bytesS2C int64, duration time.Duration, reason string) {
+	event := telemetry.New(eventName, "tcp")
+	event.SessionID = sessionID
+	event.PeerIP = peerIP
+	event.IPSource = "remote_addr"
+	event.BytesC2S = bytesC2S
+	event.BytesS2C = bytesS2C
+	event.DurationMS = duration.Milliseconds()
+	event.Outcome = "ended"
+	event.TerminationReason = reason
+	addTCPIdentity(&event, payload)
+	telemetry.Emit(event)
+}
+
+func addTCPIdentity(event *telemetry.Event, payload *token.Payload) {
+	if payload == nil || !validTCPNamespace(payload.Route) {
+		return
+	}
+	event.InstanceNamespace = payload.Route
+	event.AuthStrength = "signed_route"
+	event.ChallengeID = payload.ChallengeID
+	event.ActorTeamID = payload.ActorTeamID
+	if payload.ChallengeID == nil || payload.ActorTeamID == nil {
+		teamID, challengeID, ok := ParseTeamChallengeFromRoute(payload.Route)
+		if ok {
+			if event.ChallengeID == nil {
+				id := challengeID
+				event.ChallengeID = &id
+			}
+			if teamID > 0 && event.ActorTeamID == nil {
+				id := teamID
+				event.ActorTeamID = &id
+			}
+		}
+	}
+	if event.ChallengeID == nil {
+		event.AuthStrength = "legacy"
 	}
 }
 
-// proxyCopyWithSample copies src → dst using buf, optionally capturing the first
-// sampleLimit bytes of data for logging.
-func proxyCopyWithSample(dst io.Writer, src io.Reader, buf []byte, sampleLimit int) (bytesCopied int64, sampleB64 string, err error) {
-	if sampleLimit < 0 {
-		sampleLimit = 0
+func validTCPNamespace(route string) bool {
+	return requestlog.ValidNamespace(route)
+}
+
+func authErrorCode(err error) string {
+	message := strings.ToLower(err.Error())
+	switch {
+	case strings.Contains(message, "timed out"):
+		return "authentication_timeout"
+	case strings.Contains(message, "token expired"):
+		return "token_expired"
+	case strings.Contains(message, "too long"):
+		return "token_too_long"
+	case strings.Contains(message, "empty token"):
+		return "missing_assertion"
+	default:
+		return "invalid_assertion"
 	}
-	var sample bytes.Buffer
-	for {
-		n, readErr := src.Read(buf)
-		if n > 0 {
-			bytesCopied += int64(n)
-			if sampleLimit > 0 && sample.Len() < sampleLimit {
-				remain := sampleLimit - sample.Len()
-				if n < remain {
-					_, _ = sample.Write(buf[:n])
-				} else {
-					_, _ = sample.Write(buf[:remain])
-				}
-			}
-			if _, writeErr := dst.Write(buf[:n]); writeErr != nil {
-				err = writeErr
-				break
-			}
-		}
-		if readErr != nil {
-			if readErr != io.EOF {
-				err = readErr
-			}
-			break
-		}
+}
+
+func copyTermination(direction string, err error) string {
+	if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
+		return "proxy_timeout"
 	}
-	if sample.Len() > 0 {
-		sampleB64 = base64.RawStdEncoding.EncodeToString(sample.Bytes())
+	if direction == "c2s" {
+		return "client_disconnect"
 	}
-	return bytesCopied, sampleB64, err
+	return "upstream_disconnect"
 }
 
 // authenticateTCPClient prompts the client for a token and verifies it.
@@ -331,7 +332,6 @@ func authenticateTCPClient(conn net.Conn, authTimeout time.Duration) (token.Payl
 	defer func() { _ = conn.SetReadDeadline(time.Time{}) }()
 
 	fmt.Fprintf(conn, "\n--- CTF AUTHENTICATION ---\nPlease enter your token (Timeout %ds): ", int(timeout.Seconds()))
-
 	reader := bufio.NewReader(io.LimitReader(conn, tcpMaxAuthTokenBytes+1))
 	input, err := reader.ReadString('\n')
 	if err != nil {
@@ -346,12 +346,10 @@ func authenticateTCPClient(conn net.Conn, authTimeout time.Duration) (token.Payl
 	if len(input) > tcpMaxAuthTokenBytes {
 		return token.Payload{}, "", fmt.Errorf("token too long")
 	}
-
 	tok := strings.TrimSpace(input)
 	if tok == "" {
 		return token.Payload{}, "", fmt.Errorf("empty token")
 	}
-
 	payload, err := token.Verify(tok)
 	if err != nil {
 		return token.Payload{}, "", err

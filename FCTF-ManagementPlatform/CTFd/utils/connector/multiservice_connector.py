@@ -592,7 +592,7 @@ def get_challenge_pod_logs(challenge_id, team_id):
         print(f"Error getting pod logs: {e}")
         return str(e)
 
-def get_challenge_request_logs(challenge_id, team_id, ns=None):
+def get_challenge_request_logs(challenge_id, team_id, ns=None, event_id=None, row_id=None):
     if team_id is None:
         team_id = -1
 
@@ -603,6 +603,10 @@ def get_challenge_request_logs(challenge_id, team_id, ns=None):
     }
     if ns:
         signing_data["ns"] = ns
+    if event_id:
+        signing_data["eventId"] = event_id
+    if row_id:
+        signing_data["rowId"] = row_id
     secret_key = create_secret_key(PRIVATE_KEY, unix_time, signing_data)
     payload = {
         "challengeId": challenge_id,
@@ -611,26 +615,29 @@ def get_challenge_request_logs(challenge_id, team_id, ns=None):
     }
     if ns:
         payload["ns"] = ns
+    if event_id:
+        payload["eventId"] = event_id
+    if row_id:
+        payload["rowId"] = row_id
     headers = {"SecretKey": secret_key}
 
-    logs_url = f"{DEPLOYMENT_SERVICE_API}/api/challenge/request-logs"
+    endpoint = "request-logs/detail" if event_id or row_id else "request-logs"
+    logs_url = f"{DEPLOYMENT_SERVICE_API}/api/challenge/{endpoint}"
     try:
-        response = requests.post(logs_url, headers=headers, json=payload)
-        print(f"Get request logs response status: {response.status_code}")
-
-        if response.status_code == 200:
+        response = requests.post(logs_url, headers=headers, json=payload, timeout=20)
+        try:
             response_data = response.json()
-            if response_data.get("success") and "data" in response_data:
-                logs = response_data["data"].get("logs", "")
-                return logs
-            return response_data.get("logs", "")
-
-        print(f"Get request logs failed: {response.text}")
-        response_data = response.json()
-        return response_data.get("message", "")
-    except requests.exceptions.RequestException as e:
-        print(f"Error getting request logs: {e}")
-        return str(e)
+        except ValueError:
+            response_data = {"success": False, "message": "Deployment Center returned an invalid response."}
+        if response.status_code == 200:
+            return response_data
+        return {
+            "success": False,
+            "message": response_data.get("message", "Failed to retrieve request logs."),
+            "status_code": response.status_code,
+        }
+    except requests.exceptions.RequestException:
+        return {"success": False, "message": "Could not reach Deployment Center."}
 
 def start_challenge_status_checking(challenge_id, team_id):
     unix_time = str(int(time.time()))

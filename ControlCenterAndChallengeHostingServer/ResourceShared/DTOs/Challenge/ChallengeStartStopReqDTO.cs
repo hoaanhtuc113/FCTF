@@ -14,5 +14,7 @@ namespace ResourceShared.DTOs.Challenge
         public int? userId { get; set; }
         public string? unixTime { get; set; }
         public string? ns { get; set; }
+        public string? eventId { get; set; }
+        public string? rowId { get; set; }
     }
 }

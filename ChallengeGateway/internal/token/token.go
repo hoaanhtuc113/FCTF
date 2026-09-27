@@ -6,7 +6,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"strings"
 	"time"
@@ -14,8 +13,11 @@ import (
 
 // Payload is the decoded content of a challenge access token.
 type Payload struct {
-	Exp   int64  `json:"exp"`
-	Route string `json:"route"`
+	Exp            int64  `json:"exp"`
+	Route          string `json:"route"`
+	ChallengeID    *int   `json:"challenge_id,omitempty"`
+	ActorTeamID    *int   `json:"actor_team_id,omitempty"`
+	CaptureProfile string `json:"capture_profile,omitempty"`
 }
 
 // Verify parses and validates a token string, returning its payload on success.
@@ -42,7 +44,6 @@ func Verify(token string) (Payload, error) {
 	_, _ = mac.Write([]byte(payloadB64))
 	expected := mac.Sum(nil)
 	if !hmac.Equal(sigBytes, expected) {
-		log.Printf("[token.Verify] signature mismatch: sigBytes=%q expected=%q", base64.RawURLEncoding.EncodeToString(sigBytes), base64.RawURLEncoding.EncodeToString(expected))
 		return Payload{}, fmt.Errorf("invalid token signature")
 	}
 
@@ -58,6 +59,9 @@ func Verify(token string) (Payload, error) {
 
 	if payload.Exp <= 0 || payload.Route == "" {
 		return Payload{}, fmt.Errorf("invalid payload content")
+	}
+	if payload.CaptureProfile != "bounded_content" {
+		payload.CaptureProfile = "metadata"
 	}
 
 	if time.Now().Unix() > payload.Exp {
