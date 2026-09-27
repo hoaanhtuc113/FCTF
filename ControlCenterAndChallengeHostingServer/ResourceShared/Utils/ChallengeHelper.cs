@@ -5,7 +5,6 @@ using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 
 namespace ResourceShared.Utils
@@ -95,36 +94,13 @@ namespace ResourceShared.Utils
             string routeInfo,
             DateTimeOffset expiryUtc)
         {
-            return GenerateChallengeToken(routeInfo, expiryUtc, null, null);
-        }
-
-        public static string GenerateChallengeToken(
-            string routeInfo,
-            DateTimeOffset expiryUtc,
-            int? challengeId,
-            int? actorTeamId)
-        {
-            var captureEnabled = bool.TryParse(
-                Environment.GetEnvironmentVariable("REQUEST_LOG_CAPTURE_ENABLED"), out var enabled) && enabled;
-            var requestedProfile = Environment.GetEnvironmentVariable("REQUEST_LOG_CAPTURE_PROFILE");
-            var captureProfile = captureEnabled && string.Equals(
-                requestedProfile, "bounded_content", StringComparison.OrdinalIgnoreCase)
-                ? "bounded_content"
-                : "metadata";
-
             var payload = new
             {
                 exp = expiryUtc.ToUnixTimeSeconds(),
-                route = routeInfo,
-                challenge_id = challengeId,
-                actor_team_id = actorTeamId,
-                capture_profile = captureProfile
+                route = routeInfo
             };
 
-            var payloadJson = JsonSerializer.Serialize(payload, new JsonSerializerOptions
-            {
-                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
-            });
+            var payloadJson = JsonSerializer.Serialize(payload);
             var payloadB64 = Base64UrlEncode(Encoding.UTF8.GetBytes(payloadJson));
 
             using var hmac = new HMACSHA256(Secret);

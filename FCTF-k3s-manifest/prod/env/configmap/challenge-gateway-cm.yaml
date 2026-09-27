@@ -4,16 +4,6 @@ metadata:
   name: challenge-gateway-cm
   namespace: app
 data:
-  APP_ENV: "production"
-  REQUEST_LOG_CAPTURE_ENABLED: "false"
-  REQUEST_LOG_HEADER_CAP_BYTES: "65536"
-  REQUEST_LOG_BODY_CAP_BYTES: "262144"
-  REQUEST_LOG_QUEUE_SIZE: "128"
-  REQUEST_LOG_WORKER_COUNT: "1"
-  REQUEST_LOG_RETRY_ATTEMPTS: "3"
-  REQUEST_LOG_QUOTA_BYTES: "536870912"
-  REQUEST_LOG_QUOTA_WINDOW_SECONDS: "3600"
-
   # Token-based HTTP limits (applies after token verification)
   HTTP_RATE: "100"
   HTTP_BURST: "200"

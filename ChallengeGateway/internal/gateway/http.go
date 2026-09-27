@@ -1,9 +1,8 @@
 package gateway
 
 import (
-	"bufio"
+	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -16,14 +15,13 @@ import (
 
 	"challenge-gateway/internal/config"
 	"challenge-gateway/internal/limiter"
-	"challenge-gateway/internal/requestlog"
-	"challenge-gateway/internal/telemetry"
 	"challenge-gateway/internal/token"
 )
 
 const (
-	httpListenAddr      = ":8080"
-	challengeCookieName = "FCTF_Auth_Token"
+	httpListenAddr        = ":8080"
+	challengeCookieName   = "FCTF_Auth_Token"
+	maxLoggedPostBodyBytes = 2048
 )
 
 type ctxKey string
@@ -34,117 +32,29 @@ const (
 )
 
 type requestInfo struct {
-	TargetHost     string
-	Route          string
-	Payload        *token.Payload
-	Authenticated  bool
-	Event          string
-	Outcome        string
-	ErrorCode      string
-	CaptureProfile requestlog.CaptureProfile
-	PrepareCapture func()
-	DisableCapture func()
+	TargetHost string
+	Route      string
+}
+
+type teeReadCloser struct {
+	io.Reader
+	io.Closer
 }
 
 type statusRecorder struct {
 	http.ResponseWriter
-	status       int
-	bytesWritten int64
-	wroteHeader  bool
-	capture      *requestlog.Buffer
+	status int
 }
 
 func (sr *statusRecorder) WriteHeader(code int) {
-	if sr.wroteHeader {
-		return
-	}
-	sr.wroteHeader = true
 	sr.status = code
 	sr.ResponseWriter.WriteHeader(code)
 }
-
-func (sr *statusRecorder) Write(p []byte) (int, error) {
-	if !sr.wroteHeader {
-		sr.WriteHeader(http.StatusOK)
-	}
-	n, err := sr.ResponseWriter.Write(p)
-	sr.bytesWritten += int64(n)
-	if sr.capture != nil && n > 0 {
-		_, _ = sr.capture.Write(p[:n])
-	}
-	return n, err
-}
-
-func (sr *statusRecorder) Flush() {
-	if !sr.wroteHeader {
-		sr.WriteHeader(http.StatusOK)
-	}
-	if flusher, ok := sr.ResponseWriter.(http.Flusher); ok {
-		flusher.Flush()
-	}
-}
-
-func (sr *statusRecorder) Hijack() (net.Conn, *bufio.ReadWriter, error) {
-	hijacker, ok := sr.ResponseWriter.(http.Hijacker)
-	if !ok {
-		return nil, nil, http.ErrNotSupported
-	}
-	return hijacker.Hijack()
-}
-
-func (sr *statusRecorder) Unwrap() http.ResponseWriter { return sr.ResponseWriter }
-
-type countingReadCloser struct {
-	io.ReadCloser
-	bytesRead int64
-	capture   *requestlog.Buffer
-}
-
-func (r *countingReadCloser) Read(p []byte) (int, error) {
-	n, err := r.ReadCloser.Read(p)
-	if n > 0 {
-		r.bytesRead += int64(n)
-		if r.capture != nil {
-			_, _ = r.capture.Write(p[:n])
-		}
-	}
-	return n, err
-}
-
 // ── HTTP gateway ─────────────────────────────────────────────────────────────
 // StartHTTP initialises and starts the HTTP reverse-proxy gateway.
-// The returned close function drains the bounded request-log capture queue.
-func StartHTTP(cfg config.Config, limiters *limiter.Set) (*http.Server, func(context.Context) error) {
+// It returns the *http.Server so the caller can gracefully shut it down.
+func StartHTTP(cfg config.Config, limiters *limiter.Set) *http.Server {
 	log.SetFlags(log.Flags() &^ (log.Ldate | log.Ltime | log.Lmicroseconds))
-	var objectStore requestlog.ObjectStore
-	if cfg.RequestLogS3Endpoint != "" || cfg.RequestLogS3Bucket != "" {
-		var err error
-		objectStore, err = requestlog.NewS3ObjectStore(requestlog.S3Config{
-			Endpoint: cfg.RequestLogS3Endpoint, Bucket: cfg.RequestLogS3Bucket,
-			Region: cfg.RequestLogS3Region, AccessKeyID: cfg.RequestLogS3AccessKey,
-			SecretAccessKey: cfg.RequestLogS3SecretKey, SessionToken: cfg.RequestLogS3SessionToken,
-			PathStyle: cfg.RequestLogS3PathStyle, SSE: cfg.RequestLogS3SSE, KMSKeyID: cfg.RequestLogS3KMSKeyID,
-		})
-		if err != nil {
-			log.Printf("[!] Request-log S3 configuration refused; content capture is disabled: %v", err)
-			objectStore = nil
-		}
-	} else if !strings.EqualFold(cfg.AppEnv, "production") && !strings.EqualFold(cfg.AppEnv, "prod") && cfg.RequestLogObjectDir != "" {
-		objectStore = requestlog.FileObjectStore{Root: cfg.RequestLogObjectDir}
-	}
-	var quota requestlog.Quota
-	if limiters != nil {
-		quota = limiters.CaptureQuota
-	}
-	requestLogManager := requestlog.NewManager(requestlog.ManagerConfig{
-		Store: objectStore, QueueSize: cfg.RequestLogQueueSize, RetryAttempts: cfg.RequestLogRetryAttempts,
-		WorkerCount: cfg.RequestLogWorkerCount, SpoolDir: cfg.RequestLogSpoolDir,
-		SpoolMaxBytes: cfg.RequestLogSpoolMaxBytes, Quota: quota,
-	})
-	contentCaptureEnabled := cfg.RequestLogCaptureEnabled && requestLogManager.Enabled()
-	if cfg.RequestLogCaptureEnabled && !requestLogManager.Enabled() {
-		log.Printf("[!] Request-log content capture requested without a configured object store/spool; content capture is disabled")
-	}
 	tlsConfig, err := gatewayTLSConfig(cfg)
 	if err != nil {
 		log.Fatalf("HTTP Gateway TLS config error: %v", err)
@@ -171,28 +81,11 @@ func StartHTTP(cfg config.Config, limiters *limiter.Set) (*http.Server, func(con
 			cleanProxyCookies(req)
 		},
 		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
-			var maxBytesErr *http.MaxBytesError
-			if errors.As(err, &maxBytesErr) {
-				if info, ok := r.Context().Value(requestInfoKey).(*requestInfo); ok {
-					info.Event, info.Outcome, info.ErrorCode = "http_request", "rejected", "request_body_too_large"
-				}
-				http.Error(w, "request body too large", http.StatusRequestEntityTooLarge)
-				return
-			}
-			if info, ok := r.Context().Value(requestInfoKey).(*requestInfo); ok {
-				info.Event, info.Outcome, info.ErrorCode = "http_upstream_error", "upstream_error", "upstream_unavailable"
-			}
+			log.Printf("HTTP upstream error: %v", err)
 			http.Error(w, "Cannot connect to challenge", http.StatusBadGateway)
 		},
 		ModifyResponse: func(resp *http.Response) error {
 			enforceNoStoreForHTML(resp)
-			if resp != nil && resp.Request != nil {
-				if info, ok := resp.Request.Context().Value(requestInfoKey).(*requestInfo); ok &&
-					(resp.StatusCode == http.StatusSwitchingProtocols || strings.HasPrefix(strings.ToLower(resp.Header.Get("Content-Type")), "text/event-stream")) &&
-					info.DisableCapture != nil {
-					info.DisableCapture()
-				}
-			}
 			return nil
 		},
 	}
@@ -200,8 +93,7 @@ func StartHTTP(cfg config.Config, limiters *limiter.Set) (*http.Server, func(con
 	mux := http.NewServeMux()
 	mux.HandleFunc("/healthz", healthHandler)
 	mux.HandleFunc("/healthcheck", healthHandler)
-	mux.HandleFunc("/metrics", telemetry.MetricsHandler)
-	mux.Handle("/", loggingMiddlewareWithCapture(requestLogManager, contentCaptureEnabled, cfg.RequestLogHeaderCapBytes, cfg.RequestLogBodyCapBytes,
+	mux.Handle("/", loggingMiddleware(
 		rateLimitMiddleware(limiters,
 			bodySizeLimitMiddleware(cfg.HTTPMaxBodyBytes,
 				http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -235,7 +127,7 @@ func StartHTTP(cfg config.Config, limiters *limiter.Set) (*http.Server, func(con
 		}
 	}()
 
-	return server, requestLogManager.Close
+	return server
 }
 
 func healthHandler(w http.ResponseWriter, _ *http.Request) {
@@ -253,17 +145,12 @@ func httpGatewayHandler(w http.ResponseWriter, r *http.Request, proxy *httputil.
 	if tok != "" {
 		payload, err := token.Verify(tok)
 		if err != nil {
-			setHTTPFailure(r, "http_auth_failed", "authentication_failed", authErrorCode(err))
+			log.Printf("[-] HTTP auth failed from %s: %v", remoteAddr, err)
 			http.Error(w, fmt.Sprintf("invalid token: %v", err), http.StatusUnauthorized)
 			return
 		}
-		setHTTPPayload(r, payload, false)
-		if info, ok := r.Context().Value(requestInfoKey).(*requestInfo); ok {
-			info.Outcome = "token_redirect"
-		}
 		if limiters != nil && limiters.HTTPRate != nil {
 			if !limiters.HTTPRate.Allow(r.Context(), BuildRateLimitKey(tok, clientIP)) {
-				setHTTPFailure(r, "http_rate_limited", "rate_limited", "authenticated_rate_limit")
 				http.Error(w, "too many requests", http.StatusTooManyRequests)
 				return
 			}
@@ -281,29 +168,23 @@ func httpGatewayHandler(w http.ResponseWriter, r *http.Request, proxy *httputil.
 	}
 
 	if tok == "" {
-		setHTTPFailure(r, "http_auth_failed", "authentication_failed", "missing_assertion")
+		log.Printf("[-] HTTP auth failed from %s: missing token", remoteAddr)
 		http.Error(w, "missing token", http.StatusUnauthorized)
 		return
 	}
 
 	payload, err := token.Verify(tok)
 	if err != nil {
-		setHTTPFailure(r, "http_auth_failed", "authentication_failed", authErrorCode(err))
+		log.Printf("[-] HTTP auth failed from %s: %v", remoteAddr, err)
 		http.Error(w, fmt.Sprintf("invalid token: %v", err), http.StatusUnauthorized)
 		return
 	}
-	setHTTPPayload(r, payload, true)
 
 	if limiters != nil && limiters.HTTPRate != nil {
 		if !limiters.HTTPRate.Allow(r.Context(), BuildRateLimitKey(tok, clientIP)) {
-			setHTTPFailure(r, "http_rate_limited", "rate_limited", "authenticated_rate_limit")
 			http.Error(w, "too many requests", http.StatusTooManyRequests)
 			return
 		}
-	}
-	if info, ok := r.Context().Value(requestInfoKey).(*requestInfo); ok && info.Authenticated &&
-		info.CaptureProfile == requestlog.ProfileBoundedContent && requestlog.ValidNamespace(info.Route) && info.PrepareCapture != nil {
-		info.PrepareCapture()
 	}
 
 	host := token.ExpandRoute(payload.Route)
@@ -314,35 +195,6 @@ func httpGatewayHandler(w http.ResponseWriter, r *http.Request, proxy *httputil.
 
 	ctx := context.WithValue(r.Context(), targetHostKey, host)
 	proxy.ServeHTTP(w, r.WithContext(ctx))
-}
-
-func setHTTPPayload(r *http.Request, payload token.Payload, authenticated bool) {
-	if info, ok := r.Context().Value(requestInfoKey).(*requestInfo); ok {
-		info.Payload = &payload
-		info.Route = payload.Route
-		info.Authenticated = authenticated
-		info.CaptureProfile = requestlog.NormalizeProfile(payload.CaptureProfile)
-		info.Event = "http_request"
-		info.Outcome = "upstream_response"
-		if payload.ChallengeID == nil || payload.ActorTeamID == nil {
-			teamID, challengeID, parsed := ParseTeamChallengeFromRoute(payload.Route)
-			if parsed {
-				if payload.ChallengeID == nil {
-					payload.ChallengeID = &challengeID
-				}
-				if teamID > 0 && payload.ActorTeamID == nil {
-					payload.ActorTeamID = &teamID
-				}
-				info.Payload = &payload
-			}
-		}
-	}
-}
-
-func setHTTPFailure(r *http.Request, event, outcome, errorCode string) {
-	if info, ok := r.Context().Value(requestInfoKey).(*requestInfo); ok {
-		info.Event, info.Outcome, info.ErrorCode = event, outcome, errorCode
-	}
 }
 
 // ── cookie / redirect helpers ─────────────────────────────────────────────────
@@ -452,111 +304,64 @@ func extractTokenFromRequest(r *http.Request) (string, string) {
 
 // ── middleware ────────────────────────────────────────────────────────────────
 
-func loggingMiddlewareWithCapture(manager *requestlog.Manager, captureEnabled bool, headerCap, bodyCap int, next http.Handler) http.Handler {
+func loggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		startedAt := time.Now()
-		event := telemetry.New("http_request", "http")
-		var requestCapture, responseCapture *requestlog.Buffer
-		var requestHeaders http.Header
 		rec := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
-		body := &countingReadCloser{ReadCloser: r.Body}
-		r.Body = body
-		info := &requestInfo{Event: "http_request", CaptureProfile: requestlog.ProfileMetadata}
-		info.PrepareCapture = func() {
-			if !captureEnabled || requestCapture != nil {
-				return
+
+		var postBodyBuf bytes.Buffer
+		capturePost := r.Method == http.MethodPost && r.Body != nil
+		if capturePost {
+			r.Body = &teeReadCloser{
+				Reader: io.TeeReader(r.Body, &postBodyBuf),
+				Closer: r.Body,
 			}
-			requestCapture = requestlog.NewBuffer(bodyCap)
-			responseCapture = requestlog.NewBuffer(bodyCap)
-			requestHeaders = r.Header.Clone()
-			body.capture = requestCapture
-			rec.capture = responseCapture
 		}
-		info.DisableCapture = func() {
-			body.capture = nil
-			rec.capture = nil
-			requestCapture = nil
-			responseCapture = nil
-			requestHeaders = nil
-		}
+
+		info := &requestInfo{}
 		ctx := context.WithValue(r.Context(), requestInfoKey, info)
 		next.ServeHTTP(rec, r.WithContext(ctx))
-		if !rec.wroteHeader {
-			rec.status = http.StatusOK
+
+		targetHost := info.TargetHost
+		if targetHost == "" {
+			targetHost = "-"
 		}
-		if rec.status == http.StatusSwitchingProtocols || r.Header.Get("Upgrade") != "" || strings.HasPrefix(strings.ToLower(rec.Header().Get("Content-Type")), "text/event-stream") {
-			if info.Authenticated && info.CaptureProfile == requestlog.ProfileBoundedContent {
-				event.CaptureSubmission = string(requestlog.SubmissionSkippedByPolicy)
+		nsName := info.Route
+
+		// Suppress noisy token-redirect log lines.
+		if r.Method == http.MethodGet && rec.status == http.StatusFound && targetHost == "-" {
+			if tok, _ := extractTokenFromRequest(r); tok != "" {
+				return
 			}
 		}
-		if info.Event != "" {
-			event.Event = info.Event
+
+		postSuffix := ""
+		if capturePost {
+			body := postBodyBuf.String()
+			if len(body) > maxLoggedPostBodyBytes {
+				body = body[:maxLoggedPostBodyBytes] + "... (truncated)"
+			}
+			postSuffix = fmt.Sprintf(" body=%q", body)
 		}
-		event.PeerIP = ParseRemoteIP(r.RemoteAddr)
-		event.IPSource = "remote_addr"
-		event.Method = r.Method
-		event.Path = telemetry.SanitizePath(r.URL.EscapedPath())
-		event.Status = intPtr(rec.status)
-		event.RequestBytes = body.bytesRead
-		event.ResponseBytes = rec.bytesWritten
-		event.DurationMS = time.Since(startedAt).Milliseconds()
-		event.Outcome = info.Outcome
-		event.ErrorCode = info.ErrorCode
-		event.ContentSchemaVersion = 1
-		event.CaptureProfile = string(info.CaptureProfile)
-		if info.Payload != nil && requestlog.ValidNamespace(info.Payload.Route) {
-			event.InstanceNamespace = info.Payload.Route
-			event.ChallengeID = info.Payload.ChallengeID
-			event.ActorTeamID = info.Payload.ActorTeamID
-			event.AuthStrength = "signed_route"
-			if info.Payload.ChallengeID == nil {
-				event.AuthStrength = "legacy"
+
+		loggedPath := r.URL.Path
+		if r.Method == http.MethodGet && r.URL.RawQuery != "" {
+			loggedPath = fmt.Sprintf("%s?%s", r.URL.Path, r.URL.RawQuery)
+		}
+
+		if targetHost != "-" {
+			if teamID, challengeID, ok := ParseTeamChallengeFromRoute(targetHost); ok {
+					log.Printf("HTTP %s %s %d team=\"%d\" challenge=\"%d\" ns=\"%s\" method=\"%s\" status=\"%d\" -> %s%s",
+						r.Method, loggedPath, rec.status, teamID, challengeID, nsName, r.Method, rec.status, targetHost, postSuffix)
+				return
 			}
 		}
-		if info.Authenticated && info.CaptureProfile == requestlog.ProfileMetadata {
-			event.CaptureSubmission = string(requestlog.SubmissionNotRequested)
-		} else if info.Authenticated && info.CaptureProfile == requestlog.ProfileBoundedContent && info.Event == "http_rate_limited" {
-			event.CaptureSubmission = string(requestlog.SubmissionSkippedByPolicy)
-		} else if info.Authenticated && info.CaptureProfile == requestlog.ProfileBoundedContent && (!captureEnabled || manager == nil || requestCapture == nil || responseCapture == nil) {
-			event.CaptureSubmission = string(requestlog.SubmissionSkippedByPolicy)
-		} else if captureEnabled && info.Authenticated && info.Event != "http_rate_limited" && info.CaptureProfile == requestlog.ProfileBoundedContent && requestlog.ValidNamespace(info.Route) && event.CaptureSubmission == "" {
-			occurredAt, parseErr := time.Parse(time.RFC3339Nano, event.OccurredAt)
-			if parseErr != nil {
-				occurredAt = startedAt.UTC()
-			}
-			tx := requestlog.Transaction{
-				ContentSchemaVersion: 1, EventID: event.EventID, InstanceNamespace: info.Route,
-				ChallengeID: event.ChallengeID, ActorTeamID: event.ActorTeamID,
-				OccurredAt: occurredAt, CapturedAt: time.Now().UTC(),
-				CaptureProfile: requestlog.ProfileBoundedContent, Method: r.Method,
-				Path: event.Path, Status: rec.status, DurationMS: event.DurationMS,
-				Outcome: event.Outcome, ErrorCode: event.ErrorCode, RemoteIP: event.PeerIP,
-				Request:  requestCapture.SanitizedPart(r.Header.Get("Content-Type")),
-				Response: responseCapture.SanitizedPart(rec.Header().Get("Content-Type")),
-			}
-			tx.Request.Headers = requestlog.SanitizeHeadersLimited(requestHeaders, headerCap)
-			tx.Request.QueryParams = requestlog.ParametersLimited(r.URL.Query(), headerCap)
-			tx.Request.ContentType = r.Header.Get("Content-Type")
-			tx.Request.Encoding = r.Header.Get("Content-Encoding")
-			if strings.HasPrefix(strings.ToLower(tx.Request.ContentType), "application/x-www-form-urlencoded") {
-				if form, err := url.ParseQuery(string(requestCapture.Bytes())); err == nil {
-					tx.Request.FormParams = requestlog.ParametersLimited(form, headerCap)
-				}
-			}
-			tx.Response.Headers = requestlog.SanitizeHeadersLimited(rec.Header(), headerCap)
-			tx.Response.ContentType = rec.Header().Get("Content-Type")
-			tx.Response.Encoding = rec.Header().Get("Content-Encoding")
-			submission := manager.Enqueue(tx)
-			telemetry.ObserveCaptureSubmission(string(submission))
-			event.CaptureSubmission = string(submission)
-		} else if info.Authenticated && info.Event != "http_rate_limited" && info.CaptureProfile == requestlog.ProfileBoundedContent && !requestlog.ValidNamespace(info.Route) {
-			event.CaptureSubmission = string(requestlog.SubmissionSkippedByPolicy)
+		if nsName != "" {
+			log.Printf("HTTP %s %s %d ns=\"%s\" method=\"%s\" status=\"%d\" -> %s%s", r.Method, loggedPath, rec.status, nsName, r.Method, rec.status, targetHost, postSuffix)
+		} else {
+			log.Printf("HTTP %s %s %d method=\"%s\" status=\"%d\" -> %s%s", r.Method, loggedPath, rec.status, r.Method, rec.status, targetHost, postSuffix)
 		}
-		telemetry.Emit(event)
 	})
 }
-
-func intPtr(value int) *int { return &value }
 
 func rateLimitMiddleware(limiters *limiter.Set, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -566,9 +371,6 @@ func rateLimitMiddleware(limiters *limiter.Set, next http.Handler) http.Handler 
 		}
 		ip := ParseRemoteIP(r.RemoteAddr)
 		if !limiters.HTTPIPRate.Allow(r.Context(), ip) {
-			if info, ok := r.Context().Value(requestInfoKey).(*requestInfo); ok {
-				info.Event, info.Outcome, info.ErrorCode = "http_rate_limited", "rate_limited", "ip_rate_limit"
-			}
 			http.Error(w, "too many requests", http.StatusTooManyRequests)
 			return
 		}
@@ -583,11 +385,14 @@ func bodySizeLimitMiddleware(maxBytes int64, next http.Handler) http.Handler {
 			return
 		}
 		if r.ContentLength > 0 && r.ContentLength > maxBytes {
-			setHTTPFailure(r, "http_request", "rejected", "request_body_too_large")
 			http.Error(w, "request body too large", http.StatusRequestEntityTooLarge)
 			return
 		}
 		r.Body = http.MaxBytesReader(w, r.Body, maxBytes)
+		if r.ContentLength < 0 {
+			log.Printf("[!] Chunked/unknown transfer from %s – enforcing %d byte limit during read",
+				r.RemoteAddr, maxBytes)
+		}
 		next.ServeHTTP(w, r)
 	})
 }

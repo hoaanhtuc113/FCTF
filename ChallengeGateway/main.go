@@ -1,16 +1,16 @@
 package main
 
 import (
-	"challenge-gateway/internal/config"
-	"challenge-gateway/internal/gateway"
-	"challenge-gateway/internal/limiter"
 	"context"
-	"github.com/joho/godotenv"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
+	"github.com/joho/godotenv"
+	"challenge-gateway/internal/config"
+	"challenge-gateway/internal/gateway"
+	"challenge-gateway/internal/limiter"
 )
 
 func main() {
@@ -29,7 +29,7 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	httpServer, closeRequestLogs := gateway.StartHTTP(cfg, limiters)
+	httpServer := gateway.StartHTTP(cfg, limiters)
 	tcpListener := gateway.StartTCP(ctx, cfg, limiters)
 
 	<-ctx.Done()
@@ -41,11 +41,6 @@ func main() {
 	if httpServer != nil {
 		if err := httpServer.Shutdown(shutdownCtx); err != nil {
 			log.Printf("HTTP shutdown error: %v", err)
-		}
-	}
-	if closeRequestLogs != nil {
-		if err := closeRequestLogs(shutdownCtx); err != nil {
-			log.Printf("Request-log flush error: %v", err)
 		}
 	}
 	if tcpListener != nil {
