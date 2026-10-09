@@ -3,6 +3,7 @@ from typing import List
 from flask import abort, request, session
 from flask_restx import Namespace, Resource
 from sqlalchemy import or_
+from sqlalchemy.exc import IntegrityError
 
 from CTFd.api.v1.helpers.request import validate_args
 from CTFd.api.v1.helpers.schemas import sqlalchemy_to_pydantic
@@ -34,7 +35,7 @@ from CTFd.utils.decorators.visibility import (
 from CTFd.utils.email import sendmail, user_created_notification
 from CTFd.utils.helpers.models import build_model_filters
 from CTFd.utils.logging.audit_logger import log_audit
-from CTFd.utils.security.auth import update_user
+from CTFd.utils.security.auth import revoke_user_tokens, update_user
 from CTFd.utils.user import get_current_user, get_current_user_type, is_admin
 
 import re
@@ -42,8 +43,8 @@ import re
 users_namespace = Namespace("users", description="Endpoint to retrieve Users")
 
 
-UserModel = sqlalchemy_to_pydantic(Users)
-TransientUserModel = sqlalchemy_to_pydantic(Users, exclude=["id"])
+UserModel = sqlalchemy_to_pydantic(Users, exclude=["name_key"])
+TransientUserModel = sqlalchemy_to_pydantic(Users, exclude=["id", "name_key"])
 
 
 def _purge_user_references(user_id):
@@ -205,6 +206,8 @@ class UserList(Resource):
     )
     def post(self):
         req = request.get_json()
+        if not isinstance(req, dict):
+            return {"success": False, "errors": {"_schema": ["Expected a JSON object"]}}, 400
         schema = UserSchema("admin")
         response = schema.load(req)
 
@@ -212,7 +215,11 @@ class UserList(Resource):
             return {"success": False, "errors": response.errors}, 400
 
         db.session.add(response.data)
-        db.session.commit()
+        try:
+            db.session.commit()
+        except IntegrityError:
+            db.session.rollback()
+            return {"success": False, "errors": {"name": ["Username or email has already been taken"]}}, 400
 
         log_audit(
             action="user_create",
@@ -292,6 +299,7 @@ class UserPublic(Resource):
     )
     def patch(self, user_id):
         user = Users.query.filter_by(id=user_id).first_or_404()
+        previous_password = user.password
         
         # Store before state for audit
         before_state = {
@@ -310,8 +318,9 @@ class UserPublic(Resource):
         }
         
         data = request.get_json()
+        if not isinstance(data, dict):
+            return {"success": False, "errors": {"_schema": ["Expected a JSON object"]}}, 400
         data["id"] = user_id
-        Tokens.query.filter_by(user_id=user_id).delete()
 
         # Admins should not be able to ban themselves
         if data["id"] == session["id"] and (
@@ -327,14 +336,23 @@ class UserPublic(Resource):
         if response.errors:
             return {"success": False, "errors": response.errors}, 400
 
+        password_changed = user.password != previous_password
+        auth_changed = any(
+            getattr(user, field) != before_state[field]
+            for field in ("type", "team_id", "banned", "hidden", "verified")
+        )
+        if password_changed or auth_changed:
+            with db.session.no_autoflush:
+                revoke_user_tokens([user_id])
+
         # This generates the response first before actually changing the type
         # This avoids an error during User type changes where we change
         # the polymorphic identity resulting in an ObjectDeletedError
         # https://github.com/CTFd/CTFd/issues/1794
-        response = schema.dump(response.data)
-        db.session.commit()
-        
-        # Collect after_state BEFORE closing session to avoid DetachedInstanceError
+        with db.session.no_autoflush:
+            response = schema.dump(response.data)
+
+        # Capture the audit state before commit expires an instance whose role changed.
         after_state = {
             "name": user.name,
             "email": user.email,
@@ -348,9 +366,14 @@ class UserPublic(Resource):
             "bracket_id": user.bracket_id,
             "language": user.language,
             "team_id": user.team_id,
-            "password_changed": bool(data.get("password")),
+            "password_changed": password_changed,
         }
-        
+        try:
+            db.session.commit()
+        except IntegrityError:
+            db.session.rollback()
+            return {"success": False, "errors": {"name": ["Username or email has already been taken"]}}, 400
+
         db.session.close()
 
         log_audit(
@@ -454,13 +477,26 @@ class UserPrivate(Resource):
     )
     def patch(self):
         user = get_current_user()
+        previous_password = user.password
         data = request.get_json()
+        if not isinstance(data, dict):
+            return {"success": False, "errors": {"_schema": ["Expected a JSON object"]}}, 400
         schema = UserSchema(view="self", instance=user, partial=True)
         response = schema.load(data)
         if response.errors:
             return {"success": False, "errors": response.errors}, 400
 
-        db.session.commit()
+        password_changed = user.password != previous_password
+        if password_changed:
+            with db.session.no_autoflush:
+                revoke_user_tokens([user.id])
+        try:
+            db.session.commit()
+        except IntegrityError:
+            db.session.rollback()
+            return {"success": False, "errors": {"name": ["Username or email has already been taken"]}}, 400
+        if password_changed:
+            clear_auth_cache(user_id=user.id)
 
         # Update user's session for the new session hash
         update_user(user)
@@ -620,7 +656,9 @@ class UserEmails(Resource):
     @ratelimit(method="POST", limit=10, interval=60)
     def post(self, user_id):
         req = request.get_json()
-        text = req.get("text", "").strip()
+        if not isinstance(req, dict) or not isinstance(req.get("text"), str):
+            return {"success": False, "errors": {"text": ["Text must be a string"]}}, 400
+        text = req["text"].strip()
         user = Users.query.filter_by(id=user_id).first_or_404()
 
         if get_mail_provider() is None:
@@ -713,7 +751,9 @@ class UserConstant(Resource):
         if response.errors:
             return {"success": False, "errors": response.errors}, 400
 
+        revoke_user_tokens([user.id])
         db.session.commit()
+        clear_auth_cache(user_id=user.id)
         update_user(user)
         db.session.close()
         clear_standings()

@@ -94,7 +94,7 @@ public class ChallengeController : BaseController
         return (false, (int)newCount);
     }
 
-    [HttpGet("{id}")]
+    [HttpGet("{id:int:min(1)}")]
     [DuringCtfTimeAndAfterOnly]
     public async Task<IActionResult> GetById(int id)
     {
@@ -238,8 +238,10 @@ public class ChallengeController : BaseController
             .AsNoTracking()
             .FirstOrDefaultAsync(u => u.Id == userId);
 
-        if (request.ChallengeId == 0)
-            return BadRequest(new { error = "ChallengeId is required" });
+        if (request.ChallengeId is not > 0)
+            return BadRequest(new { error = "A positive ChallengeId is required" });
+        if (user == null)
+            return Unauthorized(new { error = "User not found" });
 
         var challenge = await _context.Challenges
             .FirstOrDefaultAsync(c => c.Id == request.ChallengeId);
@@ -263,8 +265,9 @@ public class ChallengeController : BaseController
             });
         }
 
-        if (_configHelper.IsUserMode() && user?.Team == null)
-            return Forbid();
+        // Instance/attempt counters in this portal are associated with a team.
+        if (user.Team == null)
+            return StatusCode(StatusCodes.Status403Forbidden, new { error = "A team is required to submit challenges" });
 
         request.Submission = request.Submission?.Trim();
 
@@ -434,12 +437,21 @@ public class ChallengeController : BaseController
 
         // Attempt the challenge (outside lock - CPU intensive, parallel execution OK)
         AttemptDTO attempt = await ChallengeHelper.Attempt(_context, challenge, request);
+        if (attempt.configuration_error)
+        {
+            return BadRequest(new
+            {
+                success = false,
+                data = new { status = "error", message = attempt.message }
+            });
+        }
         var deploymentKey = ChallengeHelper.GetCacheKey(challenge.Id, user.TeamId.Value);
 
         // Handle correct attempt - CRITICAL SECTION with minimal lock
         if (attempt.status)
         {
             bool isDynamic = challenge.Type == "dynamic";
+            int scoredValue = challenge.Value ?? 0;
             string recalcLockKey = DynamicChallengeHelper.GetRecalcLockKey(challenge.Id);
             string recalcLockToken = Guid.NewGuid().ToString();
             bool recalcLockAcquired = false;
@@ -473,11 +485,12 @@ public class ChallengeController : BaseController
 
             try
             {
-                await using var dbTransaction = await _context.Database.BeginTransactionAsync();
+                await using var dbTransaction = await _context.Database.BeginTransactionAsync(System.Data.IsolationLevel.ReadCommitted);
                 try
                 {
+                    await DynamicChallengeHelper.LockChallengeForScoring(_context, challenge.Id);
                     var existingSolve = await _context.Solves
-                        .Where(x => x.ChallengeId == challenge.Id && x.TeamId == user.TeamId)
+                        .Where(x => x.ChallengeId == challenge.Id && (x.UserId == user.Id || (user.TeamId != null && x.TeamId == user.TeamId)))
                         .AsNoTracking()
                         .ToListAsync();
 
@@ -517,17 +530,14 @@ public class ChallengeController : BaseController
                     // Challenge.Value update commit together. On failure the outer catch
                     // rolls back the whole transaction and returns 500; the client retries
                     // the full request, which is safe because nothing was committed.
-                    if (isDynamic)
-                    {
-                        await DynamicChallengeHelper.RecalculateDynamicChallengeValue(
-                            _context, challenge.Id);
-                    }
+                    scoredValue = await DynamicChallengeHelper.RecalculateDynamicChallengeValue(
+                        _context, challenge.Id);
 
                     await dbTransaction.CommitAsync();
                 }
                 catch (DbUpdateException ex) when (IsDuplicateKey(ex))
                 {
-                    // Defence-in-depth — the gap lock above should already prevent this.
+                    // The unique indexes also protect against writers bypassing the parent lock.
                     return Ok(new
                     {
                         success = true,
@@ -536,6 +546,14 @@ public class ChallengeController : BaseController
                             status = "already_solved",
                             message = "You or your teammate already solved this"
                         }
+                    });
+                }
+                catch (ScoringConfigurationException)
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        error = "Challenge scoring configuration is invalid. Please contact an administrator."
                     });
                 }
                 catch (Exception ex)
@@ -598,7 +616,7 @@ public class ChallengeController : BaseController
                 {
                     status = "correct",
                     attempt.message,
-                    value = challenge.Value
+                    value = scoredValue
                 }
             });
         }

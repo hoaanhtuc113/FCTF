@@ -3,6 +3,7 @@ from typing import List
 from flask import request
 from flask_restx import Namespace, Resource
 import redis
+from sqlalchemy.exc import IntegrityError
 
 from CTFd.api.v1.helpers.request import validate_args
 from CTFd.api.v1.helpers.schemas import sqlalchemy_to_pydantic
@@ -19,6 +20,8 @@ from CTFd.utils.decorators import admins_only
 from CTFd.utils.helpers.models import build_model_filters
 from CTFd.utils.decorators.visibility import check_account_visibility
 from CTFd.utils.logging.audit_logger import log_audit
+from CTFd.utils.scoring import existing_solve, lock_challenge, recalculate, validate_solve_account
+from CTFd.utils.validators.scoring import ScoringValidationError
 
 submissions_namespace = Namespace(
     "submissions", description="Endpoint to retrieve Submission"
@@ -135,14 +138,34 @@ class SubmissionsList(Resource):
     @validate_args(TransientSubmissionModel, location="json")
     def post(self, json_args):
         req = json_args
+        if req.get("type") not in ("correct", "incorrect", "discard"):
+            return {"success": False, "errors": {"type": ["Unknown submission type"]}}, 400
         Model = Submissions.get_child(type=req.get("type"))
         schema = SubmissionSchema(instance=Model())
         response = schema.load(req)
         if response.errors:
             return {"success": False, "errors": response.errors}, 400
 
-        db.session.add(response.data)
-        db.session.commit()
+        try:
+            challenge = lock_challenge(response.data.challenge_id)
+            validate_solve_account(response.data)
+            if response.data.type == "correct" and existing_solve(response.data):
+                db.session.rollback()
+                return {"success": False, "errors": {"type": ["Account already solved this challenge"]}}, 409
+            db.session.add(response.data)
+            db.session.flush()
+            if response.data.type == "correct":
+                recalculate(challenge)
+            db.session.commit()
+        except ScoringValidationError as error:
+            db.session.rollback()
+            return {"success": False, "errors": error.errors}, 400
+        except IntegrityError:
+            db.session.rollback()
+            return {"success": False, "errors": {"submission": ["Duplicate solve or invalid reference"]}}, 409
+        except Exception:
+            db.session.rollback()
+            raise
 
         response = schema.dump(response.data)
         db.session.close()
@@ -231,56 +254,45 @@ class Submission(Resource):
         req = request.get_json()
         submission_type = req.get("type")
 
-        if submission_type == "correct":
-            solve = Solves(
-                user_id=submission.user_id,
-                challenge_id=submission.challenge_id,
-                team_id=submission.team_id,
-                ip=submission.ip,
-                provided=submission.provided,
-                date=submission.date,
-            )
-            db.session.add(solve)
-            submission.type = "discard"
+        if submission_type not in ("correct", "incorrect"):
+            return {"success": False, "errors": {"type": ["Must be correct or incorrect"]}}, 400
+
+        try:
+            challenge = lock_challenge(submission.challenge_id)
+            # Reload after the parent lock, including the current polymorphic type.
+            db.session.expunge(submission)
+            submission = Submissions.query.filter_by(id=submission_id).with_for_update().first_or_404()
+            was_correct = submission.type == "correct"
+            if submission_type == "correct" and not was_correct:
+                validate_solve_account(submission)
+                if existing_solve(submission):
+                    db.session.rollback()
+                    return {"success": False, "errors": {"type": ["Account already solved this challenge"]}}, 409
+                db.session.execute(Solves.__table__.insert().values(
+                    id=submission.id, user_id=submission.user_id,
+                    team_id=submission.team_id, challenge_id=submission.challenge_id,
+                ))
+            elif submission_type == "incorrect" and was_correct:
+                db.session.execute(Solves.__table__.delete().where(Solves.__table__.c.id == submission.id))
+            db.session.execute(Submissions.__table__.update().where(
+                Submissions.__table__.c.id == submission.id).values(
+                    type=submission_type, team_id=submission.team_id))
+            db.session.expunge(submission)
+            submission = Submissions.query.filter_by(id=submission_id).with_for_update().first()
+            if was_correct != (submission_type == "correct"):
+                recalculate(challenge)
             db.session.commit()
-
-            # Delete standings cache
-            clear_standings()
-            clear_challenges()
-
-            submission = solve
-
-        elif submission_type == "incorrect":
-            # If the submission is currently a Solve (correct), revert it
-            if submission.type == "correct":
-                # Remove the solve record from solves table
-                solve = Solves.query.filter_by(id=submission_id).first()
-                if solve:
-                    db.session.delete(solve)
-                    db.session.flush()
-
-                # Re-create as an incorrect submission
-                new_sub = Submissions(
-                    user_id=submission.user_id,
-                    challenge_id=submission.challenge_id,
-                    team_id=submission.team_id,
-                    ip=submission.ip,
-                    provided=submission.provided,
-                    type="incorrect",
-                    date=submission.date,
-                )
-                db.session.add(new_sub)
-                db.session.commit()
-
-                # Delete standings cache
-                clear_standings()
-                clear_challenges()
-
-                submission = new_sub
-            else:
-                # Already not correct, just update type
-                submission.type = "incorrect"
-                db.session.commit()
+        except ScoringValidationError as error:
+            db.session.rollback()
+            return {"success": False, "errors": error.errors}, 400
+        except IntegrityError:
+            db.session.rollback()
+            return {"success": False, "errors": {"submission": ["Duplicate solve or invalid reference"]}}, 409
+        except Exception:
+            db.session.rollback()
+            raise
+        clear_standings()
+        clear_challenges()
 
         schema = SubmissionSchema()
         response = schema.dump(submission)
@@ -350,23 +362,31 @@ class Submission(Resource):
             "date": str(submission.date) if submission.date else None,
         }
         
-        # Decrement Redis attempt counter if submission type is "incorrect"
-        if submission.type == "incorrect" and submission.challenge_id and submission.team_id:
-            attempt_key = f"attempt_count_{submission.challenge_id}_{submission.team_id}"           
+        try:
+            challenge = lock_challenge(submission.challenge_id)
+            db.session.expunge(submission)
+            submission = Submissions.query.filter_by(id=submission_id).with_for_update().first_or_404()
+            was_correct = submission.type == "correct"
+            db.session.delete(submission)
+            db.session.flush()
+            if was_correct:
+                recalculate(challenge)
+            db.session.commit()
+        except ScoringValidationError as error:
+            db.session.rollback()
+            return {"success": False, "errors": error.errors}, 400
+        except Exception:
+            db.session.rollback()
+            raise
+
+        # Adjust attempts only after the database deletion committed.
+        if submission_info["type"] == "incorrect" and submission_info["team_id"]:
+            attempt_key = f"attempt_count_{submission_info['challenge_id']}_{submission_info['team_id']}"
             try:
-                # Check if key exists first
-                key_exists = redis_client.exists(attempt_key)                   
-                if key_exists:
-                    new_count = redis_client.decr(attempt_key)
-                    if new_count <= 0:
-                        redis_client.delete(attempt_key)                   
-            except Exception as e:
-                # Log error but don't fail the deletion
-                print(f"[DELETE SUBMISSION] Error decrementing Redis counter for {attempt_key}: {e}")
-        
-        db.session.delete(submission)
-        db.session.commit()
-        db.session.close()
+                if redis_client.exists(attempt_key) and redis_client.decr(attempt_key) <= 0:
+                    redis_client.delete(attempt_key)
+            except Exception:
+                pass
 
         # Audit log
         log_audit(

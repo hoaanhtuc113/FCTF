@@ -1,0 +1,5 @@
+bin/
+obj/
+# Generated frontend bundles from local verification
+*-build/
+*-build.log

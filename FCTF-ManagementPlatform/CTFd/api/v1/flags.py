@@ -1,6 +1,6 @@
 from typing import List
 
-from flask import request
+from flask import request, current_app
 from flask_restx import Namespace, Resource
 from sqlalchemy.exc import IntegrityError, OperationalError
 
@@ -8,12 +8,13 @@ from CTFd.api.v1.helpers.request import validate_args
 from CTFd.api.v1.helpers.schemas import sqlalchemy_to_pydantic
 from CTFd.api.v1.schemas import APIDetailedSuccessResponse, APIListSuccessResponse
 from CTFd.constants import RawEnum
-from CTFd.models import Challenges, Flags, RegexFlag, StaticFlag, db
-from CTFd.plugins.flags import FLAG_CLASSES, get_flag_class
+from CTFd.models import Challenges, Flags, db
+from CTFd.plugins.flags import FLAG_CLASSES, FlagException, get_flag_class
 from CTFd.schemas.flags import FlagSchema
 from CTFd.utils.decorators import admins_only,admin_or_challenge_writer_only_or_jury
 from CTFd.utils.helpers.models import build_model_filters
 from CTFd.utils.logging.audit_logger import log_audit
+from CTFd.utils.validators.model_types import require_supported_type
 
 flags_namespace = Namespace("flags", description="Endpoint to retrieve Flags")
 
@@ -92,16 +93,25 @@ class FlagList(Resource):
     )
     def post(self):
         req = request.get_json()
+        if not isinstance(req, dict):
+            return {"success": False, "errors": {"body": ["Expected an object"]}}, 400
+        if req.get("challenge_id") is not None:
+            from CTFd.utils.validators.scoring import score_integer, ScoringValidationError
+            try:
+                challenge_id = score_integer(req["challenge_id"], "challenge_id", minimum=1)
+            except ScoringValidationError as error:
+                return {"success": False, "errors": error.errors}, 400
+            if not Challenges.query.get(challenge_id):
+                return {"success": False, "errors": {"challenge_id": ["Challenge does not exist"]}}, 400
         
-        flag_type = req.get("flag_type", "static")  # Default to 'static' if not provided
-        
-        # Ensure the correct subclass is instantiated
-        if flag_type == "static":
-            flag = StaticFlag()  
-        elif flag_type == "regex":
-            flag = RegexFlag()  
-        else:
-            flag = Flags()  # Default to Flags if no specific subclass matches
+        flag_type = req.get("type", req.get("flag_type", "static"))
+        try:
+            require_supported_type("flags", flag_type)
+        except ValueError as error:
+            return {"success": False, "errors": {"type": [str(error)]}}, 400
+        req["type"] = flag_type
+        flag_model = Flags.__mapper__.polymorphic_map.get(flag_type)
+        flag = flag_model.class_() if flag_model is not None else Flags(type=flag_type)
         
         schema = FlagSchema()
         response = schema.load(req, session=db.session, instance=flag)  # Use the correct object
@@ -115,10 +125,12 @@ class FlagList(Resource):
             db.session.commit()
         except (IntegrityError, OperationalError) as e:
             db.session.rollback()
-            return {"success": False, "errors": {"database": [str(e)]}}, 400
+            current_app.logger.exception("Flag database write failed")
+            return {"success": False, "errors": {"database": ["Flag could not be saved"]}}, 400
         except Exception as e:
             db.session.rollback()
-            return {"success": False, "errors": {"unknown": [str(e)]}}, 400
+            current_app.logger.exception("Flag write failed")
+            return {"success": False, "errors": {"unknown": ["Flag could not be saved"]}}, 400
 
         response = schema.dump(response.data)
         db.session.close()
@@ -152,7 +164,10 @@ class FlagTypes(Resource):
     @admin_or_challenge_writer_only_or_jury
     def get(self, type_name):
         if type_name:
-            flag_class = get_flag_class(type_name)
+            try:
+                flag_class = get_flag_class(type_name)
+            except FlagException:
+                return {"success": False, "errors": {"type": ["Unknown flag type"]}}, 404
             response = {"name": flag_class.name, "templates": flag_class.templates}
             return {"success": True, "data": response}
         else:
@@ -187,7 +202,9 @@ class Flag(Resource):
         if response.errors:
             return {"success": False, "errors": response.errors}, 400
 
-        response.data["templates"] = get_flag_class(flag.type).templates
+        # Keep broken legacy records inspectable so staff can repair their type.
+        flag_class = FLAG_CLASSES.get(flag.type)
+        response.data["templates"] = flag_class.templates if flag_class else {}
 
         return {"success": True, "data": response.data}
 
@@ -251,15 +268,29 @@ class Flag(Resource):
 
         schema = FlagSchema()
         req = request.get_json()
+        if not isinstance(req, dict):
+            return {"success": False, "errors": {"body": ["Expected an object"]}}, 400
+        if req.get("challenge_id") is not None:
+            from CTFd.utils.validators.scoring import score_integer, ScoringValidationError
+            try:
+                challenge_id = score_integer(req["challenge_id"], "challenge_id", minimum=1)
+            except ScoringValidationError as error:
+                return {"success": False, "errors": error.errors}, 400
+            if not Challenges.query.get(challenge_id):
+                return {"success": False, "errors": {"challenge_id": ["Challenge does not exist"]}}, 400
 
         response = schema.load(req, session=db.session, instance=flag, partial=True)
 
         if response.errors:
             return {"success": False, "errors": response.errors}, 400
 
-        db.session.commit()
-
-        response = schema.dump(response.data)
+        try:
+            response = schema.dump(response.data)
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            current_app.logger.exception("Flag update failed")
+            return {"success": False, "errors": {"database": ["Flag could not be saved"]}}, 400
         db.session.close()
 
         # Resolve challenge name for audit context

@@ -6,6 +6,8 @@ using ResourceShared.DTOs;
 using ResourceShared.DTOs.Ticket;
 using ResourceShared.Logger;
 using ResourceShared.Models;
+using ResourceShared.Utils;
+using System.Net;
 
 public class TicketService : ITicketService
 {
@@ -20,6 +22,8 @@ public class TicketService : ITicketService
 
     public async Task<BaseResponseDTO<TicketResponseDTO>> CreateTicket(CreateTicketRequestDTO request, int userId)
     {
+        if (request == null || request.AdditionalFields?.Count > 0)
+            return BaseResponseDTO<TicketResponseDTO>.Fail("Only title, type and description are supported");
         try
         {
             var user = await _context.Users
@@ -34,11 +38,20 @@ public class TicketService : ITicketService
                 return BaseResponseDTO<TicketResponseDTO>.Fail("Missing information");
             }
 
+            if (!InputValidation.IsPlainName(request.title, 255))
+                return BaseResponseDTO<TicketResponseDTO>.Fail("Title must be plain text, at most 255 characters");
+            var type = new[] { "Question", "Error", "Inform" }.FirstOrDefault(
+                allowed => allowed.Equals(request.type.Trim(), StringComparison.OrdinalIgnoreCase));
+            if (type == null)
+                return BaseResponseDTO<TicketResponseDTO>.Fail("Invalid ticket type");
+            if (request.description.Length > 4000)
+                return BaseResponseDTO<TicketResponseDTO>.Fail("Description must be at most 4000 characters");
+
             var newTicket = new Ticket
             {
                 AuthorId = user.Id,
-                Title = request.title,
-                Type = request.type,
+                Title = request.title.Trim(),
+                Type = type,
                 Description = request.description,
                 CreateAt = DateTime.UtcNow,
                 Status = "open"
@@ -59,7 +72,11 @@ public class TicketService : ITicketService
 
             await _context.SaveChangesAsync();
 
-            return BaseResponseDTO<TicketResponseDTO>.Ok(MapToDto(newTicket, user.Name, null, null), "Send ticket successfully");
+            var teamName = user.TeamId.HasValue
+                ? await _context.Teams.AsNoTracking().Where(t => t.Id == user.TeamId.Value)
+                    .Select(t => t.Name).FirstOrDefaultAsync()
+                : null;
+            return BaseResponseDTO<TicketResponseDTO>.Ok(MapToDto(newTicket, user.Name, null, teamName), "Send ticket successfully");
         }
         catch (Exception ex)
         {
@@ -109,11 +126,11 @@ public class TicketService : ITicketService
                 .FirstOrDefaultAsync(t => t.Id == ticketId);
 
             if (ticketEntity == null)
-                return BaseResponseDTO<TicketResponseDTO>.Fail("Ticket not found");
+                return new(false, "Ticket not found") { HttpStatusCode = HttpStatusCode.NotFound };
 
             // Check if user is the owner
             if (ticketEntity.AuthorId != userId)
-                return BaseResponseDTO<TicketResponseDTO>.Fail("You don't have permission to view this ticket");
+                return new(false, "You don't have permission to view this ticket") { HttpStatusCode = HttpStatusCode.Forbidden };
 
             // Get full ticket data with joins
             var ticket = await (from t in _context.Tickets
@@ -137,14 +154,14 @@ public class TicketService : ITicketService
                                 .FirstOrDefaultAsync();
 
             if (ticket == null)
-                return BaseResponseDTO<TicketResponseDTO>.Fail("Ticket not found");
+                return new(false, "Ticket not found") { HttpStatusCode = HttpStatusCode.NotFound };
 
             return BaseResponseDTO<TicketResponseDTO>.Ok(ticket);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, userId, data: new { ticketId });
-            return BaseResponseDTO<TicketResponseDTO>.Fail("An error occurred while retrieving ticket");
+            return new(false, "An error occurred while retrieving ticket") { HttpStatusCode = HttpStatusCode.InternalServerError };
         }
     }
 
@@ -216,11 +233,11 @@ public class TicketService : ITicketService
             var ticket = await _context.Tickets.FirstOrDefaultAsync(t => t.Id == ticketId);
 
             if (ticket == null)
-                return BaseResponseDTO<bool>.Fail("Ticket not found");
+                return new(false, "Ticket not found") { HttpStatusCode = HttpStatusCode.NotFound };
 
             // Check if user owns this ticket
             if (ticket.AuthorId != userId)
-                return BaseResponseDTO<bool>.Fail("You don't have permission to delete this ticket");
+                return new(false, "You don't have permission to delete this ticket") { HttpStatusCode = HttpStatusCode.Forbidden };
 
             // Check if ticket has been replied (ReplierMessage is not null/empty or Status is not "open")
             if (!string.IsNullOrEmpty(ticket.ReplierMessage) || ticket.Status?.ToLower() != "open")
@@ -234,7 +251,7 @@ public class TicketService : ITicketService
         catch (Exception ex)
         {
             _logger.LogError(ex, userId, data: new { ticketId });
-            return BaseResponseDTO<bool>.Fail("An error occurred while deleting ticket");
+            return new(false, "An error occurred while deleting ticket") { HttpStatusCode = HttpStatusCode.InternalServerError };
         }
     }
 

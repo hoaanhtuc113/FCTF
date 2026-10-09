@@ -181,18 +181,8 @@ class Topic(Resource):
         return {"success": True}
 
 @topics_namespace.route("/api/get-listtopic", methods= ['GET'])
-class Topic(Resource):
-    def getlistTopic():
-    
-        try:
-        # Query to get all topics from the database
-            topics = Topic.query.all()
-        
-        # Convert the results to a list of dictionaries
-            topics_list = [{"id": topic.id, "name": topic.value} for topic in topics]
-
-        # Return the topics as a JSON response
-            return jsonify(topics_list), 200
-        except Exception as e:
-        # Handle any exceptions that occur
-            return jsonify({"error": str(e)}), 500
+class TopicNames(Resource):
+    @admin_or_challenge_writer_only_or_jury
+    def get(self):
+        topics = Topics.query.order_by(Topics.id).all()
+        return [{"id": topic.id, "name": topic.value} for topic in topics], 200

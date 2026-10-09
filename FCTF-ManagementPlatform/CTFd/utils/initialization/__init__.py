@@ -203,6 +203,9 @@ def init_events(app):
 
 
 def init_request_processors(app):
+    from CTFd.utils.security.responses import init_response_security
+    init_response_security(app)
+
     @app.url_defaults
     def inject_theme(endpoint, values):
         try:

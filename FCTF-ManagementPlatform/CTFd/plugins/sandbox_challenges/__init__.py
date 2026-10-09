@@ -14,6 +14,7 @@ from CTFd.models import (
 from CTFd.plugins import register_plugin_assets_directory
 from CTFd.plugins.challenges import CHALLENGE_CLASSES, BaseChallenge
 from CTFd.utils.uploads import delete_file
+from .validation import KYPO_FIELDS, validate_config
 
 # Fields that belong only to deploy-type challenges; must never be forwarded to
 # the Challenges model constructor when creating a Sandbox challenge.
@@ -78,10 +79,9 @@ class SandboxChallengeClass(BaseChallenge):
         data = dict(data)
 
         # Remove KYPO-specific fields before passing to the Challenges model
-        kypo_instance_id = data.pop("kypo_instance_id", None)
-        kypo_access_token = data.pop("kypo_access_token", None)
-        kypo_instance_type = data.pop("kypo_instance_type", None)
-        kypo_base_url = data.pop("kypo_base_url", "https://vuontre.iahn.hanoi.vn")
+        kypo_values = validate_config(data)
+        for key in KYPO_FIELDS:
+            data.pop(key, None)
 
         # Remove deploy-related and form-meta fields not relevant to sandbox
         for field in _DEPLOY_FIELDS | _FORM_META_FIELDS:
@@ -98,25 +98,17 @@ class SandboxChallengeClass(BaseChallenge):
                 except (TypeError, ValueError):
                     data["difficulty"] = None
 
-        try:
-            time_limit = int(data.get("time_limit", 60))
-        except (TypeError, ValueError):
-            time_limit = 60
+        from CTFd.utils.validators.scoring import score_integer
+
+        time_limit = score_integer(data.get("time_limit", 60), "time_limit", minimum=-1)
+        data["time_limit"] = time_limit
 
         if time_limit >= -1:
             challenge = cls.challenge_model(**data)
             db.session.add(challenge)
             db.session.flush()
 
-            if kypo_instance_id:
-                kypo_config = KypoChallengeConfig(
-                    challenge_id=challenge.id,
-                    kypo_instance_id=int(kypo_instance_id),
-                    kypo_access_token=kypo_access_token or "",
-                    kypo_instance_type=kypo_instance_type or "linear",
-                    kypo_base_url=kypo_base_url or "https://vuontre.iahn.hanoi.vn",
-                )
-                db.session.add(kypo_config)
+            db.session.add(KypoChallengeConfig(challenge_id=challenge.id, **kypo_values))
 
             db.session.commit()
         else:
@@ -157,10 +149,10 @@ class SandboxChallengeClass(BaseChallenge):
         data = dict(data)
 
         # Extract KYPO fields before touching the challenge row
-        kypo_instance_id = data.pop("kypo_instance_id", None)
-        kypo_access_token = data.pop("kypo_access_token", None)
-        kypo_instance_type = data.pop("kypo_instance_type", None)
-        kypo_base_url = data.pop("kypo_base_url", None)
+        kypo_config = KypoChallengeConfig.query.filter_by(challenge_id=challenge.id).first()
+        kypo_values = validate_config(data, existing=kypo_config)
+        for key in KYPO_FIELDS:
+            data.pop(key, None)
 
         # Drop deploy and form-meta fields
         for field in _DEPLOY_FIELDS | _FORM_META_FIELDS:
@@ -176,37 +168,15 @@ class SandboxChallengeClass(BaseChallenge):
                 except (TypeError, ValueError):
                     data["difficulty"] = None
 
-        if "time_limit" in data:
-            if int(data["time_limit"]) >= -1:
-                for attr, value in data.items():
-                    setattr(challenge, attr, value)
-                db.session.commit()
+        for attr, value in data.items():
+            setattr(challenge, attr, value)
+        if kypo_config is None:
+            kypo_config = KypoChallengeConfig(challenge_id=challenge.id, **kypo_values)
+            db.session.add(kypo_config)
         else:
-            for attr, value in data.items():
-                setattr(challenge, attr, value)
-            db.session.commit()
-
-        # Sync KypoChallengeConfig when a new instance is selected
-        if kypo_instance_id:
-            kypo_config = KypoChallengeConfig.query.filter_by(challenge_id=challenge.id).first()
-            if kypo_config:
-                kypo_config.kypo_instance_id = int(kypo_instance_id)
-                if kypo_access_token:
-                    kypo_config.kypo_access_token = kypo_access_token
-                if kypo_instance_type:
-                    kypo_config.kypo_instance_type = kypo_instance_type
-                if kypo_base_url:
-                    kypo_config.kypo_base_url = kypo_base_url
-            else:
-                kypo_config = KypoChallengeConfig(
-                    challenge_id=challenge.id,
-                    kypo_instance_id=int(kypo_instance_id),
-                    kypo_access_token=kypo_access_token or "",
-                    kypo_instance_type=kypo_instance_type or "linear",
-                    kypo_base_url=kypo_base_url or "https://vuontre.iahn.hanoi.vn",
-                )
-                db.session.add(kypo_config)
-            db.session.commit()
+            for key, value in kypo_values.items():
+                setattr(kypo_config, key, value)
+        db.session.commit()
 
         return challenge
 

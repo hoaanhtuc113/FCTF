@@ -31,8 +31,6 @@ import {
 } from '../components/Skeleton';
 import { authService } from '../services/authService';
 import { challengeTimerService } from '../services/challengeTimerService';
-import { actionLogService } from '../services/actionLogService';
-import { actionType } from '../constants/ActionLogConstant';
 
 // Setup PDF worker - mirror legacy behavior using jsDelivr CDN (handles MIME/CORS)
 pdfjs.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
@@ -2175,7 +2173,6 @@ function ChallengeDetailPanel({
       // Case 1: URL is ready immediately
       if (response.status === 200 && data.success === true && data.challenge_url != null) {
         const safeChallengeUrl = escapeHtml(String(data.challenge_url).trim());
-        actionLogService.logAction(actionType.START_CHALLENGE, `Bắt đầu thử thách ${challenge.name}`, challenge.id);
         setIsDeploymentInProgress(true);
         // Save deployment state AFTER successful response
         localStorage.setItem(deploymentKey, JSON.stringify({
@@ -2228,7 +2225,6 @@ function ChallengeDetailPanel({
       }
       // Case 2: Success but URL is null - deploying, need to wait
       else if (response.status === 200 && data.success === true && data.challenge_url == null) {
-        actionLogService.logAction(actionType.START_CHALLENGE, `Bắt đầu thử thách ${challenge.name}`, challenge.id);
         setIsDeploymentInProgress(true);
         // Save deployment state AFTER successful response
         localStorage.setItem(deploymentKey, JSON.stringify({

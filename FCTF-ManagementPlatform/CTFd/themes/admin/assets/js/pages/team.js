@@ -3,6 +3,7 @@ import $ from "jquery";
 import "../compat/json";
 import "../compat/format";
 import CTFd from "../compat/CTFd";
+import { awardRequestKey } from "../compat/award";
 import { htmlEntities } from "@ctfdio/ctfd-js/utils/html";
 import { ezAlert, ezQuery, ezBadge } from "../compat/ezq";
 import { createGraph, updateGraph } from "../compat/graphs";
@@ -511,6 +512,7 @@ $(() => {
       headers: {
         Accept: "application/json",
         "Content-Type": "application/json",
+        "Idempotency-Key": awardRequestKey($("#user-award-form"), params),
       },
       body: JSON.stringify(params),
     })

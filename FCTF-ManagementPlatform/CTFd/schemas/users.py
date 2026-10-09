@@ -2,22 +2,31 @@ from marshmallow import ValidationError, post_dump, pre_load, validate
 from marshmallow.fields import Nested
 from marshmallow_sqlalchemy import field_for
 from sqlalchemy.orm import load_only
+from sqlalchemy import func
 
-from CTFd.models import Brackets, UserFieldEntries, UserFields, Users, ma
+from CTFd.models import Brackets, Teams, UserFieldEntries, UserFields, Users, ma
+from CTFd.utils.validators.references import reference
 from CTFd.schemas.fields import UserFieldEntriesSchema
 from CTFd.utils import get_config, string_types
 from CTFd.utils.crypto import verify_password
 from CTFd.utils.email import check_email_is_whitelisted
 from CTFd.utils.user import get_current_user, is_admin
 from CTFd.utils.validators import validate_country_code, validate_language
+from CTFd.utils.validators.model_types import validate_type_payload
+from CTFd.utils.validators.accounts import validate_account_name, validate_nonempty_password
 
 
 class UserSchema(ma.ModelSchema):
+    @pre_load
+    def validate_type(self, data):
+        validate_type_payload("users", data)
+
     class Meta:
         model = Users
         include_fk = True
         dump_only = ("id", "oauth_id", "created")
         load_only = ("password",)
+        exclude = ("name_key",)
 
     name = field_for(
         Users,
@@ -52,7 +61,8 @@ class UserSchema(ma.ModelSchema):
     )
     language = field_for(Users, "language", validate=[validate_language])
     country = field_for(Users, "country", validate=[validate_country_code])
-    password = field_for(Users, "password", required=True, allow_none=False)
+    password = field_for(Users, "password", required=True, allow_none=False,
+                         validate=validate_nonempty_password)
     bracket_id = field_for(Users, "bracket_id")
     fields = Nested(
         UserFieldEntriesSchema, partial=True, many=True, attribute="field_entries"
@@ -63,41 +73,24 @@ class UserSchema(ma.ModelSchema):
         name = data.get("name")
         if name is None:
             return
+        try:
+            validate_account_name(name)
+        except ValidationError as error:
+            raise ValidationError(error.messages, field_names=["name"])
         name = name.strip()
-
-        existing_user = Users.query.filter_by(name=name).first()
+        data["name"] = name
         current_user = get_current_user()
-        if is_admin():
-            user_id = data.get("id")
-            if user_id:
-                if existing_user and existing_user.id != user_id:
-                    raise ValidationError(
-                        "User name has already been taken", field_names=["name"]
-                    )
-            else:
-                if existing_user:
-                    if current_user:
-                        if current_user.id != existing_user.id:
-                            raise ValidationError(
-                                "User name has already been taken", field_names=["name"]
-                            )
-                    else:
-                        raise ValidationError(
-                            "User name has already been taken", field_names=["name"]
-                        )
-        else:
-            if name == current_user.name:
-                return data
-            else:
-                name_changes = get_config("name_changes", default=True)
-                if bool(name_changes) is False:
-                    raise ValidationError(
-                        "Name changes are disabled", field_names=["name"]
-                    )
-                if existing_user:
-                    raise ValidationError(
-                        "User name has already been taken", field_names=["name"]
-                    )
+        # An ID supplied on create is dump-only and must not exempt another user.
+        target_id = self.instance.id if self.instance is not None else None
+        if not is_admin():
+            target_id = current_user.id
+            if name != current_user.name and not get_config("name_changes", default=True):
+                raise ValidationError("Name changes are disabled", field_names=["name"])
+        query = Users.query.filter(func.lower(Users.name) == name.lower())
+        if target_id is not None:
+            query = query.filter(Users.id != target_id)
+        if query.first() is not None:
+            raise ValidationError("User name has already been taken", field_names=["name"])
 
     @pre_load
     def validate_email(self, data):
@@ -200,6 +193,8 @@ class UserSchema(ma.ModelSchema):
 
     @pre_load
     def validate_bracket_id(self, data):
+        reference(data, "team_id", Teams, nullable=True)
+        reference(data, "bracket_id", Brackets, nullable=True, type="users")
         bracket_id = data.get("bracket_id")
         if bracket_id is None:
             return
@@ -208,7 +203,7 @@ class UserSchema(ma.ModelSchema):
         if is_admin():
             bracket = Brackets.query.filter_by(id=bracket_id, type="users").first()
             if bracket is None:
-                ValidationError(
+                raise ValidationError(
                     "Please provide a valid bracket id", field_names=["bracket_id"]
                 )
         else:
@@ -218,7 +213,7 @@ class UserSchema(ma.ModelSchema):
             ):
                 bracket = Brackets.query.filter_by(id=bracket_id, type="users").first()
                 if bracket is None:
-                    ValidationError(
+                    raise ValidationError(
                         "Please provide a valid bracket id", field_names=["bracket_id"]
                     )
             else:
@@ -236,6 +231,11 @@ class UserSchema(ma.ModelSchema):
         fields = data.get("fields")
         if fields is None:
             return
+
+        if not isinstance(fields, list) or any(not isinstance(f, dict) for f in fields):
+            raise ValidationError("Fields must be a list of objects", field_names=["fields"])
+        for f in fields:
+            reference(f, "field_id", UserFields, required=True)
 
         current_user = get_current_user()
 

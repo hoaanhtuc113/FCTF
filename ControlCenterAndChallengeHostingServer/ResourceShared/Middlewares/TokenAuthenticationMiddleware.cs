@@ -47,7 +47,20 @@ public class TokenAuthenticationMiddleware
                     return;
                 }
 
-                // Try read from Redis cache first
+                // Token revocation must take effect even with stale/unavailable Redis.
+                var tokenUuidFromClaim = context.User.FindFirstValue("tokenUuid");
+                if (string.IsNullOrEmpty(tokenUuidFromClaim)
+                    || !await db.Tokens.AsNoTracking().AnyAsync(t =>
+                        t.UserId == id
+                        && t.Type == Enums.UserType.User
+                        && t.Value == tokenUuidFromClaim))
+                {
+                    context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                    await context.Response.WriteAsync("Invalid user token.");
+                    return;
+                }
+
+                // Cache user attributes only after checking the token against the DB.
                 var cacheKey = $"auth:user:{id}";
                 AuthInfoCacheDTO? authInfoCache = null;
                 try
@@ -59,17 +72,15 @@ public class TokenAuthenticationMiddleware
                     // ignore cache errors and fallback to DB
                 }
 
+                // A previous login's cache must not reject a valid new token.
+                if (authInfoCache != null
+                    && authInfoCache.TokenValueFromDb != tokenUuidFromClaim)
+                {
+                    authInfoCache = null;
+                }
+
                 if (authInfoCache != null)
                 {
-                    var tokenUuidFromClaim = context.User.FindFirstValue("tokenUuid");
-                    if (string.IsNullOrEmpty(authInfoCache.TokenValueFromDb)
-                        || !authInfoCache.TokenValueFromDb.Equals(tokenUuidFromClaim))
-                    {
-                        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-                        await context.Response.WriteAsync("Invalid user token");
-                        return;
-                    }
-
                     var cachedTeamId = authInfoCache.TeamId ?? 0;
                     if (cachedTeamId != claimTeamId)
                     {
@@ -122,7 +133,8 @@ public class TokenAuthenticationMiddleware
                         u.TeamId,
                         TeamBanned = u.Team != null ? u.Team.Banned : (bool?)null,
                         TokenValueFromDb = db.Tokens
-                            .Where(t => t.UserId == id && t.Type == Enums.UserType.User)
+                            .Where(t => t.UserId == id && t.Type == Enums.UserType.User
+                                && t.Value == tokenUuidFromClaim)
                             .Select(t => t.Value)
                             .FirstOrDefault()
                     })

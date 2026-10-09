@@ -15,7 +15,6 @@ from jinja2 import FileSystemLoader
 from jinja2.sandbox import SandboxedEnvironment
 from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.utils import safe_join
-from flask_cors import CORS
 import CTFd.utils.config
 from CTFd import utils
 from CTFd.constants.themes import ADMIN_THEME, DEFAULT_THEME
@@ -437,4 +436,3 @@ def create_app(config="CTFd.config.Config"):
 
 if __name__ == "__main__":
     app = create_app()
-    CORS(app)

@@ -63,6 +63,9 @@ public class ScoreboardController : BaseController
             return Ok(new { success = true, data = Array.Empty<object>() });
 
         var brackets = await _context.Brackets
+            .Where(b => b.Name != null && b.Name.Trim() != ""
+                && (b.Type == "users" || b.Type == "teams"))
+            .OrderBy(b => b.Id)
             .Select(b => new { b.Id, b.Name, b.Description, b.Type })
             .ToListAsync();
 

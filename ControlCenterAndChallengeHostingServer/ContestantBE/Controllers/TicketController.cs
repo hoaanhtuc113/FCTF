@@ -57,11 +57,8 @@ public class TicketController : BaseController
 
         if (!result.Success)
         {
-            // Check if it's a permission issue based on the message
-            if (result.Message.Contains("permission"))
-                return StatusCode(401, new { message = result.Message });
-
-            return NotFound(new { message = result.Message });
+            return StatusCode(result.HttpStatusCode == 0 ? 400 : (int)result.HttpStatusCode,
+                new { message = result.Message });
         }
 
         return Ok(result);
@@ -75,7 +72,8 @@ public class TicketController : BaseController
         _userBehaviorLogger.Log("DELETE_TICKET", userId, UserContext.TeamId, new { ticket_id = ticketId });
         await Console.Out.WriteLineAsync($"[Requesst Remove Ticket] User {userId}: Ticket ID {ticketId}");
         var result = await _ticketService.DeleteTicket(ticketId, userId);
-        if (!result.Success) return BadRequest(new { message = result.Message });
+        if (!result.Success) return StatusCode(result.HttpStatusCode == 0 ? 400 : (int)result.HttpStatusCode,
+            new { message = result.Message });
 
         return Ok(new { message = result.Message });
     }

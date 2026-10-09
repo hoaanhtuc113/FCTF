@@ -250,11 +250,15 @@ public class DeployService : IDeployService
                 .AsNoTracking()
                 .FirstOrDefaultAsync(u => u.Id == stopReq.userId);
 
+            // Revoke first; Kubernetes deletion is asynchronous and may fail.
+            await _redisHelper.RevokeGatewayRouteAsync(deployInfo._namespace, deployInfo.time_finished);
+
             // Admin force delete: xóa namespace và cache ngay lập tức
             if (user != null && user.Type == UserType.Admin)
             {
                 await Console.Out.WriteLineAsync($"[Admin] Force deleting namespace {deployInfo._namespace}...");
-                await _k8SHealthService.DeleteNamespace(deployInfo._namespace ?? string.Empty);
+                if (!await _k8SHealthService.DeleteNamespace(deployInfo._namespace ?? string.Empty))
+                    return new ChallengeDeployResponeDTO { status = 503, success = false, message = "Access revoked, but instance deletion failed. Please retry stop." };
 
                 deployInfo.status = DeploymentStatus.STOPPED;
                 await _redisHelper.AtomicRemoveDeploymentZSet(stopReq.teamId.ToString(), deploymentKey, stopReq.challengeId.ToString());
@@ -274,7 +278,7 @@ public class DeployService : IDeployService
 
             // Cập nhật cache với TTL dài (60s) để watcher bắt được event Terminating
             var cacheJson = System.Text.Json.JsonSerializer.Serialize(deployInfo);
-            await _redisHelper.AtomicUpdateExpiration(
+            var markedDeleting = await _redisHelper.AtomicUpdateExpiration(
                 stopReq.teamId.ToString(),
                 deploymentKey,
                 stopReq.challengeId.ToString(),
@@ -284,7 +288,11 @@ public class DeployService : IDeployService
 
 
             // Delete namespace - watcher sẽ bắn STOPPED event khi nhận Terminating
+            if (!markedDeleting)
+                return new ChallengeDeployResponeDTO { status = 503, success = false, message = "Access revoked, but stop state could not be saved. Please retry stop." };
             var isDelete = await _k8SHealthService.DeleteNamespace(deployInfo._namespace);
+            if (!isDelete)
+                return new ChallengeDeployResponeDTO { status = 503, success = false, message = "Access revoked, but instance deletion failed. Please retry stop." };
 
 
             return new ChallengeDeployResponeDTO
@@ -315,13 +323,23 @@ public class DeployService : IDeployService
         await Console.Out.WriteLineAsync("Stopping all challenges...");
         try
         {
+            // Revoke every current route before asynchronous cleanup.
+            var deploymentKeys = _redisHelper.GetKeysByPattern("deploy_challenge_*", throwOnFailure: true);
+            foreach (var key in deploymentKeys)
+            {
+                var deployment = await _redisHelper.GetFromCacheAsync<ChallengeDeploymentCacheDTO>(key, throwOnFailure: true);
+                if (deployment != null)
+                    await _redisHelper.RevokeGatewayRouteAsync(deployment._namespace, deployment.time_finished);
+            }
             // Use K8s API to delete all challenge namespaces by label selector
             var (successCount, failCount, errors) = await _k8SHealthService.DeleteAllChallengeNamespaces("ctf/kind=challenge");
 
             // Clear all cache entries
             // Clear the entire pods list
-            await _redisHelper.RemoveCacheByPattern("deploy_challenge_*");
-            await _redisHelper.RemoveCacheByPattern("active_deploys_team_*");
+            var removedDeployments = await _redisHelper.RemoveCacheByPattern("deploy_challenge_*");
+            var removedSlots = await _redisHelper.RemoveCacheByPattern("active_deploys_team_*");
+            if (!removedDeployments || !removedSlots)
+                throw new InvalidOperationException("Stopped instances require deployment cache cleanup");
 
             if (failCount > 0)
             {
@@ -349,7 +367,7 @@ public class DeployService : IDeployService
             return new BaseResponseDTO
             {
                 Success = false,
-                Message = $"Error during stopping all challenges: {ex.Message}",
+                Message = "Stopping all challenges failed. Check server logs before retrying.",
                 HttpStatusCode = HttpStatusCode.InternalServerError
             };
         }

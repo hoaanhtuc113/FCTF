@@ -9,6 +9,7 @@ namespace ResourceShared.DTOs.Challenge
     public class AttemptDTO
     {
         public bool status { get; set; }
+        public bool configuration_error { get; set; }
         public string? message { get; set; }
     }
 }

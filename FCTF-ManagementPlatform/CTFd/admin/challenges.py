@@ -182,10 +182,10 @@ def challenges_detail(challenge_id):
             image_link_display = image_link_name
 
     try:
-        challenge_class = get_chal_class(challenge.type)
+        challenge_class = get_chal_class(challenge.type, challenge_id=challenge_id)
     except KeyError:
         abort(
-            500,
+            400,
             f"The underlying challenge type ({challenge.type}) is not installed. This challenge cannot be loaded.",
         )
 
@@ -239,7 +239,10 @@ def challenges_detail(challenge_id):
 @admin_or_challenge_writer_only_or_jury
 def challenges_preview(challenge_id):
     challenge = Challenges.query.filter_by(id=challenge_id).first_or_404()
-    chal_class = get_chal_class(challenge.type)
+    try:
+        chal_class = get_chal_class(challenge.type, challenge_id=challenge_id)
+    except KeyError:
+        abort(400, "Challenge type is unavailable; repair it first")
     user = get_current_user()
     team = get_current_team()
 

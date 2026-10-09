@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using ResourceShared.Models;
 using System;
 using System.Linq;
@@ -6,137 +7,85 @@ using System.Threading.Tasks;
 
 namespace ResourceShared.Utils
 {
+    public sealed class ScoringConfigurationException : InvalidOperationException
+    {
+        public ScoringConfigurationException(string message) : base(message) { }
+    }
+
     public static class DynamicChallengeHelper
     {
-        /// <summary>
-        /// Get solve count for a challenge, excluding hidden and banned accounts
-        /// Matches Python: get_solve_count(challenge)
-        /// </summary>
+        // Shared with CTFd: lock this row BEFORE inserting/deleting a solve.
+        // Callers use READ COMMITTED and keep the lock until commit/rollback.
+        public static async Task LockChallengeForScoring(AppDbContext context, int challengeId)
+        {
+            var transaction = context.Database.CurrentTransaction
+                ?? throw new InvalidOperationException("Scoring requires a transaction");
+            await using var command = context.Database.GetDbConnection().CreateCommand();
+            command.Transaction = transaction.GetDbTransaction();
+            command.CommandText = "SELECT id FROM challenges WHERE id = @challengeId"
+                + (context.Database.ProviderName == "Microsoft.EntityFrameworkCore.Sqlite" ? "" : " FOR UPDATE");
+            var parameter = command.CreateParameter();
+            parameter.ParameterName = "@challengeId";
+            parameter.Value = challengeId;
+            command.Parameters.Add(parameter);
+            if (await command.ExecuteScalarAsync() == null)
+                throw new InvalidOperationException("Challenge does not exist");
+        }
+
         private static async Task<int> GetSolveCount(AppDbContext context, int challengeId)
         {
-            var solveCount = await context.Solves
-                .Join(context.Users,
-                    solve => solve.UserId,
-                    user => user.Id,
-                    (solve, user) => new { solve, user })
-                .Where(x => x.solve.ChallengeId == challengeId 
-                    && x.user.Hidden == false 
-                    && x.user.Banned == false)
-                .CountAsync();
-
-            return solveCount;
+            var mode = await context.Configs.Where(c => c.Key == "user_mode")
+                .Select(c => c.Value).FirstOrDefaultAsync() ?? "users";
+            if (mode == "teams")
+                return await context.Solves.Join(context.Teams, s => s.TeamId, t => t.Id,
+                    (solve, team) => new { solve, team })
+                    .CountAsync(x => x.solve.ChallengeId == challengeId
+                        && x.team.Hidden == false && x.team.Banned == false);
+            if (mode != "users")
+                throw new ScoringConfigurationException("Unsupported scoring account mode");
+            return await context.Solves.Join(context.Users, s => s.UserId, u => u.Id,
+                (solve, user) => new { solve, user })
+                .CountAsync(x => x.solve.ChallengeId == challengeId
+                    && x.user.Hidden == false && x.user.Banned == false);
         }
 
-        /// <summary>
-        /// Linear decay function
-        /// value = initial - (decay * (solve_count - 1))
-        /// </summary>
-        private static int Linear(DynamicChallenge dynamicChallenge, int solveCount)
-        {
-            // If the solve count is 0 we shouldn't manipulate the solve count
-            if (solveCount != 0)
-            {
-                // We subtract -1 to allow the first solver to get max point value
-                solveCount -= 1;
-            }
-
-            int value = (dynamicChallenge.Initial ?? 0) - ((dynamicChallenge.Decay ?? 0) * solveCount);
-            
-            // Ceiling
-            value = (int)Math.Ceiling((double)value);
-
-            if (value < dynamicChallenge.Minimum)
-            {
-                value = dynamicChallenge.Minimum ?? 0;
-            }
-
-            return value;
-        }
-
-        /// <summary>
-        /// Logarithmic decay function (matching Python implementation)
-        /// value = ((minimum - initial) / (decay^2)) * (solve_count^2) + initial
-        /// </summary>
-        private static int Logarithmic(DynamicChallenge dynamicChallenge, int solveCount)
-        {
-            // If the solve count is 0 we shouldn't manipulate the solve count
-            if (solveCount != 0)
-            {
-                // We subtract -1 to allow the first solver to get max point value
-                solveCount -= 1;
-            }
-
-            // Handle situations where admins have entered a 0 decay
-            // This is invalid as it can cause a division by zero
-            int decay = dynamicChallenge.Decay ?? 1;
-            if (decay == 0)
-            {
-                decay = 1;
-            }
-
-            int initial = dynamicChallenge.Initial ?? 0;
-            int minimum = dynamicChallenge.Minimum ?? 0;
-
-            // Important: Use floating point for math calculations
-            double decaySquared = Math.Pow(decay, 2);
-            double solveCountSquared = Math.Pow(solveCount, 2);
-            
-            double value = ((minimum - initial) / decaySquared) * solveCountSquared + initial;
-            
-            // Ceiling
-            int finalValue = (int)Math.Ceiling(value);
-
-            if (finalValue < minimum)
-            {
-                finalValue = minimum;
-            }
-
-            return finalValue;
-        }
-
-        /// <summary>
-        /// Redis key used to serialize dynamic-score recalcs for a given challenge.
-        /// Callers must acquire this lock before <c>BeginTransaction</c> and release it only
-        /// after the transaction is disposed, so the snapshot used to read
-        /// <c>solveCount</c> and write <c>Challenge.Value</c> cannot overlap across sessions.
-        /// </summary>
         public static string GetRecalcLockKey(int challengeId) =>
             $"challenge:dynamic:recalc:{challengeId}";
 
-        /// <summary>
-        /// Recalculate dynamic challenge value after a solve.
-        /// MUST be called inside an open DB transaction on <paramref name="context"/>, with
-        /// the Redis recalc lock (see <see cref="GetRecalcLockKey"/>) already held by the
-        /// caller. The <c>SaveChangesAsync</c> inside participates in the caller's transaction
-        /// so the <c>Challenge.Value</c> update commits atomically with the submission insert
-        /// that triggered the recalc. Retries for transient DB failures are the caller's
-        /// responsibility.
-        /// </summary>
-        public static async Task<int> RecalculateDynamicChallengeValue(
-            AppDbContext context,
-            int challengeId)
+        public static int CalculateValue(DynamicChallenge config, int solveCount)
         {
-            var challenge = await context.Challenges
-                .Include(c => c.DynamicChallenge)
-                .FirstOrDefaultAsync(c => c.Id == challengeId);
+            if (config.Initial is not int initial || config.Minimum is not int minimum
+                || config.Decay is not int decay || initial < 0 || minimum < 0
+                || minimum > initial || decay < 1
+                || (config.Function != "linear" && config.Function != "logarithmic"))
+                throw new ScoringConfigurationException("Invalid dynamic scoring configuration");
+            var n = Math.Max(0L, (long)solveCount - 1);
+            if (config.Function == "linear")
+                return (int)Math.Max(minimum, (long)initial - (long)decay * n);
+            // Clamp before casting: large solve counts must never overflow int.
+            var value = initial + ((double)minimum - initial) / ((double)decay * decay) * ((double)n * n);
+            return (int)Math.Ceiling(Math.Clamp(value, minimum, initial));
+        }
 
-            if (challenge == null || challenge.DynamicChallenge == null)
+        // Caller holds the parent row lock. Update participates in its transaction.
+        public static async Task<int> RecalculateDynamicChallengeValue(AppDbContext context, int challengeId)
+        {
+            if (context.Database.CurrentTransaction == null)
+                throw new InvalidOperationException("Scoring requires a transaction");
+            var challenge = await context.Challenges.AsNoTracking()
+                .Include(c => c.DynamicChallenge).FirstOrDefaultAsync(c => c.Id == challengeId)
+                ?? throw new InvalidOperationException("Challenge does not exist");
+            if (challenge.Type != "dynamic")
             {
-                return challenge?.Value ?? 0;
+                if (challenge.Value < 0)
+                    throw new ScoringConfigurationException("Invalid challenge value");
+                return challenge.Value ?? 0;
             }
-
-            var dynamicChallenge = challenge.DynamicChallenge;
-            var solveCount = await GetSolveCount(context, challengeId);
-
-            string function = (dynamicChallenge.Function ?? "logarithmic").ToLower();
-            int newValue = function switch
-            {
-                "linear" => Linear(dynamicChallenge, solveCount),
-                _ => Logarithmic(dynamicChallenge, solveCount),
-            };
-
-            challenge.Value = newValue;
-            await context.SaveChangesAsync();
+            var config = challenge.DynamicChallenge
+                ?? throw new ScoringConfigurationException("Missing dynamic scoring configuration");
+            var newValue = CalculateValue(config, await GetSolveCount(context, challengeId));
+            await context.Challenges.Where(c => c.Id == challengeId)
+                .ExecuteUpdateAsync(setters => setters.SetProperty(c => c.Value, newValue));
             return newValue;
         }
     }

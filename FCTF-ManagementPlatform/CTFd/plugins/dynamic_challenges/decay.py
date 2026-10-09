@@ -16,9 +16,11 @@ def get_solve_count(challenge):
             Model.hidden == False,
             Model.banned == False,
         )
-        .count()
+        # A locking read sees committed solves even if authentication previously
+        # established a repeatable-read snapshot. Parent lock serializes writers.
+        .with_entities(Solves.id).with_for_update(read=True).all()
     )
-    return solve_count
+    return len(solve_count)
 
 
 def linear(challenge):
@@ -48,11 +50,6 @@ def logarithmic(challenge):
     if solve_count != 0:
         # We subtract -1 to allow the first solver to get max point value
         solve_count -= 1
-
-    # Handle situations where admins have entered a 0 decay
-    # This is invalid as it can cause a division by zero
-    if challenge.decay == 0:
-        challenge.decay = 1
 
     # It is important that this calculation takes into account floats.
     # Hence this file uses from __future__ import division

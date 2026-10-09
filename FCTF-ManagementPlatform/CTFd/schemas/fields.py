@@ -1,9 +1,23 @@
-from marshmallow import fields
+from marshmallow import ValidationError, fields, pre_load
+from CTFd.utils.validators.references import text_field
 
 from CTFd.models import Fields, TeamFieldEntries, UserFieldEntries, db, ma
 
 
 class FieldSchema(ma.ModelSchema):
+    @pre_load
+    def validate_input(self, data):
+        creating = self.instance is None and not self.partial
+        if creating or "type" in data:
+            if data.get("type") not in ("user", "team"):
+                raise ValidationError("Field type must be user or team", field_names=["type"])
+            if self.instance is not None and data["type"] != self.instance.type:
+                raise ValidationError("Cannot change field owner type", field_names=["type"])
+        text_field(data, "name", required=creating)
+        if creating or "field_type" in data:
+            if data.get("field_type") not in ("text", "boolean", "select"):
+                raise ValidationError("Invalid field input type", field_names=["field_type"])
+
     class Meta:
         model = Fields
         include_fk = True

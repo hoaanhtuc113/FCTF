@@ -9,7 +9,7 @@ from CTFd.api.v1.schemas import APIDetailedSuccessResponse, APIListSuccessRespon
 from CTFd.cache import clear_challenges, clear_config, clear_standings
 from CTFd.constants import RawEnum
 from CTFd.models import Configs, Fields, db
-from CTFd.schemas.config import ConfigSchema
+from CTFd.schemas.config import CONFIG_FORM_METADATA, ConfigSchema
 from CTFd.schemas.fields import FieldSchema
 from CTFd.utils import set_config
 from CTFd.utils.decorators import admins_only
@@ -95,6 +95,8 @@ class ConfigList(Resource):
     )
     def post(self):
         req = request.get_json()
+        if not isinstance(req, dict):
+            return {"success": False, "errors": {"_schema": ["Expected a JSON object"]}}, 400
 
         if req and req.get("key") in PROTECTED_CONFIG_KEYS:
             abort(404)
@@ -133,6 +135,11 @@ class ConfigList(Resource):
     )
     def patch(self):
         req = request.get_json()
+        if not isinstance(req, dict):
+            return {"success": False, "errors": {"_schema": ["Expected a JSON object"]}}, 400
+        # The admin form includes its CSRF nonce in serialized fields. It is
+        # request metadata, not a config key to validate or persist.
+        req = {key: value for key, value in req.items() if key not in CONFIG_FORM_METADATA}
         schema = ConfigSchema()
 
         if any(k in PROTECTED_CONFIG_KEYS for k in req.keys()):
@@ -144,11 +151,20 @@ class ConfigList(Resource):
             existing_config = Configs.query.filter_by(key=key).first()
             before_configs[key] = existing_config.value if existing_config else None
 
+        # Validate the complete batch before mutating any config.
         for key, value in req.items():
             response = schema.load({"key": key, "value": value})
             if response.errors:
                 return {"success": False, "errors": response.errors}, 400
-            set_config(key=key, value=value)
+            req[key] = response.data.value
+        for key, value in req.items():
+            config = Configs.query.filter_by(key=key).first()
+            if config is None:
+                config = Configs(key=key, value=value)
+                db.session.add(config)
+            else:
+                config.value = value
+        db.session.commit()
 
         # Audit log
         log_audit(
@@ -206,6 +222,9 @@ class Config(Resource):
         before_state = {"key": config_key, "value": config.value} if config else None
         
         data = request.get_json()
+        if not isinstance(data, dict) or "value" not in data or ("key" in data and data["key"] != config_key):
+            return {"success": False, "errors": {"value": ["Provide a value for this config key"]}}, 400
+        data["key"] = config_key
         if config:
             schema = ConfigSchema(instance=config, partial=True)
             response = schema.load(data)
@@ -284,6 +303,8 @@ class FieldList(Resource):
         location="query",
     )
     def get(self, query_args):
+        if query_args.get("type") not in ("user", "team"):
+            return {"success": False, "errors": {"type": ["Provide type=user or type=team"]}}, 400
         q = query_args.pop("q", None)
         field = str(query_args.pop("field", None))
         filters = build_model_filters(model=Fields, query=q, field=field)
@@ -301,6 +322,8 @@ class FieldList(Resource):
     @admins_only
     def post(self):
         req = request.get_json()
+        if not isinstance(req, dict):
+            return {"success": False, "errors": {"_schema": ["Expected a JSON object"]}}, 400
         schema = FieldSchema()
         response = schema.load(req, session=db.session)
 
@@ -333,9 +356,11 @@ class Field(Resource):
     @admins_only
     def patch(self, field_id):
         field = Fields.query.filter_by(id=field_id).first_or_404()
-        schema = FieldSchema()
+        schema = FieldSchema(instance=field, partial=True)
 
         req = request.get_json()
+        if not isinstance(req, dict):
+            return {"success": False, "errors": {"_schema": ["Expected a JSON object"]}}, 400
 
         response = schema.load(req, session=db.session, instance=field)
         if response.errors:

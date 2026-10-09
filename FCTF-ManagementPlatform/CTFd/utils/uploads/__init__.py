@@ -4,8 +4,12 @@ import os
 import logging
 from pathlib import Path
 import traceback
-from CTFd.models import ChallengeFiles, Files, db
+from CTFd.models import Challenges, ChallengeFiles, Files, db
+from marshmallow import ValidationError
+from CTFd.utils.validators.references import reference
 from CTFd.utils import get_app_config
+from CTFd.utils.validators.model_types import require_supported_type
+from CTFd.utils.validators.uploads import validate_upload_filename
 from CTFd.utils.uploads.uploaders import FilesystemUploader, S3Uploader,NFSUploader
 from flask import current_app
 UPLOADERS = {"filesystem": FilesystemUploader, "s3": S3Uploader, "nfs" : NFSUploader}
@@ -24,9 +28,16 @@ def upload_file(*args, **kwargs):
     try:
         file_obj = kwargs.get("file")
         challenge_id = kwargs.get("challenge_id") or kwargs.get("challenge")
-        file_type = kwargs.get("type", "standard")
+        file_type = require_supported_type("files", kwargs.get("type", "standard"))
         location = kwargs.get("location")
         file_upload = kwargs.get("file_upload")
+        if challenge_id is not None or file_type == "challenge" or file_upload == "description":
+            payload = {"challenge_id": challenge_id}
+            try:
+                reference(payload, "challenge_id", Challenges, required=True)
+            except ValidationError as error:
+                raise ValueError("A valid challenge_id is required") from error
+            challenge_id = payload["challenge_id"]
         # Validate location and default filename to uploaded file's name
         parent = None
         filename = file_obj.filename
@@ -38,6 +49,7 @@ def upload_file(*args, **kwargs):
             filename = path.parts[1]
             location = parent + "/" + filename
 
+        validate_upload_filename(filename)
         if file_upload == "description":
             file_type = "challenge"
         model_args = {"type": file_type, "location": location}

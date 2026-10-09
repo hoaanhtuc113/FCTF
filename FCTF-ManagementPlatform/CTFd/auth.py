@@ -5,7 +5,7 @@ from flask import Blueprint, abort
 from flask import current_app as app
 from flask import redirect, render_template, request, session, url_for
 from itsdangerous.exc import BadSignature, BadTimeSignature, SignatureExpired
-from CTFd.cache import clear_team_session, clear_user_session
+from CTFd.cache import clear_auth_cache, clear_team_session, clear_user_session
 from CTFd.models import Teams, Users, db
 from CTFd.utils import config, email, get_app_config, get_config
 from CTFd.utils import user as current_user
@@ -15,11 +15,12 @@ from CTFd.utils.config.integrations import mlc_registration
 from CTFd.utils.config.visibility import registration_visible
 from CTFd.utils.crypto import verify_password
 from CTFd.utils.decorators import ratelimit
+from CTFd.utils.security.login_limit import limit_login
 from CTFd.utils.decorators.visibility import check_registration_visibility
 from CTFd.utils.helpers import error_for, get_errors, markup
 from CTFd.utils.logging import log
 from CTFd.utils.modes import TEAMS_MODE
-from CTFd.utils.security.auth import login_user, logout_user
+from CTFd.utils.security.auth import login_user, logout_user, revoke_user_tokens
 from CTFd.utils.security.signing import unserialize
 from CTFd.utils.validators import ValidationError
 from CTFd.utils.user import (
@@ -146,7 +147,9 @@ def reset_password(data=None):
                 )
 
             user.password = password
+            revoke_user_tokens([user.id])
             db.session.commit()
+            clear_auth_cache(user_id=user.id)
             clear_user_session(user_id=user.id)
             log(
                 "logins",
@@ -199,7 +202,7 @@ def register():
 
 
 @auth.route("/login", methods=["POST", "GET"])
-@ratelimit(method="POST", limit=10, interval=5)
+@limit_login
 def login():
     errors = get_errors()
     if request.method == "POST":

@@ -716,7 +716,10 @@ public class ChallengeService : IChallengeService
                 status = instance.status ?? string.Empty,
                 challenge_url = instance.challenge_url ?? "N/A",
                 ready = instance.ready,
-                age = instance.time_finished.ToString()
+                // Keep the legacy field for existing clients; expose its actual meaning.
+                age = instance.time_finished > 0
+                    ? instance.time_finished.ToString(System.Globalization.CultureInfo.InvariantCulture) : "-1",
+                expires_at = instance.time_finished > 0 ? instance.time_finished : null
             });
         }
         return result;

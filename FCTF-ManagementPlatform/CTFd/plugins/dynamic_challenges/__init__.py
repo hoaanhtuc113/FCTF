@@ -1,10 +1,12 @@
 from flask import Blueprint
+from sqlalchemy.orm import validates
 
 from CTFd.models import Challenges, db
 from CTFd.plugins import register_plugin_assets_directory
 from CTFd.plugins.challenges import CHALLENGE_CLASSES, BaseChallenge
-from CTFd.plugins.dynamic_challenges.decay import DECAY_FUNCTIONS, logarithmic
+from CTFd.plugins.dynamic_challenges.decay import DECAY_FUNCTIONS
 from CTFd.plugins.migrations import upgrade
+from CTFd.utils.validators.scoring import dynamic_config, validate_score_fields, score_integer
 
 
 class DynamicChallenge(Challenges):
@@ -18,8 +20,14 @@ class DynamicChallenge(Challenges):
     function = db.Column(db.String(32), default="logarithmic")
 
     def __init__(self, *args, **kwargs):
+        kwargs.update(dynamic_config(kwargs))
         super(DynamicChallenge, self).__init__(**kwargs)
         self.value = kwargs["initial"]
+
+    @validates("initial", "minimum", "decay", "function")
+    def validate_scoring_field(self, key, value):
+        validate_score_fields({key: value})
+        return value if key == "function" else score_integer(value, key, minimum=1 if key == "decay" else 0)
 
 
 class DynamicValueChallenge(BaseChallenge):
@@ -49,12 +57,19 @@ class DynamicValueChallenge(BaseChallenge):
     challenge_model = DynamicChallenge
 
     @classmethod
-    def calculate_value(cls, challenge):
-        f = DECAY_FUNCTIONS.get(challenge.function, logarithmic)
+    def calculate_value(cls, challenge, commit=True):
+        from CTFd.utils.scoring import lock_challenge
+
+        if commit:
+            challenge = lock_challenge(challenge.id)
+        dynamic_config({}, challenge)
+        db.session.flush()
+        f = DECAY_FUNCTIONS[challenge.function]
         value = f(challenge)
 
         challenge.value = value
-        db.session.commit()
+        if commit:
+            db.session.commit()
         return challenge
 
     @classmethod
@@ -91,7 +106,7 @@ class DynamicValueChallenge(BaseChallenge):
         return data
 
     @classmethod
-    def update(cls, challenge, request):
+    def update(cls, challenge, request, commit=True):
         """
         This method is used to update the information associated with a challenge. This should be kept strictly to the
         Challenges table and any child tables.
@@ -100,21 +115,29 @@ class DynamicValueChallenge(BaseChallenge):
         :param request:
         :return:
         """
-        data = request.form or request.get_json()
+        from CTFd.utils.scoring import lock_challenge
+        from CTFd.utils.validators.scoring import validate_score_fields
+
+        if commit:
+            challenge = lock_challenge(challenge.id)
+        data = dict(request.form or request.get_json())
+        validate_score_fields(data)
+        data.update(dynamic_config(data, challenge))
 
         for attr, value in data.items():
-            # We need to set these to floats so that the next operations don't operate on strings
-            if attr in ("initial", "minimum", "decay"):
-                value = float(value)
+            # Type transitions are handled by the API with the child table.
+            if attr == "type":
+                continue
             setattr(challenge, attr, value)
 
-        return DynamicValueChallenge.calculate_value(challenge)
+        DynamicValueChallenge.calculate_value(challenge, commit=False)
+        if commit:
+            db.session.commit()
+        return challenge
 
     @classmethod
     def solve(cls, user, team, challenge, request):
-        super().solve(user, team, challenge, request)
-
-        DynamicValueChallenge.calculate_value(challenge)
+        return super().solve(user, team, challenge, request)
 
 
 def load(app):

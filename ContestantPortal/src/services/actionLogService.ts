@@ -1,31 +1,15 @@
 import { API_ENDPOINTS } from '../config/endpoints';
 import { fetchWithAuth } from './api';
-import type { ActionType } from '../constants/ActionLogConstant';
 import type { ActionLogResponse } from '../models';
 
 class ActionLogService {
-  async logAction(actionType: ActionType, actionDetail: string, challengeId?: number) {
+  async getTeamActionLogs(page = 1, pageSize = 10, q = '', actionType?: number, topic?: string): Promise<ActionLogResponse> {
     try {
-      const response = await fetchWithAuth(API_ENDPOINTS.ACTION_LOGS.POST, {
-        method: 'POST',
-        body: JSON.stringify({
-          actionType,
-          actionDetail,
-          challenge_id: challengeId,
-        }),
-      });
-      
-      const data = await response.json();
-      return data;
-    } catch (error) {
-      console.error('Error logging user action:', error);
-      return null;
-    }
-  }
-
-  async getTeamActionLogs(): Promise<ActionLogResponse> {
-    try {
-      const response = await fetchWithAuth(API_ENDPOINTS.ACTION_LOGS.GET, {
+      const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+      if (q.trim()) params.set('q', q.trim());
+      if (actionType !== undefined) params.set('actionType', String(actionType));
+      if (topic !== undefined) params.set('topic', topic);
+      const response = await fetchWithAuth(`${API_ENDPOINTS.ACTION_LOGS.GET}?${params}`, {
         method: 'GET',
       });
       

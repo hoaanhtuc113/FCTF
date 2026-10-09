@@ -21,6 +21,7 @@ import { FaTrophy } from 'react-icons/fa';
 import Swal from '../services/safeSwal';
 import { useTheme } from '../context/ThemeContext';
 import { fetchWithAuth } from '../services/api';
+import { authService } from '../services/authService';
 import { API_ENDPOINTS } from '../config/endpoints';
 
 interface UserInfo {
@@ -230,20 +231,10 @@ export function Profile() {
       const data = await response.json();
 
       if (response.ok && data.message) {
-        showAlert('Password changed successfully!', 'success');
         setShowPasswordModal(false);
-        setPasswordData({
-          oldPassword: '',
-          newPassword: '',
-          confirmPassword: '',
-        });
-        setPasswordCriteria({
-          minLength: false,
-          uppercase: false,
-          lowercase: false,
-          number: false,
-          specialChar: false,
-        });
+        authService.clearSession();
+        await showAlert('Password changed successfully. Please log in again.', 'success');
+        window.location.replace('/login');
       } else {
         showAlert(data.message || 'Failed to change password.', 'error');
       }
@@ -260,7 +251,7 @@ export function Profile() {
     const color = icon === 'success' ? 'text-green-400' : icon === 'error' ? 'text-red-400' : 'text-orange-400';
     const borderColor = icon === 'success' ? 'border-green-500/30' : icon === 'error' ? 'border-red-500/30' : 'border-orange-500/30';
 
-    Swal.fire({
+    return Swal.fire({
       html: `
         <div class="font-mono text-left text-sm">
           <div class="${color} mb-2">${prefix} ${message}</div>

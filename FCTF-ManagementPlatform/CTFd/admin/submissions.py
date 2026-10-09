@@ -55,6 +55,9 @@ def submissions_listing(submission_type):
     )
 
     # Apply additional filters
+    for key, value in (("team_id", team_filter), ("user_id", user_filter), ("challenge_id", challenge_filter)):
+        if value and (len(value) > 10 or not value.isdecimal() or not 0 < int(value) <= 2147483647):
+            return jsonify(success=False, errors={key: ["Must be a positive integer"]}), 400
     if team_filter:
         filters.append(Submissions.team_id == int(team_filter))
     if user_filter:

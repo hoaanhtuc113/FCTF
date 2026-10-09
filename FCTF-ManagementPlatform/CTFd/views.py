@@ -500,6 +500,9 @@ def files(path):
     :return:
     """
     f = Files.query.filter_by(location=path).first_or_404()
+    # A broken type must never bypass the challenge-file visibility checks.
+    if f.type not in ("standard", "challenge"):
+        abort(404)
     if f.type == "challenge":
         if challenges_visible():
             if current_user.is_admin() is False:

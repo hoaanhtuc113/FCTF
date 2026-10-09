@@ -8,6 +8,8 @@ from CTFd.schemas.brackets import BracketSchema
 from CTFd.utils.decorators import admins_only
 from CTFd.utils.helpers.models import build_model_filters
 from CTFd.utils.logging.audit_logger import log_audit
+from CTFd.utils.user import is_admin
+from sqlalchemy import func
 
 brackets_namespace = Namespace("brackets", description="Endpoint to retrieve Brackets")
 
@@ -35,7 +37,11 @@ class BracketList(Resource):
         field = str(query_args.pop("field", None))
         filters = build_model_filters(model=Brackets, query=q, field=field)
 
-        brackets = Brackets.query.filter_by(**query_args).filter(*filters).all()
+        query = Brackets.query.filter_by(**query_args).filter(*filters)
+        if not is_admin():
+            query = query.filter(Brackets.type.in_(("users", "teams")),
+                                 Brackets.name.isnot(None), func.trim(Brackets.name) != "")
+        brackets = query.order_by(Brackets.id).all()
         schema = BracketSchema(many=True)
         response = schema.dump(brackets)
         if response.errors:
@@ -45,6 +51,8 @@ class BracketList(Resource):
     @admins_only
     def post(self):
         req = request.get_json()
+        if not isinstance(req, dict):
+            return {"success": False, "errors": {"_schema": ["Expected a JSON object"]}}, 400
         schema = BracketSchema()
         response = schema.load(req, session=db.session)
 
@@ -82,11 +90,13 @@ class Bracket(Resource):
             "type": bracket.type,
         }
 
-        schema = BracketSchema()
+        schema = BracketSchema(instance=bracket, partial=True)
 
         req = request.get_json()
+        if not isinstance(req, dict):
+            return {"success": False, "errors": {"_schema": ["Expected a JSON object"]}}, 400
 
-        response = schema.load(req, session=db.session, instance=bracket)
+        response = schema.load(req, session=db.session)
         if response.errors:
             return {"success": False, "errors": response.errors}, 400
 

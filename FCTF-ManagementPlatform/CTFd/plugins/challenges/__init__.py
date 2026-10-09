@@ -1,5 +1,6 @@
 from flask import Blueprint, jsonify, session
 import json
+from sqlalchemy.exc import IntegrityError
 
 from CTFd.models import (
     ChallengeFiles,
@@ -12,9 +13,10 @@ from CTFd.models import (
     db,
 )
 from CTFd.plugins import register_plugin_assets_directory
-from CTFd.plugins.flags import FlagException, get_flag_class
+from CTFd.plugins.flags import FlagException, FlagErrorMessage, get_flag_class
 from CTFd.utils.uploads import delete_file
 from CTFd.utils.user import get_ip
+from CTFd.utils.validators.scoring import score_integer, validate_score_fields
 
 
 class BaseChallenge(object):
@@ -34,6 +36,8 @@ class BaseChallenge(object):
         """
         data = request.form or request.get_json()
         data = dict(data)
+        validate_score_fields(data, dynamic=cls.id == "dynamic")
+        data["time_limit"] = score_integer(data.get("time_limit"), "time_limit", minimum=-1)
         for key in ("cpu_limit", "cpu_request", "memory_limit", "memory_request", "max_deploy_count"):
             if key in data and data[key] is not None:
                 try:
@@ -100,7 +104,7 @@ class BaseChallenge(object):
         return data
 
     @classmethod
-    def update(cls, challenge, request):
+    def update(cls, challenge, request, commit=True):
         """
         This method is used to update the information associated with a challenge. This should be kept strictly to the
         Challenges table and any child tables.
@@ -111,6 +115,12 @@ class BaseChallenge(object):
         """
         data = request.form or request.get_json()
         data = dict(data)
+        validate_score_fields(data, dynamic=False)
+        if "time_limit" in data:
+            data["time_limit"] = score_integer(data["time_limit"], "time_limit", minimum=-1)
+        if commit:
+            from CTFd.utils.scoring import lock_challenge
+            challenge = lock_challenge(challenge.id)
 
         for key in ("cpu_limit", "cpu_request", "memory_limit", "memory_request", "max_deploy_count"):
             if key in data and data[key] is not None:
@@ -168,14 +178,18 @@ class BaseChallenge(object):
         if "time_limit" in data:
             if int(data["time_limit"]) >= -1:
                 for attr, value in data.items():
-                    setattr(challenge, attr, value)
-                db.session.commit()
+                    if attr != "type":
+                        setattr(challenge, attr, value)
+                if commit:
+                    db.session.commit()
             else:
                 return jsonify({"error": "Time limit must be greater than -1"}), 400
         else:
             for attr, value in data.items():
-                setattr(challenge, attr, value)
-            db.session.commit()
+                if attr != "type":
+                    setattr(challenge, attr, value)
+            if commit:
+                db.session.commit()
 
         return challenge
 
@@ -215,12 +229,15 @@ class BaseChallenge(object):
         data = request.form or request.get_json()
         submission = data["submission"].strip()
         flags = Flags.query.filter_by(challenge_id=challenge.id).all()
+        configuration_error = None
         for flag in flags:
             try:
                 if get_flag_class(flag.type).compare(flag, submission):
                     return True, "Correct"
             except FlagException as e:
-                return False, str(e)
+                configuration_error = FlagErrorMessage(str(e))
+        if configuration_error is not None:
+            return False, configuration_error
         return False, "Incorrect"
 
     @classmethod
@@ -242,8 +259,29 @@ class BaseChallenge(object):
             ip=get_ip(req=request),
             provided=submission,
         )
-        db.session.add(solve)
-        db.session.commit()
+        from CTFd.utils.scoring import existing_solve, lock_challenge, recalculate, validate_solve_account
+
+        try:
+            challenge = lock_challenge(challenge.id)
+            if challenge.type != "dynamic":
+                score_integer(challenge.value)
+            validate_solve_account(solve)
+            if existing_solve(solve):
+                db.session.rollback()
+                return False
+            db.session.add(solve)
+            db.session.flush()
+            recalculate(challenge)
+            db.session.commit()
+            return True
+        except IntegrityError:
+            db.session.rollback()
+            if existing_solve(solve):
+                return False
+            raise
+        except Exception:
+            db.session.rollback()
+            raise
 
     @classmethod
     def fail(cls, user, team, challenge, request):
@@ -290,7 +328,7 @@ class CTFdStandardChallenge(BaseChallenge):
     challenge_model = Challenges
 
 
-def get_chal_class(class_id):
+def get_chal_class(class_id, challenge_id=None):
     """
     Utility function used to get the corresponding class from a class ID.
 
@@ -300,6 +338,11 @@ def get_chal_class(class_id):
     cls = CHALLENGE_CLASSES.get(class_id)
     if cls is None:
         raise KeyError
+    if challenge_id is not None:
+        from CTFd.utils.validators.model_types import missing_challenge_type_data
+
+        if missing_challenge_type_data(class_id, challenge_id):
+            raise KeyError("Missing challenge type data")
     return cls
 
 

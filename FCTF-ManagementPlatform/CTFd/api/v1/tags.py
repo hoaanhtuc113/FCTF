@@ -87,6 +87,8 @@ class TagList(Resource):
     )
     def post(self):
         req = request.get_json()
+        if not isinstance(req, dict):
+            return {"success": False, "errors": {"_schema": ["Expected a JSON object"]}}, 400
         schema = TagSchema()
         response = schema.load(req, session=db.session)
 
@@ -159,6 +161,8 @@ class Tag(Resource):
         tag = Tags.query.filter_by(id=tag_id).first_or_404()
         schema = TagSchema()
         req = request.get_json()
+        if not isinstance(req, dict):
+            return {"success": False, "errors": {"_schema": ["Expected a JSON object"]}}, 400
 
         before_state = {"tag_id": tag.id, "challenge_id": tag.challenge_id, "value": tag.value}
 

@@ -34,6 +34,13 @@ def logout_user():
     session.clear()
 
 
+def revoke_user_tokens(user_ids):
+    """Revoke access tokens in the caller's password-change transaction."""
+    return UserTokens.query.filter(UserTokens.user_id.in_(user_ids)).delete(
+        synchronize_session=False
+    )
+
+
 def generate_user_token(user, expiration=None, description=None):
     temp_token = True
     while temp_token is not None:

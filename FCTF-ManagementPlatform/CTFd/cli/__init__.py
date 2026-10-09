@@ -90,3 +90,7 @@ def import_ctf(path, delete_import_on_finish=False):
     if delete_import_on_finish:
         print(f"Deleting {path}")
         Path(path).unlink()
+
+
+# Register maintenance commands after the shared CLI blueprint is defined.
+from CTFd.cli import model_types  # noqa: E402,F401
