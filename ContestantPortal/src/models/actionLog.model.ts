@@ -12,6 +12,8 @@ export interface ActionLogResponse {
   success: boolean;
   data: ActionLog[];
   message?: string;
+  topics?: string[];
+  meta?: { pagination: { page: number; per_page: number; total: number; pages: number } };
 }
 
 export const ACTION_TYPE_LABELS: Record<number, string> = {

@@ -14,8 +14,9 @@ import (
 
 // Payload is the decoded content of a challenge access token.
 type Payload struct {
-	Exp   int64  `json:"exp"`
-	Route string `json:"route"`
+	Exp           int64  `json:"exp"`
+	Route         string `json:"route"`
+	DeploymentKey string `json:"deployment_key"`
 }
 
 // Verify parses and validates a token string, returning its payload on success.
@@ -60,7 +61,7 @@ func Verify(token string) (Payload, error) {
 		return Payload{}, fmt.Errorf("invalid payload content")
 	}
 
-	if time.Now().Unix() > payload.Exp {
+	if time.Now().Unix() >= payload.Exp {
 		nowStr := time.Now().Format("2006-01-02 15:04:05")
 		expStr := time.Unix(payload.Exp, 0).Format("2006-01-02 15:04:05")
 		return Payload{}, fmt.Errorf("token expired (Exp: %s, Server: %s)", expStr, nowStr)

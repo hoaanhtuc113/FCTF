@@ -158,6 +158,7 @@ app.UseOutputCache();
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseMiddleware<TokenAuthenticationMiddleware>();
+app.UseMiddleware<SensitiveRateLimitMiddleware>();
 app.MapHealthChecks("/healthcheck");
 app.MapHealthChecks("/healthz");
 app.MapControllers();

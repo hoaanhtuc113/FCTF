@@ -140,3 +140,18 @@ ctf-directory/*
 FCTF-ManagementPlatform/data/*
 
 .claude/*
+
+# Local planning, analysis, and diagnostic artifacts
+.specify/
+.understand-anything/
+fix.md
+LivePodLogs.md
+log_pod.md
+request_log.md
+/tmp/
+/single_pod.md
+.agents/
+
+# Local regression-test reports; keep the shared test runner instructions
+/Test/Auth/*.md
+!/Test/Auth/README.md

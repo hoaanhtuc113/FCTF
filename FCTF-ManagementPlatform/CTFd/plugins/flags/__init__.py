@@ -1,6 +1,7 @@
 import re
 
 from CTFd.plugins import register_plugin_assets_directory
+from CTFd.utils.validators.flags import validate_flag_content
 
 
 class FlagException(Exception):
@@ -9,6 +10,17 @@ class FlagException(Exception):
 
     def __str__(self):
         return self.message
+
+
+class FlagErrorMessage(str):
+    """Configuration error, which must not consume a contestant attempt."""
+
+
+def validate_saved_flag(flag):
+    try:
+        validate_flag_content(flag.type, flag.content, flag.data)
+    except ValueError as error:
+        raise FlagException("Flag configuration is invalid. Please contact an administrator.") from error
 
 
 class BaseFlag(object):
@@ -29,6 +41,7 @@ class CTFdStaticFlag(BaseFlag):
 
     @staticmethod
     def compare(chal_key_obj, provided):
+        validate_saved_flag(chal_key_obj)
         saved = chal_key_obj.content
         data = chal_key_obj.data
 
@@ -54,6 +67,7 @@ class CTFdRegexFlag(BaseFlag):
 
     @staticmethod
     def compare(chal_key_obj, provided):
+        validate_saved_flag(chal_key_obj)
         saved = chal_key_obj.content
         data = chal_key_obj.data
 
@@ -75,7 +89,7 @@ FLAG_CLASSES = {"static": CTFdStaticFlag, "regex": CTFdRegexFlag}
 def get_flag_class(class_id):
     cls = FLAG_CLASSES.get(class_id)
     if cls is None:
-        raise KeyError
+        raise FlagException("Flag type is unavailable. Please contact an administrator.")
     return cls
 
 

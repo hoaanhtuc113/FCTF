@@ -66,7 +66,15 @@ function deleteSelectedUsers(_event) {
   });
 }
 
-async function exportUsers(includePasswords = false) {
+async function exportUsers(includePasswords = false, confirmed = false) {
+  if (includePasswords && !confirmed) {
+    ezQuery({
+      title: "Reset user passwords",
+      body: "Reset passwords for the users matching the current filter and download their new passwords? Their current sessions will end.",
+      success: () => exportUsers(true, true),
+    });
+    return;
+  }
   const exportBtn = $("#export-btn");
   const originalText = exportBtn.text();
   
@@ -88,15 +96,14 @@ async function exportUsers(includePasswords = false) {
     let url = "/admin/export/csv/user";
     const params = new URLSearchParams();
     
-    if (includePasswords) {
-      params.append('include_passwords', '1');
-    }
     if (field && q) {
       params.append('field', field);
       params.append('q', q);
     }
     
-    if (params.toString()) {
+    if (includePasswords) {
+      url = "/admin/users/reset-passwords";
+    } else if (params.toString()) {
       url += '?' + params.toString();
     }
     
@@ -112,8 +119,9 @@ async function exportUsers(includePasswords = false) {
 
     // Gọi API backend
     const response = await CTFd.fetch(url, {
-      method: "GET",
+      method: includePasswords ? "POST" : "GET",
       credentials: "same-origin",
+      ...(includePasswords ? { body: JSON.stringify(Object.fromEntries(params)) } : {}),
     });
 
     if (!response.ok) {

@@ -41,6 +41,8 @@ def validate_args(spec, location):
         @wraps(func)
         def wrapper(*args, **kwargs):
             data = ARG_LOCATIONS[location]()
+            if location == "json" and not isinstance(data, dict):
+                return {"success": False, "errors": {"_schema": ["Expected a JSON object"]}}, 400
             try:
                 # Try to load data according to pydantic spec
                 loaded = spec(**data).dict(exclude_unset=True)

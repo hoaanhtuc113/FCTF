@@ -18,6 +18,16 @@ public class RedisHelper
         _cache = redisConnection.GetDatabase();
     }
 
+    // Shared with the Gateway. Keep the tombstone beyond the issued token lifetime.
+    // Throws on Redis failure: stop must not report success without revoking access.
+    public async Task RevokeGatewayRouteAsync(string? route, long expiresAt)
+    {
+        if (string.IsNullOrWhiteSpace(route)) return; // No token issued for a pending deployment.
+        var seconds = Math.Max(86400L, expiresAt - DateTimeOffset.UtcNow.ToUnixTimeSeconds() + 3600);
+        if (!await _cache.StringSetAsync("fctf:gateway:revoked:" + route, "1", TimeSpan.FromSeconds(seconds)))
+            throw new InvalidOperationException("Could not revoke Gateway session");
+    }
+
     // Phương thức để set object (phức tạp hơn string) vào cache
     public async Task<bool> SetCacheAsync<T>(string key, T value, TimeSpan? expiredTime = null)
     {
@@ -45,7 +55,7 @@ public class RedisHelper
     }
 
     // Phương thức để lấy object từ cache
-    public async Task<T?> GetFromCacheAsync<T>(string key)
+    public async Task<T?> GetFromCacheAsync<T>(string key, bool throwOnFailure = false)
     {
         try
         {
@@ -62,6 +72,7 @@ public class RedisHelper
         }
         catch (Exception)
         {
+            if (throwOnFailure) throw;
             // Nếu có lỗi, trả về giá trị mặc định
             return default;
         }
@@ -113,30 +124,38 @@ public class RedisHelper
             return false;
         }
     }
-    public List<string> GetKeysByPattern(string pattern)
+    public List<string> GetKeysByPattern(string pattern, bool throwOnFailure = false)
     {
         try
         {
             var keys = new HashSet<string>(StringComparer.Ordinal);
             var endpoints = _cache.Multiplexer.GetEndPoints();
+            var scanned = false;
 
             foreach (var endpoint in endpoints)
             {
                 var server = _cache.Multiplexer.GetServer(endpoint);
                 if (server.IsConnected)
                 {
+                    scanned = true;
                     // Use SCAN via server.Keys with page size to avoid blocking Redis
-                    foreach (var key in server.Keys(pattern: pattern, pageSize: RedisScanPageSize))
+                    foreach (var key in server.Keys(database: _cache.Database, pattern: pattern, pageSize: RedisScanPageSize))
                     {
                         keys.Add(key.ToString());
                     }
                 }
+                else if (throwOnFailure)
+                    throw new InvalidOperationException("Deployment cache server is unavailable");
             }
+
+            if (throwOnFailure && !scanned)
+                throw new InvalidOperationException("Deployment cache is unavailable");
 
             return keys.ToList();
         }
         catch (Exception)
         {
+            if (throwOnFailure) throw;
             // Nếu có lỗi, trả về danh sách rỗng
             return new List<string>();
         }
@@ -343,6 +362,21 @@ public class RedisHelper
                     local realTtl = tonumber(ARGV[3])
                     local deploymentValue = ARGV[4]
                     local teamId = tonumber(ARGV[5])
+
+                    -- A late Ready event must never revive a stopped route, including previews.
+                    if deploymentValue ~= '' then
+                        local incoming = cjson.decode(deploymentValue)
+                        if incoming.status == 'Running' then
+                            local raw = redis.call('GET', deploymentKey)
+                            if not raw then return 0 end
+                            local current = cjson.decode(raw)
+                            if current.status == 'Deleting' or current.status == 'Stopped' then return 0 end
+                            if incoming._namespace and incoming._namespace ~= '' then
+                                if redis.call('EXISTS', 'fctf:gateway:revoked:' .. incoming._namespace) == 1 then return 0 end
+                                if current._namespace and current._namespace ~= '' and current._namespace ~= incoming._namespace then return 0 end
+                            end
+                        end
+                    end
 
                     -- TRƯỜNG HỢP ĐẶC BIỆT: teamId <= 0 // Preview
                     -- Chỉ cần cập nhật deploymentKey, bỏ qua SAFETY CHECK và UPDATE SCORE

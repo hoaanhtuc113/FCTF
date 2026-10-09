@@ -104,8 +104,6 @@
     value="{{ challenge.kypo_config.kypo_access_token if challenge.kypo_config else '' }}">
 <input type="hidden" name="kypo_instance_type" id="kypo-instance-type-update"
     value="{{ challenge.kypo_config.kypo_instance_type if challenge.kypo_config else 'linear' }}">
-<input type="hidden" name="kypo_base_url" id="kypo-base-url-update"
-    value="{{ challenge.kypo_config.kypo_base_url if challenge.kypo_config else 'https://vuontre.iahn.hanoi.vn' }}">
 <input type="hidden" id="kypo-current-instance-id"
     value="{{ challenge.kypo_config.kypo_instance_id if challenge.kypo_config else '' }}">
 {% endblock %}

@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"challenge-gateway/internal/config"
+	"challenge-gateway/internal/token"
 )
 
 // RateLimiter decides whether a request identified by key should be allowed.
@@ -21,6 +22,7 @@ type ConnLimiter interface {
 
 // Set bundles all rate and connection limiters used by the gateways.
 type Set struct {
+	Access        token.AccessChecker
 	HTTPRate      RateLimiter
 	HTTPIPRate    RateLimiter
 	TCPRate       RateLimiter
@@ -37,6 +39,7 @@ func Init(cfg config.Config, redisClient RedisClient) (*Set, error) {
 	}
 
 	return &Set{
+		Access:        token.NewAccessChecker(redisClient),
 		HTTPRate:      newRedisRateLimiter(redisClient, cfg.HTTPRate, cfg.HTTPBurst, cfg.RedisKeyPrefix+":http:rl", cfg.RedisFailClosed),
 		HTTPIPRate:    newRedisRateLimiter(redisClient, cfg.HTTPIPRate, cfg.HTTPIPBurst, cfg.RedisKeyPrefix+":http:rl:ip", cfg.RedisFailClosed),
 		TCPRate:       newRedisRateLimiter(redisClient, cfg.TCPRate, cfg.TCPBurst, cfg.RedisKeyPrefix+":tcp:rl", cfg.RedisFailClosed),

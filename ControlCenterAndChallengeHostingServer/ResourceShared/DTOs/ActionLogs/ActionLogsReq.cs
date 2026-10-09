@@ -11,12 +11,12 @@ namespace ResourceShared.DTOs.ActionLogs
     public class ActionLogsReq
     {
         [Required(ErrorMessage = "ActionType is required")]
-        [Range(0, int.MaxValue, ErrorMessage = "ActionType must be greater or equal to 0")]
+        [Range(1, 7, ErrorMessage = "Unknown action type")]
         [JsonPropertyName("actionType")]
         public int ActionType { get; set; }
 
         [Required(ErrorMessage = "ActionDetail is required")]
-        [StringLength(500, MinimumLength = 1, ErrorMessage = "ActionDetail must be between 1 and 500 characters")]
+        [StringLength(255, MinimumLength = 1, ErrorMessage = "ActionDetail must be between 1 and 255 characters")]
         [JsonPropertyName("actionDetail")]
         public string ActionDetail { get; set; } = string.Empty;
 

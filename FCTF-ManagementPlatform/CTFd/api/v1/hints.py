@@ -92,9 +92,8 @@ class HintList(Resource):
     )
     def post(self):
         req = request.get_json()
-        cost = req.get("cost")
-        if cost is not None and cost < 0:
-            return {"success": False, "errors": {"cost": ["Cost must be a positive number"]}}, 400
+        if not isinstance(req, dict):
+            return {"success": False, "errors": {"_schema": ["Expected a JSON object"]}}, 400
         schema = HintSchema(view="admin")
         response = schema.load(req, session=db.session)
 
@@ -237,9 +236,8 @@ class Hint(Resource):
         hint = Hints.query.filter_by(id=hint_id).first_or_404()
         req = request.get_json()
 
-        cost = req.get("cost")
-        if cost is not None and cost < 0:
-            return {"success": False, "errors": {"cost": ["Cost must be a positive number"]}}, 400
+        if not isinstance(req, dict):
+            return {"success": False, "errors": {"_schema": ["Expected a JSON object"]}}, 400
 
         before_state = {
             "challenge_id": hint.challenge_id,

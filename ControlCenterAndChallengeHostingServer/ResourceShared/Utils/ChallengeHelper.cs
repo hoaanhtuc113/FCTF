@@ -92,12 +92,14 @@ namespace ResourceShared.Utils
 
         public static string GenerateChallengeToken(
             string routeInfo,
-            DateTimeOffset expiryUtc)
+            DateTimeOffset expiryUtc,
+            string deploymentKey)
         {
             var payload = new
             {
                 exp = expiryUtc.ToUnixTimeSeconds(),
-                route = routeInfo
+                route = routeInfo,
+                deployment_key = deploymentKey
             };
 
             var payloadJson = JsonSerializer.Serialize(payload);
@@ -254,6 +256,7 @@ namespace ResourceShared.Utils
         public static async Task<AttemptDTO> Attempt(AppDbContext db, Challenge challenge, ChallengeAttemptRequest request)
         {
             var flags = await db.Flags.Where(f => f.ChallengeId == challenge.Id).ToListAsync();
+            string? configurationError = null;
             foreach (var flag in flags)
             {
                 try
@@ -269,28 +272,27 @@ namespace ResourceShared.Utils
                 }
                 catch (FlagException e)
                 {
-                    return new AttemptDTO
-                    {
-                        status = false,
-                        message = e.Message
-                    };
+                    configurationError = e.Message;
                 }
             }
             return new AttemptDTO
             {
                 status = false,
-                message = "Incorrect"
+                configuration_error = configurationError != null,
+                message = configurationError ?? "Incorrect"
             };
         }
 
         private static bool Compare(Flag flag, string provided)
         {
+            if (string.IsNullOrWhiteSpace(flag.Content))
+                throw new FlagException("Flag configuration is invalid. Please contact an administrator.");
 
-            if (flag.Type.Equals("static", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(flag.Type, "static", StringComparison.OrdinalIgnoreCase))
             {
                 return CompareStatic(flag, provided);
             }
-            else if (flag.Type.Equals("regex", StringComparison.OrdinalIgnoreCase))
+            else if (string.Equals(flag.Type, "regex", StringComparison.OrdinalIgnoreCase))
             {
                 try
                 {
@@ -304,7 +306,7 @@ namespace ResourceShared.Utils
             }
             else
             {
-                throw new ArgumentException($"Unknown flag type: {flag.Type}");
+                throw new FlagException("Flag type is unavailable. Please contact an administrator.");
             }
         }
 

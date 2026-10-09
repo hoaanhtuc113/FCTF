@@ -9,6 +9,8 @@ from CTFd.utils import get_config, string_types
 from CTFd.utils.crypto import verify_password
 from CTFd.utils.user import get_current_team, get_current_user, is_admin
 from CTFd.utils.validators import validate_country_code
+from CTFd.utils.validators.accounts import validate_nonempty_password
+from CTFd.utils.validators.references import reference
 
 
 class TeamSchema(ma.ModelSchema):
@@ -33,7 +35,8 @@ class TeamSchema(ma.ModelSchema):
         allow_none=False,
         validate=validate.Email("Emails must be a properly formatted email address"),
     )
-    password = field_for(Teams, "password", required=True, allow_none=False)
+    password = field_for(Teams, "password", required=True, allow_none=False,
+                         validate=validate_nonempty_password)
     website = field_for(
         Teams,
         "website",
@@ -168,18 +171,17 @@ class TeamSchema(ma.ModelSchema):
 
     @pre_load
     def validate_captain_id(self, data):
+        reference(data, "captain_id", Users, nullable=True)
         captain_id = data.get("captain_id")
         if captain_id is None:
             return
 
         if is_admin():
-            team_id = data.get("id")
-            if team_id:
-                target_team = Teams.query.filter_by(id=team_id).first()
-            else:
-                target_team = get_current_team()
+            target_team = self.instance
             captain = Users.query.filter_by(id=captain_id).first()
-            if captain in target_team.members:
+            if target_team is None and captain.team_id is None:
+                return
+            if target_team is not None and captain in target_team.members:
                 return
             else:
                 raise ValidationError("Invalid Captain ID", field_names=["captain_id"])

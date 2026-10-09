@@ -17,6 +17,7 @@ interface ChallengeInstance {
   challenge_url: string;
   ready: boolean;
   age: string;
+  expires_at?: number | null;
 }
 
 export function Instances() {
@@ -289,7 +290,7 @@ export function Instances() {
                 <th className="text-left py-3 px-2 font-mono" style={{ width: '8%' }}>Cat</th>
                 <th className="text-left py-3 px-2 font-mono" style={{ width: '8%' }}>Status</th>
                 <th className="text-left py-3 px-3 font-mono" style={{ width: '35%' }}>Your Access Token</th>
-                <th className="text-left py-3 px-2 font-mono" style={{ width: '12%' }}>Age</th>
+                <th className="text-left py-3 px-2 font-mono" style={{ width: '12%' }}>Expires at</th>
                 <th className="text-right py-3 px-2 font-mono" style={{ width: '17%' }}>Actions</th>
               </tr>
             </thead>
@@ -354,7 +355,9 @@ export function Instances() {
                         </span>
                       )}
                     </td>
-                    <td className="py-3 px-2 text-xs" style={{ width: '12%' }}>{parseUnixTimeToDate(instance.age)}</td>
+                    <td className="py-3 px-2 text-xs" style={{ width: '12%' }}>{parseUnixTimeToDate(
+                      instance.expires_at === undefined ? instance.age : String(instance.expires_at ?? 0)
+                    )}</td>
                     <td className="py-3 px-2" style={{ width: '17%' }}>
                       <div className="flex justify-end gap-1">
                         <button

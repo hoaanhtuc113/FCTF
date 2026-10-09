@@ -5,6 +5,7 @@ import MarkdownIt from "markdown-it";
 import "./patch";
 import fetch from "./fetch";
 import config from "./config";
+import { installJQueryNonce } from "./csp";
 import API from "./api";
 import ezq from "./ezq";
 import { htmlEntities, createHtmlNode } from "@ctfdio/ctfd-js/utils/html";
@@ -31,6 +32,7 @@ const init = (data) => {
 
   config.urlRoot = data.urlRoot || config.urlRoot;
   config.csrfNonce = data.csrfNonce || config.csrfNonce;
+  installJQueryNonce($, config.csrfNonce);
   config.userMode = data.userMode || config.userMode;
   api.domain = config.urlRoot + "/api/v1";
   user.id = data.userId;

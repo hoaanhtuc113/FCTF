@@ -8,6 +8,8 @@ import requests  # noqa: I001
 from flask import abort, jsonify, render_template, request, session, url_for
 from flask_restx import Namespace, Resource
 import redis
+from marshmallow import ValidationError
+from CTFd.plugins.sandbox_challenges.validation import KypoUnavailable
 from CTFd.StartChallenge import create_secret_key, generate_cache_key
 from CTFd.constants.envvars import API_URL_CONTROLSERVER, HOST_CACHE, PRIVATE_KEY, get_redis_client_kwargs
 from sqlalchemy.sql import and_
@@ -32,6 +34,10 @@ from CTFd.models import Fails, Flags, Hints, HintUnlocks, Solves, Submissions, T
 from CTFd.plugins.challenges import CHALLENGE_CLASSES, get_chal_class
 from CTFd.plugins.dynamic_challenges import DynamicChallenge
 from CTFd.schemas.challenges import ChallengeSchema
+from CTFd.utils.scoring import lock_challenge
+from CTFd.utils.validators.scoring import dynamic_config, ScoringValidationError
+from CTFd.utils.validators.attempts import validate_attempt_input
+from CTFd.plugins.flags import FlagErrorMessage
 from CTFd.schemas.flags import FlagSchema
 from CTFd.schemas.hints import HintSchema
 from CTFd.schemas.tags import TagSchema
@@ -83,6 +89,7 @@ from CTFd.utils.connector.multiservice_connector import (
     delete_cached_files,
 )
 from CTFd.utils.uploads import delete_folder
+from CTFd.utils.validators.model_types import missing_challenge_type_data
 
 challenges_namespace = Namespace(
     "challenges", description="Endpoint to retrieve Challenges"
@@ -230,7 +237,7 @@ class ChallengeList(Resource):
                     continue
 
             try:
-                challenge_type = get_chal_class(challenge.type)
+                challenge_type = get_chal_class(challenge.type, challenge_id=challenge.id)
             except KeyError:
                 # Challenge type does not exist. Fall through to next challenge.
                 continue
@@ -266,12 +273,18 @@ class ChallengeList(Resource):
         },
     )
     def post(self):
-        data = request.form or request.get_json()
+        data = request.form.to_dict() if request.form else request.get_json()
+        if not isinstance(data, dict):
+            return {"success": False, "errors": {"body": ["Expected an object"]}}, 400
 
         # Trim name and category fields
         if "name" in data:
+            if not isinstance(data["name"], str):
+                return {"success": False, "errors": {"name": ["Name must be a string"]}}, 400
             data["name"] = data["name"].strip()
         if "category" in data:
+            if not isinstance(data["category"], str):
+                return {"success": False, "errors": {"category": ["Category must be a string"]}}, 400
             data["category"] = data["category"].strip()
 
         # Validate name and category are not empty after trim
@@ -302,7 +315,17 @@ class ChallengeList(Resource):
 
         challenge_type = data["type"]
         challenge_class = get_chal_class(challenge_type)
-        challenge = challenge_class.create(request)
+        try:
+            challenge = challenge_class.create(request)
+        except ValidationError as error:
+            db.session.rollback()
+            errors = error.messages if isinstance(error.messages, dict) else {
+                field: error.messages for field in (error.field_names or ["_schema"])
+            }
+            return {"success": False, "errors": errors}, 400
+        except KypoUnavailable as error:
+            db.session.rollback()
+            return {"success": False, "errors": {"kypo_instance_id": [str(error)]}}, 503
         response = challenge_class.read(challenge)
 
         log_audit(
@@ -410,12 +433,9 @@ class Challenge(Resource):
             ).first_or_404()
 
         try:
-            chal_class = get_chal_class(chal.type)
+            chal_class = get_chal_class(chal.type, challenge_id=challenge_id)
         except KeyError:
-            abort(
-                500,
-                f"The underlying challenge type ({chal.type}) is not installed. This challenge can not be loaded.",
-            )
+            return {"success": False, "errors": {"type": ["Challenge type is unavailable; repair it first"]}}, 400
 
         if chal.requirements:
             requirements = chal.requirements.get("prerequisites", [])
@@ -575,6 +595,8 @@ class Challenge(Resource):
     )
     def patch(self, challenge_id):
         data = request.get_json()
+        if not isinstance(data, dict):
+            return {"success": False, "errors": {"_schema": ["Expected a JSON object"]}}, 400
         # Normalize difficulty: empty string → None so schema validation passes
         if "difficulty" in data:
             diff_val = data["difficulty"]
@@ -643,6 +665,31 @@ class Challenge(Resource):
         else:
             return {"success": False, "error": "Unauthorized user type."}, 403
 
+        if scoringType is not None and scoringType not in ("standard", "dynamic"):
+            return {"success": False, "errors": {"type": ["Unknown scoring type"]}}, 400
+        requested_type = data.get("type", challenge.type)
+        if requested_type != challenge.type and not (
+            {challenge.type, requested_type} == {"standard", "dynamic"}
+            and scoringType == requested_type
+        ):
+            return {
+                "success": False,
+                "errors": {"type": ["Use the supported scoring conversion to change challenge type"]},
+            }, 400
+        if challenge.type not in CHALLENGE_CLASSES or missing_challenge_type_data(challenge.type, challenge_id):
+            return {
+                "success": False,
+                "errors": {"type": ["Stored challenge type is unavailable; repair it first"]},
+            }, 400
+
+        challenge = lock_challenge(challenge_id)
+        try:
+            if (scoringType or challenge.type) == "dynamic":
+                config = dynamic_config(data, challenge if challenge.type == "dynamic" else None)
+        except ScoringValidationError as error:
+            db.session.rollback()
+            return {"success": False, "errors": error.errors}, 400
+
         if scoringType == "standard" and challenge.type == "dynamic":
             # Converting from dynamic to standard
             from sqlalchemy import text
@@ -652,7 +699,7 @@ class Challenge(Resource):
             )
             
             challenge.type = "standard"
-            db.session.commit()
+            db.session.flush()
             db.session.expunge_all()
             challenge = Challenges.query.filter_by(id=challenge_id).first()
             
@@ -661,10 +708,10 @@ class Challenge(Resource):
             challenge.type = "dynamic"
             db.session.flush()
 
-            initial = int(data.get("initial", 100))
-            minimum = int(data.get("minimum", 10))
-            decay = int(data.get("decay", 50))
-            function = data.get("function", "logarithmic")
+            initial = config["initial"]
+            minimum = config["minimum"]
+            decay = config["decay"]
+            function = config["function"]
             
             from sqlalchemy import text
             db.session.execute(
@@ -680,12 +727,32 @@ class Challenge(Resource):
                     "function": function
                 }
             )
-            db.session.commit()
+            db.session.flush()
             db.session.expunge_all()
             challenge = Challenges.query.filter_by(id=challenge_id).first()
 
         challenge_class = get_chal_class(challenge.type)
-        challenge = challenge_class.update(challenge, request)
+        try:
+            if challenge.type in ("standard", "dynamic"):
+                challenge = challenge_class.update(challenge, request, commit=False)
+                db.session.commit()
+            else:
+                challenge = challenge_class.update(challenge, request)
+        except ScoringValidationError as error:
+            db.session.rollback()
+            return {"success": False, "errors": error.errors}, 400
+        except ValidationError as error:
+            db.session.rollback()
+            errors = error.messages if isinstance(error.messages, dict) else {
+                field: error.messages for field in (error.field_names or ["_schema"])
+            }
+            return {"success": False, "errors": errors}, 400
+        except KypoUnavailable as error:
+            db.session.rollback()
+            return {"success": False, "errors": {"kypo_instance_id": [str(error)]}}, 503
+        except Exception:
+            db.session.rollback()
+            raise
         
         is_hiding = data.get("state") == "hidden" and before_state["state"] != "hidden"
         if is_hiding:
@@ -764,6 +831,8 @@ class Challenge(Resource):
     )
     def delete(self, challenge_id):
         challenge = Challenges.query.filter_by(id=challenge_id).first_or_404()
+        if challenge.type not in CHALLENGE_CLASSES or missing_challenge_type_data(challenge.type, challenge_id):
+            return {"success": False, "errors": {"type": ["Stored challenge type is unavailable; repair it first"]}}, 400
 
         DeployedChallenge.query.filter_by(challenge_id=challenge_id).delete()
         
@@ -865,9 +934,12 @@ class ChallengeAttempt(Resource):
         else:
             request_data = request.form
 
-        challenge_id = request_data.get("challengeId") or request_data.get(
-            "challenge_id"
-        )
+        try:
+            challenge_id = validate_attempt_input(request_data)
+        except ScoringValidationError as error:
+            return {"success": False, "errors": error.errors, "data": {
+                "status": "invalid", "message": str(error),
+            }}, 400
 
         # Kiểm tra nếu dữ liệu cache không tồn tại
         token = Tokens.query.filter_by(value=auth_header).first()
@@ -904,8 +976,13 @@ class ChallengeAttempt(Resource):
             preview = request.args.get("preview", False)
             if preview:
                 challenge = Challenges.query.filter_by(id=challenge_id).first_or_404()
-                chal_class = get_chal_class(challenge.type)
+                try:
+                    chal_class = get_chal_class(challenge.type, challenge_id=challenge_id)
+                except KeyError:
+                    return {"success": False, "errors": {"type": ["Challenge type is unavailable"]}}, 400
                 status, message = chal_class.attempt(challenge, request)
+                if isinstance(message, FlagErrorMessage):
+                    return {"success": False, "data": {"status": "error", "message": message}}, 400
 
                 return {
                     "success": True,
@@ -1005,7 +1082,10 @@ class ChallengeAttempt(Resource):
             else:
                 abort(403)
 
-        chal_class = get_chal_class(challenge.type)
+        try:
+            chal_class = get_chal_class(challenge.type, challenge_id=challenge_id)
+        except KeyError:
+            return {"success": False, "errors": {"type": ["Challenge type is unavailable"]}}, 400
 
         # Anti-bruteforce / submitting Flags too quickly
         kpm = current_user.get_wrong_submissions_per_minute(user.account_id)
@@ -1054,6 +1134,8 @@ class ChallengeAttempt(Resource):
                 )
 
             status, message = chal_class.attempt(challenge, request)
+            if isinstance(message, FlagErrorMessage):
+                return {"success": False, "data": {"status": "error", "message": message}}, 400
 
             if status:
                 print("Print hello")
@@ -1063,9 +1145,18 @@ class ChallengeAttempt(Resource):
                     or current_user.is_challenge_writer()
                     or current_user.is_jury()
                 ):
-                    chal_class.solve(
-                        user=user, team=team, challenge=challenge, request=request
-                    )
+                    try:
+                        created = chal_class.solve(
+                            user=user, team=team, challenge=challenge, request=request
+                        )
+                    except ScoringValidationError as error:
+                        db.session.rollback()
+                        return {"success": False, "errors": error.errors}, 400
+                    if created is False:
+                        return {"success": True, "data": {
+                            "status": "already_solved",
+                            "message": "You or your teammate already solved this",
+                        }}
                     clear_standings()
                     clear_challenges()
 
@@ -1312,8 +1403,8 @@ class ChallengeRequirements(Resource):
 class ChallengeDeploy(Resource):
     @admin_or_challenge_writer_only_or_jury
     def get(self, challenge_id):
+        challenge = Challenges.query.filter_by(id=challenge_id).first_or_404()
         try:
-            challenge = Challenges.query.filter_by(id=challenge_id).first_or_404()
             if not challenge.require_deploy:
                 return {"success": False, "error": "Challenge does not require deployment"}, 400
             
@@ -1485,4 +1576,3 @@ class ChallengeVersionRollback(Resource):
         except Exception as e:
             db.session.rollback()
             return {"success": False, "message": f"Rollback failed: {str(e)}"}, 500
-

@@ -19,39 +19,31 @@ public class ActionLogsController : BaseController
     }
 
     [HttpPost("save-logs")]
-    public async Task<IActionResult> SaveActionLogs([FromBody] ActionLogsReq req)
+    public IActionResult SaveActionLogs([FromBody] ActionLogsReq req)
     {
-        var userId = UserContext.UserId;
-        try
-        {
-            var log = await _actionLogsServices.SaveActionLogs(req, userId);
-            return Ok(new { success = true, data = log });
-        }
-        catch (Exception ex)
-        {
-            await Console.Error.WriteLineAsync($"[ActionLog] Save failed: {ex.Message}");
-            return StatusCode(500, new { success = false, message = "Failed to save action log." });
-        }
+        return StatusCode(403, new { success = false, message = "Activity logs are recorded by server actions." });
     }
 
     [HttpGet("get-logs-team")]
-    public async Task<IActionResult> GetActionLogsTeam()
+    public async Task<IActionResult> GetActionLogsTeam([FromQuery] int page = 1,
+        [FromQuery(Name = "per_page")] int? perPage = null, [FromQuery] int? pageSize = null,
+        [FromQuery] string? q = null, [FromQuery] int? actionType = null, [FromQuery] string? topic = null)
     {
+        var size = perPage ?? pageSize ?? 50;
+        if (page < 1 || size < 1 || size > 100 || (long)(page - 1) * size > int.MaxValue
+            || (perPage.HasValue && pageSize.HasValue && perPage != pageSize)
+            || q?.Length > 200 || topic?.Length > 255 || actionType is < 1 or > 7)
+            return BadRequest(new { success = false, message = "Invalid pagination or filter" });
         var teamId = UserContext.TeamId;
-        var logs_with_details = await _actionLogsServices.GetActionLogsTeam(teamId);
-
-        if (logs_with_details == null || logs_with_details.Count == 0)
-        {
-            return Ok(new
-            {
-                success = false,
-                message = "No action logs found."
-            });
-        }
+        var result = await _actionLogsServices.GetActionLogsTeamPage(teamId, page, size, q, actionType, topic);
+        var pages = (result.Total + (long)size - 1) / size;
         return Ok(new
         {
             success = true,
-            data = logs_with_details
+            data = result.Logs,
+            topics = result.Topics,
+            meta = new { pagination = new { page, per_page = size, total = result.Total, pages,
+                next = page < pages ? (int?)page + 1 : null, prev = page > 1 ? (int?)page - 1 : null } }
         });
     }
 }

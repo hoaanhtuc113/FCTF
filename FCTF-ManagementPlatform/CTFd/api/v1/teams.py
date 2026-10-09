@@ -169,8 +169,20 @@ class TeamList(Resource):
         if response.errors:
             return {"success": False, "errors": response.errors}, 400
 
+        captain = None
+        if response.data.captain_id is not None:
+            captain = (Users.query.filter_by(id=response.data.captain_id)
+                       .populate_existing().with_for_update().first())
+            if captain is None or captain.team_id is not None:
+                db.session.rollback()
+                return {"success": False, "errors": {"captain_id": ["Captain must not belong to another team"]}}, 400
         db.session.add(response.data)
+        db.session.flush()
+        if captain is not None:
+            captain.team_id = response.data.id
         db.session.commit()
+        if captain is not None:
+            clear_user_session(user_id=captain.id)
 
         # ── Tạo Keycloak account cho team trên KYPO ──────────────────────
         team = response.data
@@ -671,6 +683,8 @@ class TeamMembers(Resource):
         team = Teams.query.filter_by(id=team_id).first_or_404()
 
         data = request.get_json()
+        if not isinstance(data, dict) or type(data.get("user_id")) is not int or data["user_id"] <= 0:
+            return {"success": False, "errors": {"user_id": ["A positive user_id is required"]}}, 400
         user_id = data["user_id"]
         user = Users.query.filter_by(id=user_id).first_or_404()
 

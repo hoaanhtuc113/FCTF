@@ -3,6 +3,7 @@ from collections import defaultdict
 
 from flask_marshmallow import Marshmallow
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import event
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import column_property, validates
@@ -11,6 +12,31 @@ from CTFd.cache import cache
 
 db = SQLAlchemy()
 ma = Marshmallow()
+
+
+class RecoverableType(db.TypeDecorator):
+    """Keep legacy NULL discriminators readable without changing stored data."""
+
+    impl = db.String
+    cache_ok = True
+
+    @property
+    def python_type(self):
+        return str
+
+    def process_result_value(self, value, dialect):
+        return value if value is not None else "__invalid__"
+
+
+class RecoverableTypeMap(dict):
+    """Load unknown legacy types as a base model, preserving the stored type."""
+
+    def __init__(self, fallback):
+        super().__init__()
+        self.fallback = fallback
+
+    def __missing__(self, key):
+        return self[self.fallback] if isinstance(self.fallback, str) else self.fallback
 
 
 def get_class_by_tablename(tablename):
@@ -62,7 +88,7 @@ class Challenges(db.Model):
     max_attempts = db.Column(db.Integer, default=0)
     value = db.Column(db.Integer)
     category = db.Column(db.String(80))
-    type = db.Column(db.String(80))
+    type = db.Column(RecoverableType(80))
     state = db.Column(db.String(80), nullable=False, default="visible")
     requirements = db.Column(db.JSON)
     time_limit = db.Column(db.Integer, nullable=True)
@@ -124,6 +150,18 @@ class Challenges(db.Model):
 
     def __init__(self, *args, **kwargs):
         super(Challenges, self).__init__(**kwargs)
+
+    @validates("type")
+    def validate_type(self, key, value):
+        from CTFd.utils.validators.model_types import require_supported_type
+
+        return require_supported_type("challenges", value)
+
+    @validates("value")
+    def validate_value(self, key, value):
+        from CTFd.utils.validators.scoring import score_integer
+
+        return score_integer(value)
 
     def __repr__(self):
         return "<Challenge %r>" % self.name
@@ -284,13 +322,16 @@ class Awards(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"))
     team_id = db.Column(db.Integer, db.ForeignKey("teams.id", ondelete="CASCADE"))
     type = db.Column(db.String(80), default="standard")
-    name = db.Column(db.String(80))
+    name = db.Column(db.String(80), nullable=False)
     description = db.Column(db.Text)
     date = db.Column(db.DateTime, default=datetime.datetime.utcnow)
     value = db.Column(db.Integer)
     category = db.Column(db.String(80))
     icon = db.Column(db.Text)
     requirements = db.Column(db.JSON)
+    # Nullable for historical rows and awards created by hint purchases.
+    request_key = db.Column(db.String(64), unique=True)
+    request_hash = db.Column(db.String(64))
 
     user = db.relationship("Users", foreign_keys="Awards.user_id", lazy="select")
     team = db.relationship("Teams", foreign_keys="Awards.team_id", lazy="select")
@@ -354,11 +395,21 @@ class ChallengeTopics(db.Model):
 class Files(db.Model):
     __tablename__ = "files"
     id = db.Column(db.Integer, primary_key=True)
-    type = db.Column(db.String(80), default="standard")
+    type = db.Column(RecoverableType(80), default="standard")
     location = db.Column(db.Text)
     sha1sum = db.Column(db.String(40))
 
-    __mapper_args__ = {"polymorphic_identity": "standard", "polymorphic_on": type}
+    __mapper_args__ = {
+        "polymorphic_identity": "standard",
+        "polymorphic_on": type,
+        "_polymorphic_map": RecoverableTypeMap("standard"),
+    }
+
+    @validates("type")
+    def validate_type(self, key, value):
+        from CTFd.utils.validators.model_types import require_supported_type
+
+        return require_supported_type("files", value)
 
     def __init__(self, *args, **kwargs):
         super(Files, self).__init__(**kwargs)
@@ -385,17 +436,47 @@ class Flags(db.Model):
     challenge_id = db.Column(
         db.Integer, db.ForeignKey("challenges.id", ondelete="CASCADE")
     )
-    type = db.Column(db.String(80))
+    type = db.Column(RecoverableType(80), default="static")
     content = db.Column(db.Text)
     data = db.Column(db.Text)
 
-    __mapper_args__ = {"polymorphic_on": type}
+    __mapper_args__ = {
+        "polymorphic_on": type,
+        "_polymorphic_map": RecoverableTypeMap(None),
+    }
+
+    @validates("type")
+    def validate_type(self, key, value):
+        from CTFd.utils.validators.model_types import require_supported_type
+
+        # SQLAlchemy initializes the base mapper with None before __init__.
+        # Explicit None assignments (after initialization) still fail below.
+        if value is None and self.__class__ is Flags and "type" not in self.__dict__:
+            return "static"
+        return require_supported_type("flags", value)
+
+    @validates("content")
+    def validate_content(self, key, value):
+        from CTFd.utils.validators.flags import validate_flag_content
+
+        # Validate syntax on the final tuple at flush, allowing a PATCH to
+        # change type and content together in either field order.
+        flag_type = "static" if self.type in ("static", "regex") else self.type
+        validate_flag_content(flag_type, value, self.data)
+        return value
 
     def __init__(self, *args, **kwargs):
         super(Flags, self).__init__(**kwargs)
 
     def __repr__(self):
         return "<Flag {0} for challenge {1}>".format(self.content, self.challenge_id)
+
+
+# Flags has no discriminator of its own. Use its mapper only to inspect legacy
+# rows, without inventing a flag type or selecting a comparison implementation.
+Flags.__mapper__.polymorphic_map.fallback = Flags.__mapper__
+
+
 class StaticFlag(Flags):
     __mapper_args__ = {
         "polymorphic_identity": "static"  # Identifies the 'static' type flag
@@ -406,6 +487,15 @@ class StaticFlag(Flags):
 
     def __repr__(self):
         return f"<StaticFlag {self.content} for challenge {self.challenge_id}>"
+
+
+@event.listens_for(Flags, "before_insert", propagate=True)
+@event.listens_for(Flags, "before_update", propagate=True)
+def validate_flag_before_write(mapper, connection, flag):
+    from CTFd.utils.validators.flags import validate_flag_content
+
+    validate_flag_content(flag.type, flag.content, flag.data)
+
 
 # Subclass for RegexFlag
 class RegexFlag(Flags):
@@ -470,15 +560,20 @@ class ActionLogs(db.Model):
 
 class Users(db.Model):
     __tablename__ = "users"
-    __table_args__ = (db.UniqueConstraint("id", "oauth_id"), {})
+    __table_args__ = (db.UniqueConstraint("id", "oauth_id"),
+                      db.UniqueConstraint("name_key", name="uq_users_name_key"), {})
     # Core attributes
     id = db.Column(db.Integer, primary_key=True)
     oauth_id = db.Column(db.Integer, unique=True)
-    # User names are not constrained to be unique to allow for official/unofficial teams.
     name = db.Column(db.String(128))
+    # Generated in the shared DB, so every writer (including ContestantBE)
+    # participates in the same case-insensitive uniqueness constraint.
+    name_key = db.Column(db.String(128).with_variant(
+        db.String(128, collation="utf8mb4_bin"), "mysql"),
+        db.Computed("lower(trim(name))", persisted=True))
     password = db.Column(db.String(128))
     email = db.Column(db.String(128), unique=True)
-    type = db.Column(db.String(80))
+    type = db.Column(RecoverableType(80))
     secret = db.Column(db.String(128))
 
     # Supplementary attributes
@@ -509,7 +604,17 @@ class Users(db.Model):
 
     created = db.Column(db.DateTime, default=datetime.datetime.utcnow)
 
-    __mapper_args__ = {"polymorphic_identity": "user", "polymorphic_on": type}
+    __mapper_args__ = {
+        "polymorphic_identity": "user",
+        "polymorphic_on": type,
+        "_polymorphic_map": RecoverableTypeMap("user"),
+    }
+
+    @validates("type")
+    def validate_type(self, key, value):
+        from CTFd.utils.validators.model_types import require_supported_type
+
+        return require_supported_type("users", value)
 
     def __init__(self, **kwargs):
         super(Users, self).__init__(**kwargs)
@@ -1035,7 +1140,7 @@ class Submissions(db.Model):
     team_id = db.Column(db.Integer, db.ForeignKey("teams.id", ondelete="CASCADE"))
     ip = db.Column(db.String(46))
     provided = db.Column(db.Text)
-    type = db.Column(db.String(32))
+    type = db.Column(RecoverableType(32))
     date = db.Column(db.DateTime, default=datetime.datetime.utcnow)
 
     # Relationships
@@ -1045,7 +1150,7 @@ class Submissions(db.Model):
         "Challenges", foreign_keys="Submissions.challenge_id", lazy="select"
     )
 
-    __mapper_args__ = {"polymorphic_on": type}
+    __mapper_args__ = {"polymorphic_on": type, "_polymorphic_map": RecoverableTypeMap(None)}
 
     @hybrid_property
     def account_id(self):
@@ -1077,6 +1182,9 @@ class Submissions(db.Model):
 
     def __repr__(self):
         return f"<Submission id={self.id}, challenge_id={self.challenge_id}, ip={self.ip}, provided={self.provided}>"
+
+
+Submissions.__mapper__.polymorphic_map.fallback = Submissions.__mapper__
 
 
 class Solves(Submissions):
@@ -1245,14 +1353,17 @@ class Fields(db.Model):
     __tablename__ = "fields"
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.Text)
-    type = db.Column(db.String(80), default="standard")
+    type = db.Column(RecoverableType(80), default="standard")
     field_type = db.Column(db.String(80))
     description = db.Column(db.Text)
     required = db.Column(db.Boolean, default=False)
     public = db.Column(db.Boolean, default=False)
     editable = db.Column(db.Boolean, default=False)
 
-    __mapper_args__ = {"polymorphic_identity": "standard", "polymorphic_on": type}
+    __mapper_args__ = {
+        "polymorphic_identity": "standard", "polymorphic_on": type,
+        "_polymorphic_map": RecoverableTypeMap("standard"),
+    }
 
 
 class UserFields(Fields):

@@ -162,6 +162,10 @@ func handleTCPConnection(clientConn net.Conn, authTimeout time.Duration, limiter
 	}
 
 	host := token.ExpandRoute(payload.Route)
+	if err := checkAccess(context.Background(), limiters, tok, payload); err != nil {
+		fmt.Fprintln(clientConn, "Challenge session is unavailable or has ended")
+		return
+	}
 	teamID, challengeID, ok := ParseTeamChallengeFromRoute(payload.Route)
 	if !ok {
 		teamID, challengeID, ok = ParseTeamChallengeFromRoute(host)
@@ -207,6 +211,7 @@ func handleTCPConnection(clientConn net.Conn, authTimeout time.Duration, limiter
 
 	expiryCtx, cancelExpiry := context.WithCancel(context.Background())
 	defer cancelExpiry()
+	go watchAccess(expiryCtx, limiters, tok, payload, func() { closeOnce.Do(closeAll) })
 	expiryTimer := time.NewTimer(untilExpiry)
 	defer func() {
 		if !expiryTimer.Stop() {

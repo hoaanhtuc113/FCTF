@@ -361,6 +361,9 @@ public class AuthService : IAuthService
                 return BaseResponseDTO<string>.Fail("Username, email, password, and confirm password are required");
             }
 
+            if (!InputValidation.IsPlainName(username))
+                return BaseResponseDTO<string>.Fail("Username cannot contain markup or control characters and must be at most 128 characters");
+
             if (!string.Equals(password, confirmPassword, StringComparison.Ordinal))
             {
                 return BaseResponseDTO<string>.Fail("Password confirmation does not match");
@@ -396,7 +399,7 @@ public class AuthService : IAuthService
 
             var usernameExists = await _context.Users
                 .AsNoTracking()
-                .AnyAsync(u => u.Name == username);
+                .AnyAsync(u => u.Name != null && u.Name.ToLower() == username.ToLower());
             if (usernameExists)
             {
                 return BaseResponseDTO<string>.Fail($"Username has already been taken: {username}");
@@ -725,7 +728,15 @@ public class AuthService : IAuthService
             // Hash new password (v2) and update
             user.Password = SHA256Helper.HashPasswordPythonStyle(changePasswordDto.newPassword);
 
+            // Save the password and revoke all access tokens in one transaction.
+            var existingTokens = await _context.Tokens
+                .Where(t => t.UserId == userId && t.Type == ResourceShared.Enums.UserType.User)
+                .ToListAsync();
+            _context.Tokens.RemoveRange(existingTokens);
             await _context.SaveChangesAsync();
+
+            // Middleware checks the DB even if this cache invalidation fails.
+            _ = await _redisHelper.RemoveCacheAsync($"auth:user:{userId}");
 
             return BaseResponseDTO<string>.Ok("Password changed successfully", "Password changed successfully");
         }

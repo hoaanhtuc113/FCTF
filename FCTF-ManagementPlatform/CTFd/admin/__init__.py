@@ -14,6 +14,7 @@ from flask import (
     render_template_string,
     request,
     send_file,
+    session,
     url_for,
 )
 from CTFd.utils.crypto import verify_password,hash_password
@@ -43,10 +44,13 @@ from CTFd.cache import (
     cache,
     clear_all_team_sessions,
     clear_all_user_sessions,
+    clear_auth_cache,
     clear_challenges,
     clear_config,
     clear_standings,
+    clear_user_session,
 )
+from CTFd.utils.security.auth import revoke_user_tokens
 from CTFd.models import (
     Achievements,
     ActionLogs,
@@ -72,7 +76,7 @@ from CTFd.models import (
 )
 from CTFd.utils import config as ctf_config
 from CTFd.utils import get_app_config, get_config, set_config
-from CTFd.utils.csv import dump_csv, load_challenges_csv, load_teams_csv, load_users_csv, load_users_and_teams_csv
+from CTFd.utils.csv import dump_csv, get_dumpable_tables, load_challenges_csv, load_teams_csv, load_users_csv, load_users_and_teams_csv
 from CTFd.utils.decorators import admins_only
 from CTFd.utils.exports import background_import_ctf
 from CTFd.utils.exports import export_ctf as export_ctf_util
@@ -80,6 +84,7 @@ from CTFd.utils.logging.audit_logger import log_audit
 from CTFd.utils.security.auth import logout_user
 from CTFd.utils.uploads import delete_file
 from CTFd.utils.user import is_admin,is_challenge_writer,is_jury
+from CTFd.schemas.config import ConfigSchema
 
 
 @admin.route("/admin", methods=["GET"])
@@ -323,6 +328,8 @@ def import_csv():
 def export_csv():
     table = request.args.get("table")
 
+    if not table or table not in {key for key, _ in get_dumpable_tables()}:
+        return {"success": False, "errors": {"table": ["Select a valid export table"]}}, 400
     output = dump_csv(name=table)
 
     return send_file(
@@ -344,9 +351,8 @@ def export_csv_user():
     q = request.args.get("q")
 
     if include_passwords:
-        output = dump_csv_with_passwords(field=field, q=q)
-    else:
-        output = dump_csv_without_passwords(field=field, q=q)
+        return {"success": False, "error": "Password reset requires a POST request."}, 400
+    output = dump_csv_without_passwords(field=field, q=q)
 
     # Add filter info to filename if present
     filename = f"{ctf_config.ctf_name()}-user"
@@ -360,6 +366,30 @@ def export_csv_user():
         max_age=-1,
         download_name=filename,
     )
+
+@admin.route("/admin/users/reset-passwords", methods=["POST"])
+@admins_only
+def reset_users_passwords():
+    # Require CSRF here as well as in the common middleware.
+    nonce = session.get("nonce")
+    supplied = request.headers.get("CSRF-Token") if request.is_json else request.form.get("nonce")
+    if not nonce or not supplied or not secrets.compare_digest(str(nonce), str(supplied)):
+        abort(403)
+    data = request.get_json(silent=True) if request.is_json else request.form
+    if not isinstance(data, dict) and not request.form:
+        return {"success": False, "error": "Expected a filter object."}, 400
+    field, q = data.get("field"), data.get("q")
+    if ((field is not None and not isinstance(field, str)) or
+            (q is not None and not isinstance(q, str)) or
+            bool(field) != bool(q) or
+            (field and not Users.__mapper__.has_property(field))):
+        return {"success": False, "error": "Invalid user filter."}, 400
+    output = dump_csv_with_passwords(field=field, q=q)
+    response = send_file(output, as_attachment=True, download_name=f"{ctf_config.ctf_name()}-reset-passwords.csv")
+    response.headers["Cache-Control"] = "no-store, private, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    return response
+
 
 def dump_csv_with_passwords(field=None, q=None):
     """
@@ -417,7 +447,12 @@ def dump_csv_with_passwords(field=None, q=None):
             new_pass
         ])
 
+    reset_user_ids = [result[0] for result in results]
+    revoke_user_tokens(reset_user_ids)
     db.session.commit()
+    for user_id in reset_user_ids:
+        clear_auth_cache(user_id=user_id)
+        clear_user_session(user_id=user_id)
     output.seek(0)
 
     log_audit(
@@ -464,9 +499,10 @@ def dump_csv_without_passwords(field=None, q=None):
 @admins_only
 def config():
     if request.method == "POST":
+        changes = {}
         for key, values in request.form.lists():
             if key in (
-                "nonce",
+                "nonce", "submit", "start_timezone", "end_timezone", "freeze_timezone",
                 "user_mode",
                 "registration_code",
                 "oauth_client_id",
@@ -476,9 +512,22 @@ def config():
             if not values:
                 continue
             value = values[-1]
-            if value in ("true", "false"):
-                value = value == "true"
-            set_config(key=key, value=value)
+            changes[key] = value
+
+        schema = ConfigSchema()
+        for key, value in changes.items():
+            response = schema.load({"key": key, "value": value})
+            if response.errors:
+                return {"success": False, "errors": {key: response.errors}}, 400
+            changes[key] = response.data.value
+        # Validate the entire form before committing any config.
+        for key, value in changes.items():
+            stored = Configs.query.filter_by(key=key).first()
+            if stored is None:
+                db.session.add(Configs(key=key, value=value))
+            else:
+                stored.value = value
+        db.session.commit()
 
         clear_config()
         clear_standings()

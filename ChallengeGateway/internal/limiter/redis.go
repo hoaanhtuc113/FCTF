@@ -25,15 +25,16 @@ func InitRedis(cfg config.Config) RedisClient {
 	}
 
 	opts := &redis.Options{
-		Addr:         cfg.RedisAddr,
-		Username:     cfg.RedisUsername,
-		Password:     cfg.RedisPassword,
-		DB:           cfg.RedisDB,
-		PoolSize:     cfg.RedisPoolSize,
-		MinIdleConns: cfg.RedisMinIdle,
-		DialTimeout:  2 * time.Second,
-		ReadTimeout:  2 * time.Second,
-		WriteTimeout: 2 * time.Second,
+		Addr:                  cfg.RedisAddr,
+		Username:              cfg.RedisUsername,
+		Password:              cfg.RedisPassword,
+		DB:                    cfg.RedisDB,
+		PoolSize:              cfg.RedisPoolSize,
+		MinIdleConns:          cfg.RedisMinIdle,
+		DialTimeout:           2 * time.Second,
+		ReadTimeout:           2 * time.Second,
+		WriteTimeout:          2 * time.Second,
+		ContextTimeoutEnabled: true,
 	}
 	if cfg.RedisTLS {
 		opts.TLSConfig = &tls.Config{

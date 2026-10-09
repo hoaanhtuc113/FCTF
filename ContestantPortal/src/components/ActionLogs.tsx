@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTheme } from '../context/ThemeContext';
 import { actionLogService } from '../services/actionLogService';
 import type { ActionLog } from '../models';
@@ -14,23 +14,42 @@ export function ActionLogs() {
   const { theme } = useTheme();
   const [logs, setLogs] = useState<ActionLog[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetching, setFetching] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [searchQuery, setSearchQuery] = useState('');
   const [actionTypeFilter, setActionTypeFilter] = useState<number | 'all'>('all');
   const [topicFilter, setTopicFilter] = useState<string>('all');
+  const [total, setTotal] = useState(0);
+  const [uniqueTopics, setTopics] = useState<string[]>([]);
+  const [error, setError] = useState('');
+  const requestId = useRef(0);
 
-  const doFetch = async () => {
+  const doFetch = useCallback(async () => {
+    const id = ++requestId.current;
     try {
-      const response = await actionLogService.getTeamActionLogs();
+      const response = await actionLogService.getTeamActionLogs(page + 1, rowsPerPage, searchQuery,
+        actionTypeFilter === 'all' ? undefined : actionTypeFilter,
+        topicFilter === 'all' ? undefined : topicFilter);
+      if (id !== requestId.current) return;
       if (response.success && response.data) {
         setLogs(response.data);
+        setError('');
+        const count = response.meta?.pagination.total ?? response.data.length;
+        setTotal(count);
+        setTopics(response.topics ?? [...new Set(response.data.map(log => log.topicName))].sort());
+        const lastPage = Math.max(0, Math.ceil(count / rowsPerPage) - 1);
+        if (page > lastPage) setPage(lastPage);
+      } else {
+        setLogs([]);
+        setTotal(0);
+        setError(response.message ?? 'Failed to fetch action logs');
       }
     } catch (error) {
       console.error('Error fetching action logs:', error);
     }
-  };
+  }, [page, rowsPerPage, searchQuery, actionTypeFilter, topicFilter]);
 
   const fetchActionLogs = async (isManual = false) => {
     if (isManual) setRefreshing(true);
@@ -39,47 +58,14 @@ export function ActionLogs() {
   };
 
   useEffect(() => {
-    setLoading(true);
-    doFetch().finally(() => setLoading(false));
+    let active = true;
+    setFetching(true);
+    doFetch().finally(() => { if (active) { setLoading(false); setFetching(false); } });
     const interval = setInterval(doFetch, 30000);
-    return () => clearInterval(interval);
-  }, []);
+    return () => { active = false; clearInterval(interval); requestId.current++; };
+  }, [doFetch]);
 
-  // Get unique topics for filter
-  const uniqueTopics = useMemo(() => {
-    const topics = new Set(logs.map(log => log.topicName));
-    return Array.from(topics).sort();
-  }, [logs]);
-
-  // Filter and search logs
-  const filteredLogs = useMemo(() => {
-    return logs.filter(log => {
-      // Search filter
-      const matchesSearch = 
-        searchQuery === '' ||
-        log.actionDetail.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        log.userName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        log.topicName.toLowerCase().includes(searchQuery.toLowerCase());
-
-      // Action type filter
-      const matchesActionType = 
-        actionTypeFilter === 'all' || 
-        log.actionType === actionTypeFilter;
-
-      // Topic filter
-      const matchesTopic = 
-        topicFilter === 'all' || 
-        log.topicName === topicFilter;
-
-      return matchesSearch && matchesActionType && matchesTopic;
-    });
-  }, [logs, searchQuery, actionTypeFilter, topicFilter]);
-
-  // Paginated logs
-  const paginatedLogs = useMemo(() => {
-    const startIndex = page * rowsPerPage;
-    return filteredLogs.slice(startIndex, startIndex + rowsPerPage);
-  }, [filteredLogs, page, rowsPerPage]);
+  const paginatedLogs = logs;
 
   const handleChangePage = (_event: unknown, newPage: number) => {
     setPage(newPage);
@@ -185,7 +171,7 @@ export function ActionLogs() {
     );
   }
 
-  const totalPages = Math.ceil(filteredLogs.length / rowsPerPage);
+  const totalPages = Math.ceil(total / rowsPerPage);
 
   return (
     <div className="min-h-[70vh]">
@@ -284,7 +270,7 @@ export function ActionLogs() {
           <Typography className={`text-sm font-mono ${
             theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
           }`}>
-            [i] Showing {filteredLogs.length} of {logs.length} logs
+            {fetching ? '[...] Loading logs' : error || `[i] Showing ${logs.length} of ${total} matching logs`}
           </Typography>
         </div>
       </div>
@@ -378,7 +364,7 @@ export function ActionLogs() {
         </table>
 
         {/* Custom Pagination */}
-        {filteredLogs.length > 0 && (
+        {total > 0 && (
           <div className={`flex items-center justify-between px-4 py-3 border-t ${
             theme === 'dark' ? 'border-gray-800' : 'border-gray-200'
           }`}>
@@ -405,7 +391,7 @@ export function ActionLogs() {
             <div className="flex items-center gap-2">
               <button
                 onClick={() => handleChangePage(null, page - 1)}
-                disabled={page === 0}
+                disabled={fetching || page === 0}
                 className={`p-2 rounded border font-mono transition ${
                   page === 0
                     ? theme === 'dark'
@@ -425,7 +411,7 @@ export function ActionLogs() {
               </span>
               <button
                 onClick={() => handleChangePage(null, page + 1)}
-                disabled={page >= totalPages - 1}
+                disabled={fetching || page >= totalPages - 1}
                 className={`p-2 rounded border font-mono transition ${
                   page >= totalPages - 1
                     ? theme === 'dark'

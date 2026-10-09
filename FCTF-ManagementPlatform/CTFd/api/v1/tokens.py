@@ -85,10 +85,23 @@ class TokenList(Resource):
     )
     def post(self):
         req = request.get_json()
+        if not isinstance(req, dict):
+            return {"success": False, "errors": {"_schema": ["Expected a JSON object"]}}, 400
         expiration = req.get("expiration")
         description = req.get("description")
-        if expiration:
-            expiration = datetime.datetime.strptime(expiration, "%Y-%m-%d")
+        if "expiration" in req and expiration is not None:
+            try:
+                if not isinstance(expiration, str) or not expiration.strip():
+                    raise ValueError()
+                expiration = datetime.datetime.fromisoformat(expiration.replace("Z", "+00:00"))
+                if expiration.tzinfo is not None:
+                    expiration = expiration.astimezone(datetime.timezone.utc).replace(tzinfo=None)
+                if expiration <= datetime.datetime.utcnow():
+                    raise ValueError()
+            except ValueError:
+                return {"success": False, "errors": {"expiration": ["Use a future ISO 8601 date or datetime"]}}, 400
+        if description is not None and not isinstance(description, str):
+            return {"success": False, "errors": {"description": ["Description must be a string"]}}, 400
 
         user = get_current_user()
         token = generate_user_token(

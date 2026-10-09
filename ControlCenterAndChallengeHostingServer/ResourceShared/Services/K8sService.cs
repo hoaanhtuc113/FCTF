@@ -312,7 +312,7 @@ public class K8sService : IK8sService
             }
 
             var expiryOffset = DateTimeOffset.FromUnixTimeSeconds(finalUnixFinished);
-            var challengeDomain = ChallengeHelper.GenerateChallengeToken(podName, expiryOffset);
+            var challengeDomain = ChallengeHelper.GenerateChallengeToken(podName, expiryOffset, ChallengeHelper.GetCacheKey(challengeId, teamId));
             int realTtlSeconds = (int)(expiryOffset - DateTimeOffset.UtcNow).TotalSeconds;
 
             if (realTtlSeconds <= 0) realTtlSeconds = 60;
@@ -323,13 +323,15 @@ public class K8sService : IK8sService
             deploymentCache.time_finished = finalUnixFinished;
             deploymentCache.ready = true;
 
-            await _redisHelper.AtomicUpdateExpiration(
+            var updated = await _redisHelper.AtomicUpdateExpiration(
                 teamId.ToString(),
                 ChallengeHelper.GetCacheKey(challengeId, teamId),
                 challengeId.ToString(),
                 realTtlSeconds,
                 JsonSerializer.Serialize(deploymentCache)
             );
+            if (!updated)
+                return new ChallengeDeployResponeDTO { success = false, status = 409, message = "Challenge session was stopped or expired." };
             return new ChallengeDeployResponeDTO
             {
                 success = true,

@@ -19,8 +19,8 @@ import (
 )
 
 const (
-	httpListenAddr        = ":8080"
-	challengeCookieName   = "FCTF_Auth_Token"
+	httpListenAddr         = ":8080"
+	challengeCookieName    = "FCTF_Auth_Token"
 	maxLoggedPostBodyBytes = 2048
 )
 
@@ -50,6 +50,7 @@ func (sr *statusRecorder) WriteHeader(code int) {
 	sr.status = code
 	sr.ResponseWriter.WriteHeader(code)
 }
+
 // ── HTTP gateway ─────────────────────────────────────────────────────────────
 // StartHTTP initialises and starts the HTTP reverse-proxy gateway.
 // It returns the *http.Server so the caller can gracefully shut it down.
@@ -84,10 +85,7 @@ func StartHTTP(cfg config.Config, limiters *limiter.Set) *http.Server {
 			log.Printf("HTTP upstream error: %v", err)
 			http.Error(w, "Cannot connect to challenge", http.StatusBadGateway)
 		},
-		ModifyResponse: func(resp *http.Response) error {
-			enforceNoStoreForHTML(resp)
-			return nil
-		},
+		ModifyResponse: secureUpstreamResponse,
 	}
 
 	mux := http.NewServeMux()
@@ -155,6 +153,10 @@ func httpGatewayHandler(w http.ResponseWriter, r *http.Request, proxy *httputil.
 				return
 			}
 		}
+		if err := checkAccess(r.Context(), limiters, tok, payload); err != nil {
+			accessError(w, err)
+			return
+		}
 		resetAllCookies(w, r)
 		setTokenCookie(w, r, tok, payload.Exp)
 		setNoStoreHeaders(w)
@@ -188,12 +190,18 @@ func httpGatewayHandler(w http.ResponseWriter, r *http.Request, proxy *httputil.
 	}
 
 	host := token.ExpandRoute(payload.Route)
+	if err := checkAccess(r.Context(), limiters, tok, payload); err != nil {
+		accessError(w, err)
+		return
+	}
 	if info, ok := r.Context().Value(requestInfoKey).(*requestInfo); ok {
 		info.TargetHost = host
 		info.Route = payload.Route
 	}
 
-	ctx := context.WithValue(r.Context(), targetHostKey, host)
+	ctx, cancel := context.WithCancel(context.WithValue(r.Context(), targetHostKey, host))
+	defer cancel()
+	go watchAccess(ctx, limiters, tok, payload, cancel)
 	proxy.ServeHTTP(w, r.WithContext(ctx))
 }
 
@@ -268,6 +276,13 @@ func enforceNoStoreForHTML(resp *http.Response) {
 	resp.Header.Set("Expires", "0")
 	resp.Header.Del("ETag")
 	resp.Header.Del("Last-Modified")
+}
+
+func secureUpstreamResponse(resp *http.Response) error {
+	resp.Header.Del("Server")
+	resp.Header.Del("X-Powered-By")
+	enforceNoStoreForHTML(resp)
+	return nil
 }
 
 func buildCleanRedirectURL(originalURL *url.URL, cleanedPath string) string {
@@ -350,8 +365,8 @@ func loggingMiddleware(next http.Handler) http.Handler {
 
 		if targetHost != "-" {
 			if teamID, challengeID, ok := ParseTeamChallengeFromRoute(targetHost); ok {
-					log.Printf("HTTP %s %s %d team=\"%d\" challenge=\"%d\" ns=\"%s\" method=\"%s\" status=\"%d\" -> %s%s",
-						r.Method, loggedPath, rec.status, teamID, challengeID, nsName, r.Method, rec.status, targetHost, postSuffix)
+				log.Printf("HTTP %s %s %d team=\"%d\" challenge=\"%d\" ns=\"%s\" method=\"%s\" status=\"%d\" -> %s%s",
+					r.Method, loggedPath, rec.status, teamID, challengeID, nsName, r.Method, rec.status, targetHost, postSuffix)
 				return
 			}
 		}

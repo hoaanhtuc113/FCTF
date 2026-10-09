@@ -15,6 +15,8 @@ from CTFd.utils import uploads
 from CTFd.utils.decorators import admin_or_challenge_writer_only_or_jury, admins_only
 from CTFd.utils.helpers.models import build_model_filters
 from CTFd.utils.logging.audit_logger import log_audit
+from CTFd.utils.validators.model_types import require_supported_type
+from CTFd.utils.validators.uploads import validate_upload_filename
 import CTFd.plugins.upload_zip_files.routes as upload_helper
 from werkzeug.utils import secure_filename
 import os
@@ -95,6 +97,10 @@ class FilesList(Resource):
         },
     )
     def post(self):
+        try:
+            require_supported_type("files", request.form.get("type", "standard"))
+        except ValueError as error:
+            return {"success": False, "errors": {"type": [str(error)]}}, 400
         files = request.files.getlist("file")
         upload_type = request.form.get("upload_type")
 
@@ -124,6 +130,10 @@ class FilesList(Resource):
 
         for uploaded_file in files_to_validate:
             filename = (uploaded_file.filename or "").strip()
+            try:
+                validate_upload_filename(filename)
+            except ValueError as error:
+                return {"success": False, "errors": {"file": [str(error)]}}, 400
             if filename and len(filename) > MAX_UPLOAD_FILENAME_LENGTH:
                 return {
                     "success": False,
@@ -133,6 +143,9 @@ class FilesList(Resource):
         require_deploy = request.form.get("require_deploy") in ["on", "true", "True", "1"]
         expose_port = request.form.get("expose_port")
         challenge_id = request.form.to_dict().get("challenge_id")
+        if challenge_id is not None or deploy_file or request.form.get("type") == "challenge":
+            if not challenge_id or len(challenge_id) > 10 or not challenge_id.isdecimal() or not 0 < int(challenge_id) <= 2147483647 or Challenges.query.filter_by(id=int(challenge_id)).first() is None:
+                return {"success": False, "errors": {"challenge_id": ["A valid challenge_id is required"]}}, 400
         temp_file_path = ""
         objs = []
 

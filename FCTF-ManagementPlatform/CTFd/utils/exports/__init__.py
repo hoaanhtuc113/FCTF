@@ -299,6 +299,10 @@ def import_ctf(backup, erase=True):
                     count = len(saved["results"])
                     for i, entry in enumerate(saved["results"]):
                         set_import_status(f"inserting {member} {i}/{count}")
+                        if table_name == "users":
+                            # The DB recomputes this key; generated columns cannot
+                            # be inserted when restoring a current backup.
+                            entry.pop("name_key", None)
                         # This is a hack to get SQLite to properly accept datetime values from dataset
                         # See Issue #246
                         if sqlite:

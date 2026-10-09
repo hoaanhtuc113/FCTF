@@ -46,12 +46,7 @@ public class TeamService : ITeamService
             foreach (var u in team.Users)
             {
                 _ = usersScore.TryGetValue(u, out int score);
-                members.Add(new TeamMemberDTO
-                {
-                    Name = u.Name ?? string.Empty,
-                    Email = u.Email ?? string.Empty,
-                    Score = score
-                });
+                members.Add(ToMemberDTO(u, userId, score));
             }
 
             var challenges = await _context.Challenges
@@ -87,6 +82,13 @@ public class TeamService : ITeamService
             return null;
         }
     }
+
+    public static TeamMemberDTO ToMemberDTO(User user, int requesterId, int score) => new()
+    {
+        Name = user.Name ?? string.Empty,
+        Email = user.Id == requesterId ? user.Email ?? string.Empty : string.Empty,
+        Score = score
+    };
 
     public async Task<List<SubmissionDto>> GetTeamSolves(int userId)
     {

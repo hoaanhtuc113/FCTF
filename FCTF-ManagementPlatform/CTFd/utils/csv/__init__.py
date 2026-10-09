@@ -10,6 +10,7 @@ from CTFd.models import (
     Teams,
     UserFields,
     Users,
+    RecoverableType,
     db,
     get_class_by_tablename,
 )
@@ -22,7 +23,8 @@ from CTFd.utils.scores import get_standings
 from flask import g
 
 from random import SystemRandom
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from sqlalchemy import select, type_coerce
 import re
 
 
@@ -291,13 +293,19 @@ def dump_database_table(tablename):
     temp = StringIO()
     writer = csv.writer(temp)
 
-    header = model.__mapper__.column_attrs.keys()
+    table = model.__table__
+    header = [column.name for column in table.columns]
     writer.writerow(header)
 
-    responses = model.query.all()
+    # A raw export must not instantiate polymorphic models or eager-load
+    # related legacy rows. Bypass discriminator read adapters to preserve NULL.
+    columns = [type_coerce(column, column.type.impl)
+               if isinstance(column.type, RecoverableType) else column
+               for column in table.columns]
+    responses = db.session.execute(select(*columns))
 
     for curr in responses:
-        writer.writerow([getattr(curr, column) for column in header])
+        writer.writerow(list(curr))
 
     temp.seek(0)
 
@@ -324,7 +332,11 @@ def load_users_csv(dict_reader):
             except Exception:
                 pass
             db.session.add(response.data)
-            db.session.commit()
+            try:
+                db.session.commit()
+            except IntegrityError:
+                db.session.rollback()
+                errors.append((i, {"name": ["Username or email has already been taken"]}))
     if errors:
         return errors
     return True
@@ -362,6 +374,7 @@ def load_challenges_csv(dict_reader):
         # Load in custom type_data
         type_data = json.loads(line.pop("type_data", "{}") or "{}")
         line.update(type_data)
+        line["type"] = challenge_type
 
         response = schema.load(line)
         if response.errors:
