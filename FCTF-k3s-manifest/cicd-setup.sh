@@ -62,7 +62,7 @@ metadata:
 rules:
   - apiGroups: ["apps"]
     resources: ["deployments"]
-    verbs: ["get", "list", "patch", "update"]
+    verbs: ["get", "list", "watch", "patch", "update"]
   - apiGroups: ["apps"]
     resources: ["deployments/status"]
     verbs: ["get"]
@@ -214,7 +214,7 @@ EOF
 # ─── Verify ───────────────────────────────────────────────────────────────
 echo -e "\n${GREEN}✅ Setup complete!${NC}"
 echo -e "   ServiceAccount: ${NAMESPACE}/${SA_NAME}"
-echo -e "   Permissions:    deployments (get/list/patch/update) in '${NAMESPACE}'"
+echo -e "   Permissions:    deployments (get/list/watch/patch/update) in '${NAMESPACE}'"
 echo -e "   Server:         ${CLUSTER_SERVER}"
 echo ""
 echo -e "${GREEN}Verifying access...${NC}"
