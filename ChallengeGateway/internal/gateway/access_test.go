@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"challenge-gateway/internal/limiter"
+	"challenge-gateway/internal/testutil"
 	"challenge-gateway/internal/token"
 	"github.com/alicebob/miniredis/v2"
 	"github.com/redis/go-redis/v9"
@@ -50,7 +51,7 @@ func TestHTTPStopsBeforeProxyAndRejectsURLToken(t *testing.T) {
 	server := miniredis.RunT(t)
 	client := redis.NewClient(&redis.Options{Addr: server.Addr(), MaxRetries: -1})
 	defer client.Close()
-	set := &limiter.Set{Access: token.NewAccessChecker(client)}
+	set := &limiter.Set{Access: token.NewAccessChecker(testutil.ReadOnlyScripter{Scripter: client})}
 	address, _ := url.Parse(upstream.URL)
 	proxy := httputil.NewSingleHostReverseProxy(address)
 	proxy.ModifyResponse = secureUpstreamResponse
@@ -110,7 +111,7 @@ func TestEstablishedTCPSessionIsClosedOnRevocation(t *testing.T) {
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		handleTCPConnection(gateway, time.Second, &limiter.Set{Access: token.NewAccessChecker(client)}, &sync.Pool{New: func() any { return make([]byte, 1024) }})
+		handleTCPConnection(gateway, time.Second, &limiter.Set{Access: token.NewAccessChecker(testutil.ReadOnlyScripter{Scripter: client})}, &sync.Pool{New: func() any { return make([]byte, 1024) }})
 	}()
 	reader := bufio.NewReader(user)
 	if _, err := reader.ReadString(':'); err != nil {
@@ -158,7 +159,7 @@ func TestEstablishedHTTPStreamIsCancelledOnRevocation(t *testing.T) {
 	server.Set(p.DeploymentKey, string(raw))
 	address, _ := url.Parse(upstream.URL)
 	proxy := httputil.NewSingleHostReverseProxy(address)
-	set := &limiter.Set{Access: token.NewAccessChecker(client)}
+	set := &limiter.Set{Access: token.NewAccessChecker(testutil.ReadOnlyScripter{Scripter: client})}
 	gateway := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { httpGatewayHandler(w, r, proxy, set) }))
 	defer gateway.Close()
 	req, _ := http.NewRequest("GET", gateway.URL, nil)

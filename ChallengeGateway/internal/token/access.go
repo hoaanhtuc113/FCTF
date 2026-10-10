@@ -41,7 +41,9 @@ func (a *redisAccess) Check(ctx context.Context, tok string, p Payload) error {
 	}
 	ctx, cancel := context.WithTimeout(ctx, time.Second)
 	defer cancel()
-	result, err := a.client.Eval(ctx, accessScript,
+	// Deployment cache is read-only for Gateway. EVAL requires write access to
+	// declared keys even when the Lua body only reads them.
+	result, err := a.client.EvalRO(ctx, accessScript,
 		[]string{p.DeploymentKey, "fctf:gateway:revoked:" + p.Route}, p.Route, tok).Int()
 	if err != nil {
 		return ErrAccessUnavailable

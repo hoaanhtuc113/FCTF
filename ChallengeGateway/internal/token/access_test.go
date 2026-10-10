@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	"challenge-gateway/internal/testutil"
+
 	"github.com/alicebob/miniredis/v2"
 	"github.com/redis/go-redis/v9"
 )
@@ -18,7 +20,7 @@ func TestAccessRequiresCurrentActiveSession(t *testing.T) {
 	server := miniredis.RunT(t)
 	client := redis.NewClient(&redis.Options{Addr: server.Addr(), MaxRetries: -1})
 	defer client.Close()
-	checker := NewAccessChecker(client)
+	checker := NewAccessChecker(testutil.ReadOnlyScripter{Scripter: client})
 	p := Payload{Route: "team-1-10-test-123", DeploymentKey: "deploy_challenge_10_1", Exp: time.Now().Unix() + 60}
 	for _, test := range []struct {
 		name    string
@@ -57,16 +59,16 @@ func TestRevocationSurvivesLateCacheWrite(t *testing.T) {
 	p := Payload{Route: "old", DeploymentKey: "deploy_challenge_10_1", Exp: time.Now().Unix() + 60}
 	server.Set("fctf:gateway:revoked:old", "1")
 	server.Set(p.DeploymentKey, `{"status":"Running","ready":true,"_namespace":"old","challenge_url":"old-token"}`)
-	if !errors.Is(NewAccessChecker(client).Check(context.Background(), "old-token", p), ErrRevoked) {
+	if !errors.Is(NewAccessChecker(testutil.ReadOnlyScripter{Scripter: client}).Check(context.Background(), "old-token", p), ErrRevoked) {
 		t.Fatal("late write restored access")
 	}
 	p.Route = "new"
 	server.Set(p.DeploymentKey, `{"status":"Running","ready":true,"_namespace":"new","challenge_url":"new-token"}`)
-	if err := NewAccessChecker(client).Check(context.Background(), "new-token", p); err != nil {
+	if err := NewAccessChecker(testutil.ReadOnlyScripter{Scripter: client}).Check(context.Background(), "new-token", p); err != nil {
 		t.Fatal(err)
 	}
 	p.Exp = time.Now().Unix()
-	if !errors.Is(NewAccessChecker(client).Check(context.Background(), "new-token", p), ErrRevoked) {
+	if !errors.Is(NewAccessChecker(testutil.ReadOnlyScripter{Scripter: client}).Check(context.Background(), "new-token", p), ErrRevoked) {
 		t.Fatal("expiry boundary accepted")
 	}
 }
@@ -77,7 +79,7 @@ func TestRedisFailureDeniesAccess(t *testing.T) {
 	defer client.Close()
 	server.Close()
 	p := Payload{Route: "old", DeploymentKey: "deploy_challenge_10_1", Exp: time.Now().Unix() + 60}
-	if !errors.Is(NewAccessChecker(client).Check(context.Background(), "token", p), ErrAccessUnavailable) {
+	if !errors.Is(NewAccessChecker(testutil.ReadOnlyScripter{Scripter: client}).Check(context.Background(), "token", p), ErrAccessUnavailable) {
 		t.Fatal("Redis failure accepted")
 	}
 }
