@@ -285,7 +285,7 @@ persistence:
 # key in secret is given via (default to HARBOR_ADMIN_PASSWORD)
 existingSecretAdminPassword: ""
 existingSecretAdminPasswordKey: HARBOR_ADMIN_PASSWORD
-harborAdminPassword: "REDACTED"
+harborAdminPassword: "__FCTF_SECRET_HARBOR_ADMIN_PASSWORD__"
 
 # The internal TLS used for harbor components secure communicating. In order to enable https
 # in each component tls cert files need to provided in advance.
@@ -376,7 +376,7 @@ logLevel: info
 caSecretName: ""
 
 # The secret key used for encryption. Must be a string of 16 chars.
-secretKey: "REDACTED"
+secretKey: "__FCTF_SECRET_HARBOR_ENCRYPTION_KEY__"
 # If using existingSecretSecretKey, the key must be secretKey
 existingSecretSecretKey: ""
 
@@ -819,7 +819,7 @@ registry:
   relativeurls: false
   credentials:
     username: "harbor_registry_user"
-    password: "REDACTED"
+    password: "__FCTF_SECRET_HARBOR_REGISTRY_PASSWORD__"
     # If using existingSecret, the key must be REGISTRY_PASSWD and REGISTRY_HTPASSWD
     existingSecret: ""
     # Login and password in htpasswd string format. Excludes `registry.credentials.username`  and `registry.credentials.password`. May come in handy when integrating with tools like argocd or flux. This allows the same line to be generated each time the template is rendered, instead of the `htpasswd` function from helm, which generates different lines each time because of the salt.
@@ -992,7 +992,7 @@ database:
     #   image: busybox
     #   command: [ 'sh', '-c', "sleep 20" ]
     # The initial superuser password for internal database
-    password: "REDACTED"
+    password: "__FCTF_SECRET_HARBOR_DATABASE_PASSWORD__"
     # The size limit for Shared memory, pgSQL use it for shared_buffer
     # More details see:
     # https://github.com/goharbor/harbor/issues/15034

@@ -1,12 +1,19 @@
 ---
 apiVersion: v1
+kind: Secret
+metadata:
+  namespace: ctfd
+  name: ctfd-app-secret
+stringData:
+  DATABASE_URL: "mysql+pymysql://ctfd-username:__FCTF_SECRET_LEGACY_CTFD_DB_PASSWORD__@mariadb-ctfd-headless.ctfd.svc.cluster.local:3306/ctfd"
+---
+apiVersion: v1
 kind: ConfigMap
 metadata:
   namespace: ctfd
   name: ctfd-cm
 data:
   UPLOAD_FOLDER: "/var/uploads"
-  DATABASE_URL: "mysql+pymysql://ctfd-username:REDACTED@mariadb-ctfd-headless.ctfd.svc.cluster.local:3306/ctfd"
   REDIS_URL: "redis://redis-ctfd-headless.ctfd.svc.cluster.local:6379"
   WORKERS: "1"
   LOG_FOLDER: "/var/log/CTFd"
@@ -20,8 +27,17 @@ metadata:
   name: regcred
   namespace: ctfd
 type: kubernetes.io/dockerconfigjson
-data:
-  .dockerconfigjson: eyJhdXRocyI6eyJodHRwczovL2luZGV4LmRvY2tlci5pby92MS8iOnsidXNlcm5hbWUiOiJxdWFjaHVvaXNjb250YWluZXIiLCJwYXNzd29yZCI6IlJFREFDVEVEIiwiZW1haWwiOiJ3aWxsaWFta2lldS1kZXZvcHNAb3V0bG9vay5jb20iLCJhdXRoIjoiUkVEQUNURUQifX19
+stringData:
+  .dockerconfigjson: |
+    {
+      "auths": {
+        "https://index.docker.io/v1/": {
+          "username": "quachuoiscontainer",
+          "password": "__FCTF_SECRET_LEGACY_DOCKERHUB_PASSWORD__",
+          "email": "williamkieu-devops@outlook.com"
+        }
+      }
+    }
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -54,6 +70,8 @@ spec:
           envFrom:
             - configMapRef:
                 name: ctfd-cm
+            - secretRef:
+                name: ctfd-app-secret
           resources:
             requests:
               cpu: 0.2

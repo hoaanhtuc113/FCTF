@@ -1,3 +1,40 @@
+# Secret configuration
+
+The existing image CI/CD pipeline uses the Secrets already stored in Kubernetes.
+Updating application code through that pipeline does not require a local secret file.
+
+For a new installation or a deliberate Secret update, production manifests in this
+repository contain placeholders and must be rendered privately first:
+
+1. Copy `secrets.example.json` to `secrets.local.json` in this directory and fill
+   the variables for the intended environment. The input and generated output are
+   ignored by Git. Use 16–128 letters, digits, `_` or `-`; `HARBOR_ENCRYPTION_KEY`
+   must contain exactly 16 characters. Do not change existing production passwords
+   just to satisfy this format; manage those directly as private Kubernetes Secrets.
+2. From the repository root, run:
+
+   ```bash
+   python3 FCTF-k3s-manifest/prepare-private-prod.py
+   export FCTF_PROD_DIR="$(pwd)/.private-prod"
+   bash "$FCTF_PROD_DIR/validate-secret-templates.sh" "$FCTF_PROD_DIR"
+   ```
+
+3. Installation scripts use `FCTF_PROD_DIR`. To run the Helm stack, use
+   `bash "$FCTF_PROD_DIR/helm.sh"`. Do not apply the unrendered files in `prod/`.
+   The scripts stop if unresolved secret placeholders are present.
+
+The renderer does not contact the cluster or change accounts. For an existing
+installation, values must match the actual database, Redis and registry accounts.
+Generating new passwords and applying them only to application Secrets will break
+connections. Use a coordinated password rotation when changing those accounts.
+
+By default the renderer excludes the legacy `prod/ctfd` installation. Use
+`--example --include-legacy-ctfd` to list its extra variables, and
+`--include-legacy-ctfd` when intentionally rendering that environment.
+The renderer refuses to overwrite an existing output directory; use
+`--output .private-prod-next` for another private copy. Linux files are owner-only;
+restrict the NTFS permissions separately on Windows. Never commit private values.
+
 # Hướng dẫn cài đặt FCTF K3s
 
 Tài liệu này hướng dẫn cài đặt hệ thống FCTF K3s trên 2 môi trường:
@@ -458,7 +495,7 @@ kubectl exec -n db sts/redis-master -- redis-cli -a '<redis-admin-password>' ACL
 
 #### Grafana (Monitoring)
 - Username: `admin`
-- Password: REDACTED
+- Password: `<REDIS_DEFAULT_PASSWORD>`
 ```
 ### 7. Apply Cron job
 ```Bash

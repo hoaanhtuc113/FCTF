@@ -88,8 +88,8 @@ If you have accounts user1..user1000 with password 1:
   .\Test\Integration\generate-tokens.ps1 -Start 1 -End 100 -Password 1
 
 This writes:
-- tokens.txt (one token per line)
-- tokens.csv (single line, comma-separated)
+- tokens.txt (one token per line; generated locally and ignored by Git)
+- tokens.csv (single line, comma-separated; generated locally and ignored by Git)
 
 To use in PowerShell:
   $env:TOKEN_LIST = Get-Content Test/Integration/tokens.csv -Raw

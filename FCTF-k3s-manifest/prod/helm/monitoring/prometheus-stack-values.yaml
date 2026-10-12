@@ -1304,7 +1304,7 @@ grafana:
   defaultDashboardsInterval: 1m
 
   adminUser: admin
-  adminPassword: REDACTED
+  adminPassword: __FCTF_SECRET_GRAFANA_ADMIN_PASSWORD__
 
   grafana.ini:
     security:

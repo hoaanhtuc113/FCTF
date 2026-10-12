@@ -1,6 +1,6 @@
 hostname: <RANCHER_DOMAIN>
 replicas: 1
-bootstrapPassword: "REDACTED"
+bootstrapPassword: "__FCTF_SECRET_RANCHER_BOOTSTRAP_PASSWORD__"
 tolerations:
   - key: "node-role.kubernetes.io/control-plane"
     operator: "Exists"

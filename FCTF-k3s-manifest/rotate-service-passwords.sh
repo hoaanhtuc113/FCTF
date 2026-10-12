@@ -2,7 +2,12 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROD_DIR="${SCRIPT_DIR}/prod"
+PROD_DIR="${FCTF_PROD_DIR:-${SCRIPT_DIR}/prod}"
+
+# Templates must be rendered privately before any cluster changes.
+if [[ " $* " != *" --help "* && " $* " != *" -h "* ]]; then
+  bash "${SCRIPT_DIR}/prod/validate-secret-templates.sh" "${PROD_DIR}"
+fi
 
 DB_NAMESPACE="db"
 APP_NAMESPACE="app"

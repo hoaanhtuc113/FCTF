@@ -6,7 +6,7 @@
 #   DATABASE_URL = mysql+pymysql://fctf_user:fctf_password@localhost:3306/ctfd
 #   REDIS_URL    = redis://localhost:6379
 #
-# RabbitMQ Management UI: http://localhost:15672  (rabbit-admin / REDACTED)
+# RabbitMQ uses a disposable local password; override RABBITMQ_LOCAL_PASSWORD in .env.
 
 name: fctf-dev
 
@@ -27,7 +27,7 @@ configs:
         "users": [
           {
             "name": "rabbit-admin",
-            "password": "REDACTED",
+            "password": "${RABBITMQ_LOCAL_PASSWORD:-local-rabbit-dev-only}",
             "tags": ["administrator"]
           }
         ],
@@ -129,7 +129,7 @@ services:
     container_name: fctf-rabbitmq
     environment:
       RABBITMQ_DEFAULT_USER: rabbit-admin
-      RABBITMQ_DEFAULT_PASS: "REDACTED"
+      RABBITMQ_DEFAULT_PASS: "${RABBITMQ_LOCAL_PASSWORD:-local-rabbit-dev-only}"
     configs:
       - source: rabbitmq_conf
         target: /etc/rabbitmq/conf.d/10-definitions.conf

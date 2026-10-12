@@ -18,16 +18,30 @@ NFS_ALLOWED_SUBNET="*"
 INTERACTIVE="true"
 ARG_COUNT=$#
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROD_DIR="${SCRIPT_DIR}/prod"
+PROD_DIR="${FCTF_PROD_DIR:-${SCRIPT_DIR}/prod}"
+
+# Templates must be rendered privately before any cluster changes.
+if [[ " $* " != *" --help "* && " $* " != *" -h "* ]]; then
+  bash "${SCRIPT_DIR}/prod/validate-secret-templates.sh" "${PROD_DIR}"
+fi
 ROTATE_SERVICE_SCRIPT="${SCRIPT_DIR}/rotate-service-passwords.sh"
 MARIADB_AUTH_SECRET_FILE="${PROD_DIR}/env/secret/mariadb-auth-secret.yaml"
 REDIS_AUTH_SECRET_FILE="${PROD_DIR}/env/secret/redis-auth-secret.yaml"
 REDIS_ACL_USERS_SECRET_FILE="${PROD_DIR}/env/secret/redis-acl-users-secret.yaml"
 MARIADB_CREATE_DB_SQL="${PROD_DIR}/helm/db/mariadb/createDB.sql"
 MARIADB_POST_INIT_GRANTS_SQL="${PROD_DIR}/helm/db/mariadb/least-privilege-service-accounts.sql"
-RABBIT_DEPLOY_PRODUCER_BOOTSTRAP_PASSWORD="REDACTED"
-RABBIT_DEPLOY_CONSUMER_BOOTSTRAP_PASSWORD="REDACTED"
-RABBIT_ADMIN_BOOTSTRAP_PASSWORD="REDACTED"
+if [[ -r "${PROD_DIR}/bootstrap.env" ]]; then
+  source "${PROD_DIR}/bootstrap.env"
+fi
+RABBIT_DEPLOY_PRODUCER_BOOTSTRAP_PASSWORD="${RABBIT_DEPLOY_PRODUCER_BOOTSTRAP_PASSWORD:-}"
+RABBIT_DEPLOY_CONSUMER_BOOTSTRAP_PASSWORD="${RABBIT_DEPLOY_CONSUMER_BOOTSTRAP_PASSWORD:-}"
+RABBIT_ADMIN_BOOTSTRAP_PASSWORD="${RABBIT_ADMIN_BOOTSTRAP_PASSWORD:-}"
+if [[ " $* " != *" --help "* && " $* " != *" -h "* ]]; then
+  : "${RABBIT_DEPLOY_PRODUCER_BOOTSTRAP_PASSWORD:?Missing private RabbitMQ producer password}"
+  : "${RABBIT_DEPLOY_CONSUMER_BOOTSTRAP_PASSWORD:?Missing private RabbitMQ consumer password}"
+  : "${RABBIT_ADMIN_BOOTSTRAP_PASSWORD:?Missing private RabbitMQ admin password}"
+fi
+
 
 STORAGE_PV_FILES=(
   "${PROD_DIR}/storage/pv/admin-mvc-pv.yaml"

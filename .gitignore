@@ -79,6 +79,17 @@ web_modules/
 .env.production.local
 .env.local
 
+# Private deployment values and rendered production configuration
+/.private-prod/
+/.private-prod-*/
+/FCTF-k3s-manifest/secrets.local.json
+/FCTF-k3s-manifest/SECRETS.md
+*.pem
+*.key
+!*.example
+__pycache__/
+*.pyc
+
 # parcel-bundler cache (https://parceljs.org/)
 .cache
 .parcel-cache

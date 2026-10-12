@@ -24,7 +24,12 @@ NFS_ALLOWED_SUBNET=""
 INTERACTIVE="true"
 ARG_COUNT=$#
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROD_DIR="${SCRIPT_DIR}/prod"
+PROD_DIR="${FCTF_PROD_DIR:-${SCRIPT_DIR}/prod}"
+
+# Templates must be rendered privately before any cluster changes.
+if [[ " $* " != *" --help "* && " $* " != *" -h "* ]]; then
+  bash "${SCRIPT_DIR}/prod/validate-secret-templates.sh" "${PROD_DIR}"
+fi
 MARIADB_AUTH_SECRET_FILE="${PROD_DIR}/env/secret/mariadb-auth-secret.yaml"
 MARIADB_POST_INIT_GRANTS_SQL="${PROD_DIR}/helm/db/mariadb/least-privilege-service-accounts.sql"
 

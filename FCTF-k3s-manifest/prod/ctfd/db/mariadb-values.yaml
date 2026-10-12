@@ -129,7 +129,7 @@ auth:
   ## @param auth.rootPassword Password for the `root` user. Ignored if existing secret is provided.
   ## ref: https://github.com/bitnami/containers/tree/main/bitnami/mariadb#setting-the-root-password-on-first-run
   ##
-  rootPassword: "REDACTED"
+  rootPassword: "__FCTF_SECRET_LEGACY_CTFD_DB_ROOT_PASSWORD__"
   ## @param auth.database Name for a custom database to create
   ## ref: https://github.com/bitnami/containers/blob/main/bitnami/mariadb/README.md#creating-a-database-on-first-run
   ##
@@ -140,7 +140,7 @@ auth:
   username: "ctfd-username"
   ## @param auth.password Password for the new user. Ignored if existing secret is provided
   ##
-  password: "REDACTED"
+  password: "__FCTF_SECRET_LEGACY_CTFD_DB_PASSWORD__"
   ## @param auth.replicationUser MariaDB replication user
   ## ref: https://github.com/bitnami/containers/tree/main/bitnami/mariadb#setting-up-a-replication-cluster
   ##
