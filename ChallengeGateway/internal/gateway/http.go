@@ -1,6 +1,7 @@
 package gateway
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"fmt"
@@ -49,6 +50,21 @@ type statusRecorder struct {
 func (sr *statusRecorder) WriteHeader(code int) {
 	sr.status = code
 	sr.ResponseWriter.WriteHeader(code)
+}
+
+// Let ResponseController reach the underlying connection and flush support.
+func (sr *statusRecorder) Unwrap() http.ResponseWriter {
+	return sr.ResponseWriter
+}
+
+// ReverseProxy writes the upgrade response directly to the hijacked connection,
+// bypassing WriteHeader. Record a successful upgrade for the access log.
+func (sr *statusRecorder) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	conn, rw, err := http.NewResponseController(sr.ResponseWriter).Hijack()
+	if err == nil {
+		sr.status = http.StatusSwitchingProtocols
+	}
+	return conn, rw, err
 }
 
 // ── HTTP gateway ─────────────────────────────────────────────────────────────
